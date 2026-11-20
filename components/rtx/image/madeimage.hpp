@@ -24,8 +24,14 @@ namespace Rtx
         std::uint32_t mHeight = 0;
         std::uint32_t mCount = 0;
 
-        /// The bytes of its levels, back to back.
+        /// The first level held: what is read of a chain from a level its reader wants, the finer ones left out.
+        std::uint32_t mFirst = 0;
+
+        /// The bytes of the levels held, back to back.
         std::size_t bytes() const;
+
+        /// Where `level` begins in a chain held whole, every level before it laid ahead of it.
+        std::size_t offsetOf(std::uint32_t level) const;
     };
 
     /// A file's chain made again by the host (`ChainPass`): every level from the finest down, in BC7 or the file's own
@@ -40,7 +46,8 @@ namespace Rtx
 
         TextureFormat getFormat() const { return mFormat; }
 
-        /// Every level, each offset into `getBytes`.
+        /// Every level, each held from the layout's first offset into `getBytes`, those before it at nought and held
+        /// nowhere.
         std::span<const MipLevel> getLevels() const { return mLevels; }
         std::span<const std::byte> getBytes() const { return mBytes.bytes(); }
 

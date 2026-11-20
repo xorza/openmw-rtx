@@ -163,13 +163,13 @@ namespace RtxTool
             constexpr std::uint64_t sMiB = std::uint64_t{ 1 } << 20;
             Rtx::TexelReads reads;
             EXPECT_EQ(describeTexelReads(reads), "") << "a renderer that asked no header";
-            reads.mCounts = { 3, 40, 2, 0 };
-            reads.mBytes = { 1 * sMiB, 120 * sMiB, 6 * sMiB, 0 };
+            reads.mCounts = { 40, 2, 0 };
+            reads.mBytes = { 120 * sMiB, 6 * sMiB, 0 };
             reads.mChainsFoundWhole = 17;
             reads.mCancelled = 5;
             EXPECT_EQ(describeTexelReads(reads),
-                "  texels asked   fact 3 (1.0 MiB)   file 40 (120.0 MiB)   partner 2 (6.0 MiB)   preparation 0 (0.0 "
-                "MiB)   chains found whole 17   cancelled 5\n");
+                "  texels asked   file 40 (120.0 MiB)   partner 2 (6.0 MiB)   preparation 0 (0.0 MiB)   chains found "
+                "whole 17   cancelled 5\n");
         }
 
         /// **The ring by distance, what stands of what it holds**, only the distances holding a placement, the last
@@ -379,8 +379,8 @@ namespace RtxTool
                 .mVertices = 59,
                 .mVerticesStanding = 60 };
 
-            place.mTexelReads.mCounts = { 46, 47, 48, 49 };
-            place.mTexelReads.mBytes = { 50, 51, 52, 53 };
+            place.mTexelReads.mCounts = { 47, 48, 49 };
+            place.mTexelReads.mBytes = { 51, 52, 53 };
             place.mTexelReads.mChainsFoundWhole = 54;
             place.mTexelReads.mCancelled = 66;
             place.mGame = GameHeld{ .mLoadedCells = 63, .mPreloadedCells = 64, .mStarvedLooks = 65 };
@@ -422,7 +422,7 @@ namespace RtxTool
                 std::string::npos)
                 << json;
             EXPECT_NE(json.find(content), std::string::npos) << json;
-            EXPECT_NE(json.find(R"(, "texelReads": {"fact": 46, "factBytes": 50, "file": 47, "fileBytes": 51, )"
+            EXPECT_NE(json.find(R"(, "texelReads": {"file": 47, "fileBytes": 51, )"
                                 R"("partner": 48, "partnerBytes": 52, "preparation": 49, "preparationBytes": 53, )"
                                 R"("chainsFoundWhole": 54, "cancelled": 66}, "game": {"loadedCells": 63, )"
                                 R"("preloadedCells": 64, )"

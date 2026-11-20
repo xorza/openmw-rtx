@@ -420,6 +420,9 @@ namespace Rtx
         /// A slot given back by this hand-over, retired at the epoch it rides.
         void retireAfter(Slot slot);
 
+        /// A slot given back outside a hand-over, which nothing issued reads again: retired at the last epoch.
+        void retireNow(Slot slot);
+
         static SlotOwner ownerOf(std::uint8_t scene, bool structure, std::uint32_t row);
 
         /// Prices every level of a texture's shape, and its floor.

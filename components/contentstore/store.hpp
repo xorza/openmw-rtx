@@ -59,6 +59,11 @@ namespace ContentStore
         std::uint32_t mKindCount{};
         std::optional<Holding> mHolding;
 
+        /// **Each kind's version its owner makes now**, by kind, or none for an owner whose entries never outlive a
+        /// version: an entry of another version is one no ask reaches again, swept by the start after the versions
+        /// last swept changed (`Stats::mOutdated`), a marker beside the kinds holding what that was.
+        std::span<const std::uint32_t> mVersions{};
+
         /// The most bytes of payload the queue holds, past which a write waits or is dropped (`Store::write`). Tens of
         /// megabytes against the largest entry an owner makes, so a burst of misses at a cell's arrival queues whole.
         std::size_t mQueuedBytesMost = std::size_t{ 64 } << 20;
@@ -92,6 +97,9 @@ namespace ContentStore
 
         /// Temporary files the start's sweep removed that a killed process left.
         std::uint64_t mStale = 0;
+
+        /// Entries of a version their owner makes no more, removed by a start's sweep (`Policy::mVersions`).
+        std::uint64_t mOutdated = 0;
 
         /// Entries not held in memory where they would have been, a cap of `Holding` reached: each is read from its
         /// file again.

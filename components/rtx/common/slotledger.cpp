@@ -441,10 +441,17 @@ namespace Rtx
         freeSlot(slot);
     }
 
+    void SlotLedger::leave(const Slot slot)
+    {
+        Slab& slab = slabOf(slot);
+        assert(slab.mSlots[slot.mAt] == SlotState::Live && "a slot left that was not live");
+        slab.mSlots[slot.mAt] = SlotState::Leaving;
+    }
+
     void SlotLedger::retire(const Slot slot, const DeviceEpoch until)
     {
         Slab& slab = slabOf(slot);
-        assert(slab.mSlots[slot.mAt] == SlotState::Live && "a slot retired that was not live");
+        assert(slab.mSlots[slot.mAt] == SlotState::Leaving && "a slot retired that was not leaving");
         assert(until >= mLastRetired && "a slot retired at an epoch before one retired already");
         slab.mSlots[slot.mAt] = SlotState::Retiring;
         mRetiring.push_back(Retiring{ .mSlot = slot, .mUntil = until });
@@ -686,7 +693,7 @@ namespace Rtx
                 counts.mSlotsFree += state == SlotState::Free ? 1 : 0;
                 counts.mSlotsReserved += state == SlotState::Reserved ? 1 : 0;
                 counts.mSlotsLive += state == SlotState::Live ? 1 : 0;
-                counts.mSlotsRetiring += state == SlotState::Retiring ? 1 : 0;
+                counts.mSlotsRetiring += state == SlotState::Leaving || state == SlotState::Retiring ? 1 : 0;
             }
         }
         return counts;

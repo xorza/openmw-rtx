@@ -426,6 +426,58 @@ namespace ContentStore
             }
         }
 
+        /// **An entry of a version its owner makes no more is swept, once after the versions change**: a fact of
+        /// version 3, a mean of version 1 and a small fact of version 3, each written by a store that states no
+        /// versions. A store stating 3, 2 and 2 removes the mean alone; one stating the same again, after the mean is
+        /// written once more, reads no trailer and keeps it; one stating 4 removes all three facts and the mean.
+        TEST(ContentStoreTest, anEntryOfAVersionItsOwnerMakesNoMoreIsSweptOnceTheVersionsChange)
+        {
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath();
+            const auto writeOne
+                = [&](const Key& key, const std::uint32_t kind, const std::uint32_t version, const std::size_t bytes) {
+                      Store store(folder, sPolicy);
+                      store.write(Filed{ .mKey = key,
+                                      .mKind = kind,
+                                      .mVersion = version,
+                                      .mPayload = payloadOf(bytes, 1),
+                                      .mSegmentEnds = {} },
+                          Reach::Disk);
+                      store.flush();
+                      return store.pathOf(key, kind);
+                  };
+            const std::filesystem::path fact = writeOne(sKey, sFact, 3, sLarge);
+            const std::filesystem::path mean = writeOne(sOther, sMean, 1, sLarge);
+            const std::filesystem::path small = writeOne(sThird, sFact, 3, 16);
+
+            constexpr std::array<std::uint32_t, 3> sNow{ 3, 2, 2 };
+            {
+                Store swept(folder, Policy{ .mKindCount = 3, .mHolding = sHolding, .mVersions = sNow });
+                swept.flush();
+                EXPECT_EQ(swept.getStats().mOutdated, 1u);
+                EXPECT_TRUE(std::filesystem::exists(fact));
+                EXPECT_FALSE(std::filesystem::exists(mean));
+                EXPECT_TRUE(std::filesystem::exists(small));
+                Misc::ByteBuffer read;
+                EXPECT_TRUE(swept.read(sThird, sFact, 3, Reach::Memory, read)) << "a small entry kept is held";
+            }
+
+            EXPECT_EQ(writeOne(sOther, sMean, 1, sLarge), mean);
+            {
+                Store again(folder, Policy{ .mKindCount = 3, .mHolding = sHolding, .mVersions = sNow });
+                again.flush();
+                EXPECT_EQ(again.getStats().mOutdated, 0u) << "the versions swept already";
+                EXPECT_TRUE(std::filesystem::exists(mean));
+            }
+
+            constexpr std::array<std::uint32_t, 3> sNext{ 4, 2, 2 };
+            Store next(folder, Policy{ .mKindCount = 3, .mHolding = std::nullopt, .mVersions = sNext });
+            next.flush();
+            EXPECT_EQ(next.getStats().mOutdated, 3u);
+            EXPECT_FALSE(std::filesystem::exists(fact));
+            EXPECT_FALSE(std::filesystem::exists(mean));
+            EXPECT_FALSE(std::filesystem::exists(small));
+        }
+
         /// **A hit stamps its file's time once a session**, so the next start's sweep counts it as
         /// used now: a file two days old reads as used within the minute after a hit, and a second
         /// hit stamps nothing more. **Only a file that ranks the start's load**: one past `sResidentMost`,

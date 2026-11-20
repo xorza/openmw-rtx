@@ -182,16 +182,31 @@ namespace ContentStore
             StaleOnly,
         };
 
-        /// What a sweep found, oldest first, and how many temporaries it took away.
+        /// What a sweep found, oldest first, and how many temporaries and entries of another version it took away.
         struct Swept
         {
             std::vector<StoredFile> mKept;
             std::uint64_t mStale = 0;
+            std::uint64_t mOutdated = 0;
         };
+
+        /// What a set of versions is, as the marker of the last sweep holds it: an FNV-1a over each in order.
+        std::uint64_t signatureOf(const std::span<const std::uint32_t> versions)
+        {
+            std::uint64_t hash = 0xcbf29ce484222325ull;
+            for (const std::uint32_t version : versions)
+                for (std::uint32_t at = 0; at < 4; ++at)
+                {
+                    hash ^= (version >> (8 * at)) & 0xffu;
+                    hash *= 0x100000001b3ull;
+                }
+            return hash;
+        }
 
         /// Lists every entry under `folder`, one kind's, where `listing` asks for them, into `swept`, and removes a
         /// temporary file older than `Platform::sPartialStaleAfter`.
-        void sweepFolder(const std::filesystem::path& folder, const Listing listing, Swept& swept)
+        void sweepFolder(const std::filesystem::path& folder, const Listing listing,
+            const std::optional<std::uint32_t> version, Swept& swept)
         {
             const std::optional<std::vector<std::filesystem::directory_entry>> folders = Platform::listFolder(folder);
             if (!folders.has_value())
@@ -226,7 +241,21 @@ namespace ContentStore
                         continue;
                     }
 
-                    if (listing == Listing::StaleOnly || !isEntryName(name))
+                    if (!isEntryName(name))
+                        continue;
+
+                    // **An entry of another version than its kind's now is one no ask reaches again**: removed, read
+                    // by its trailer, once after the versions moved.
+                    if (version.has_value())
+                        if (const std::optional<TailRead> tail = readTrailer(file.path());
+                            tail.has_value() && tail->mTrailer.mVersion != *version)
+                        {
+                            std::error_code removed;
+                            swept.mOutdated += std::filesystem::remove(file.path(), removed) ? 1 : 0;
+                            continue;
+                        }
+
+                    if (listing == Listing::StaleOnly)
                         continue;
 
                     Key key;
@@ -722,19 +751,41 @@ namespace ContentStore
 
     void Store::start()
     {
+        // **The entries of versions no owner makes swept once after the versions change**, the marker beside the kinds
+        // saying which were last swept: every entry's trailer read then, and none at a start after.
+        const std::filesystem::path marker = mDirectory / "versions";
+        const std::uint64_t signature = signatureOf(mPolicy.mVersions);
+        Misc::ByteBuffer read;
+        const bool sweeps = !mPolicy.mVersions.empty()
+            && (!Platform::readWhole(marker, read, sizeof(signature)).isOk() || read.size() != sizeof(signature)
+                || std::memcmp(read.data(), &signature, sizeof(signature)) != 0);
+        assert((mPolicy.mVersions.empty() || mPolicy.mVersions.size() == mPolicy.mKindCount)
+            && "a version for every kind, or none");
+
         // **A kind held at any size is passed by unread**, its folder swept of temporaries alone: its owner reads the
         // entries its content asks for, and the start loads none of it.
         Swept swept;
         for (std::uint32_t kind = 0; kind < mPolicy.mKindCount; ++kind)
             sweepFolder(mDirectory / std::to_string(kind),
-                mPolicy.mHolding.has_value() && !isHeldAtAnySize(kind) ? Listing::Entries : Listing::StaleOnly, swept);
+                mPolicy.mHolding.has_value() && !isHeldAtAnySize(kind) ? Listing::Entries : Listing::StaleOnly,
+                sweeps ? std::optional(mPolicy.mVersions[kind]) : std::nullopt, swept);
+        if (sweeps)
+        {
+            std::error_code made;
+            std::filesystem::create_directories(mDirectory, made);
+            std::ignore
+                = Platform::writeWhole(marker, std::as_bytes(std::span(&signature, 1)), Platform::Durability::Whole);
+        }
 
         // **The oldest first**: an entry's time is its last use, and the start loads the newest.
         std::sort(swept.mKept.begin(), swept.mKept.end(),
             [](const StoredFile& a, const StoredFile& b) { return a.mTime < b.mTime; });
         if (!mPolicy.mHolding.has_value())
         {
-            mMonitor.under([&] { mStats.mStale += swept.mStale; });
+            mMonitor.under([&] {
+                mStats.mStale += swept.mStale;
+                mStats.mOutdated += swept.mOutdated;
+            });
             return;
         }
 
@@ -745,6 +796,7 @@ namespace ContentStore
         const Holding& holding = *mPolicy.mHolding;
         mMonitor.under([&] {
             mStats.mStale += swept.mStale;
+            mStats.mOutdated += swept.mOutdated;
             mStamped.reserve(holding.mStampedMost);
             mResident.reserve(holding.mResidentCountMost);
         });
@@ -822,12 +874,15 @@ namespace ContentStore
 
     void Store::refuse(const std::filesystem::path& path, const std::string_view check)
     {
+        // **What the delete answered is read**: a file that stays is refused again by the next read that reaches it,
+        // and a delete the system failed is said once, beside the refusal.
         std::error_code failed;
-        std::filesystem::remove(path, failed);
+        const bool deleted = std::filesystem::remove(path, failed);
         mMonitor.under([&] { ++mStats.mRefused; });
         if (!mRefusalLogged.exchange(true, std::memory_order_relaxed))
             Log(Debug::Warning) << "The content store refused " << Files::pathToUnicodeString(path) << " on " << check
-                                << ", deleted it, and counts every refusal after it";
+                                << (deleted ? ", deleted it" : ", could not delete it: " + failed.message())
+                                << ", and counts every refusal after it";
     }
 
     void Store::writeFile(const Filed& task)

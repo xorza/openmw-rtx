@@ -226,28 +226,16 @@ namespace Resource
         if (mModelImages == ModelImages::Texels)
             return getImage(path);
 
-        {
-            const std::scoped_lock lock(mHeadersMutex);
-            if (const auto known = mHeaders.find(path); known != mHeaders.end())
-                return known->second;
-        }
-
-        // Read outside the lock, once however many loaders ask at once (`getOrLoad`). The warning image is no file's,
-        // and nothing reads it again.
-        osg::ref_ptr<osg::Image> pixels = getImage(path);
-        if (pixels == mWarningImage)
-            return pixels;
-
-        // **Derived here, where the file was read, outside the lock**: two loaders that meet a file at once both
-        // derive it, and the first header filed stands.
-        const osg::ref_ptr<ImageHeader> made = new ImageHeader(*pixels, *this);
-        mDeriver(*pixels, *made);
-
-        const std::scoped_lock lock(mHeadersMutex);
-        osg::ref_ptr<osg::Image>& header = mHeaders[VFS::Path::Normalized(path)];
-        if (header == nullptr)
-            header = made;
-        return header;
+        // **Derived here, where the file was read, once however many loaders meet it**: the first reads and derives,
+        // and the rest wait for its header. The warning image is no file's, and stands for the path as it would.
+        return mHeaders.getOrLoad(path, [&] {
+            const osg::ref_ptr<osg::Image> pixels = getImage(path);
+            if (pixels == mWarningImage)
+                return Loaded<osg::ref_ptr<osg::Image>>{ .mValue = pixels, .mBytes = 0 };
+            const osg::ref_ptr<ImageHeader> made = new ImageHeader(*pixels, *this);
+            mDeriver(*pixels, *made);
+            return Loaded<osg::ref_ptr<osg::Image>>{ .mValue = made, .mBytes = 0 };
+        });
     }
 
     osg::Image* ImageManager::getWarningImage()

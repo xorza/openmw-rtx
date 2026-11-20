@@ -103,9 +103,9 @@ namespace Rtx
         return made.has_value() ? shapeOfLayout(*made, encoding) : stands;
     }
 
-    TextureHands::TextureHands(ContentStore::Store* const store, const std::size_t hands)
+    TextureHands::TextureHands(ContentStore::Store* const store, BufferPool& pool, const std::size_t hands)
         : mStore(store)
-        , mPool(BufferPool::make(sPoolBytes))
+        , mPool(pool)
     {
         assert(hands >= 1 && "no thread to make texels on");
         for (std::size_t at = 0; at < hands; ++at)
@@ -175,7 +175,7 @@ namespace Rtx
     {
         // Past the pool's most while it waits: what it waits for is held until every job is made, so a hand that
         // waited for room would wait on this waiter.
-        const BufferPool::Overdraft overdraft(*mPool);
+        const BufferPool::Overdraft overdraft(mPool);
         mMonitor.await([&] {
             for (std::size_t age = 0; age < mCount; ++age)
                 if (jobAt(age).mState != JobState::Done)
@@ -224,13 +224,13 @@ namespace Rtx
                 const ConversionPass::Input input{
                     .mImage = file, .mPartner = *request.mPartner, .mEncoding = encoding, .mRead = &pixels
                 };
-                if (hand.mContent.convert(input, *mPool, stop, hand.mChain))
+                if (hand.mContent.convert(input, request.mLevels.mFirst, mPool, stop, hand.mChain))
                     layout = ConversionPass::madeLayout(input, hand.mChain.mForm);
             }
             else
             {
                 const ChainPass::Input input{ .mImage = file, .mEncoding = encoding, .mRead = &pixels };
-                if (hand.mContent.chain(input, *mPool, stop, hand.mChain))
+                if (hand.mContent.chain(input, request.mLevels.mFirst, mPool, stop, hand.mChain))
                     layout = ChainPass::madeLayout(input, hand.mChain.mForm);
             }
         }
@@ -238,6 +238,8 @@ namespace Rtx
         FeedMade made;
         if (layout.has_value())
         {
+            // Held from the first level the request asked, as the hand read it.
+            layout->mFirst = hand.mChain.mFirst;
             const osg::ref_ptr<const MadeImage> chain = MadeImage::make(*layout, std::move(hand.mChain.mBytes));
             hand.mChain.mBytes = PooledBuffer();
             made.mLevels.assign(chain->getLevels().begin(), chain->getLevels().end());

@@ -1112,17 +1112,9 @@ Files: `components/rtx/preprocess/` (all), `components/rtx/prepare/`, `component
 - [ ] `SourceIndex` in the preparation's manifest, as specified; `ImageManager::getModelImage` makes a header from
   a record whose stamp holds (`components/resource/imagemanager.cpp:224-250`). A record newer than the manifest's
   write is not trusted. The read of every source texture a session ends.
-- [ ] `imagemanager.cpp:241-250` — two loaders that meet a file at once both derive it. Target: one flight a path,
-  through the helper `getOrLoad` uses.
 - [ ] `FileFactsPass`: one pass, one entry, in the source's record. `ImageFactCache`, `HeaderDerived`,
   `ImageHeader::mDerivedMutex`, `FileKeys::name/forget`, `ImageDerivation`'s lent preprocessors go; loaders are
   bounded by a counting semaphore. `hashFile` is counted in `ContentStats`.
-- [ ] `contentpreprocessor.cpp:120` — every level is read and digested whatever the want. Target: the request's
-  levels, by `readSegments(first, end)`; `MadeImage` holds levels from the first asked. On a miss the pass runs into
-  the pooled buffer (`:163-171` copies the chain once more).
-- [ ] `contentpreprocessor.cpp:28,127` — `run` and `runPooled`, two wrappers of one miss; `chain`/`convert` with
-  `ContentAsk::Output`, `ContentCache::find<ChainPass>` and `ContentCodec<MadeChain>::decode` have no caller outside
-  tests; `TexelRead::Fact` is never produced. Target: one wrapper; the dead ones go.
 - [ ] **(upstream, approved)** `components/resource/scenemanager.{hpp,cpp}` — a model deriver beside
   `ImageManager::setModelImages`' header deriver, called once a template after its load and before any other thread
   sees it. `Rtx::ModelDerivation` finds or makes each drawable's fold and keeps it on the drawable; `geometryBytes`
@@ -1136,21 +1128,9 @@ Files: `components/rtx/preprocess/` (all), `components/rtx/prepare/`, `component
   `mAtAnySize`, `mStamped`, `StampTask`, `ranks`), `PreparationManifest::standingDigest`'s read of every shape at a
   start (`preparationmanifest.cpp:256`), and `prepareSea` (`worldmirror.cpp:254`) have no reader once the frame asks
   nothing. They go.
-- [ ] `store.cpp:792` — `refuse` counts a delete it did not check, and deletes by path, so a late refusal can
-  delete a fresh write. Target: the delete's answer is read; a refusal names the digest it refused.
-- [ ] Entries of a version no pass has are unreachable and never removed (chains are at version 8). Target: the
-  store's thread sweeps them by their trailers, once after the passes' signature changes, a marker file holding the
-  signature last swept. Format 3 stays.
 - [ ] `pp/texture/chainadmission.cpp:16`, `worldmirror.cpp:240` — play's chain misses are admitted a chain against
   the system's free memory, each hand alone, and the preparation's budget is read once. Target: one sum over the
   hands against a figure the arbiter derives (batch 8; the system's own until then).
-- [ ] `PooledBuffer` holds `BufferPool&` in place of a `shared_ptr`, its pool outliving every made image by owner.
-- [ ] `common/bufferpool.cpp:102-107,136` — `take` frees evicted buffers under the mutex a frame's give-back takes,
-  and `give` frees on the dropping thread, the frame's included. Target: both past the lock, on the hand.
-- [ ] `apps/openmw/mwrender/rtx/contentmodels.cpp` — the preparation lists no groundcover model
-  (`MWWorld::GroundcoverStore`), so each is a miss on the reader at first sight. Target: listed.
-- [ ] `components/detournavigator/navmeshtilestore.cpp:121,141,162-166` — a tile is copied three times a read and
-  a write, a fresh buffer each. Target: the loader owns its buffers.
 - [ ] `img/imagedescription.cpp` (`openImage`) pulls `Resource::ImageManager` into the decode folder; errors are
   strings `hashFile` and both chain passes discard. Target: the read is handed in; a cause is an enum.
 - [ ] Tests: two loaders of one file; a template loaded on two threads at once derived once; a read error on an entry;
@@ -1525,10 +1505,33 @@ Items that landed in another shape than their target, each with how and why.
   a rest limit of each size kept, is the cache's share now.
 - `SceneUploader` holds no state: the rest limit, the wants and the device's answer it kept all went.
 
+- Batch 6's one cached run: a stored ask is its own call (`prepareChain`, `prepareConversion`), where `ContentAsk`
+  chose it, and the made chain is the preprocessor's one scratch; `ContentCodec<MadeChain>::decode` stays, the
+  codec's concept asking a decode of every output, and its round trip tested. The tests read chains through the
+  pooled ask the hands make.
+- The texel pool is the renderer's, ahead of residency and the hands, and keeps every buffer given back where its
+  class's list has room, past the most too: the giving thread frees nothing, and the next take drops the excess past
+  the lock. A kept buffer is taken under the same word a new one is made on, so what is in use never passes the most.
+- The store's refusal reads the delete's answer and says a failed one, but still deletes by path: naming the digest
+  it refused changes `Store::discard`, which the navigator's tile store calls from an upstream file this item was not
+  approved for. A late refusal over a fresh write of the same key costs that entry's miss at the next ask.
+- The store's sweep of outdated versions is asked by its owner's `Policy::mVersions`, the ray tracer's stating
+  `sContentPassVersions`; the navigator's tile store states none, its policy standing in an upstream file this item
+  was not approved for, so its outdated tiles stay until a change there is.
+- Batch 5's moves out of a draining slab took the same slot again until the copy share ran out: a slot given back
+  stayed live until the hand-over's epoch was known. It now leaves the ledger at once (`SlotLedger::leave`), which
+  the handheld's Repack tour found, an assert in debug and a GPU timer never written in release.
+
 ## Declined
 
 Items judged and not done, each with the reason.
 
+- Batch 6's groundcover models in the preparation's list: `MWWorld::GroundcoverStore` keeps its models in a private
+  map no accessor reaches, and the accessor is a change to upstream's code nobody approved; each stays a miss on the
+  reader at first sight.
+- Batch 6's three copies of a navigator tile a read and a write: a tile is kilobytes, read on the navigator's worker
+  in place of a build of milliseconds, and buffers the loader owns mean a scratch a worker threaded through
+  upstream's updater, for microseconds a tile.
 - `SceneDesc::addMesh` and `MeshTable::find` answering a `MeshHold`: every caller holds the row in the statement that
   adds it, and `SceneDesc::isConsistent`, asserted after every retire, names a row nothing holds; a hold answered
   would change 141 test sites for a leak no path has.

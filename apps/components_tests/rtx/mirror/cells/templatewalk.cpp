@@ -43,6 +43,7 @@
 #include <components/rtx/mirror/cells/templatewalk.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
+#include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/meshtable.hpp>
 #include <components/sceneutil/extradata.hpp>

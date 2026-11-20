@@ -122,7 +122,8 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   `releaseTexels`): cached models held 7.6 GiB of texels under the PBR replacers while the device held 2.2.
   `ImageManager::setModelImages` takes a `Resource::HeaderDeriver` with the `Headers` mode, and `getModelImage` hands
   it a file's texels and its new header before the header is filed, so the renderer keys a file and learns its facts
-  where it reads it, and never reads it again for either. Cost: the fork's own lines in upstream's file. Approved with
+  where it reads it, and never reads it again for either; the headers are a `GenericObjectCache` kept by no time,
+  so loaders that meet a file at once derive it once (`getOrLoad`). Cost: the fork's own lines in upstream's file. Approved with
   item 12 of the tree and content memory plan (2026-11-17).
 - The navigator's tile cache under the caches' byte budget (`DetourNavigator::NavMeshTilesCache` a
   `Resource::BudgetedCache`, the budget handed down from `makeNavigator`), and `[Navigator] max nav mesh tiles cache

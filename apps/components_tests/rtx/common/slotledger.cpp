@@ -134,6 +134,7 @@ namespace Rtx
             EXPECT_EQ(ledger.getBytesInUse(sImages), 64 * sMiB);
 
             ledger.commit(slots[3]);
+            ledger.leave(slots[3]);
             ledger.retire(slots[3], epoch(2));
             ledger.collect(epoch(2));
             EXPECT_EQ(ledger.reserve(of, SlotOwner{ 99 }), slots[3]) << "the fuller slab first";
@@ -141,7 +142,10 @@ namespace Rtx
             for (const Slot slot : slots)
                 ledger.commit(slot);
             for (const Slot slot : slots)
+            {
+                ledger.leave(slot);
                 ledger.retire(slot, epoch(5));
+            }
             ledger.collect(epoch(4));
             EXPECT_EQ(ledger.count().mSlotsRetiring, 17u);
             EXPECT_EQ(ledger.count().mSlotsLive, 0u);
@@ -221,6 +225,7 @@ namespace Rtx
             EXPECT_EQ(ledger.getBlockOf(one), block);
             EXPECT_FALSE(ledger.hasRoom(large));
             ledger.commit(one);
+            ledger.leave(one);
             ledger.retire(one, epoch(1));
             ledger.collect(epoch(1));
             EXPECT_TRUE(ledger.hasRoom(large)) << "its block emptied is its class's again";
@@ -261,7 +266,10 @@ namespace Rtx
             for (const Slot slot : few)
                 ledger.commit(slot);
             for (std::size_t at = 0; at < 9; ++at)
+            {
+                ledger.leave(held[at * 3]);
                 ledger.retire(held[at * 3], epoch(1));
+            }
             ledger.collect(epoch(1));
             ASSERT_EQ(ledger.getBlockOf(few[0]), other);
 
@@ -283,14 +291,20 @@ namespace Rtx
             EXPECT_EQ(*next, few[0]);
             EXPECT_EQ(ledger.getOwnerOf(*next), SlotOwner{ 100 });
 
+            // **A slot left is not moved again** before the epoch it is read in is known: each of the three is the
+            // next to move once, and once all three left, nothing is, nor must a drain move them.
             for (const Slot slot : few)
             {
+                EXPECT_EQ(ledger.nextToMove(), slot);
                 const Slot to = ledger.reserve(of, ledger.getOwnerOf(slot));
                 EXPECT_EQ(ledger.getBlockOf(to), full) << "a draining slab takes no new slot";
                 ledger.commit(to);
-                ledger.retire(slot, epoch(2));
+                ledger.leave(slot);
             }
-            EXPECT_EQ(ledger.nextToMove(), std::nullopt) << "what retires moves by itself";
+            EXPECT_EQ(ledger.nextToMove(), std::nullopt) << "what leaves moves by itself";
+            EXPECT_EQ(ledger.count().mSlotsRetiring, 3u) << "a slot leaving counted as retiring";
+            for (const Slot slot : few)
+                ledger.retire(slot, epoch(2));
             ledger.collect(epoch(2));
             EXPECT_EQ(ledger.count().mSlabsDraining, 0u);
             EXPECT_EQ(ledger.count().mSlabsFree, 1u);
@@ -326,7 +340,9 @@ namespace Rtx
                 ledger.commit(slot);
             for (const Slot slot : two)
                 ledger.commit(slot);
+            ledger.leave(first[0]);
             ledger.retire(first[0], epoch(1));
+            ledger.leave(first[20]);
             ledger.retire(first[20], epoch(1));
             ledger.collect(epoch(1));
             ASSERT_FALSE(ledger.hasRoom(medium));
@@ -340,6 +356,7 @@ namespace Rtx
                 const Slot to = ledger.reserve(of, ledger.getOwnerOf(slot));
                 EXPECT_NE(ledger.getBlockOf(to), second);
                 ledger.commit(to);
+                ledger.leave(slot);
                 ledger.retire(slot, epoch(2));
             }
             ledger.collect(epoch(2));
@@ -374,9 +391,26 @@ namespace Rtx
                 [&] {
                     auto ledger = made();
                     const Slot slot = ledger->reserve(ledger->classOf(SlotKind::Image, 1, 1), SlotOwner{});
+                    ledger->leave(slot);
+                },
+                "a slot left that was not live");
+            Testing::expectAssertDies(
+                [&] {
+                    auto ledger = made();
+                    const Slot slot = ledger->reserve(ledger->classOf(SlotKind::Image, 1, 1), SlotOwner{});
+                    ledger->commit(slot);
                     ledger->retire(slot, epoch(1));
                 },
-                "a slot retired that was not live");
+                "a slot retired that was not leaving");
+            Testing::expectAssertDies(
+                [&] {
+                    auto ledger = made();
+                    const Slot slot = ledger->reserve(ledger->classOf(SlotKind::Image, 1, 1), SlotOwner{});
+                    ledger->commit(slot);
+                    ledger->leave(slot);
+                    ledger->leave(slot);
+                },
+                "a slot left that was not live");
             Testing::expectAssertDies(
                 [&] {
                     auto ledger = made();
@@ -401,6 +435,8 @@ namespace Rtx
                     const Slot two = ledger->reserve(of, SlotOwner{});
                     ledger->commit(one);
                     ledger->commit(two);
+                    ledger->leave(one);
+                    ledger->leave(two);
                     ledger->retire(one, epoch(3));
                     ledger->retire(two, epoch(2));
                 },

@@ -50,13 +50,25 @@ namespace Rtx
     static_assert(std::ranges::none_of(sContentPassVersions, [](const std::uint32_t version) { return version == 0; }),
         "a pass whose version nothing states: every `ContentPassId` is in `sContentPassVersions`");
 
-    /// What an ask of a stored pass wants: the output, from the store or a run, or only that the
-    /// store holds it — a preparation's ask, which reads no entry the store holds, and hands the store
-    /// what a run made, the output left emptied where its codec takes it whole.
-    enum class ContentAsk
-    {
-        Output,
-        Stored,
+    /// The ray tracer's store: a pass a kind, held in memory where small, so the frame's thread finds a
+    /// fact without a wait on the disk, and a shape at any size, since a shape the frame misses it folds and
+    /// splits again, about 140 large ones a session at the ship, 58 ms of frames.
+    ///
+    /// **512 MiB held**: the largest content measured, the Fullrest Repack, reaches 222 MiB of shapes on the frame and
+    /// a store's small entries came to 87 MiB; twice their sum, for the larger lists to come. **2^20 entries held and
+    /// 2^20 keys stamped**: ten times the files a large content list's store holds, its writes included. The tables'
+    /// buckets at these caps cost some 16 MiB under libstdc++ and 32 MiB under MSVC's, which keeps two pointers a
+    /// bucket; sized by the bytes alone, the held table took 2^24 buckets for the 9,586,980 entries of no payload
+    /// they could hold, 80 MiB and 272 MiB.
+    inline constexpr ContentStore::Policy sContentStorePolicy{
+        .mKindCount = static_cast<std::uint32_t>(ContentPassId::Count),
+        .mHolding = ContentStore::Holding{
+            .mAtAnySize = std::uint64_t{ 1 } << static_cast<std::uint32_t>(ContentPassId::Shape),
+            .mResidentBytesMost = std::size_t{ 512 } << 20,
+            .mResidentCountMost = std::size_t{ 1 } << 20,
+            .mStampedMost = std::size_t{ 1 } << 20,
+        },
+        .mVersions = sContentPassVersions,
     };
 
     /// Which runs of the chain and conversion passes a preprocessor makes where the store holds no output: every one,
@@ -74,6 +86,9 @@ namespace Rtx
     {
         ChainForm mForm = ChainForm::Stands;
         PooledBuffer mBytes;
+
+        /// The first level `mBytes` holds, the finer ones left out (`MadeLayout::mFirst`).
+        std::uint8_t mFirst = 0;
     };
 
     /// The one way the renderer computes anything from what the content files hold. Every pass is
@@ -119,23 +134,26 @@ namespace Rtx
         /// (`ImageDerivation`).
         FileFacts derive(const osg::Image& texels);
 
-        /// `ChainPass`: an image's chain made again, or made where it carried none, read as its input says. False
-        /// where the store held none and its run was not admitted (`ChainRuns`): `made` is then untouched.
-        bool chain(const ChainPass::Input& input, MadeChain& made, ContentAsk ask = ContentAsk::Output);
+        /// **`ChainPass`, held by the store and read by nothing**: a preparation's ask, which reads no entry the store
+        /// holds and hands the store what a run made. False where the store held none and its run was not admitted
+        /// (`ChainRuns`).
+        bool prepareChain(const ChainPass::Input& input);
 
-        /// `ConversionPass`: a classic pair's base colour or metal-roughness map, as `chain` answers.
-        bool convert(const ConversionPass::Input& input, MadeChain& made, ContentAsk ask = ContentAsk::Output);
+        /// `ConversionPass`, as `prepareChain` answers: a classic pair's base colour or metal-roughness map.
+        bool prepareConversion(const ConversionPass::Input& input);
 
-        /// **`chain` as the device is handed it, into a buffer of `pool`**: read from the store's entry a segment at a
-        /// time where it holds one that fits `input`, every level's digest checked, and made and copied in otherwise,
-        /// so a hand-over allocates nothing once the pool is warm (`docs/architecture.md`, "A texture's levels are read
-        /// by position, into a buffer the reader owns"). False where its run is not admitted, or `stop` asked while the
+        /// **A chain as the device is handed it, from level `first` down, into a buffer of `pool`**: read from the
+        /// store's entry a segment a level, from the first asked, where it holds one that fits `input`, every level's
+        /// digest checked, and made and copied in otherwise, so a hand-over allocates nothing once the pool is warm
+        /// and reads none of a level finer than its plan (`docs/architecture.md`, "A texture's levels are read by
+        /// position, into a buffer the reader owns"). False where its run is not admitted, or `stop` asked while the
         /// pool held its most in use.
-        bool chain(const ChainPass::Input& input, BufferPool& pool, const std::stop_token& stop, PooledChain& made);
+        bool chain(const ChainPass::Input& input, std::uint8_t first, BufferPool& pool, const std::stop_token& stop,
+            PooledChain& made);
 
-        /// `convert` as the device is handed it, as `chain` into a pool answers.
-        bool convert(
-            const ConversionPass::Input& input, BufferPool& pool, const std::stop_token& stop, PooledChain& made);
+        /// `ConversionPass` as the device is handed it, as `chain` answers.
+        bool convert(const ConversionPass::Input& input, std::uint8_t first, BufferPool& pool,
+            const std::stop_token& stop, PooledChain& made);
 
         /// What every pass cost since the last take, and nothing counted from here on.
         ContentStats takeStats();
@@ -148,8 +166,8 @@ namespace Rtx
         /// each (`PreparationManifest`). Null, as made, for none.
         void collectKeys(std::vector<StoredKey>* into) { mKeysInto = into; }
 
-        /// What its chain and conversion buffers keep, the shared build's among them: every buffer of a
-        /// `ChainScratch` but the made chain, which the caller holds, and the payload, which the store frees.
+        /// What its chain and conversion buffers keep, the shared build's and the made chain's among them: every buffer
+        /// of a `ChainScratch` but the payload, which the store frees.
         ChainScratch chainScratch() const;
 
         /// Gives back the room its chain and conversion buffers keep, the build's among them.
@@ -159,23 +177,32 @@ namespace Rtx
         void letGoTexelScratch();
 
     private:
-        /// Asks `pass` through the cache, and answers whether `output` holds what was asked: false only where its run
-        /// was not admitted (`admits`).
-        template <ContentPass Pass>
-        bool run(Pass& pass, const typename Pass::Input& input, typename Pass::Output& output,
-            ContentAsk ask = ContentAsk::Output);
+        /// **The one ask of a pass through the cache**: `input` keyed, `found` asked of the key, and where it answers
+        /// nothing and the run is admitted (`admits`), `make` run with the key, where there is a store, to make, keep
+        /// and hand out what was asked. Answers whether what was asked stands: false only where its run was not
+        /// admitted, or `make` could not hand it out. Each step timed into the pass's stats.
+        template <ContentPass Pass, class Found, class Make>
+        bool runCached(Pass& pass, const typename Pass::Input& input, Found&& found, Make&& make);
 
-        /// `run` of a chain or a conversion into a buffer of `pool` (`chain`'s pooled form).
+        /// A fact's or a shape's ask: `output` from the store's entry, or the pass run and offered to the store.
         template <ContentPass Pass>
-        bool runPooled(Pass& pass, const typename Pass::Input& input, BufferPool& pool, const std::stop_token& stop,
-            PooledChain& made);
+        bool run(Pass& pass, const typename Pass::Input& input, typename Pass::Output& output);
+
+        /// A chain's or a conversion's ask held by the store and read by nothing (`prepareChain`).
+        template <ContentPass Pass>
+        bool runStored(Pass& pass, const typename Pass::Input& input);
+
+        /// A chain's or a conversion's ask into a buffer of `pool` (`chain`'s pooled form).
+        template <ContentPass Pass>
+        bool runPooled(Pass& pass, const typename Pass::Input& input, std::uint8_t first, BufferPool& pool,
+            const std::stop_token& stop, PooledChain& made);
 
         /// The stored entry under `key` read into a buffer of `pool`, where it stands and fits `input`: its last
         /// segment the form's byte, the rest its levels. False where none stands, a segment does not read, or what
         /// reads does not fit, which is discarded.
         template <ContentPass Pass>
-        bool readPooled(const ContentStore::Key& key, const typename Pass::Input& input, BufferPool& pool,
-            const std::stop_token& stop, PooledChain& made);
+        bool readPooled(const ContentStore::Key& key, const typename Pass::Input& input, std::uint8_t first,
+            BufferPool& pool, const std::stop_token& stop, PooledChain& made);
 
         /// Whether `pass`'s run of `input` is made: a chain or a conversion as `mChainRuns` says, every other pass.
         template <ContentPass Pass>
@@ -196,7 +223,7 @@ namespace Rtx
         ContentCache mCache;
         ChainRuns mChainRuns = ChainRuns::Always;
 
-        /// What a pooled run makes before it is copied into its buffer, the build's chain kept for the next.
+        /// What a chain's run makes before it is copied into its buffer or moved into the store, kept for the next.
         MadeChain mMade;
         std::vector<StoredKey>* mKeysInto = nullptr;
     };

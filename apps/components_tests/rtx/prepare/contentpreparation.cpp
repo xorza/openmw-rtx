@@ -32,6 +32,7 @@
 #include <components/rtx/prepare/filestamps.hpp>
 #include <components/rtx/prepare/preparationmanifest.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
+#include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/testing/util.hpp>
 
 namespace Rtx

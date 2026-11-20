@@ -43,6 +43,7 @@
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
+#include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>

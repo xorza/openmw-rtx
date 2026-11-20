@@ -171,7 +171,11 @@ namespace Rtx
         /// Reserved → free: an operation withdrawn before it rode.
         void unreserve(Slot slot);
 
-        /// Live → retiring, until the device has finished `until`.
+        /// Live → leaving: an operation the hand-over being issued carries reads it for the last time, so nothing
+        /// moves it or counts it as what a drain must move, though the epoch it is read in is not known yet.
+        void leave(Slot slot);
+
+        /// Leaving → retiring, until the device has finished `until`.
         void retire(Slot slot, DeviceEpoch until);
 
         /// Retiring → free for every slot retired at or before `finished`; a slab with no slot left goes back to the
@@ -212,6 +216,7 @@ namespace Rtx
             Free,
             Reserved,
             Live,
+            Leaving,
             Retiring,
         };
 

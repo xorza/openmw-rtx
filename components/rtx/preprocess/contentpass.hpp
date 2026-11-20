@@ -63,26 +63,6 @@ namespace Rtx
     /// harness's both, so a measured run reads what the game wrote.
     inline constexpr std::string_view sContentStoreFolder = "rtx-content";
 
-    /// The ray tracer's store: a pass a kind, held in memory where small, so the frame's thread finds a
-    /// fact without a wait on the disk, and a shape at any size, since a shape the frame misses it folds and
-    /// splits again, about 140 large ones a session at the ship, 58 ms of frames.
-    ///
-    /// **512 MiB held**: the largest content measured, the Fullrest Repack, reaches 222 MiB of shapes on the frame and
-    /// a store's small entries came to 87 MiB; twice their sum, for the larger lists to come. **2^20 entries held and
-    /// 2^20 keys stamped**: ten times the files a large content list's store holds, its writes included. The tables'
-    /// buckets at these caps cost some 16 MiB under libstdc++ and 32 MiB under MSVC's, which keeps two pointers a
-    /// bucket; sized by the bytes alone, the held table took 2^24 buckets for the 9,586,980 entries of no payload
-    /// they could hold, 80 MiB and 272 MiB.
-    inline constexpr ContentStore::Policy sContentStorePolicy{
-        .mKindCount = static_cast<std::uint32_t>(ContentPassId::Count),
-        .mHolding = ContentStore::Holding{
-            .mAtAnySize = std::uint64_t{ 1 } << static_cast<std::uint32_t>(ContentPassId::Shape),
-            .mResidentBytesMost = std::size_t{ 512 } << 20,
-            .mResidentCountMost = std::size_t{ 1 } << 20,
-            .mStampedMost = std::size_t{ 1 } << 20,
-        },
-    };
-
     /// The kind a pass files its entries as in the ray tracer's store.
     constexpr std::uint32_t storeKindOf(ContentPassId pass)
     {

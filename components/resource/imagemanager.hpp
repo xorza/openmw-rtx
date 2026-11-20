@@ -2,8 +2,6 @@
 
 #include <cstdint>
 #include <functional>
-#include <mutex>
-#include <unordered_map>
 
 #include <osg/Image>
 #include <osg/Texture2D>
@@ -12,6 +10,7 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "imageheader.hpp"
+#include "objectcache.hpp"
 #include "resourcemanager.hpp"
 
 namespace osgDB
@@ -70,9 +69,10 @@ namespace Resource
         HeaderDeriver mDeriver;
 
         /// Every header made, by its file: tiny, and bounded by the files the content names, one each, so that
-        /// every texture of one file names one header, as it named one image.
-        std::mutex mHeadersMutex;
-        std::unordered_map<VFS::Path::Normalized, osg::ref_ptr<osg::Image>, VFS::Path::Hash, std::equal_to<>> mHeaders;
+        /// every texture of one file names one header, as it named one image. **Made once however many loaders meet
+        /// the file at once** (`GenericObjectCache::getOrLoad`), so a file is derived once; kept by no time, since
+        /// nothing updates it.
+        GenericObjectCache<VFS::Path::Normalized, osg::ref_ptr<osg::Image>> mHeaders;
     };
 
 }

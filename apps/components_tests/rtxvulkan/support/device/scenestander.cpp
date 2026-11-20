@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <map>
 #include <memory>
 #include <thread>
@@ -94,10 +95,12 @@ namespace Rtx::Testing
             const BlockIndex block = mLedger.getTier(of) == SlabTier::Large ? mLedger.askLarge(of)
                                                                             : mLedger.askChunk(mLedger.getArena(of));
             device.acquireBlock(block, mLedger.getArena(of), mLedger.getBlockBytes(block));
-            // The device's thread makes it; a test waits, which no frame does.
-            for (std::uint32_t tries = 0; !mLedger.hasRoom(of); ++tries)
+            // The device's thread makes it; a test waits, which no frame does. **Bounded by time, not by a count of
+            // yields**: under the gate's lint beside it, 100,000 yields passed before the device's thread ran.
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+            while (!mLedger.hasRoom(of))
             {
-                assert(tries < 100000 && "a block the device never made");
+                assert(std::chrono::steady_clock::now() < deadline && "a block the device never made");
                 std::this_thread::yield();
                 openFrame(device);
             }
@@ -165,12 +168,18 @@ namespace Rtx::Testing
         // What stood of the slot's last scene goes with its build, read up to the last hand-over.
         letGo(slot, sNoRow);
         for (const Slot freed : mFreed)
+        {
+            mLedger.leave(freed);
             mLedger.retire(freed, mLast);
+        }
         mFreed.clear();
         std::erase_if(mQueued, [&](const Queued& queued) { return queued.mScene == slot; });
         std::erase_if(mStructures, [&](const StructureStanding& standing) {
             if (standing.mScene == slot)
+            {
+                mLedger.leave(standing.mSlot);
                 mLedger.retire(standing.mSlot, mLast);
+            }
             return standing.mScene == slot;
         });
         holder.standScene(slot, scene);
@@ -287,7 +296,10 @@ namespace Rtx::Testing
     {
         mLast = epoch;
         for (const Slot freed : mFreed)
+        {
+            mLedger.leave(freed);
             mLedger.retire(freed, epoch);
+        }
         mFreed.clear();
     }
 

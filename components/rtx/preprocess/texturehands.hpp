@@ -46,9 +46,14 @@ namespace Rtx
         /// The most requests in flight: a hand-over's arrivals at the busiest cell.
         static constexpr std::size_t sInFlightMost = 64;
 
+        /// **The buffers the made chains are read into, 256 MiB in use and free**: a 4096-square map's whole chain in
+        /// BC7 is 21 MiB, so a dozen stand between the hands and the uploads before a hand waits for one given back.
+        static constexpr std::size_t sPoolBytes = std::size_t{ 256 } << 20;
+
         /// @param store where the chains are found and kept, or null for none.
+        /// @param pool what the made chains are read into, which outlives this and every completion it hands out.
         /// @param hands how many threads make them.
-        TextureHands(ContentStore::Store* store, std::size_t hands);
+        TextureHands(ContentStore::Store* store, BufferPool& pool, std::size_t hands);
 
         /// Stops every thread, dropping what is queued.
         ~TextureHands();
@@ -102,10 +107,7 @@ namespace Rtx
 
         ContentStore::Store* const mStore;
 
-        /// **The buffers the made chains are read into, 256 MiB in use and free**: a 4096-square map's whole chain in
-        /// BC7 is 21 MiB, so a dozen stand between the hands and the uploads before a hand waits for one given back.
-        static constexpr std::size_t sPoolBytes = std::size_t{ 256 } << 20;
-        std::shared_ptr<BufferPool> mPool;
+        BufferPool& mPool;
 
         mutable Misc::Monitor mMonitor;
 

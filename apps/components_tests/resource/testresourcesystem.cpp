@@ -1,5 +1,7 @@
 #include <array>
+#include <atomic>
 #include <cstdint>
+#include <latch>
 #include <map>
 #include <memory>
 #include <string>
@@ -166,6 +168,39 @@ namespace
         EXPECT_EQ(resources.getCacheBudget().getHeld(), 48u);
 
         EXPECT_EQ(images.getModelImage(VFS::Path::NormalizedView("textures/none.dds")), images.getWarningImage());
+    }
+
+    /// **A file eight loaders meet at once is derived once** (`ImageManager::getModelImage`): each takes the one
+    /// header, and the deriver ran for one of them, the others waiting on its load or finding its header filed.
+    TEST(ResourceResourceSystem, a_file_loaders_meet_at_once_is_derived_once)
+    {
+        TestingOpenMW::VFSTestFile file(Rtx::Testing::ddsDxt1(8, 8, 3, 0x55));
+        constexpr VFS::Path::NormalizedView path("textures/eight.dds");
+        const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { path, &file } });
+        const ToUTF8::Utf8Encoder encoder(ToUTF8::WINDOWS_1252);
+        Resource::ResourceSystem resources(vfs.get(), 1.0, &encoder.getStatelessEncoder());
+        Resource::ImageManager& images = *resources.getImageManager();
+        std::atomic<std::uint32_t> derived = 0;
+        images.setModelImages(Resource::ModelImages::Headers,
+            [&](const osg::Image&, const Resource::ImageHeader&) { derived.fetch_add(1); });
+
+        constexpr std::size_t sLoaders = 8;
+        std::latch start(sLoaders);
+        std::array<osg::ref_ptr<osg::Image>, sLoaders> headers;
+        {
+            std::vector<std::jthread> loaders;
+            loaders.reserve(sLoaders);
+            for (std::size_t at = 0; at < sLoaders; ++at)
+                loaders.emplace_back([&, at] {
+                    start.arrive_and_wait();
+                    headers[at] = images.getModelImage(path);
+                });
+        }
+        EXPECT_EQ(derived.load(), 1u) << "a file derived by more than one loader";
+        for (const osg::ref_ptr<osg::Image>& header : headers)
+            EXPECT_EQ(header, headers[0]) << "two headers of one file";
+        ASSERT_NE(headers[0], nullptr);
+        EXPECT_TRUE(Resource::isHeader(*headers[0]));
     }
 
     /// **A template is kept by its geometry's bytes and not its images'**, which the image cache counts once

@@ -16,6 +16,7 @@
 #include <apps/openmw/mwrender/ground.hpp>
 #include <apps/openmw/mwrender/renderer.hpp>
 #include <components/esm/refid.hpp>
+#include <components/rtx/common/bufferpool.hpp>
 #include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/frameextents.hpp>
@@ -23,6 +24,7 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/drawableposer.hpp>
 #include <components/rtx/mirror/released.hpp>
+#include <components/rtx/preprocess/texturehands.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/frametimehistogram.hpp>
@@ -399,6 +401,10 @@ namespace MWRender
         osg::Timer_t mStartTick = 0;
 
         std::unique_ptr<Rtx::Renderer> mRenderer;
+
+        /// **What the made chains are read into** (`Rtx::TextureHands::sPoolBytes`): ahead of everything that holds one
+        /// of its buffers, the hands and residency's arrivals, so it goes after the last.
+        Rtx::BufferPool mTexelPool{ Rtx::TextureHands::sPoolBytes };
 
         /// **What stands of every scene on the device** (`Rtx::Residency`): made once the backend says its arenas, and
         /// told of each frame's start and end around every hand-over.

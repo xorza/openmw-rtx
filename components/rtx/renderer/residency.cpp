@@ -281,13 +281,13 @@ namespace Rtx
             if (const auto* arriving = std::get_if<TextureArriving>(&texture.mStanding))
                 feed.forget(arriving->mTicket);
             if (const std::optional<TextureStands> stands = standingOf(texture))
-                mLedger.retire(stands->mSlot, mLastEpoch);
+                retireNow(stands->mSlot);
         }
         for (const StructureResident& structure : scene.mStructures)
             if (const std::optional<Slot> standing = slotOf(structure))
-                mLedger.retire(*standing, mLastEpoch);
+                retireNow(*standing);
         for (const OwedDrop& owed : scene.mDropsOwed)
-            mLedger.retire(owed.mSlot, mLastEpoch);
+            retireNow(owed.mSlot);
         scene = Scene{};
         mPlanStale = true;
     }
@@ -400,7 +400,17 @@ namespace Rtx
 
     void Residency::retireAfter(const Slot slot)
     {
+        // **Left at once**, so a drain's next move this hand-over does not take the slot again: it stays live in the
+        // ledger until the epoch is known, and a move of it was issued once per round of `issueMoves` until the share
+        // ran out, every copy after the first from a slot its tenant had left.
+        mLedger.leave(slot);
         mFreed.push_back(slot);
+    }
+
+    void Residency::retireNow(const Slot slot)
+    {
+        mLedger.leave(slot);
+        mLedger.retire(slot, mLastEpoch);
     }
 
     void Residency::resetTexture(Scene& scene, const TextureIndex row, TextureFeed& feed)

@@ -65,6 +65,7 @@
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/poseupdate.hpp>
+#include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/imagederivation.hpp>
 #include <components/rtx/preprocess/texturehands.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
@@ -133,7 +134,7 @@ namespace MWRender
         , mDerivation(std::make_unique<Rtx::ImageDerivation>(
               mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
         , mHands(std::make_unique<Rtx::TextureHands>(
-              mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
+              mContentStore.get(), mTexelPool, std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
         , mMirror(setup.mMirror, mContentStore.get(), mSceneIdentities)
     {
         mSettled = setup.mSettled;

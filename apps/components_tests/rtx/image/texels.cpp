@@ -263,7 +263,8 @@ namespace Rtx
                 const ContentStats stats = thread.mPreprocessor.takeStats();
                 EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 0u);
                 EXPECT_EQ(stats.at(ContentPassId::TexelMean).mAsked, 0u);
-                EXPECT_EQ(stats.mTexelReads.mCounts[static_cast<std::size_t>(TexelRead::Fact)], 0u);
+                for (const std::uint32_t reads : stats.mTexelReads.mCounts)
+                    EXPECT_EQ(reads, 0u) << "a header's texels read for a fact";
                 EXPECT_EQ(budget.getHeld(), 0u) << "the texels read again for a fact";
             }
         }

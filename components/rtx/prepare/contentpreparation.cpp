@@ -55,7 +55,6 @@ namespace Rtx
         ThreadContent mContent;
         TemplateWalk mWalk;
         PreparedModel mModel;
-        MadeChain mChain;
         std::vector<std::string> mFiles;
         std::vector<StoredKey> mKeys;
 
@@ -253,7 +252,6 @@ namespace Rtx
                 {
                     lock.unlock();
                     hand.mContent.mPreprocessor.letGoChainScratch();
-                    hand.mChain.mBytes = Misc::ByteBuffer();
                     hand.mModel.letGoBuffers();
                     // glibc keeps what a thread's arena freed below its mapping threshold until a trim, so
                     // the room reaches the system only through it.
@@ -320,8 +318,7 @@ namespace Rtx
                 }
             }
 
-            ChainScratch kept = hand.mContent.mPreprocessor.chainScratch();
-            kept[ChainBuffer::Made] = hand.mChain.mBytes.capacity();
+            const ChainScratch kept = hand.mContent.mPreprocessor.chainScratch();
             mDispatcher.ended(hand.mIndex, kept, hand.mModel.getRoomBytes(), hand.mMetBytes);
             mDone = std::chrono::steady_clock::now();
             mToHands.notify_all();
@@ -391,17 +388,14 @@ namespace Rtx
         hand.mContent.mPreprocessor.collectKeys(&hand.mKeys);
         // The header a model holds, whose texels a run reads for the make alone: a chain the store holds reads none.
         if (queued.mPartner != nullptr)
-            hand.mContent.mPreprocessor.convert(ConversionPass::Input{ .mImage = *queued.mImage,
-                                                    .mPartner = *queued.mPartner,
-                                                    .mEncoding = queued.mEncoding,
-                                                    .mWhy = TexelRead::Preparation,
-                                                    .mPartnerWhy = TexelRead::Preparation },
-                hand.mChain, ContentAsk::Stored);
+            std::ignore = hand.mContent.mPreprocessor.prepareConversion(ConversionPass::Input{ .mImage = *queued.mImage,
+                .mPartner = *queued.mPartner,
+                .mEncoding = queued.mEncoding,
+                .mWhy = TexelRead::Preparation,
+                .mPartnerWhy = TexelRead::Preparation });
         else
-            hand.mContent.mPreprocessor.chain(
-                ChainPass::Input{
-                    .mImage = *queued.mImage, .mEncoding = queued.mEncoding, .mWhy = TexelRead::Preparation },
-                hand.mChain, ContentAsk::Stored);
+            std::ignore = hand.mContent.mPreprocessor.prepareChain(ChainPass::Input{
+                .mImage = *queued.mImage, .mEncoding = queued.mEncoding, .mWhy = TexelRead::Preparation });
         hand.mContent.mPreprocessor.collectKeys(nullptr);
     }
 

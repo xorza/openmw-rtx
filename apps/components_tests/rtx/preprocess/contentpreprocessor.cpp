@@ -20,12 +20,14 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/image.hpp>
+#include <apps/components_tests/rtx/support/pooledchain.hpp>
 #include <components/contentstore/key.hpp>
 #include <components/contentstore/store.hpp>
 #include <components/misc/bytebuffer.hpp>
 #include <components/rtx/common/bufferpool.hpp>
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/chainbuild.hpp>
+#include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -117,11 +119,10 @@ namespace Rtx
         }
 
         /// What a preprocessor and the chain it made hold, as a dispatcher reads a thread's.
-        ChainScratch heldBy(const ContentPreprocessor& content, const MadeChain& made)
+        /// What `content`'s chain buffers hold, the made chain's among them.
+        ChainScratch heldBy(const ContentPreprocessor& content)
         {
-            ChainScratch held = content.chainScratch();
-            held[ChainBuffer::Made] = made.mBytes.capacity();
-            return held;
+            return content.chainScratch();
         }
 
         /// **A chain's scratch is predicted off its image's header, and its buffers grow to no more**: for each file
@@ -153,10 +154,9 @@ namespace Rtx
             {
                 const ChainPass::Input input{ .mImage = *tried.mImage, .mEncoding = tried.mEncoding };
                 ContentPreprocessor content(nullptr);
-                MadeChain made;
-                content.chain(input, made);
+                ASSERT_TRUE(Testing::chainOf(content, input).has_value());
                 const ChainScratch predicted = ChainPass::scratchOf(input);
-                const ChainScratch held = heldBy(content, made);
+                const ChainScratch held = heldBy(content);
                 const auto encoding = static_cast<std::int32_t>(tried.mEncoding);
                 EXPECT_TRUE(held.within(predicted)) << encoding;
                 EXPECT_EQ(predicted[ChainBuffer::Texels], tried.mTexels) << encoding;
@@ -179,23 +179,24 @@ namespace Rtx
                     .mPartner = colour ? *specular : *diffuse,
                     .mEncoding = encoding };
                 ContentPreprocessor content(nullptr);
-                MadeChain made;
-                content.convert(input, made);
-                ASSERT_NE(made.mForm, ChainForm::Stands) << static_cast<std::int32_t>(encoding);
-                EXPECT_TRUE(heldBy(content, made).within(ConversionPass::scratchOf(input)))
+                const std::optional<MadeChain> made = Testing::chainOf(content, input);
+                ASSERT_TRUE(made.has_value());
+                ASSERT_NE(made->mForm, ChainForm::Stands) << static_cast<std::int32_t>(encoding);
+                EXPECT_TRUE(heldBy(content).within(ConversionPass::scratchOf(input)))
                     << static_cast<std::int32_t>(encoding);
             }
 
             ContentPreprocessor content(nullptr);
-            MadeChain made;
-            content.chain(ChainPass::Input{ .mImage = *makeBc1(64, 64, 1), .mEncoding = TextureEncoding::Data }, made);
-            const ChainScratch afterLarge = heldBy(content, made);
+            ASSERT_TRUE(Testing::chainOf(
+                content, ChainPass::Input{ .mImage = *makeBc1(64, 64, 1), .mEncoding = TextureEncoding::Data })
+                    .has_value());
+            const ChainScratch afterLarge = heldBy(content);
             const osg::ref_ptr<osg::Image> smallImage = makeBc1(16, 16, 1);
             const ChainPass::Input small{ .mImage = *smallImage, .mEncoding = TextureEncoding::Data };
             const ChainScratch predicted = ChainPass::scratchOf(small);
             EXPECT_EQ(afterLarge.growthTo(predicted), predicted[ChainBuffer::Payload]) << "the payload alone";
-            content.chain(small, made);
-            EXPECT_EQ(heldBy(content, made).mBytes, afterLarge.mBytes) << "a smaller file grows nothing";
+            ASSERT_TRUE(Testing::chainOf(content, small).has_value());
+            EXPECT_EQ(heldBy(content).mBytes, afterLarge.mBytes) << "a smaller file grows nothing";
         }
 
         /// A shape asked through the preprocessor keeps the card's front and says it was a sheet,
@@ -488,38 +489,36 @@ namespace Rtx
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
             const ChainPass::Input input{ .mImage = *painted, .mEncoding = TextureEncoding::Normal };
-            MadeChain made;
-            ContentPreprocessor(nullptr, ContentStore::Reach::Disk).chain(input, made);
-            ASSERT_FALSE(made.mBytes.empty());
+            ContentPreprocessor alone(nullptr, ContentStore::Reach::Disk);
+            const std::optional<MadeChain> made = Testing::chainOf(alone, input);
+            ASSERT_TRUE(made.has_value());
+            ASSERT_FALSE(made->mBytes.empty());
             {
                 ContentStore::Store store(folder, sContentStorePolicy);
                 ContentPreprocessor content(&store, ContentStore::Reach::Disk);
-                MadeChain stored;
-                content.chain(input, stored, ContentAsk::Stored);
-                ASSERT_EQ(stored.mForm, ChainForm::Bc7) << "the store lacked it, so it ran";
-                EXPECT_TRUE(stored.mBytes.empty()) << "the chain was copied into the store's payload";
-                EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 0u);
+                ASSERT_TRUE(content.prepareChain(input));
+                const PassStats stats = content.takeStats().at(ContentPassId::Chain);
+                EXPECT_EQ(stats.mHits, 0u) << "the store lacked it, so it ran";
+                EXPECT_EQ(stats.mAsked, 1u);
             }
 
             ContentStore::Store next(folder, sContentStorePolicy);
             ContentPreprocessor content(&next, ContentStore::Reach::Disk);
-            MadeChain untouched{ .mForm = ChainForm::Own, .mBytes = Misc::ByteBuffer{ std::byte{ 9 } } };
-            content.chain(input, untouched, ContentAsk::Stored);
-            EXPECT_EQ(untouched.mForm, ChainForm::Own);
-            EXPECT_EQ(untouched.mBytes, Misc::ByteBuffer{ std::byte{ 9 } });
-            EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 1u);
+            ASSERT_TRUE(content.prepareChain(input));
+            EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 1u) << "a stored ask read what it made";
 
-            MadeChain read;
-            content.chain(input, read);
-            EXPECT_EQ(read.mForm, ChainForm::Bc7);
-            EXPECT_EQ(read.mBytes, made.mBytes);
+            std::optional<MadeChain> read = Testing::chainOf(content, input);
+            ASSERT_TRUE(read.has_value());
+            EXPECT_EQ(read->mForm, ChainForm::Bc7);
+            EXPECT_EQ(read->mBytes, made->mBytes);
             EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 1u);
 
             // **And a hit lets go of the image its key was read from**, as a run does: a file the
             // scene let go of is not held by the thread that asked for its chain.
             osg::ref_ptr<osg::Image> again = makeImage(sPaint, "painted.dds");
             const osg::observer_ptr<osg::Image> watched(again);
-            content.chain(ChainPass::Input{ .mImage = *again, .mEncoding = TextureEncoding::Normal }, read);
+            read
+                = Testing::chainOf(content, ChainPass::Input{ .mImage = *again, .mEncoding = TextureEncoding::Normal });
             EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 1u);
             again = nullptr;
             osg::ref_ptr<osg::Image> standing;
@@ -724,9 +723,9 @@ namespace Rtx
             ContentStore::Digest digest(sContentPasses.name(ContentPassId::Chain), ChainPass::sVersion);
             digest.add(hashFile(*single, scratch));
             digest.add(TextureEncoding::Colour);
-            MadeChain made;
-            ASSERT_TRUE(content.chain(input, made));
-            ASSERT_EQ(made.mForm, ChainForm::Bc7);
+            const std::optional<MadeChain> made = Testing::chainOf(content, input);
+            ASSERT_TRUE(made.has_value());
+            ASSERT_EQ(made->mForm, ChainForm::Bc7);
             store.flush();
             const std::filesystem::path path = store.pathOf(digest.getKey(), storeKindOf(ContentPassId::Chain));
             ASSERT_TRUE(std::filesystem::exists(path)) << "filed under the key the pass makes";
@@ -742,7 +741,7 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> file = makeBc1(64, 64, 1);
             const ChainPass::Input input{ .mImage = *file, .mEncoding = TextureEncoding::Colour };
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
-            const std::shared_ptr<BufferPool> pool = BufferPool::make(std::size_t{ 1 } << 20);
+            BufferPool pool(std::size_t{ 1 } << 20);
 
             ContentStore::Store store(folder, sContentStorePolicy);
             Misc::ByteBuffer madeBytes;
@@ -750,28 +749,55 @@ namespace Rtx
             {
                 ContentPreprocessor content(&store, ContentStore::Reach::Disk);
                 PooledChain made;
-                ASSERT_TRUE(content.chain(input, *pool, {}, made));
+                ASSERT_TRUE(content.chain(input, 0, pool, {}, made));
                 EXPECT_EQ(made.mForm, ChainForm::Bc7);
                 ASSERT_EQ(made.mBytes.bytes().size(), 5488u);
                 madeBytes.assign(made.mBytes.bytes().begin(), made.mBytes.bytes().end());
                 buffer = made.mBytes.bytes().data();
-                EXPECT_EQ(pool->getHeld().mInUse, std::size_t{ 64 } << 10);
+                EXPECT_EQ(pool.getHeld().mInUse, std::size_t{ 64 } << 10);
                 EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 0u);
             }
             store.flush();
-            EXPECT_EQ(pool->getHeld().mFree, std::size_t{ 64 } << 10) << "given back";
+            EXPECT_EQ(pool.getHeld().mFree, std::size_t{ 64 } << 10) << "given back";
 
             ContentStore::Store next(folder, sContentStorePolicy);
             next.flush();
             ContentPreprocessor content(&next, ContentStore::Reach::Disk);
             PooledChain found;
-            ASSERT_TRUE(content.chain(input, *pool, {}, found));
+            ASSERT_TRUE(content.chain(input, 0, pool, {}, found));
             EXPECT_EQ(found.mForm, ChainForm::Bc7);
+            EXPECT_EQ(found.mFirst, 0u);
             EXPECT_EQ(Misc::ByteBuffer(found.mBytes.bytes().begin(), found.mBytes.bytes().end()), madeBytes);
             EXPECT_EQ(found.mBytes.bytes().data(), buffer) << "the buffer given back";
             const PassStats stats = content.takeStats().at(ContentPassId::Chain);
             EXPECT_EQ(stats.mHits, 1u);
             EXPECT_EQ(stats.mRunMs, 0.0);
+
+            // **From the third level asked, the third level's segment on**: its 16 blocks of 16 bytes, then 4, 1, 1 and
+            // 1, 256 + 64 + 16 + 16 + 16 = 368 bytes, 4096 + 1024 = 5120 bytes in, read from the file and made alike.
+            constexpr MadeLayout sFromThird{
+                .mFormat = TextureFormat::Bc7Srgb, .mWidth = 64, .mHeight = 64, .mCount = 7, .mFirst = 2
+            };
+            EXPECT_EQ(sFromThird.offsetOf(2), 5120u);
+            EXPECT_EQ(sFromThird.bytes(), 5488u - 5120u);
+            PooledChain coarse;
+            ASSERT_TRUE(content.chain(input, 2, pool, {}, coarse));
+            EXPECT_EQ(coarse.mFirst, 2u);
+            EXPECT_EQ(Misc::ByteBuffer(coarse.mBytes.bytes().begin(), coarse.mBytes.bytes().end()),
+                Misc::ByteBuffer(madeBytes.begin() + 5120, madeBytes.end()))
+                << "the levels read from the file are the levels made";
+            coarse = PooledChain();
+            ContentPreprocessor alone(nullptr);
+            ASSERT_TRUE(alone.chain(input, 2, pool, {}, coarse));
+            EXPECT_EQ(coarse.mFirst, 2u);
+            EXPECT_EQ(Misc::ByteBuffer(coarse.mBytes.bytes().begin(), coarse.mBytes.bytes().end()),
+                Misc::ByteBuffer(madeBytes.begin() + 5120, madeBytes.end()))
+                << "a chain made hands over from the first level asked as one read does";
+            const osg::ref_ptr<const MadeImage> held = MadeImage::make(sFromThird, std::move(coarse.mBytes));
+            ASSERT_EQ(held->getLevels().size(), 7u);
+            EXPECT_EQ(held->getLevels()[2].mOffset, 0u) << "the first level held begins the bytes";
+            EXPECT_EQ(held->getLevels()[3].mOffset, 256u);
+            EXPECT_EQ(held->getLevels()[2].mWidth, 16u);
         }
 
         /// **An entry that fills no form's layout of its file is discarded before a buffer is taken for it**: an entry
@@ -804,14 +830,14 @@ namespace Rtx
                 ContentStore::Reach::Disk);
             store.flush();
 
-            const std::shared_ptr<BufferPool> pool = BufferPool::make(std::size_t{ 1 } << 20);
+            BufferPool pool(std::size_t{ 1 } << 20);
             ContentPreprocessor content(&store, ContentStore::Reach::Disk);
             PooledChain made;
-            ASSERT_TRUE(content.chain(input, *pool, {}, made));
+            ASSERT_TRUE(content.chain(input, 0, pool, {}, made));
             EXPECT_EQ(made.mForm, ChainForm::Bc7);
             EXPECT_EQ(made.mBytes.bytes().size(), 112u);
-            EXPECT_EQ(pool->getHeld().mInUse, std::size_t{ 64 } << 10);
-            EXPECT_EQ(pool->getHeld().mFree, 0u) << "a buffer was taken for the entry before its layout was checked";
+            EXPECT_EQ(pool.getHeld().mInUse, std::size_t{ 64 } << 10);
+            EXPECT_EQ(pool.getHeld().mFree, 0u) << "a buffer was taken for the entry before its layout was checked";
         }
 
         /// **A stored chain that reads whole and does not fit its file is run again and replaced**, as a
@@ -866,10 +892,10 @@ namespace Rtx
                 ContentPreprocessor content(&store, ContentStore::Reach::Disk);
                 for (std::int32_t ask = 0; ask < 2; ++ask)
                 {
-                    MadeChain made;
-                    content.chain(input, made);
-                    EXPECT_EQ(made.mForm, ChainForm::Bc7) << misfit.mName;
-                    EXPECT_EQ(made.mBytes.size(), 112u) << misfit.mName;
+                    const std::optional<MadeChain> made = Testing::chainOf(content, input);
+                    ASSERT_TRUE(made.has_value()) << misfit.mName;
+                    EXPECT_EQ(made->mForm, ChainForm::Bc7) << misfit.mName;
+                    EXPECT_EQ(made->mBytes.size(), 112u) << misfit.mName;
                 }
                 store.flush();
                 const PassStats stats = content.takeStats().at(ContentPassId::Chain);

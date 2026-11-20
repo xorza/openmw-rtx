@@ -455,6 +455,63 @@ namespace Rtx
             EXPECT_TRUE(world.mResidency.isSettled(HoldTier::Shown));
         }
 
+        /// **A drain moves each of its slots once**: a chunk filled with 512² chains, all but two of each slab's
+        /// dropped, and 256² chains taken, whose class has fewer free slabs than they need: the 512²s' slabs drain,
+        /// each moving its two in one hand-over into another's free slots, each slot once, and every 256² stands.
+        TEST(RtxResidencyTest, aDrainMovesEachOfItsSlotsOnce)
+        {
+            World world(sChunk);
+            for (std::uint32_t at = 0; at < 176; ++at)
+                world.texture("textures/fill" + std::to_string(at) + ".dds", 512, HoldTier::Shown);
+            world.frames(12);
+            const SlotLedger& ledger = world.mResidency.getLedger();
+
+            std::vector<std::uint32_t> keptIn;
+            for (std::size_t at = world.mTextures.size(); at-- > 0;)
+            {
+                const auto* stands = std::get_if<TextureStands>(&world.residentOf(world.mTextures[at].get()).mStanding);
+                ASSERT_NE(stands, nullptr);
+                const auto slab = static_cast<std::size_t>(stands->mSlot.mSlab.at());
+                keptIn.resize(std::max(keptIn.size(), slab + 1), 0);
+                if (keptIn[slab] < 2)
+                {
+                    ++keptIn[slab];
+                    continue;
+                }
+                world.mScene.drop(std::move(world.mTextures[at]));
+                world.mTextures.erase(world.mTextures.begin() + static_cast<std::ptrdiff_t>(at));
+            }
+            world.frames(4);
+            ASSERT_EQ(world.mTextures.size(), 32u) << "two in each of the chunk's sixteen slabs";
+            ASSERT_EQ(ledger.count().mSlabsFree, 0u);
+
+            for (std::uint32_t at = 0; at < 300; ++at)
+                world.texture("textures/small" + std::to_string(at) + ".dds", 256, HoldTier::Shown);
+            std::uint32_t frames = 0;
+            std::uint32_t moved = 0;
+            std::uint32_t mostInOne = 0;
+            do
+            {
+                ASSERT_LT(++frames, 200u) << "what is planned never stood";
+                world.frame();
+                std::uint32_t moves = 0;
+                for (const ResidencyOp& op : world.mDevice.getLastOps())
+                    if (const auto* stand = std::get_if<StandImage>(&op);
+                        stand != nullptr && stand->mFrom.has_value() && stand->mUpload.empty())
+                        ++moves;
+                moved += moves;
+                mostInOne = std::max(mostInOne, moves);
+                ASSERT_TRUE(ledger.isConsistent()) << "frame " << frames;
+            } while (!world.mResidency.isSettled(HoldTier::Shown));
+            // Nine slabs drained, two slots each, and a drain's two moved in one hand-over: the second move was once
+            // issued again from the slot the first had left, a slot the device was handed back twice.
+            EXPECT_EQ(moved, 18u);
+            EXPECT_EQ(mostInOne, 2u);
+            EXPECT_EQ(world.mResidency.getReport().mStarvedTextures, 0u);
+            for (std::size_t at = 32; at < world.mTextures.size(); ++at)
+                EXPECT_EQ(world.standingOf(world.mTextures[at].get()), std::optional<std::uint8_t>(0));
+        }
+
         /// **Texels that fail make the texture failed, and what stood of it is given back**: stood two levels down
         /// beside a 512² under a cap of a chunk, its raise under three asks the feed, which fails it. The texture is
         /// failed, planned at nothing, and the next hand-over drops its old slot; it is asked of the feed no more.

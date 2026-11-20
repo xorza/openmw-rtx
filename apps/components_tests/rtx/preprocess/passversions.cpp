@@ -12,6 +12,7 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/pooledchain.hpp>
 #include <components/contentstore/key.hpp>
 #include <components/misc/bytebuffer.hpp>
 #include <components/rtx/image/alpharange.hpp>
@@ -129,20 +130,18 @@ namespace Rtx
 
             const std::array<std::uint8_t, 16> heights{ 128, 128, 255, 0, 128, 136, 255, 0, 120, 128, 247, 100, 112,
                 128, 251, 200 };
-            MadeChain chain;
-            content.chain(
-                ChainPass::Input{ .mImage = *makeImage(heights, { 0, 0, 0, 0 }), .mEncoding = TextureEncoding::Normal },
-                chain);
+            const MadeChain chain = *Testing::chainOf(content,
+                ChainPass::Input{
+                    .mImage = *makeImage(heights, { 0, 0, 0, 0 }), .mEncoding = TextureEncoding::Normal });
             ASSERT_EQ(chain.mForm, ChainForm::Bc7);
-            MadeChain data;
-            content.chain(ChainPass::Input{ .mImage = *makeBlockImage(), .mEncoding = TextureEncoding::Data }, data);
+            const MadeChain data = *Testing::chainOf(
+                content, ChainPass::Input{ .mImage = *makeBlockImage(), .mEncoding = TextureEncoding::Data });
             ASSERT_EQ(data.mForm, ChainForm::Own);
             const SpecularLayout kind = content.specularLayout(*makeImage(heights));
-            MadeChain converted;
-            content.convert(ConversionPass::Input{ .mImage = *painted,
-                                .mPartner = *makeImage(heights),
-                                .mEncoding = TextureEncoding::ConvertedSpecular },
-                converted);
+            const MadeChain converted = *Testing::chainOf(content,
+                ConversionPass::Input{ .mImage = *painted,
+                    .mPartner = *makeImage(heights),
+                    .mEncoding = TextureEncoding::ConvertedSpecular });
             ASSERT_EQ(converted.mForm, ChainForm::Bc7);
 
             struct Recorded
