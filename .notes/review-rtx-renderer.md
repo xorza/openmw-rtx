@@ -1048,6 +1048,8 @@ Files: `apps/rtxtool/{session,measurer,tourwatch,checks}.cpp`, `apps/rtxtool/mod
 {memoryreport,framereport}`, `apps/openmw/mwrender/rtx/framereport.hpp`, `tools/omw/tour.py`,
 `apps/components_tests/rtxtool/`.
 
+What is left here reads `Residency`'s report and the core's types, so it lands with batch 4, after the contract.
+
 - [ ] `apps/rtxtool/measurer.cpp:462-467` — memory is one sample a leg's end. Target: `FrameReport` carries a
   frame's residency (operations queued and issued, bytes uploaded and copied, slots by state, residents below their
   want, stand-ins drawn, starved) and the record keeps each leg's most.
@@ -1055,19 +1057,8 @@ Files: `apps/rtxtool/{session,measurer,tourwatch,checks}.cpp`, `apps/rtxtool/mod
   budget, by frames), `BelowWant` (a shown texture coarser than wanted for more than N frames), `StandInDrawn`
   (frames a shown slot drew it), `Starved`, `LedgerDrift` (the arena's chunks against the driver's usage less what
   is outside it), each with its threshold stated.
-- [ ] `components/rtx/scene/refusals.cpp:63-66`, `vulkanrenderer.cpp:503-507`, `apps/rtxtool/model/logtally.cpp:11`
-  — one refusal is a fault and two log-warning costs, the second with live byte counts in its text. Target: one
-  typed record; the watch does not hear lines the renderer already reports as records.
-- [ ] `apps/rtxtool/model/finding.hpp:66-79`, `finding.cpp:105-110` — a finding's identity and its description are
-  one string, searched linearly; a refusal's reason is not in its key. Target: a key a kind (a sum type), figures
-  apart; expectations match keys.
-- [ ] What a structure comes to made tight against as first built, for a sample of real meshes: a tally in
-  `BottomLevelStore` by triangles' octave, said at the session's end. `info --prices` states the first-built sizes
-  alone, since a tight size is known only once a structure is built
-  (`docs/research/2026-11-20-memory-prices.md`).
 - [ ] `tour --record-residency=<file>`: a hand-over's asks, holds by tier, arrivals, drops and budget, in the core's
   types. One Repack and one PBR tour of the handheld and of the desk are kept as the replay's inputs.
-- [ ] The handheld's device-to-device copy rate, by a bench of `vkCmdCopyImage` at the ladder's sizes.
 
 ## Batch 3: the ledger and the plan, with no device
 
@@ -1554,6 +1545,13 @@ Items that landed in another shape than their target, each with how and why.
   the same screen (`WorldMirror::awaitStored`, `ContentStore::Store::flushFor`). The item's draw on every report
   left the tail it named undrawn where the tail was the store's: a day's first start stamps every entry it found,
   27 s with no frame on the handheld, which left a hang report.
+- A finding's identity stays its kind and its detail, with no sum type of keys: the table is indexed by both
+  (`FindingTable::mIndex`), a refusal's detail names its reason, and a leg's slow frames and the soak's growth keep
+  their figures in the note, so what a finding is no longer moves with its figures. A key a kind would spell each
+  detail a second time, in the key and in its wording, for the identity the pair already carries. The renderer's
+  refusals and the allocator's two lines beside them are logged at Info, since the refusal is a record a tour reads.
+- The device's copy rate is a part of `info --prices` (`Renderer::measureCopies`), timed by the device's clock over
+  BC7 chains of 64, 256, 1024 and 4096 texels.
 
 ## Declined
 
