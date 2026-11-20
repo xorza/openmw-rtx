@@ -51,6 +51,25 @@ it is shown") is carried here whole, rewritten to fit, and its own file is gone.
   calls it.
 - **The seam: its defects now, its structure a proposal of its own**, after the memory work lands.
 
+**Taken on 2026-11-20, while the plan was worked through**, each where the plan left a choice open:
+
+- **A pipeline cache that grows while it is read is kept as the driver's short answer.** `vkGetPipelineCacheData`
+  answers `VK_INCOMPLETE` with as much as fits where the cache outgrew the size it gave, and "any data written to
+  `pData` is valid and can be provided as the `pInitialData` member" of a new cache
+  ([Vulkan reference](https://docs.vulkan.org/refpages/latest/refpages/source/vkGetPipelineCacheData.html)). The
+  read asks four times for the whole and keeps the last short blob, so the start's save always writes. Refused:
+  `save` answering whether it wrote, for the start's save to try again, which under a disk that refuses writes a
+  blob every 8 ms of the loading screen.
+- **A cgroup's pages of files are room, active and inactive both, under the lower of `memory.high` and
+  `memory.max`.** The figure this is the least with is the kernel's `MemAvailable`, which counts both lists as the
+  system's to give, and past `memory.high` the kernel reclaims before it throttles
+  ([cgroup v2](https://docs.kernel.org/admin-guide/cgroup-v2.html)). Refused: `inactive_file` alone, as Docker's
+  `stats` subtracts ([docker container stats](https://docs.docker.com/reference/cli/docker/container/stats/)): it
+  reports what a container uses, where this asks what a process may still take.
+- **A quit asked under the content's preparation leaves the wait and stops the preparation, and the engine's start
+  runs on to its loop**, which ends before a frame. Refused: ending `Engine::go` early, a change to upstream's start
+  nobody approved, which upstream's own data loading does not make either.
+
 **Superseded by the first decision**, all "by the user's decision" in `docs/architecture.md`: "the limit is derived
 from the budget" (the nine tenths stay, as the cache's share); "what waits is given the resting row that surely
 leaves it room"; "both storages take blocks of content's block size … and keep their last"; "content leaves room for
@@ -1012,60 +1031,14 @@ design is to take to none; `repeat --pairs=10` agreeing; `shot --against` moving
 
 # Part two: the plan
 
-Twelve batches, the most impact first, each after what it needs. Each leaves the build and the tests green; a batch
-that changes what a frame reads owes `./omw repeat --pairs=10` and `shot --against`, and a batch that changes memory
-owes the handheld's Repack and PBR tours beside the desk's. Whoever addresses an item deletes it. An item marked
+Twelve batches, the most impact first, each after what it needs; the first, the defects that stood whatever the
+design, is done. Each leaves the build and the tests green; a batch that changes what a frame reads owes
+`./omw repeat --pairs=10` and `shot --against`, and a batch that changes memory owes the handheld's Repack and PBR
+tours beside the desk's. Whoever addresses an item deletes it. An item marked
 **(upstream)** changes upstream's code and is recorded in `.notes/UPSTREAM.md` as it lands: those approved on
 2026-11-20 say so, and any other waits for a yes of its own.
 An item that says "ends" names a defect in code its batch deletes: it is there so the new shape gets the test the
 old one lacked.
-
-## Batch 1: defects that stand whatever the design
-
-Small and independent of each other; nothing here waits for the redesign.
-
-Files: `components/rtxvulkan/{scene,device,gui,upscale}`, `vulkanrenderer.cpp`, `components/contentstore`,
-`components/rtx/{common,preprocess,prepare,mirror,renderer}`, `components/platform`, `components/resource`,
-`components/detournavigator`, `apps/openmw/mwworld/cellpreloader.cpp`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp`,
-`components/sdlutil`, `apps/navmeshtool`, `apps/bulletobjecttool`, their tests.
-
-- [ ] `apps/openmw/mwrender/rtx/rtxrenderer.cpp:114-140`, `apps/openmw/mwgui/loadingscreen.cpp:219-224`,
-  `components/sdlutil/sdlinputwrapper.cpp:74-86` — the content preparation's wait calls `setProgress`, which skips
-  the draw unless the bar moved a pixel: no event pump and no `Crash::heartbeat` at a preparation's tail, where the
-  20 s hang limit can fire; and a close request is ignored for the whole wait. Target: the wait draws through
-  `increaseProgress`, which always asks for a draw; it asks the input manager for a quit each patience and leaves.
-- [ ] `components/rtxvulkan/vulkanrenderer.cpp:310-311` against `:344-352` — NGX's feature is made before the
-  reserve is raised and textures are moved down, so a larger mode on a full card ends in `DeviceError` where FSR
-  makes room first. Target: reserve and room before `prepare` where the mode was measured, the largest known figure
-  otherwise.
-- [ ] `components/rtxvulkan/device/pipelinecache.cpp:324-329`, `vulkanrenderer.cpp:776-781` — `save` returns
-  silently on `VK_INCOMPLETE`, which the tuple compile's growth of the cache makes likely, and the start's save is
-  marked done. Target: `save` answers whether it wrote; `VK_INCOMPLETE` retried a bounded number of times.
-- [ ] `components/rtxvulkan/device/commands.cpp:466-479`, `device/memory/batch.cpp:156-157` — `endAndWait` moves
-  the deferred buffers to `mRetiring` only after the wait, so a wait that throws leaves submitted buffers to be
-  submitted again at teardown. Target: one function owns "submitted → retiring" for both paths.
-- [ ] `components/rtxvulkan/device/memory/stagingring.cpp:42` — a block freed by `collectIdle` is stamped
-  `UINT64_MAX` and reads as long cooled. Target: `releaseThrough` takes the clock's known value.
-- [ ] `components/resource/resourcesystem.cpp:99-102` — the budget is derived before what was evicted is destroyed,
-  so those bytes are in no term and each tick evicts them again. Target: destroy, then read.
-- [ ] `apps/navmeshtool/main.cpp:227`, `apps/bulletobjecttool/main.cpp:174` — `CacheBudget(0)` latches `mStarved`
-  on the first insertion and nothing clears it. Target: the tools state `sUnbounded`.
-- [ ] `components/platform/memorylinux.cpp:38-55` — a cgroup's room is `memory.max − memory.current`, which counts
-  the group's reclaimable file pages as taken and never reads `memory.high`. Target: less `inactive_file` and
-  `active_file` of `memory.stat`, against the least of the two limits.
-- [ ] `components/rtx/mirror/statereading.cpp:251,304-318,470-476` — a mode and an attribute are read by presence:
-  `GL_FOG` set off marks the surface, a `BlendFunc` blends whatever `GL_BLEND` says. Target: by value, as
-  `docs/architecture.md` states.
-- [ ] `components/rtx/renderer/nullrenderer.cpp:104` — `addGuiTexture(0, h)` answers a live slot where the contract
-  and Vulkan answer none. Target: none.
-- [ ] `apps/components_tests/rtxvulkan/gui/guitextures.cpp:642-647` — `limitBudget(1)` by hand: a failed assert
-  leaves the shard's shared device at one byte. Target: `Testing::BudgetLimit`; `limitBudget` reachable by tests
-  through it alone.
-- [ ] The working tree's `LargestOwed` (`components/rtxvulkan/device/memory/memory.cpp:511-518`) — with the largest
-  essential growth at a structure block or more, the structures' and the textures' ceilings are equal, so textures
-  fill the heap to within a block and the next structure block is refused: the third open issue eases and the second
-  worsens. Until batch 5 removes both ceilings: the textures' ceiling keeps a structure block more, which is a sum
-  across uses and not across owners. `memory.hpp:84-88` and `tryTake`'s comment still describe the design before.
 
 ## Batch 2: see it first
 
@@ -1563,6 +1536,17 @@ Items that landed in another shape than their target, each with how and why.
   split of the budgeted cache from upstream's, and an upstream change this item was not approved for.
 - The past lost with a chain made again is `FrameTracer::Moves::losesPast`, held by a host test of its table. The
   target's test across `setUpscale` that reads the air needs DLSS, which one vendor's cards run and CI's do not.
+- `PipelineCache::save` answers nothing and retries no save: the read keeps the driver's short answer, which is a
+  valid cache ("Decisions"), so there is no failed save of a growing cache left to report.
+- The one-off submit's fix has no test of a wait that throws: nothing can make a device's wait fail on demand. The
+  deferred buffers are retired where they are submitted, in the one function both submits go through.
+- NGX's room is made by what the feature was measured at, the most any feature held where it never stood
+  (`FeatureBytes`), and its test is the table's. That a larger mode on a full card no longer ends in a refusal is not
+  shown: it needs a card filled past its budget under DLSS.
+- State read by value went further than the item: a blend's pair and equation are unread only where the surface
+  blends (`SurfaceDescription::getUnread`), and the function and the mode have a lock each, as OpenGL keeps them.
+- `LargestOwed`'s ceilings stood as the item's target already, by `6047cd186b`, which landed before the plan was
+  worked; the one comment that still described the design before (`MemoryUse`) was brought in line.
 
 ## Declined
 
