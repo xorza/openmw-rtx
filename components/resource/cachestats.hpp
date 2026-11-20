@@ -21,7 +21,7 @@ namespace Resource
         /// Entries let go: by time, or by a budget to make room.
         std::size_t mExpired = 0;
 
-        /// Entries a load put in (`GenericObjectCache::getOrLoad`, `addEntryToObjectCache`).
+        /// Entries a load put in (`BudgetedObjectCache::getOrLoad`); nought for upstream's cache, which counts none.
         std::size_t mLoaded = 0;
 
         /// Asks that found their key loading on another thread and waited for that load rather than loading again.

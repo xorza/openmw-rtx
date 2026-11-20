@@ -33,7 +33,7 @@ namespace Resource
 
     /// @brief Handles loading/caching of Images.
     /// @note May be used from any thread.
-    class ImageManager : public ResourceManager<osg::ref_ptr<osg::Image>>
+    class ImageManager : public BudgetedResourceManager<osg::ref_ptr<osg::Image>>
     {
     public:
         ImageManager(const ImageManager&) = delete;
@@ -70,9 +70,10 @@ namespace Resource
 
         /// Every header made, by its file: tiny, and bounded by the files the content names, one each, so that
         /// every texture of one file names one header, as it named one image. **Made once however many loaders meet
-        /// the file at once** (`GenericObjectCache::getOrLoad`), so a file is derived once; kept by no time, since
-        /// nothing updates it.
-        GenericObjectCache<VFS::Path::Normalized, osg::ref_ptr<osg::Image>> mHeaders;
+        /// the file at once** (`BudgetedObjectCache::getOrLoad`), so a file is derived once; kept whole under a budget
+        /// of its own nothing passes.
+        CacheBudget mHeaderBudget{ CacheBudget::sUnbounded };
+        BudgetedObjectCache<VFS::Path::Normalized, osg::ref_ptr<osg::Image>> mHeaders{ mHeaderBudget };
     };
 
 }

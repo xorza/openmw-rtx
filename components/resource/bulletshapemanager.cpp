@@ -250,14 +250,14 @@ namespace Resource
 
     void BulletShapeManager::updateCache(double referenceTime)
     {
-        ResourceManager<std::shared_ptr<const BulletShape>>::updateCache(referenceTime);
+        BudgetedResourceManager<std::shared_ptr<const BulletShape>>::updateCache(referenceTime);
 
         mInstanceCache->removeUnreferencedObjectsInCache();
     }
 
     void BulletShapeManager::clearCache()
     {
-        ResourceManager<std::shared_ptr<const BulletShape>>::clearCache();
+        BudgetedResourceManager<std::shared_ptr<const BulletShape>>::clearCache();
 
         mInstanceCache->clear();
     }

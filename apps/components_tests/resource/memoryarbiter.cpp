@@ -1,10 +1,13 @@
 #include <chrono>
 #include <cstdint>
+#include <memory>
 #include <optional>
+#include <string>
 #include <tuple>
 
 #include <gtest/gtest.h>
 
+#include <components/resource/budgetedobjectcache.hpp>
 #include <components/resource/cachebudget.hpp>
 #include <components/resource/memoryarbiter.hpp>
 #include <components/resource/systemshare.hpp>
@@ -54,6 +57,32 @@ namespace Resource
             });
             EXPECT_GE(arbiter.takeSlowestRead(), std::chrono::milliseconds(3));
             EXPECT_EQ(arbiter.takeSlowestRead(), std::chrono::nanoseconds{}) << "taken";
+        }
+
+        /// **A tick destroys what the caches evicted before it reads the system**: alive, an evicted value is in no
+        /// term of the budget. A value of 40 evicted by an insertion past a budget of 60 is gone by the time the
+        /// reading is taken.
+        TEST(ResourceMemoryArbiterTest, aTickDestroysTheEvictedBeforeItReads)
+        {
+            CacheBudget budget(60);
+            BudgetedObjectCache<std::int32_t, std::shared_ptr<const std::string>> cache(budget);
+            const auto loadOf = [](std::uint64_t bytes) {
+                return [bytes] {
+                    return Loaded<std::shared_ptr<const std::string>>{ std::make_shared<const std::string>("loaded"),
+                        bytes };
+                };
+            };
+            const std::weak_ptr<const std::string> first = cache.getOrLoad(1, loadOf(40));
+            cache.getOrLoad(2, loadOf(40));
+            ASSERT_FALSE(first.expired()) << "evicted, and alive until a tick";
+
+            MemoryArbiter arbiter(budget);
+            bool destroyedFirst = false;
+            arbiter.tick([&] {
+                destroyedFirst = first.expired();
+                return readingAt(std::nullopt, std::chrono::seconds(0));
+            });
+            EXPECT_TRUE(destroyedFirst);
         }
 
         /// **A claim the device makes ends as ticks go by, whatever arrives**: a device that held 4 GiB and gives 2

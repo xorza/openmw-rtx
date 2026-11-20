@@ -65,15 +65,19 @@ namespace Resource
         // frame and every loader's queue.
         std::mutex mutex;
         std::condition_variable_any woken;
+        std::uint64_t heapFree = 0;
+        std::optional<std::chrono::steady_clock::time_point> heapRead;
         while (!stop.stop_requested())
         {
-            mArbiter.tick([] {
-                const std::optional<Platform::HeapHeld> heap = Platform::heapHeld();
-                return SystemReading{
-                    .mAvailable = Platform::availableMemory(),
-                    .mHeapFree = heap.has_value() && heap->mTaken > heap->mInUse ? heap->mTaken - heap->mInUse : 0,
-                    .mAt = std::chrono::steady_clock::now(),
-                };
+            mArbiter.tick([&] {
+                const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+                if (!heapRead.has_value() || now - *heapRead >= MemoryArbiter::sHeapPeriod)
+                {
+                    const std::optional<Platform::HeapHeld> heap = Platform::heapHeld();
+                    heapFree = heap.has_value() && heap->mTaken > heap->mInUse ? heap->mTaken - heap->mInUse : 0;
+                    heapRead = now;
+                }
+                return SystemReading{ .mAvailable = Platform::availableMemory(), .mHeapFree = heapFree, .mAt = now };
             });
             std::unique_lock lock(mutex);
             woken.wait_for(lock, stop, MemoryArbiter::sPeriod, [] { return false; });

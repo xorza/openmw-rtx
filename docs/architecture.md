@@ -102,7 +102,7 @@ in the interface.
 What the game reads from files (`components/resource`), changed for the handheld's memory and the preloader's re-reads
 (`research/2026-11-15-content-reads-and-host-memory.md`), kept in the fork by the user's decision.
 
-- **One load a key in flight** (`GenericObjectCache::getOrLoad`): every thread that asks while a load runs takes its
+- **One load a key in flight** (`BudgetedObjectCache::getOrLoad`): every thread that asks while a load runs takes its
   value or its exception, as Go's `singleflight` does. Refused: a lock over the whole load, which serialises every
   thread behind the slowest file.
 - **An archive is opened once and read by position** (`Platform::File::readAt`), each entry's stream keeping its own

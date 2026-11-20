@@ -1072,24 +1072,6 @@ tours beside the desk's. Whoever addresses an item deletes it. An item marked
 An item that says "ends" names a defect in code its batch deletes: it is there so the new shape gets the test the
 old one lacked.
 
-## Batch 8: host memory
-
-Files: `components/resource/{memoryarbiter,cachebudget,objectcache.hpp,budgetedobjectcache.hpp,resourcesystem,
-resourcemanager.hpp,imageheader}`, `components/platform/{memory*,heap*}`, `apps/openmw/mwworld/cellpreloader.cpp`,
-`components/rtxvulkan/device/memory/{memory,systemshare.hpp}`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp`.
-
-- [ ] **(upstream, approved)** `objectcache.hpp` — two residencies in one class behind a nullable pointer, eight
-  branches, 357 lines in upstream's file. Target: `BudgetedObjectCache` of the fork's beside an untouched upstream
-  cache; `GenericResourceManager` takes the cache's type. `mFlights` holds the `std::shared_future`.
-- [ ] `components/platform/heapposix.cpp:63-72` — `malloc_info` walks every arena under its locks once a second, the
-  shape Windows' `HeapSummary` was removed for at 1.2 s. Target: its p99 measured on the handheld's heap; kept at a
-  period the figure allows.
-- [ ] `cachebudget.cpp:14-15` — the heap's free memory counts in full as the caches' room though blocks of 1 MiB
-  and over never enter an arena. Target: measured against a tour's resident set, then counted for what small
-  entries can take, or not at all.
-- [ ] Tests: the tick's order; `CacheBudget`'s own file; the arbiter over a fake system; a claim that ends when
-  arrivals stop.
-
 ## Batch 9: the device's foundation and the passes
 
 Files: `components/rtxvulkan/device/` (but the arena), `components/rtxvulkan/{frame,present,trace,denoise,upscale,
@@ -1266,6 +1248,11 @@ Files: `components/rtx/{common,scene,renderer,mirror}`, `apps/components_tests/r
 ## Changed
 
 Items that landed in another shape than their target, each with how and why.
+
+- Batch 8's caches: `BudgetedObjectCache` is the fork's, its budget a reference; upstream's `GenericObjectCache` is
+  upstream's text but for what the lint asks of it, and counts no loads or reloads again, so
+  the harness reports those for the budgeted caches alone. The image manager's headers stand under a budget of their
+  own nothing passes, where an unbudgeted cache kept them. The managers take the cache as a template argument.
 
 - Batch 8's preload admission: a door's destination preloaded already is stamped first (`refreshPreloaded`, found
   with no load), and the budget asked only after; a destination it admits is asked again by `preload` with the
@@ -1507,3 +1494,6 @@ Items judged and not done, each with the reason.
   cell's whole adoption, ran at a p99 of 4–16 ms against a median of 2–6 ms, under frame medians of 18–64 ms the card
   sets; steps would split a cost that stays inside the frame's own tail, at the price of a cell held half adopted
   across frames, which the placer's every check assumes never is.
+- Batch 8's heap free memory counted for what small entries take, or not at all: the handheld's Repack heap held
+  38–117 MiB free at its stops' ends beside budgets of 4–9 GiB, and the desk's 38 MiB, so the budget moves by 1–3%
+  either way; most entries are under the 1 MiB past which glibc maps a block of its own and can take it.

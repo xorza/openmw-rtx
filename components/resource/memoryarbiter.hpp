@@ -32,6 +32,13 @@ namespace Resource
         /// How often its owner ticks it.
         static constexpr std::chrono::seconds sPeriod{ 1 };
 
+        /// **How often its owner reads the heap's free memory, beside the system's figure each tick**: glibc's report
+        /// walks every arena under its locks, which every thread that allocates meanwhile waits on, and a read of the
+        /// system with it took up to 11 ms on the handheld's Repack heap, a hitch a second where a frame allocates
+        /// (`research/2026-11-20-handheld-open-issues.md`). What the heap keeps free moves slowly; the system's figure
+        /// is read every tick.
+        static constexpr std::chrono::seconds sHeapPeriod{ 30 };
+
         explicit MemoryArbiter(CacheBudget& budget);
         ~MemoryArbiter() = default;
 

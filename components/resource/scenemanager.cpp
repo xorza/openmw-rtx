@@ -597,7 +597,7 @@ namespace Resource
     SceneManager::SceneManager(const VFS::Manager* vfs, Resource::ImageManager* imageManager,
         Resource::NifFileManager* nifFileManager, Resource::BgsmFileManager* bgsmFileManager,
         Resource::SptFileManager* sptFileManager, CacheBudget& budget)
-        : NodeResourceManager<std::string>(vfs, budget)
+        : BudgetedNodeResourceManager<std::string>(vfs, budget)
         , mShaderManager(new Shader::ShaderManager)
         , mSharedStateManager(new SharedStateManager)
         , mImageManager(imageManager)
@@ -689,7 +689,7 @@ namespace Resource
 
     bool SceneManager::checkLoaded(VFS::Path::NormalizedView name, double timeStamp)
     {
-        return mCache->checkInObjectCache(name, timeStamp);
+        return mCache->checkIn(name);
     }
 
     void SceneManager::setUpNormalsRTForStateSet(osg::StateSet* stateset, bool enabled)
@@ -1325,7 +1325,7 @@ namespace Resource
 
     void SceneManager::updateCache(double referenceTime)
     {
-        NodeResourceManager<std::string>::updateCache(referenceTime);
+        BudgetedNodeResourceManager<std::string>::updateCache(referenceTime);
 
         mSharedStateMutex.lock();
         mSharedStateManager->prune();
@@ -1367,7 +1367,7 @@ namespace Resource
 
     void SceneManager::clearCache()
     {
-        NodeResourceManager<std::string>::clearCache();
+        BudgetedNodeResourceManager<std::string>::clearCache();
 
         std::scoped_lock lock(mSharedStateMutex);
         mSharedStateManager->clearCache();

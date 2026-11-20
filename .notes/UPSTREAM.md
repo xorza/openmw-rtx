@@ -88,7 +88,11 @@ conflict here resolves by keeping the seam:
 **How content is loaded** (`docs/architecture.md`, "Loading"), kept in the fork rather than offered upstream; a merge
 that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves against it:
 
-- One load a key in flight (`GenericObjectCache::getOrLoad`), which `SceneManager::getTemplate`, `NifFileManager::get`,
+- The caches of what is read from files are a class of the fork's own (`Resource::BudgetedObjectCache`, the user's yes,
+  2026-11-20), beside upstream's `GenericObjectCache`, upstream's text again but for what the lints ask (`#pragma once`, two notes, the scoped lock, an `auto`) and the formatter's;
+  `GenericResourceManager` and `ResourceManager` take the cache's type, `BudgetedResourceManager` and
+  `BudgetedNodeResourceManager` naming the budgeted ones. Cost: a conflict with an edit to the managers' bases.
+- One load a key in flight (`BudgetedObjectCache::getOrLoad`), which `SceneManager::getTemplate`, `NifFileManager::get`,
   `ImageManager::getImage`, `KeyframeManager::get` and `BulletShapeManager::getShape` load through, each load a private
   function; `CacheStats` counts loads, waits and reloads. Two threads that missed one model both loaded it. Its test of
   a throwing load holds the loader's catch until the waiter is joined, since the exception both share is freed through
@@ -111,7 +115,7 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   the system and the heap, whose free memory the system counts as the process's; `ResourceSystem::updateCache` and the
   preloader's `UpdateCacheItem` are upstream's text again (the user's yes, 2026-11-20), the tick off the preloader's
   queue. An eviction keeps its value until the arbiter's tick destroys it (`BudgetedCache::destroyEvicted`), so an
-  inserting thread, the frame's among them, destroys nothing; and `GenericObjectCache::update` stamps a budgeted cache in runs of
+  inserting thread, the frame's among them, destroys nothing; and `BudgetedObjectCache::update` stamps the cache in runs of
   256 entries, the lock let go between them. Approved with item 10 of the tree and content memory plan (2026-11-17).
 - `CellPreloader::preload` skips a cell while the caches stand past their budget with everything in use, counted as
   `CellPreloader Skipped`: a preload is a guess, and past the budget it holds memory the frame needs. `Scene::preloadTeleportDoorDestinations` stamps
@@ -131,8 +135,8 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   `ImageManager::setModelImages` takes a `Resource::HeaderDeriver` with the `Headers` mode, which `getModelImage` asks
   first for a header it knows of the file unread, and otherwise hands the texels it read, the header made carrying
   what the deriver made of them, so the renderer keys a file and learns its facts where it reads it, never reads it
-  again for either, and reads none of a file whose record stands; the headers are a `GenericObjectCache` kept by no
-  time, so loaders that meet a file at once derive it once (`getOrLoad`). Cost: the fork's own lines in upstream's
+  again for either, and reads none of a file whose record stands; the headers are a `BudgetedObjectCache` under a
+  budget of their own nothing passes, so loaders that meet a file at once derive it once (`getOrLoad`). Cost: the fork's own lines in upstream's
   file. Approved with item 12 of the tree and content memory plan (2026-11-17).
 - A model is handed to the renderer where it is loaded (`SceneManager::setModelDeriver`, `Resource::ModelDeriver`),
   once a template on its loader's thread before any other thread sees it, as the image manager hands each image

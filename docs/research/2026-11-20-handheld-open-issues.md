@@ -128,3 +128,10 @@ at 27.0 against master's 28.6 and the baseline's 22.8: what the resting land too
 gap and little of the rest. The land legs' game update rose by the crossings the world now waits on under the loading
 screen (`Renderer::standWhole`): its p99 on the first leg 47 ms with no wait, 118 waiting out the band, 63 waiting out
 the drawn reach.
+
+## What a read of the system and the heap takes on the handheld
+
+At `631b42ce02` the arbiter read the system's figure and glibc's heap report (`malloc_info`, every arena walked under
+its locks) once a second, and the harness said the slowest read since each stop: on the first stops of a sampled
+Repack tour, 9.0, 9.8 and 11.0 ms at the most, where the desk's vanilla shot read in 1.6. The heap is read every 30 s
+since (`MemoryArbiter::sHeapPeriod`), the system's figure every second.

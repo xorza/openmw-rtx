@@ -2,12 +2,15 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
+#include <type_traits>
 
 #include <osg/Node>
 #include <osg/ref_ptr>
 
 #include <components/vfs/pathutil.hpp>
 
+#include "budgetedobjectcache.hpp"
 #include "cachebudget.hpp"
 #include "objectcache.hpp"
 
@@ -39,13 +42,17 @@ namespace Resource
     /// @brief Base class for managers that require a virtual file system and object cache.
     /// @par This base class implements clearing of the cache, but populating it and what it's used for is up to the
     /// individual sub classes.
-    template <class KeyType, class ValueType>
+    ///
+    /// @tparam Cache what keeps the values: upstream's `GenericObjectCache` by time, or the fork's
+    ///         `BudgetedObjectCache` by a `CacheBudget`, for what is read from files.
+    template <class KeyType, class ValueType, class Cache = GenericObjectCache<KeyType, ValueType>>
     class GenericResourceManager : public BaseResourceManager
     {
     public:
-        typedef GenericObjectCache<KeyType, ValueType> CacheType;
+        using CacheType = Cache;
 
         explicit GenericResourceManager(const VFS::Manager* vfs, double expiryDelay)
+            requires std::is_default_constructible_v<Cache>
             : mVFS(vfs)
             , mCache(std::make_unique<CacheType>())
             , mExpiryDelay(expiryDelay)
@@ -54,6 +61,7 @@ namespace Resource
 
         /// A manager of what is read from files, whose cache `budget` keeps rather than time.
         explicit GenericResourceManager(const VFS::Manager* vfs, CacheBudget& budget)
+            requires std::is_constructible_v<Cache, CacheBudget&>
             : mVFS(vfs)
             , mCache(std::make_unique<CacheType>(budget))
             , mExpiryDelay(0.0)
@@ -98,23 +106,24 @@ namespace Resource
     template <class KeyType>
     using NodeResourceManager = GenericResourceManager<KeyType, osg::ref_ptr<osg::Node>>;
 
-    template <class ValueType>
-    class ResourceManager : public GenericResourceManager<std::string, ValueType>
+    /// A manager of nodes read from files, kept by a budget.
+    template <class KeyType>
+    using BudgetedNodeResourceManager = GenericResourceManager<KeyType, osg::ref_ptr<osg::Node>,
+        BudgetedObjectCache<KeyType, osg::ref_ptr<osg::Node>>>;
+
+    template <class ValueType, class Cache = GenericObjectCache<std::string, ValueType>>
+    class ResourceManager : public GenericResourceManager<std::string, ValueType, Cache>
     {
     public:
-        explicit ResourceManager(const VFS::Manager* vfs, double expiryDelay)
-            : GenericResourceManager<std::string, ValueType>(vfs, expiryDelay)
-        {
-        }
-
-        explicit ResourceManager(const VFS::Manager* vfs, CacheBudget& budget)
-            : GenericResourceManager<std::string, ValueType>(vfs, budget)
-        {
-        }
+        using GenericResourceManager<std::string, ValueType, Cache>::GenericResourceManager;
 
     protected:
-        using GenericResourceManager<std::string, ValueType>::mCache;
-        using GenericResourceManager<std::string, ValueType>::mVFS;
+        using GenericResourceManager<std::string, ValueType, Cache>::mCache;
+        using GenericResourceManager<std::string, ValueType, Cache>::mVFS;
     };
+
+    /// A manager of what is read from files, by name, kept by a budget.
+    template <class ValueType>
+    using BudgetedResourceManager = ResourceManager<ValueType, BudgetedObjectCache<std::string, ValueType>>;
 
 }

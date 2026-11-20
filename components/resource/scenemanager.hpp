@@ -102,7 +102,7 @@ namespace Resource
     /// @brief Handles loading and caching of scenes, e.g. .nif files or .osg files
     /// @note Some methods of the scene manager can be used from any thread, see the methods documentation for more
     /// details.
-    class SceneManager : public NodeResourceManager<std::string>
+    class SceneManager : public BudgetedNodeResourceManager<std::string>
     {
     public:
         SceneManager(const SceneManager&) = delete;
