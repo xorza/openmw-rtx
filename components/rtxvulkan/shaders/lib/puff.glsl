@@ -27,6 +27,10 @@ struct PuffShape
     /// The same for everything else the air scatters. A ball takes a side toward the sky here and
     /// nothing toward the lamps, which is what an ambient with no direction in it can be met with.
     float mAmbientLit;
+
+    /// One for smoke, which takes the lamps as the original lit its particles (`puffLight`), and nought for a
+    /// streak of rain, a cylinder lit as a card is from every side.
+    float mSmoke;
 };
 
 /// What a cylinder takes of a source at right angles to it, against its own mean over every
@@ -52,7 +56,7 @@ const float CYLINDER_SHARE = 4.0 * INV_PI;
 /// @param along unit, the axis the streak hangs on.
 PuffShape streakPuff(vec3 along)
 {
-    return PuffShape(CYLINDER_SHARE * length(cross(along, frame.mSun.mDirection)), 1.0);
+    return PuffShape(CYLINDER_SHARE * length(cross(along, frame.mSun.mDirection)), 1.0, 0.0);
 }
 
 /// What a puff of smoke is lit by, per unit of albedo, out of the froxel it stands in.
@@ -72,10 +76,13 @@ PuffShape streakPuff(vec3 along)
 /// by what the point sees of it, the sun by its transport (the shadow and the beam through the fog), and the
 /// lamps by what they deliver times whether they are seen.
 ///
-/// **As bright as a card of the same albedo, and that is not a fudge.** An opaque diffuse *sphere* would catch
-/// `pi r^2` of the beam and radiate over `4 pi r^2`, a quarter of the facing value, but a puff is a cloud of
-/// droplets that scatters strongly forward and again inside itself, so the sun reaches all of it. The quarter
-/// put a plume back at the sky's own ambient, where it was invisible.
+/// **A medium's light from the sun, and the original's from the lamps.** A puff is a cloud of droplets, which
+/// scatters the sun through its phase and again inside itself (`smokeScatter`): bright where it stands between
+/// the eye and the sun, faint with the sun behind the eye, and over every direction a half of a card facing it.
+/// The lamps light it as the original lit its particles, at a quarter of a card and no brighter than a light at
+/// full: lit as a card from every side, a torch beside a tomb's thin mist made it a fog too thick to see through,
+/// its coarse alpha hard edges and each particle's birth a pop, where the original's mist is a faint wisp
+/// (issue 61).
 ///
 /// @param seen how far along the ray the puff stands, which with the pixel names the froxel.
 /// @param wrapped what the puff's own shape and its own texture leave of each of the two terms —
@@ -88,11 +95,15 @@ vec3 puffLight(uvec2 pixel, vec3 direction, float seen, PuffShape wrapped)
 
     const FogSeeing seeing = unpackFogSeeing(textureLod(fogSeeing, at, 0.0));
 
-    // **The field holds the air's share and a puff takes the card's.** `lampsInAir` stores the lamps' mean
-    // irradiance under the air's isotropic phase, `E / 4 pi`; a card is lit at `E / pi`, as the sun and the
-    // fill are below, so a puff takes four of what the air does. Stored in the air's own quantity because the
-    // field is half floats and a lamp's irradiance beside it runs twelve times closer to their top.
-    const vec3 lamps = textureLod(fogLamps, at, 0.0).xyz * (INV_PI / INV_FOUR_PI);
+    // **The field holds the lamps' even share**: `lampsInAir` stores their mean irradiance under an isotropic
+    // phase, `E / 4 pi`, in the air's own quantity because the field is half floats and a lamp's irradiance
+    // beside it runs twelve times closer to their top. **Smoke takes it as the original lit its particles**:
+    // through one fixed normal (`NifOsg::ParticleSystem`), whose mean over every direction a lamp can stand
+    // in is a quarter of a card facing it, which is the even share itself; and no brighter than a light at
+    // full, where the original's lighting stopped (`PUFF_LAMPS_MOST`). A streak of rain takes a card's
+    // `E / pi`, four of the even share.
+    const vec3 held = textureLod(fogLamps, at, 0.0).xyz;
+    const vec3 lamps = mix(held * (INV_PI / INV_FOUR_PI), min(held, vec3(PUFF_LAMPS_MOST)), wrapped.mSmoke);
 
     const vec3 daylight = daylightReaching(frame.mOrigin + direction * seen);
 
@@ -140,10 +151,11 @@ float ballWrap(vec3 normal, vec3 toward)
     return 1.0 + SPRITE_WRAP * dot(normal, toward);
 }
 
-/// How much more of the sun a puff of smoke throws toward the eye than an even share would.
+/// What a puff of smoke throws of the sun toward the eye, against a card facing the sun: `smokeScatter` over the
+/// card's `1 / pi`, which `puffLight` multiplies back.
 float smokeThrow(vec3 direction)
 {
-    return henyeyGreenstein(SMOKE_ANISOTROPY, dot(frame.mSun.mDirection, direction)) / INV_FOUR_PI;
+    return smokeScatter(dot(frame.mSun.mDirection, direction)) / INV_PI;
 }
 
 /// The shape of a ball of smoke met at `normal`: the sun thrown forward and wrapped round the side the sun
@@ -161,7 +173,7 @@ float smokeThrow(vec3 direction)
 PuffShape ballPuff(vec3 normal, float thrownForward)
 {
     return PuffShape(thrownForward * ballWrap(normal, frame.mSun.mDirection),
-        mix(1.0, ballWrap(normal, vec3(0.0, 0.0, 1.0)), frame.mAmbientFromSky));
+        mix(1.0, ballWrap(normal, vec3(0.0, 0.0, 1.0)), frame.mAmbientFromSky), 1.0);
 }
 
 /// What a sprite's own texture lets through to a point on it from `toward`, out of its six-way bake.

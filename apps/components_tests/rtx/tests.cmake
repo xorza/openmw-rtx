@@ -102,6 +102,7 @@ target_sources(
         rtx/shaders/brdf.cpp
         rtx/shaders/lights.cpp
         rtx/shaders/pixelgrid.cpp
+        rtx/shaders/scattering.cpp
         rtx/shaders/sharedconstants.cpp
         rtx/shaders/tangent.cpp
         rtx/sourcetree.cpp

@@ -1091,25 +1091,20 @@ namespace Rtx::Shaders
 
 #endif
 
+    /// Henyey-Greenstein, per steradian: the share of what a medium scatters that leaves `cosine` off
+    /// the line the light was already travelling. **Shared, because the air, the water and smoke all want
+    /// one**: `fogPhase` blends two to reach Mie's shape, `WATER_ASYMMETRY` is the water's outright and
+    /// `smokeScatter` sums a few. Here and not in the shaders alone, so a test reaches it.
+    RTX_SHADER float henyeyGreenstein(float g, float cosine)
+    {
+        const float squared = g * g;
+        const float denominator = 1.0f + squared - 2.0f * g * cosine;
+
+        return INV_FOUR_PI * (1.0f - squared) / (denominator * sqrt(denominator));
+    }
+
 #ifdef RTX_HOST
 }
-#endif
-
-// What both shading languages read and nothing on this side calls: a scalar curve a test has to reach
-// goes inside the namespace above, where `RTX_SHADER` makes it `inline` here as well.
-#ifndef RTX_HOST
-
-/// Henyey-Greenstein, per steradian: the share of what a medium scatters that leaves `cosine` off
-/// the line the light was already travelling. **Shared, because the air and the water both want
-/// one**: `fogPhase` blends two to reach Mie's shape and `WATER_ASYMMETRY` is the water's outright.
-RTX_SHADER float henyeyGreenstein(float g, float cosine)
-{
-    const float squared = g * g;
-    const float denominator = 1.0 + squared - 2.0 * g * cosine;
-
-    return INV_FOUR_PI * (1.0 - squared) / (denominator * sqrt(denominator));
-}
-
 #endif
 
 #endif

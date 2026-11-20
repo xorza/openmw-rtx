@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 #include <span>
 #include <vector>
 
@@ -912,17 +913,19 @@ namespace Rtx::Testing
                 << "half of the sphere is left for a shell with no sprite in the frame";
         }
 
-        /// A lamp lights a puff by the card's convention, as the sun and the fill do: a white puff under a
-        /// lamp that brings irradiance `E` reads as it does under a fill of `E / pi`. The lamps' field holds
-        /// the air's share, `E / 4 pi`, which the air's isotropic phase asks for; read unchanged, it would
-        /// light a puff four times too dimly beside the card a surface is.
+        /// A lamp lights a puff as the original lit its particles: the even share of its irradiance, a quarter
+        /// of a card's, and no more than a light at full (`PUFF_LAMPS_MOST`). A white puff under a lamp that
+        /// brings irradiance `E` reads `min(E / 4 pi, 1)`, against a fill of `E / pi`, a card's.
         ///
         /// By hand: the lamp stands 200 units over the puff with a reach of 1000 and the eye's ray passes
         /// under it at its closest approach, so the irradiance at the puff is
         /// `40000 * (1 - 0.2^4)^2 / (200^2 + 1) = 40000 * 0.996801 / 40001 = 0.996776` and the matching fill
-        /// is `0.996776 / pi = 0.317285`. The froxel averages the falloff over its stretch of the ray, which a
-        /// puff 40 across holds to within a few per cent.
-        TEST_F(RtxSettlingTest, aLampLightsAPuffAsItLightsACardAndAsTheFillDoes)
+        /// is `0.996776 / pi = 0.317285`; the puff takes a quarter of it, `0.079194`, under the ceiling. A
+        /// lamp a hundred times as bright brings `99.6776`, whose quarter `7.92` stands past it: the puff reads
+        /// one, the fill of `pi`. A streak of rain, a cylinder and not a cloud, takes the card's `E / pi`, as the
+        /// fill: the two read alike. The froxel averages the falloff over its stretch of the ray, which a puff 40
+        /// across holds to within a few per cent.
+        TEST_F(RtxSettlingTest, aLampLightsAPuffAsTheOriginalLitItsParticles)
         {
             SceneIdentities identities;
             constexpr std::uint32_t size = 33;
@@ -931,18 +934,20 @@ namespace Rtx::Testing
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             const std::array<TextureData, 1> puff{ describeTexel(white) };
 
-            const auto render = [&](bool lamp, float fill) {
+            // A streak's width against its upright axis, or nought for a puff of smoke.
+            const auto render = [&](float lamp, float fill, float streak) {
                 SceneDesc scene(identities);
                 const TextureIndex cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                 const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
                     .mRadius = 40.0f,
+                    .mAxis = streak > 0.0f ? osg::Vec3f(0.0f, 0.0f, 1.0f) : osg::Vec3f(),
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                     .mAlpha = 1.0f } };
-                scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over });
-                if (lamp)
+                scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over, .mWidth = streak });
+                if (lamp > 0.0f)
                     scene.addLight(Light{
                         .mPosition = osg::Vec3f(0.0f, 0.0f, 200.0f),
-                        .mIntensity = osg::Vec3f(40000.0f, 40000.0f, 40000.0f),
+                        .mIntensity = osg::Vec3f(lamp, lamp, lamp),
                         .mReach = 1000.0f,
                     });
 
@@ -962,10 +967,20 @@ namespace Rtx::Testing
                 return sum;
             };
 
-            const float filled = render(false, irradiance * Shaders::INV_PI);
-            const float lit = render(true, 0.0f);
+            const float filled = render(0.0f, irradiance * Shaders::INV_PI, 0.0f);
+            const float lit = render(40000.0f, 0.0f, 0.0f);
             ASSERT_GT(filled, 0.01f) << "the fill did not light the puff at all";
-            EXPECT_NEAR(lit / filled, 1.0f, 0.05f) << "a lamp's puff against the fill of its irradiance over pi";
+            EXPECT_NEAR(lit / filled, 0.25f, 0.0125f) << "a lamp's puff against the fill of its irradiance over pi";
+
+            const float full = render(0.0f, Shaders::PUFF_LAMPS_MOST, 0.0f);
+            const float bright = render(4000000.0f, 0.0f, 0.0f);
+            ASSERT_GT(full, 0.01f) << "the fill did not light the puff at all";
+            EXPECT_NEAR(bright / full, 1.0f, 0.05f) << "a lamp past the ceiling lit a puff past a light at full";
+
+            const float streakFilled = render(0.0f, irradiance * Shaders::INV_PI, 0.5f);
+            const float streakLit = render(40000.0f, 0.0f, 0.5f);
+            ASSERT_GT(streakFilled, 0.01f) << "the fill did not light the streak at all";
+            EXPECT_NEAR(streakLit / streakFilled, 1.0f, 0.05f) << "a lamp's streak against the fill of a card";
         }
 
         /// The alpha every sprite test below cuts its sprite from: half, so that what it hides and
@@ -1289,12 +1304,11 @@ namespace Rtx::Testing
         /// nothing shadows; one behind the sprite lights it at `1 - SPRITE_WRAP` through the whole of the
         /// texel's thickness, `1 - alpha`.
         ///
-        /// The sun is thrown forward: Henyey-Greenstein at `g = 0.6` against the even share is
-        /// `(1 - g^2) / (1 + g^2 - 2 g cos)^1.5 = 0.64 / (1.36 - 1.2 cos)^1.5`: from the side
-        /// `0.64 / 1.36^1.5 = 0.40353`, from behind the eye `0.64 / 2.56^1.5 = 0.15625`, from behind the sprite
-        /// `0.64 / 0.16^1.5 = 10`. The side cases carry the first and the two sides of the ball the other two,
-        /// which is what makes them differ by sixty-four and not by six. A bake that stands in is no bake: the
-        /// puff is lit as a card, where the stand-in's grey would shut the sun to a quarter.
+        /// The sun is thrown forward through smoke's scattering, against a card's `1 / pi`: `pi * smokeScatter`,
+        /// from the side `0.31997`, from behind the eye `0.18310`, from behind the sprite `3.00214`
+        /// (`RtxScatteringTest` holds the curve). The side cases carry the first and the two sides of the ball
+        /// the other two. A bake that stands in is no bake: the puff is lit as it is without one, where the
+        /// stand-in's grey would shut the sun to a quarter.
         TEST_F(RtxVisibilityTest, aPuffIsLitByItsSideAndByWhatItsTextureLetsThrough)
         {
             SceneIdentities identities;
@@ -1331,9 +1345,9 @@ namespace Rtx::Testing
             };
 
             const float card = 4.0f * Shaders::INV_PI * sHalfAlpha;
-            constexpr float sideways = 0.40353f;
-            constexpr float backward = 0.15625f;
-            constexpr float forward = 10.0f;
+            const float sideways = std::numbers::pi_v<float> * Shaders::smokeScatter(0.0f);
+            const float backward = std::numbers::pi_v<float> * Shaders::smokeScatter(-1.0f);
+            const float forward = std::numbers::pi_v<float> * Shaders::smokeScatter(1.0f);
             constexpr std::array<std::uint8_t, 4> clear{ 255, 255, 255, 255 };
 
             EXPECT_NEAR(lit(osg::Vec3f(1.0f, 0.0f, 0.0f), clear), card * sideways, 0.005f)

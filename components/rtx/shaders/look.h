@@ -987,14 +987,44 @@ namespace Rtx::Shaders
     /// to mean this, and the price is one part in a hundred of the background.
     const float SPRITE_ALPHA_LIMIT = 0.99f;
 
-    /// How strongly smoke throws the sun forward: Henyey-Greenstein's asymmetry.
-    ///
-    /// **A puff lit by an even share from every side is a card, and a puff is not a card.** A cloud
-    /// of droplets sends most of what it scatters on along the light, so smoke between the eye and
-    /// the sun glows and smoke with the sun behind the eye is dim. Applied to the sun alone and
-    /// normalised so the mean over every direction stays the card's worth; the sky and the lamps
-    /// arrive from everywhere and keep the even share. Six tenths is the cloud recipe's figure.
+    /// How strongly smoke throws the sun forward: Henyey-Greenstein's asymmetry of its first octave
+    /// (`smokeScatter`). A cloud of droplets sends most of what it scatters on along the light, so smoke
+    /// between the eye and the sun glows and smoke with the sun behind the eye is dim. Six tenths is the
+    /// cloud recipe's figure.
     const float SMOKE_ANISOTROPY = 0.6f;
+
+    /// **The most the lamps lift a puff of smoke, per unit of its albedo**: a light at full, the colour a surface
+    /// shows lit by one lamp at half its radius (`sIntensity`), which is where the original's lighting stopped. A torch
+    /// beside a tomb's mist lit it many times that, as a thin medium a flame's breadth away is, and the mist the
+    /// original drew as a faint wisp read as a fog (issue 61).
+    const float PUFF_LAMPS_MOST = 1.0f;
+
+    /// How many orders of scattering `smokeScatter` sums, and what each keeps of the one before: of its
+    /// light and of its lobe's asymmetry. Wrenninge et al.'s defaults ("Oz: The Great and Volumetric",
+    /// SIGGRAPH 2013, eq. 1-2), eight octaves at a half, as Frostbite's clouds take them.
+    const uint SMOKE_OCTAVES = 8u;
+    const float SMOKE_OCTAVE_KEPT = 0.5f;
+
+    /// **What a puff of smoke sends toward the eye per steradian, per unit of the irradiance a light
+    /// brings it**, `cosine` off the light's line: single scattering through `SMOKE_ANISOTROPY`'s lobe and
+    /// the orders after it as Wrenninge et al.'s octaves, each with a half of the light and a half of the
+    /// asymmetry of the one before (`SMOKE_OCTAVES`, `SMOKE_OCTAVE_KEPT`). Their mean over every direction is
+    /// `(1 - 2^-8) / 2pi`, a half of a card's `1 / pi`: a puff is lit by the sun as a medium is, and not as a
+    /// card facing it. The octaves' own attenuation of the light's path is left out, since a puff's field holds
+    /// no depth of the puffs between it and the sun.
+    RTX_SHADER float smokeScatter(float cosine)
+    {
+        float scattered = 0.0f;
+        float kept = 1.0f;
+        float asymmetry = SMOKE_ANISOTROPY;
+        for (uint octave = 0u; octave < SMOKE_OCTAVES; ++octave)
+        {
+            scattered += kept * henyeyGreenstein(asymmetry, cosine);
+            kept *= SMOKE_OCTAVE_KEPT;
+            asymmetry *= SMOKE_OCTAVE_KEPT;
+        }
+        return scattered;
+    }
 
     /// How much brighter the lit side of a puff is than its mean, and the far side darker.
     ///
