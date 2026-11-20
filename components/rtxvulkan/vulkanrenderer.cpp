@@ -124,6 +124,13 @@ namespace Rtx
             return options.mReporting == Reporting::Measured;
         }
 
+        /// Where DLSS's files are among the host's folders: the runtime folder the launcher downloads the feature
+        /// library into, and the game's own.
+        DlssLibrary::Folders dlssFoldersOf(const HostFolders& host)
+        {
+            return DlssLibrary::foldersIn(host.mUserLocalData, host.mGame);
+        }
+
         /// What NGX is told of the application, where the run uses DLSS: a profile that does not
         /// makes none, and no folder is made for it.
         std::optional<Dlss::Application> dlssApplicationFor(const RendererOptions& options)
@@ -131,7 +138,7 @@ namespace Rtx
             if (options.mRun.mProfile.mUpscaler != UpscalerChoice::Dlss)
                 return std::nullopt;
 
-            return std::optional<Dlss::Application>(std::in_place, options.mDlss);
+            return std::optional<Dlss::Application>(std::in_place, dlssFoldersOf(options.mHostFolders));
         }
 
         /// What NGX asks of a device for DLSS, where the run may use DLSS.
@@ -172,7 +179,8 @@ namespace Rtx
                   .mCheckpoints = options.mRun.mValidation.mCheckpoints,
                   .mAskedExtensions = dlssExtensionsFor(mDlss) })
         , mUpscaler(mDevice, options.mRun.mProfile.mUpscaler,
-              DlssUpscaler::availabilityOn(mDevice.getPhysicalDevice().getDriver(), options.mDlss),
+              DlssUpscaler::availabilityOn(
+                  mDevice.getPhysicalDevice().getDriver(), dlssFoldersOf(options.mHostFolders)),
               mDlss.has_value() ? &*mDlss : nullptr)
         , mUpscalers(offeredUpscalers(offersDlss(mUpscaler.getDlss())))
         , mCounting(measured(options))
@@ -672,7 +680,8 @@ namespace Rtx
 
     void VulkanRenderer::setGamma(const float gamma)
     {
-        assert(gamma > 0.0f && std::isfinite(gamma) && "a gamma its reader should have refused");
+        assert(gamma > 0.0f && "a gamma its reader should have refused");
+        assert(std::isfinite(gamma) && "a gamma its reader should have refused");
 
         mProfile.mGamma = gamma;
         mInverseGamma = 1.0f / gamma;
@@ -685,7 +694,8 @@ namespace Rtx
 
     void VulkanRenderer::setBounceRays(const std::uint32_t rays)
     {
-        assert(rays >= 1 && rays <= Shaders::MAX_BOUNCE_RAYS && "a count its reader should have refused");
+        assert(rays >= 1 && "a count its reader should have refused");
+        assert(rays <= Shaders::MAX_BOUNCE_RAYS && "a count its reader should have refused");
 
         const std::uint32_t was = mProfile.mReconstruction.mSampling.mBounceRays;
         mProfile.mReconstruction.mSampling.mBounceRays = rays;

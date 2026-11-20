@@ -50,6 +50,7 @@ namespace Rtx
         {
             // Grown here and not by the table, as `SlotSet::addMakingRoom` grows: the first free of
             // a slot is after the growth that made it, and a free is not the frame path's busy part.
+            assert(!slot.isNone() && "no slot freed");
             if (slot.at() >= mIsFree.size())
                 mIsFree.resize(std::size_t{ slot.at() } + 1, 0);
             assert(mIsFree[slot.at()] == 0 && "a slot freed twice");
@@ -136,6 +137,7 @@ namespace Rtx
         /// The same, for a caller that is told one slot at a time and never sees the table.
         void addMakingRoom(const I slot)
         {
+            assert(!slot.isNone() && "no slot listed");
             grow(std::size_t{ slot.at() } + 1);
             add(slot);
         }

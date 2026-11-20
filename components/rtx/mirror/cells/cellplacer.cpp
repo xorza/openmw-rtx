@@ -320,7 +320,8 @@ namespace Rtx
     {
         const PreparedGround& ground = cell.mGround;
         HeldGround& stands = held.mGround;
-        assert(!stands.mStands && stands.mTextures.empty() && "a ground adopted over one still held");
+        assert(!stands.mStands && "a ground adopted over one still held");
+        assert(stands.mTextures.empty() && "a ground adopted over one still held");
         if (!ground.mStands)
             return;
 

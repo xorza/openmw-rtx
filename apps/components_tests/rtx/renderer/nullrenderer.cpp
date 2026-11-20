@@ -1,6 +1,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <optional>
 #include <vector>
 
@@ -10,6 +11,7 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/renderer/framedescriber.hpp>
 #include <components/rtx/renderer/framesinflight.hpp>
 #include <components/rtx/renderer/nulldevice.hpp>
 #include <components/rtx/renderer/nullrenderer.hpp>
@@ -27,6 +29,21 @@ namespace Rtx
 {
     namespace
     {
+        /// A frame of a camera ten units off the origin under an empty sky, which a describe reads.
+        FrameRequest skied()
+        {
+            static const SkyContent sky;
+            const std::optional<Viewpoint> view = makeCameraFromView(
+                osg::Matrixd::lookAt(osg::Vec3f(0.0f, -10.0f, 2.0f), osg::Vec3f(), osg::Vec3f(0.0f, 0.0f, 1.0f)), 60.0f,
+                32, 16, 1.0f, 1000.0f);
+            EXPECT_TRUE(view.has_value());
+            FrameRequest request;
+            request.mView = *view;
+            request.mSampleFrame = 5;
+            request.mSky = &sky;
+            return request;
+        }
+
         RendererOptions optionsOf(const std::uint32_t width, const std::uint32_t height)
         {
             RendererOptions options;
@@ -56,9 +73,9 @@ namespace Rtx
 
             EXPECT_FALSE(renderer.finishFrame().has_value()) << "a report of a frame never drawn";
 
-            static_cast<void>(renderer.renderFrame(FrameRequest{}));
+            static_cast<void>(renderer.renderFrame(skied()));
             EXPECT_FALSE(renderer.collectFrame().has_value()) << "collected with room for the next frame";
-            static_cast<void>(renderer.renderFrame(FrameRequest{}));
+            static_cast<void>(renderer.renderFrame(skied()));
 
             // Full: the oldest comes back, which the ring held alone when it closed.
             const std::optional<FrameResult> oldest = renderer.collectFrame();
@@ -83,11 +100,35 @@ namespace Rtx
             EXPECT_EQ(renderer.getFrameCount(), 3u);
             EXPECT_FALSE(renderer.finishFrame().has_value()) << "a skipped frame reported";
 
-            static_cast<void>(renderer.renderFrame(FrameRequest{}));
+            static_cast<void>(renderer.renderFrame(skied()));
             const std::optional<FrameResult> after = renderer.finishFrame();
             ASSERT_TRUE(after.has_value());
             EXPECT_EQ(after->mFrame, 3u);
             EXPECT_EQ(renderer.getFrameCount(), 4u);
+        }
+
+        /// **A frame is described as a device's renderer describes it**, by the core's describer: its constants
+        /// those a describer of its own makes of the same request, and the air held stands in the next frame's carry.
+        TEST(RtxNullRendererTest, aFrameIsDescribedAsTheCoreDescribesItAndTheAirHeldIsCarried)
+        {
+            NullRenderer renderer(optionsOf(8, 4));
+            SceneIdentities identities;
+            const SceneDesc scene(identities);
+            renderer.standScene(SceneSlot::world(), scene);
+
+            FrameDescriber describer;
+            WorldOptions described;
+            const FrameTraced expected = describer.describe(skied(), described);
+            const FrameTraced traced = renderer.renderFrame(skied());
+            EXPECT_EQ(traced.mConstants.mFrame, 5u);
+            // The constants compared byte for byte as the device would read them.
+            // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison)
+            EXPECT_EQ(std::memcmp(&traced.mConstants, &expected.mConstants, sizeof(expected.mConstants)), 0);
+            ASSERT_TRUE(renderer.finishFrame().has_value());
+
+            const osg::Vec2d held(123.0, -45.0);
+            renderer.holdAir(AirClock{ .mSky = Sky::SkyClock{ .mSeconds = 0.0 }, .mCarried = held });
+            EXPECT_EQ(renderer.renderFrame(skied()).mCarried, held);
         }
 
         /// **A frame reports the reconstruction it was traced under**, as a device's does: one that
@@ -109,10 +150,10 @@ namespace Rtx
             const SceneDesc scene(identities);
             renderer.standScene(SceneSlot::world(), scene);
 
-            FrameRequest raw;
+            FrameRequest raw = skied();
             raw.mOptions.mReconstruction = ReconstructionRequest{ .mDenoise = false };
             static_cast<void>(renderer.renderFrame(raw));
-            static_cast<void>(renderer.renderFrame(FrameRequest{}));
+            static_cast<void>(renderer.renderFrame(skied()));
             renderer.setUpscale(Upscale::Performance);
 
             const std::optional<FrameResult> first = renderer.finishFrame();
@@ -190,7 +231,7 @@ namespace Rtx
         {
             NullRenderer renderer(optionsOf(8, 4));
             const GuiSlot texture = renderer.addGuiTexture(4, 2);
-            EXPECT_EQ(texture, GuiSlot::at(0));
+            EXPECT_EQ(texture, GuiSlot(0));
 
             // Four by two, at four bytes a pixel, into a buffer a byte longer: the byte past the
             // texture is not written.
@@ -220,22 +261,22 @@ namespace Rtx
             renderer.sendGuiTexture(texture);
 
             const GuiSlot second = renderer.addGuiTexture(2, 2);
-            EXPECT_EQ(second, GuiSlot::at(1));
+            EXPECT_EQ(second, GuiSlot(1));
             renderer.dropGuiTexture(texture);
             const GuiSlot again = renderer.addGuiTexture(1, 1);
-            EXPECT_EQ(again, GuiSlot::at(0)) << "a dropped slot not taken again";
+            EXPECT_EQ(again, GuiSlot(0)) << "a dropped slot not taken again";
             EXPECT_FALSE(renderer.takeGuiCopy(again, into)) << "a copy outlived its texture";
 
             // The lowest free slot first, as for a view scene: 0 dropped before 1.
             renderer.dropGuiTexture(again);
             renderer.dropGuiTexture(second);
-            EXPECT_EQ(renderer.addGuiTexture(1, 1), GuiSlot::at(0));
-            EXPECT_EQ(renderer.addGuiTexture(1, 1), GuiSlot::at(1));
+            EXPECT_EQ(renderer.addGuiTexture(1, 1), GuiSlot(0));
+            EXPECT_EQ(renderer.addGuiTexture(1, 1), GuiSlot(1));
 
             // An extent of nought is no texture and takes no slot, as on a device.
             EXPECT_TRUE(renderer.addGuiTexture(0, 2).isNone());
             EXPECT_TRUE(renderer.addGuiTexture(2, 0).isNone());
-            EXPECT_EQ(renderer.addGuiTexture(1, 1), GuiSlot::at(2));
+            EXPECT_EQ(renderer.addGuiTexture(1, 1), GuiSlot(2));
         }
 
         /// The extents follow the size and the upscaler as a device's do, and the picture read back

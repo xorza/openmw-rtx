@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/rowspan.hpp>
 #include <components/rtx/common/rowvector.hpp>
@@ -65,6 +66,10 @@ namespace Rtx
             EXPECT_EQ(kept[Row(3)], 0) << "made as an int is";
             EXPECT_FALSE(kept.holds(Row(sNoRow)));
             EXPECT_EQ(kept.rows()[Row(1)], 5);
+
+            // No row is the vector's assert, and not four billion rows made.
+            Testing::expectAssertDies([&] { kept.growTo(Row(sNoRow)); }, "a vector grown to no row");
+            Testing::expectAssertDies([&] { kept.growTo(Row(sNoRow), 1); }, "a vector grown to no row");
         }
 
         /// **The rows between two positions are each position from the first up to the end**, and none where

@@ -238,7 +238,8 @@ namespace Rtx
         const VkDeviceSize alignment, const MemoryUse use, const std::string_view name)
     {
         assert(use != MemoryUse::Content && "content taken as though nothing could stand in for it");
-        assert(alignment > 0 && (alignment & (alignment - 1)) == 0 && "an alignment is a power of two");
+        assert(alignment > 0 && "an alignment is a power of two");
+        assert((alignment & (alignment - 1)) == 0 && "an alignment is a power of two");
 
         VmaAllocationCreateInfo create = askingFor(mMemory, properties, use);
         create.minAlignment = alignment;

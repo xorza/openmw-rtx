@@ -72,7 +72,8 @@ namespace Rtx
         std::size_t offsetOf(std::uint32_t level, std::uint32_t x, std::uint32_t y, std::size_t stride) const
         {
             const MipLevel& which = getLevel(level);
-            assert(x < which.mWidth && y < which.mHeight && "a texel outside its level");
+            assert(x < which.mWidth && "a texel outside its level");
+            assert(y < which.mHeight && "a texel outside its level");
 
             return which.texelOffset(x, y, stride);
         }

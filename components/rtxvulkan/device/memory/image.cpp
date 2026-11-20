@@ -280,7 +280,8 @@ namespace Rtx
     {
         assert(!isEmpty() && "a copy out of an image nobody made");
 
-        assert(extent.width <= mWidth && extent.height <= mHeight && "a copy of more than this image holds");
+        assert(extent.width <= mWidth && "a copy of more than this image holds");
+        assert(extent.height <= mHeight && "a copy of more than this image holds");
         assert(extent.width <= into.getWidth() && extent.height <= into.getHeight()
             && "a copy of more than the target holds");
 

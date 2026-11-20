@@ -45,7 +45,7 @@ namespace Gui
             return dynamic_cast<const MyGUIRtx::SlotTexture&>(
                 *MyGUI::FontManager::getInstance().getByName(font)->getTextureFont())
                 .getSlot()
-                .get();
+                .at();
         }
 
         /// **The registry holds exactly the texts there are**: a text box's skin makes one, three
@@ -95,7 +95,7 @@ namespace Gui
             const Rtx::Testing::DrawnGui drawn = gui.draw();
             std::set<std::uint32_t> drawnAgainst;
             for (const Rtx::GuiBatch& batch : drawn.mBatches)
-                drawnAgainst.insert(batch.mTexture.get());
+                drawnAgainst.insert(batch.mTexture.at());
             EXPECT_EQ(drawnAgainst, (std::set<std::uint32_t>{ atlasOf("DefaultFont"), atlasOf("MonoFont") }));
             for (const std::uint32_t slot : replaced)
                 EXPECT_FALSE(drawnAgainst.contains(slot)) << "a text drew a replaced atlas";
@@ -104,7 +104,7 @@ namespace Gui
                 = MyGUI::FontManager::getInstance().getByName("DefaultFont")->getGlyphInfo('A')->uvRect;
             for (const Rtx::GuiBatch& batch : drawn.mBatches)
             {
-                if (batch.mTexture.get() != atlasOf("DefaultFont"))
+                if (batch.mTexture.at() != atlasOf("DefaultFont"))
                     continue;
                 std::set<std::pair<float, float>> corners;
                 for (std::uint32_t at = batch.mFirstVertex; at < batch.mFirstVertex + 6; ++at)

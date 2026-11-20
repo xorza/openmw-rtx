@@ -460,7 +460,8 @@ namespace Rtx
 
     void GBuffer::turnLampLists(const std::uint32_t width, const std::uint32_t height)
     {
-        assert(width <= getWidth() && height <= getHeight() && "lamp lists for a frame past the G-buffer's extent");
+        assert(width <= getWidth() && "lamp lists for a frame past the G-buffer's extent");
+        assert(height <= getHeight() && "lamp lists for a frame past the G-buffer's extent");
         mLampListsNow ^= 1u;
         mLampListsHeld = mLampListsExtent.width == width && mLampListsExtent.height == height;
         mLampListsExtent = VkExtent2D{ width, height };

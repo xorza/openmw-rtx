@@ -78,7 +78,8 @@ namespace Rtx
 
     void ContentArena::release(const BlockIndex block)
     {
-        assert(mBlocks.holds(block) && mBlocks[block].has_value() && "a block given back that the arena holds not");
+        assert(mBlocks.holds(block) && "a block given back that the arena holds not");
+        assert(mBlocks[block].has_value() && "a block given back that the arena holds not");
         mBytes -= mBlocks[block]->mMemory.getSize();
         mSupply.give(std::move(mBlocks[block]->mMemory));
         mBlocks[block].reset();

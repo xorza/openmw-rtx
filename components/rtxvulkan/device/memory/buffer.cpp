@@ -277,7 +277,8 @@ namespace Rtx
     {
         assert(!isEmpty() && "a copy out of a buffer nobody made");
 
-        assert(bytes <= mSize && bytes <= into.mSize && "a copy of more than either buffer holds");
+        assert(bytes <= mSize && "a copy of more than either buffer holds");
+        assert(bytes <= into.mSize && "a copy of more than either buffer holds");
 
         // Both ends, because a copy takes handles and an address names nothing: a host write over
         // either end while the copy is on the queue is the hazard `isIdle` is asked about.

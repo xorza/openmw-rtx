@@ -24,21 +24,24 @@ namespace Rtx
     void PredictedBands::place(const Slot slot, const osg::Vec3f& centre)
     {
         const std::scoped_lock lock(mMutex);
-        assert(slot < mCentres.size() && mOpen[slot] && "a centre placed in a slot not open");
+        assert(slot < mCentres.size() && "a centre placed in a slot not open");
+        assert(mOpen[slot] && "a centre placed in a slot not open");
         mCentres[slot] = centre;
     }
 
     void PredictedBands::clear(const Slot slot)
     {
         const std::scoped_lock lock(mMutex);
-        assert(slot < mCentres.size() && mOpen[slot] && "a slot cleared that is not open");
+        assert(slot < mCentres.size() && "a slot cleared that is not open");
+        assert(mOpen[slot] && "a slot cleared that is not open");
         mCentres[slot].reset();
     }
 
     void PredictedBands::close(const Slot slot)
     {
         const std::scoped_lock lock(mMutex);
-        assert(slot < mCentres.size() && mOpen[slot] && "a slot closed that is not open");
+        assert(slot < mCentres.size() && "a slot closed that is not open");
+        assert(mOpen[slot] && "a slot closed that is not open");
         mCentres[slot].reset();
         mOpen[slot] = false;
         mFree.push_back(slot);

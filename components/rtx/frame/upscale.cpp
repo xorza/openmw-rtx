@@ -20,7 +20,8 @@ namespace Rtx
 
     std::uint32_t jitterPhasesFor(const std::uint32_t renderWidth, const std::uint32_t outputWidth)
     {
-        assert(renderWidth > 0 && renderWidth <= outputWidth && "a render extent that is not the output's or less");
+        assert(renderWidth > 0 && "a render extent that is not the output's or less");
+        assert(renderWidth <= outputWidth && "a render extent that is not the output's or less");
 
         // The square as a product and not `pow`, which the SDK calls: the two agree to the last place
         // or one off it, so a truncation can tell them apart only where the count lands within that

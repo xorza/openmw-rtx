@@ -670,7 +670,8 @@ namespace Rtx
         // The two buffers still bound: the hit counter, and the frame block every table is reached
         // through. Nothing bound here may be nothing: a null handle at the dispatch is undefined
         // and cost this renderer a device before the layers were asked.
-        assert(!counts.isEmpty() && !mConstants.isEmpty() && "an input bound as nothing");
+        assert(!counts.isEmpty() && "an input bound as nothing");
+        assert(!mConstants.isEmpty() && "an input bound as nothing");
         writes.buffer(Shaders::BIND_COUNTS, counts.describe());
         writes.buffer(Shaders::BIND_FRAME, mConstants.describe());
 

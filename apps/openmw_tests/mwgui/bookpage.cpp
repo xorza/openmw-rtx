@@ -56,7 +56,7 @@ namespace MWGui
             {
                 std::set<std::uint32_t> slots;
                 for (const Rtx::GuiBatch& batch : mGui.draw().mBatches)
-                    slots.insert(batch.mTexture.get());
+                    slots.insert(batch.mTexture.at());
                 return slots;
             }
         };
@@ -66,7 +66,7 @@ namespace MWGui
             return dynamic_cast<const MyGUIRtx::SlotTexture&>(
                 *MyGUI::FontManager::getInstance().getByName("Journalbook DefaultFont")->getTextureFont())
                 .getSlot()
-                .get();
+                .at();
         }
 
         /// **A fit has a page's owner typeset its book again, and the page draws the new one**: a

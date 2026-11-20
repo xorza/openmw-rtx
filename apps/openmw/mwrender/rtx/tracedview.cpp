@@ -160,7 +160,9 @@ namespace MWRender
         // A copy is recorded only with a picture: one refused leaves the copy queued, which is null,
         // where the backend's copy is still the redraw's before.
         const bool keepCopy = mCopyState != CopyState::NotWanted;
-        if (mTrace.traceInto(mTexture->getSlot(), keepCopy) && keepCopy)
+        if (mTrace.traceInto(
+                mTexture->getSlot(), keepCopy ? Rtx::OffscreenTrace::Copy::Kept : Rtx::OffscreenTrace::Copy::None)
+            && keepCopy)
             mCopyState = CopyState::Recorded;
 
         // Into the next flush, the schedule's list being swapped out: a copy wanted waits for it.

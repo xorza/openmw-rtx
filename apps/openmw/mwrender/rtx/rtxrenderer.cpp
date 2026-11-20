@@ -47,7 +47,6 @@
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/dlss/dlss.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/misc/frameclock.hpp>
@@ -165,7 +164,7 @@ namespace MWRender
         // The player keeps the fork's cache: a game is not compared with itself.
         if (run == nullptr)
             options.mCacheDirectory = spec.mCachePath;
-        options.mDlss = DlssLibrary::foldersIn(spec.mUserLocalData, spec.mGameFiles);
+        options.mHostFolders = Rtx::HostFolders{ .mUserLocalData = spec.mUserLocalData, .mGame = spec.mGameFiles };
         // None whose traced extent truncates to nought, and none past the side every device chosen
         // makes an image at.
         constexpr auto smallest = static_cast<std::int32_t>(Rtx::sSmallestFrameSide);

@@ -31,9 +31,6 @@ namespace Rtx
         /// run before anything looks a position up.
         LightGrid() = default;
 
-        /// Bins `lights`, for a caller that has them at construction.
-        explicit LightGrid(std::span<const Light> lights) { rebuild(lights); }
-
         /// Bins `lights` into the grid this already has, without going back to the allocator: a lamp
         /// whose box moved leaves the cells it left and enters the cells it entered, and nothing
         /// else is written, so a lamp that only flickered has the same grid. The grid is made again

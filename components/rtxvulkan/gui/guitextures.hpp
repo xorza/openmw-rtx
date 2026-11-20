@@ -54,7 +54,7 @@ namespace Rtx
         AlphaForm alphaOf(GuiSlot slot) const
         {
             assert(holds(slot) && "the form of a slot nothing holds");
-            return mForms[slot.get()];
+            return mForms[slot.at()];
         }
 
         void drop(GuiSlot slot);
@@ -64,7 +64,7 @@ namespace Rtx
 
         bool holds(GuiSlot slot) const
         {
-            return !slot.isNone() && slot.get() < mImages.size() && !mImages[slot.get()].isEmpty();
+            return !slot.isNone() && slot.at() < mImages.size() && !mImages[slot.at()].isEmpty();
         }
 
         /// Lends the texture in `slot` to a caller that writes it with transfer commands:
@@ -83,8 +83,8 @@ namespace Rtx
 
             assert(holds(slot) && "a write to a slot nothing holds");
 
-            const Image& image = mImages[slot.get()];
-            mForms[slot.get()] = form;
+            const Image& image = mImages[slot.at()];
+            mForms[slot.at()] = form;
 
             image.transition(commands, Use::sFragmentSample, Use::sTransferWrite);
 

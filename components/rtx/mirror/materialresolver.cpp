@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <optional>
 #include <span>
-#include <typeinfo>
 #include <utility>
 #include <vector>
 
@@ -97,16 +96,8 @@ namespace Rtx
         for (const osg::Callback* chain : { node.getUpdateCallback(), node.getCullCallback() })
             for (const osg::Callback* callback = chain; callback != nullptr; callback = callback->getNestedCallback())
             {
-                const std::type_info* const type = &typeid(*callback);
-                auto known = mUpdaterClasses.find(type);
-                if (known == mUpdaterClasses.end())
-                {
-                    assert(mUpdaterClasses.size() < sCallbackClasses && "more callback classes than reserved");
-                    known = mUpdaterClasses
-                                .emplace(type, dynamic_cast<const SceneUtil::StateSetUpdater*>(callback) != nullptr)
-                                .first;
-                }
-                if (known->second)
+                if (mUpdaterClasses.of(typeid(*callback),
+                        [&] { return dynamic_cast<const SceneUtil::StateSetUpdater*>(callback) != nullptr; }))
                     return true;
             }
         return false;
@@ -665,22 +656,17 @@ namespace Rtx
         {
             releaseWorn(mWorns[held.mWorn]);
             mWorns[held.mWorn] = Worn{};
-            mFreeWorns.push_back(std::exchange(held.mWorn, sNoRow));
+            mFreeWorns.free(std::exchange(held.mWorn, sNoRow));
         }
         mScene.drop(std::move(held.mRow));
     }
 
     MaterialResolver::WornIndex MaterialResolver::takeWorn()
     {
-        if (mFreeWorns.empty())
-        {
-            mWorns.push_back(Worn{});
-            return WornIndex(static_cast<std::uint32_t>(mWorns.size() - 1));
-        }
-
-        const WornIndex taken = mFreeWorns.back();
-        mFreeWorns.pop_back();
-        return taken;
+        if (const WornIndex taken = mFreeWorns.take(); !taken.isNone())
+            return taken;
+        mWorns.push_back(Worn{});
+        return WornIndex(static_cast<std::uint32_t>(mWorns.size() - 1));
     }
 
     void MaterialResolver::release(HeldTexture& held)

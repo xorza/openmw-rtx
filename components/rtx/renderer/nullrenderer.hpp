@@ -18,6 +18,7 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/scene/refusal.hpp>
 
+#include "framedescriber.hpp"
 #include "framesinflight.hpp"
 #include "guirenderer.hpp"
 #include "memoryreport.hpp"
@@ -87,7 +88,7 @@ namespace Rtx
         void setBounceRays(std::uint32_t rays) override;
         JobProgress awaitKernels(KernelSet, std::chrono::milliseconds) override { return {}; }
         FrameTraced renderFrame(const FrameRequest& request) override;
-        void holdAir(const AirClock&) override {}
+        void holdAir(const AirClock& air) override { mDescriber.holdAir(air); }
         void skipFrame() override;
         std::uint64_t getFrameCount() const override { return mFrames; }
         std::optional<FrameResult> finishFrame() override;
@@ -115,6 +116,9 @@ namespace Rtx
         /// what a card would corrupt (`NullDevice`).
         static constexpr std::uint64_t sCapBytes = std::uint64_t{ 1 } << 40;
         NullDevice mDevice{ sCapBytes };
+
+        /// What a frame is described with, as a device's renderer describes it: the core's, which needs no API.
+        FrameDescriber mDescriber;
 
         /// What a GUI slot holds: whether it is handed out, and whether a trace into it left a copy,
         /// which stands, as a device's does, until the slot is dropped.

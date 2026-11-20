@@ -14,7 +14,6 @@
 
 #include <osg/Vec2d>
 
-#include <components/dlss/dlss.hpp>
 #include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/namedenum.hpp>
@@ -192,6 +191,13 @@ namespace Rtx
         Measured,
     };
 
+    /// The host's folders a backend may look for a library in.
+    struct HostFolders
+    {
+        std::filesystem::path mUserLocalData;
+        std::filesystem::path mGame;
+    };
+
     struct RendererOptions
     {
         /// The compiled shaders of whichever backend this is, which outlive the renderer, and whether
@@ -204,10 +210,10 @@ namespace Rtx
         /// is regenerable and worth tens of megabytes. Empty keeps nothing.
         std::filesystem::path mCacheDirectory{};
 
-        /// Where DLSS's files are, as the host's configuration names them: the runtime folder the
-        /// launcher downloads the feature library into, and the game's own folder. Empty folders
-        /// leave DLSS uninstalled.
-        DlssLibrary::Folders mDlss{};
+        /// Where the host keeps its user's local data and its own files, as its configuration names them
+        /// (`Files::ConfigurationManager`): what a backend looks for an upscaler's library in, under names of its own.
+        /// Empty folders hold none.
+        HostFolders mHostFolders{};
 
         /// The frame's size: what `readPixels` gives back, and what a window shows scaled to fit.
         /// What it is traced at follows from `mRun.mProfile.mUpscale`.

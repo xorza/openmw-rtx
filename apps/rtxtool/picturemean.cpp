@@ -16,7 +16,8 @@ namespace RtxTool
             mHeight = height;
             mSums.assign(pixels.size(), 0);
         }
-        assert(width == mWidth && height == mHeight && "a mean of pictures of two sizes");
+        assert(width == mWidth && "a mean of pictures of two sizes");
+        assert(height == mHeight && "a mean of pictures of two sizes");
 
         for (std::size_t at = 0; at < pixels.size(); ++at)
             mSums[at] += pixels[at];

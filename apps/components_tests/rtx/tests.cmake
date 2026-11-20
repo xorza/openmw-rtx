@@ -15,6 +15,7 @@ target_sources(
         rtx/common/error.cpp
         rtx/common/halffloat.cpp
         rtx/common/job.cpp
+        rtx/common/classanswers.cpp
         rtx/common/namedenum.cpp
         rtx/common/ownedby.cpp
         rtx/common/parallel.cpp

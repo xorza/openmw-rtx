@@ -250,7 +250,8 @@ namespace Rtx
 
     void MaterialTable::keepDigests()
     {
-        assert(size() == 0 && mMaskRuns.getEnd() == 0 && "digests asked of a table that holds masks without one");
+        assert(size() == 0 && "digests asked of a table that holds masks without one");
+        assert(mMaskRuns.getEnd() == 0 && "digests asked of a table that holds masks without one");
         mKeepsDigests = true;
     }
 

@@ -125,7 +125,8 @@ namespace Rtx
                         .mAmbient = osg::Vec4f(0.f, 0.f, 0.f, 1.f) },
                     .mClear = osg::Vec4f(0.f, 0.f, 0.f, 0.5f) },
                 context, identities);
-            EXPECT_TRUE(world.traceInto(GuiSlot::at(0), false)) << "a picture traced said it recorded nothing";
+            EXPECT_TRUE(world.traceInto(GuiSlot(0), OffscreenTrace::Copy::None))
+                << "a picture traced said it recorded nothing";
 
             ASSERT_TRUE(renderer.mTraced.has_value());
             EXPECT_EQ(renderer.mTraced->mScene, SceneSlot::world()) << "a picture of the world traced another scene";
@@ -147,7 +148,8 @@ namespace Rtx
                     .mRayMask = Shaders::MASK_STATIC,
                     .mFraming = { .mProjection = SceneUtil::Perspective{ .mFieldOfView = 0.f } } },
                 context, identities);
-            EXPECT_FALSE(blind.traceInto(GuiSlot::at(0), true)) << "a camera refused said it recorded";
+            EXPECT_FALSE(blind.traceInto(GuiSlot(0), OffscreenTrace::Copy::Kept))
+                << "a camera refused said it recorded";
             EXPECT_FALSE(renderer.mTraced.has_value());
         }
 

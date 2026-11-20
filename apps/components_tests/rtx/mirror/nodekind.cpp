@@ -60,8 +60,6 @@ namespace Rtx
                 EXPECT_EQ(kinds.of(*named.mObject), named.mKind) << "at " << named.mName;
                 EXPECT_EQ(kinds.of(*named.mObject), named.mKind) << "the second ask at " << named.mName;
             }
-
-            EXPECT_EQ(kinds.getOverflow(), 0u) << "eleven classes fit the table";
         }
 
         /// A table holding every class still tells them apart when asked round and round: a memo

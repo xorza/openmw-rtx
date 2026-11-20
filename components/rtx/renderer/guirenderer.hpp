@@ -77,7 +77,7 @@ namespace Rtx
         virtual FrameExtents getExtents() const = 0;
 
         /// A texture the GUI draws with, sized once and written whenever it changes, in a table of
-        /// its own because a font atlas outlives every scene. `GuiSlot::none()` where the backend
+        /// its own because a font atlas outlives every scene. `GuiSlot()` where the backend
         /// makes no texture of that size — a side of nought, or one past the device's — which the
         /// caller draws as nothing and neither lends nor sends.
         virtual GuiSlot addGuiTexture(std::uint32_t width, std::uint32_t height) = 0;

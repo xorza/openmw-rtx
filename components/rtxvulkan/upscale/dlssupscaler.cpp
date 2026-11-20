@@ -550,7 +550,8 @@ namespace Rtx
     {
         const GpuZone timed(timer, commands, FrameZone::Upscale);
 
-        assert(mTargets != nullptr && mTargets->mShared.size() == sShared && "a DLSS upscale before a resize");
+        assert(mTargets != nullptr && "a DLSS upscale before a resize");
+        assert(mTargets->mShared.size() == sShared && "a DLSS upscale before a resize");
         Targets& targets = *mTargets;
 
         const bool reset = std::exchange(mFresh, false);

@@ -136,12 +136,19 @@ namespace Rtx
         /// content still waits.
         bool awaitsImages() const;
 
-        /// Traces the picture into `texture`, a slot from `Renderer::addGuiTexture`, and leaves a
-        /// copy for `takeCopy` where `readBack` asks for one. Whether it recorded the picture: false
-        /// where the camera could not be described or the renderer recorded nothing.
-        bool traceInto(GuiSlot texture, bool readBack = false);
+        /// Whether a trace leaves a copy of its picture for `takeCopy`.
+        enum class Copy : std::uint8_t
+        {
+            None,
+            Kept,
+        };
 
-        /// The copy the last `traceInto(texture, true)` left, into `into`, or false while the
+        /// Traces the picture into `texture`, a slot from `Renderer::addGuiTexture`, and leaves a
+        /// copy for `takeCopy` where `copy` asks for one. Whether it recorded the picture: false
+        /// where the camera could not be described or the renderer recorded nothing.
+        bool traceInto(GuiSlot texture, Copy copy);
+
+        /// The copy the last `traceInto(texture, Copy::Kept)` left, into `into`, or false while the
         /// trace that leaves it has not landed — `PictureRenderer::takeGuiCopy`, through the renderer
         /// this traces with, so a view reaches no further than its own trace for its picture.
         bool takeCopy(GuiSlot texture, std::span<std::uint8_t> into) const;

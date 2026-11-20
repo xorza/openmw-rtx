@@ -3,6 +3,8 @@
 #include <cassert>
 #include <cstdint>
 
+#include <components/rtx/common/index.hpp>
+
 namespace Rtx
 {
     /// Which scene a call is about: the world, or one a view asked for. The world is a case and
@@ -45,37 +47,5 @@ namespace Rtx
     /// One texture the GUI draws from, or nothing. Nothing is a state and not an index, because a
     /// MyGUI texture exists before it is given one: `createManual` is what takes the slot, and
     /// everything before that has to answer.
-    class GuiSlot
-    {
-    public:
-        constexpr GuiSlot() = default;
-
-        static constexpr GuiSlot none() { return GuiSlot{}; }
-
-        static constexpr GuiSlot at(std::uint32_t index)
-        {
-            assert(index != sNone && "a GUI texture at the one value that means none");
-            return GuiSlot{ index };
-        }
-
-        constexpr bool isNone() const { return mIndex == sNone; }
-
-        constexpr std::uint32_t get() const
-        {
-            assert(!isNone() && "a GUI texture nothing holds, asked for its index");
-            return mIndex;
-        }
-
-        constexpr bool operator==(const GuiSlot& other) const = default;
-
-    private:
-        static constexpr std::uint32_t sNone = ~std::uint32_t{ 0 };
-
-        constexpr explicit GuiSlot(std::uint32_t index)
-            : mIndex(index)
-        {
-        }
-
-        std::uint32_t mIndex = sNone;
-    };
+    using GuiSlot = RowIndex<struct GuiRows>;
 }

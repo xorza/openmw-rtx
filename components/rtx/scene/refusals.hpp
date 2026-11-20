@@ -53,8 +53,10 @@ namespace Rtx
         };
 
         /// Every distinct refusal, in the order met, and its places in it sorted by key, searched by one made of views
-        /// so a repeat builds no string. A vector kept sorted by hand rather than a `flat_set`, because this header
-        /// reaches every file that includes the scene and Boost.Container is the heaviest thing it would bring.
+        /// so a repeat builds no string. **Bounded by the content**: one entry a kind, name and cause, and every name
+        /// is one of the content's drawables, models, textures, sky layers, lamps or emitters, each refused for a cause
+        /// of a fixed few; a repeat adds nothing. A vector kept sorted by hand rather than a `flat_set`, because this
+        /// header reaches every file that includes the scene and Boost.Container is the heaviest thing it would bring.
         std::vector<Refusal> mNamed;
         std::vector<std::uint32_t> mSorted;
         std::array<std::uint32_t, sRefusedKinds> mCounts{};

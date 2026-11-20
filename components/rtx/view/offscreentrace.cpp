@@ -181,7 +181,7 @@ namespace Rtx
         return subject.mScene->placements().getCounts().mPlaced > 0;
     }
 
-    bool OffscreenTrace::traceInto(const GuiSlot texture, const bool readBack)
+    bool OffscreenTrace::traceInto(const GuiSlot texture, const Copy copy)
     {
         const std::optional<Viewpoint> camera = describeCamera();
         if (!camera.has_value())
@@ -198,7 +198,7 @@ namespace Rtx
             *camera,
             GuiTraceOptions{
                 .mClear = { clear.r(), clear.g(), clear.b(), clear.a() },
-                .mReadBack = readBack,
+                .mReadBack = copy == Copy::Kept,
                 .mRayMask = mRequest.mRayMask,
                 .mLamps = mRequest.mLamps,
                 .mLight = PictureLight{ .mDirection = sun,

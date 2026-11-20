@@ -1,7 +1,5 @@
 #include "nodekind.hpp"
 
-#include <typeinfo>
-
 #include <osg/LOD>
 #include <osg/Sequence>
 #include <osgParticle/ParticleProcessor>
@@ -47,27 +45,6 @@ namespace Rtx
 
     NodeKind NodeKinds::of(const osg::Object& object) const
     {
-        const std::type_info* const type = &typeid(object);
-
-        for (std::size_t at = 0; at < mHeld; ++at)
-            if (mLearned[at].mClass == type)
-                return mLearned[at].mKind;
-
-        return learn(object);
-    }
-
-    NodeKind NodeKinds::learn(const osg::Object& object) const
-    {
-        const NodeKind kind = classify(object);
-
-        if (mHeld < mLearned.size())
-        {
-            mLearned[mHeld] = Learned{ &typeid(object), kind };
-            ++mHeld;
-        }
-        else
-            ++mOverflow;
-
-        return kind;
+        return mLearned.of(typeid(object), [&] { return classify(object); });
     }
 }

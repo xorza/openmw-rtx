@@ -12,6 +12,15 @@
 
 namespace Rtx
 {
+    /// **Room for `count` in `values`, grown at least by doubling**: a reserve before a fill that grows by one each
+    /// time reallocates once a doubling, where an exact one reallocated at every new largest count.
+    template <class T>
+    void reserveGrowing(std::vector<T>& values, const std::size_t count)
+    {
+        if (values.capacity() < count)
+            values.reserve(std::max(count, 2 * values.capacity()));
+    }
+
     /// Values given back whole and taken again, so that what a row's vectors grew is room the next
     /// row refills — for a row held by value in a table that moves it, where `Spares` hands out
     /// stable addresses.
@@ -27,8 +36,7 @@ namespace Rtx
             if (mSpare.empty())
             {
                 ++mMade;
-                if (mSpare.capacity() < mMade)
-                    mSpare.reserve(std::max(mMade, 2 * mSpare.capacity()));
+                reserveGrowing(mSpare, mMade);
                 return T{};
             }
 

@@ -21,6 +21,14 @@ namespace Rtx
 {
     namespace
     {
+        /// A grid of `lights`, rebuilt once.
+        LightGrid gridOf(const std::span<const Light> lights)
+        {
+            LightGrid grid;
+            grid.rebuild(lights);
+            return grid;
+        }
+
         /// The flat index of cell `x`, `y`, `z`, written out here rather than borrowed, so that a
         /// change to it has to be made twice and noticed once.
         std::uint32_t cellAt(const LightGrid& grid, std::uint32_t x, std::uint32_t y, std::uint32_t z)
@@ -70,7 +78,8 @@ namespace Rtx
         TEST(RtxLightGridTest, aLampIsBinnedIntoEveryCellItsReachTouchesAndNoOthers)
         {
             const std::array lights{ lampAt(0.0f, 100.0f), lampAt(4096.0f, 100.0f) };
-            const LightGrid grid(lights);
+            LightGrid grid;
+            grid.rebuild(lights);
 
             EXPECT_EQ(grid.getOrigin(), osg::Vec3f(-356.0f, -356.0f, -356.0f));
             EXPECT_EQ(grid.getSize(), osg::Vec3ui(19u, 3u, 3u));
@@ -104,7 +113,8 @@ namespace Rtx
             // Reaches of 60 about 0 and 100 span -60 to 160, which is inside one cell of 256: the
             // middle of a grid of three a side, its corner at -316, holds every reach.
             std::array lights{ lampAt(0.0f, 60.0f), lampAt(50.0f, 60.0f), lampAt(100.0f, 60.0f) };
-            LightGrid grid(lights);
+            LightGrid grid;
+            grid.rebuild(lights);
 
             ASSERT_EQ(grid.getSize(), osg::Vec3ui(3u, 3u, 3u));
             ASSERT_EQ(grid.getOrigin(), osg::Vec3f(-316.0f, -316.0f, -316.0f));
@@ -128,7 +138,8 @@ namespace Rtx
         {
             // Spelled out because `{}` would also name the unfilled grid, which is a different
             // thing: this is the one lamps were binned into and there were none.
-            const LightGrid grid{ std::span<const Light>{} };
+            LightGrid grid;
+            grid.rebuild({});
 
             EXPECT_EQ(grid.getSize(), osg::Vec3ui(1u, 1u, 1u));
 
@@ -158,7 +169,7 @@ namespace Rtx
             // are one cell each, and the spare ones, which the budget does not count, make it 34,182
             // by 3 by 3.
             const std::array wideLights{ lampAt(0.0f, 1.0f), lampAt(70.0e6f, 1.0f) };
-            const LightGrid wide(wideLights);
+            const LightGrid wide = gridOf(wideLights);
 
             EXPECT_FLOAT_EQ(wide.getInverseCell(), 1.0f / 2048.0f) << "the cell count alone";
             EXPECT_EQ(wide.getSize(), osg::Vec3ui(34182u, 3u, 3u));
@@ -175,7 +186,7 @@ namespace Rtx
             for (Light& light : greedy)
                 light.mReach = 19456.0f;
 
-            const LightGrid crowded(greedy);
+            const LightGrid crowded = gridOf(greedy);
             EXPECT_FLOAT_EQ(crowded.getInverseCell(), 1.0f / 2048.0f) << "the entry count, at a legal cell count";
             EXPECT_EQ(crowded.getSize(), osg::Vec3ui(21u, 21u, 21u));
             EXPECT_EQ(entriesIn(crowded), 5u * 20u * 20u * 20u);
@@ -191,7 +202,7 @@ namespace Rtx
             const float far = std::ldexp(1.0f, 123);
             const float cell = std::ldexp(1.0f, 121);
             const std::array farLights{ lampAt(-edge, far), lampAt(edge, far) };
-            const LightGrid ranged(farLights);
+            const LightGrid ranged = gridOf(farLights);
 
             EXPECT_EQ(ranged.getOrigin(), osg::Vec3f(-69.0f * cell, -5.0f * cell, -5.0f * cell));
             EXPECT_EQ(ranged.getSize(), osg::Vec3ui(138u, 10u, 10u));
@@ -210,7 +221,7 @@ namespace Rtx
             // [0, 32): 16 * 32 * 32 entries.
             const float largest = std::numeric_limits<float>::max();
             const std::array extremeLights{ lampAt(-largest, largest) };
-            const LightGrid extreme(extremeLights);
+            const LightGrid extreme = gridOf(extremeLights);
 
             EXPECT_EQ(extreme.getOrigin(), osg::Vec3f(-largest, -largest, -largest));
             EXPECT_EQ(extreme.getSize(), osg::Vec3ui(34u, 34u, 34u));
@@ -222,7 +233,7 @@ namespace Rtx
             // One lamp past the entry budget, every one of them in the first cell of 256: the middle
             // cell of three a side holds them all, which the shader walks as it walks any other.
             const std::vector<Light> packed(262144 + 1, lampAt(0.0f, 1.0f));
-            const LightGrid full(packed);
+            const LightGrid full = gridOf(packed);
 
             EXPECT_EQ(full.getSize(), osg::Vec3ui(3u, 3u, 3u));
             EXPECT_FLOAT_EQ(full.getInverseCell(), 1.0f / 256.0f) << "it stopped at the first cell and not after";
@@ -247,7 +258,8 @@ namespace Rtx
         TEST(RtxLightGridTest, lampsSpanningOneCellSeveralAndTheWholeExtentAreEachBinnedRight)
         {
             const std::array lights{ lampAt(0.0f, 512.0f), lampAt(4096.0f, 512.0f), lampAt(2048.0f, 2560.0f) };
-            const LightGrid grid(lights);
+            LightGrid grid;
+            grid.rebuild(lights);
 
             ASSERT_EQ(grid.getOrigin(), osg::Vec3f(-768.0f, -2816.0f, -2816.0f));
             ASSERT_EQ(grid.getSize(), osg::Vec3ui(22u, 22u, 22u));
@@ -399,7 +411,8 @@ namespace Rtx
         {
             std::array lights{ lampAt(2048.0f, 100.0f), lampAt(0.0f, 100.0f), lampAt(1024.0f, 100.0f),
                 lampAt(4096.0f, 100.0f) };
-            LightGrid grid(lights);
+            LightGrid grid;
+            grid.rebuild(lights);
             ASSERT_EQ(grid.getSize(), osg::Vec3ui(19u, 3u, 3u));
             const std::uint32_t near = cellAt(grid, 1, 1, 1);
             ASSERT_EQ(grid.getCells()[near].mFirst[0], 0u);
@@ -449,7 +462,8 @@ namespace Rtx
         TEST(RtxLightGridTest, aListWithNoRoomLeftMakesTheGridAgain)
         {
             std::array lights{ lampAt(0.0f, 100.0f), lampAt(4096.0f, 100.0f), lampAt(1024.0f, 100.0f) };
-            LightGrid grid(lights);
+            LightGrid grid;
+            grid.rebuild(lights);
             ASSERT_EQ(grid.getSize(), osg::Vec3ui(19u, 3u, 3u));
             ASSERT_EQ(grid.getList().size(), 354u);
 
@@ -510,7 +524,9 @@ namespace Rtx
                 return runs;
             };
 
-            LightGrid grid(lights);
+            LightGrid grid;
+
+            grid.rebuild(lights);
             std::vector<std::vector<std::uint32_t>> had = runsOf(grid);
             std::size_t madeAgain = 0;
             std::size_t traded = 0;
@@ -532,7 +548,7 @@ namespace Rtx
                 }
 
                 grid.rebuild(lights);
-                const LightGrid fresh(lights);
+                const LightGrid fresh = gridOf(lights);
                 ASSERT_EQ(grid.getOrigin(), fresh.getOrigin()) << "the corners stopped holding the extent";
                 ASSERT_EQ(grid.getSize(), fresh.getSize());
 

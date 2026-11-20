@@ -38,6 +38,7 @@ namespace Rtx
         /// Grows to hold `row`, the rows past what it held made as a `T` is.
         void growTo(const I row)
         {
+            assert(!row.isNone() && "a vector grown to no row");
             if (row.at() >= mItems.size())
                 mItems.resize(std::size_t{ row.at() } + 1);
         }
@@ -45,6 +46,7 @@ namespace Rtx
         /// Grows to hold `row`, the rows past what it held made at `fill`.
         void growTo(const I row, const T& fill)
         {
+            assert(!row.isNone() && "a vector grown to no row");
             if (row.at() >= mItems.size())
                 mItems.resize(std::size_t{ row.at() } + 1, fill);
         }

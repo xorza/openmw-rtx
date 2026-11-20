@@ -45,9 +45,9 @@ namespace Rtx
 
         /// Where the test finds Ray Reconstruction's library: beside the test binary, the folder NGX
         /// searches as the game's own (`DlssLibrary::Folders::mGame`).
-        DlssLibrary::Folders libraryFolders()
+        HostFolders libraryFolders()
         {
-            return DlssLibrary::Folders{ .mRuntime = {}, .mGame = std::filesystem::current_path() };
+            return HostFolders{ .mUserLocalData = {}, .mGame = std::filesystem::current_path() };
         }
 
         constexpr std::uint32_t sWidth = 320;
@@ -58,7 +58,7 @@ namespace Rtx
         {
             options.mRun.mProfile.mUpscaler = UpscalerChoice::Dlss;
             options.mRun.mProfile.mUpscale = mode;
-            options.mDlss = libraryFolders();
+            options.mHostFolders = libraryFolders();
             // Shown, as a played run's: a summed run keeps room for a running sum and a deep target
             // that no frame here makes, so the frame would hold less than its reserve for a reason
             // that is not the feature's.
@@ -75,7 +75,7 @@ namespace Rtx
         {
             if (!Platform::Gpu::has(Platform::Gpu::Vendor::Nvidia))
                 return "DLSS needs an NVIDIA card";
-            if (!DlssLibrary::installedIn(libraryFolders()))
+            if (!DlssLibrary::installedIn(DlssLibrary::Folders{ .mRuntime = {}, .mGame = libraryFolders().mGame }))
                 return "Ray Reconstruction's library is not beside the test binary: "
                     + std::string(DlssLibrary::download().mFileName);
             return std::nullopt;

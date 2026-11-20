@@ -1097,38 +1097,25 @@ For the seam's own proposal, not planned here:
 - `rtxrenderer.hpp:306`, `rtxrenderer.cpp:479,540` — the world's phase rule is spelled two ways, and
   `updateTraversal` and `renderGui` take `Between` alone. Target: named expectations a caller kind.
 
-## Batch 12: the core's remainder
-
-Files: `components/rtx/{common,scene,renderer,mirror}`, `apps/components_tests/rtx/`.
-
-- [ ] `components/rtx/common/rowvector.hpp:39-50`, `slots.hpp:51,135` — a none or oversize index grows a table
-  where it should assert. Target: asserted.
-- [ ] Every `Result<…, std::string>` and `Refusal::mWhy` — one cause has two wordings in two layers and is counted
-  twice; the expectation files match text. Target: an enum of causes a kind, the text made once at the log.
-- [ ] `renderer/slot.hpp` (`GuiSlot`, `SceneSlot` beside `RowIndex`), `mirror/materialresolver.hpp:426-427` (a free
-  list beside `SlotRows`), `NodeKinds` and `mUpdaterClasses` (two class caches, the first's overflow read by tests
-  alone), four lists of a material's maps. Target: one of each.
-- [ ] Dead: `BlockedValues<T>` and `Run::in` (`common/runs.hpp:68,87-91,164-238`); test-only members in production
-  headers (`getHoleCount`, `LightGrid(std::span)`, `NodeKinds::getOverflow`).
-- [ ] `renderer/nullrenderer.cpp:163-176` — `renderFrame` and `holdAir` describe nothing though `FrameDescriber`
-  needs no API under it. Target: the null renderer owns one.
-- [ ] `scene/lightgrid.cpp:104,181,209-210` — the grid is made whole again whenever the lamp count changes, with
-  three exact reserves that reallocate at each new maximum. `scene/materialtable.cpp:275` — `drop` scans every
-  arrived mask a layer. `Refusals::mNamed` has no stated bound. Target: incremental, reserved once, bounded.
-- [ ] `scene/sceneidentities.hpp:31` — an atomic "for the tests". Target: `OwnedBy` and a plain counter where every
-  production scene is made on the main thread.
-- [ ] `RendererOptions::mDlss` (`renderer.hpp:208`) is a vendor's name in the neutral interface. Target: an opaque
-  option the backend names.
-- [ ] Five setters each move one field of a profile `getProfile` answers whole; `rebuildSubject(…, bool settled)`,
-  `traceInto(GuiSlot, bool readBack)`, `setIndirectLighting(bool)` select behaviour by a flag; eleven compound
-  asserts. Target: one setter of the profile; enums; split asserts.
-- [ ] Stale comments: `scene/refusal.hpp:46` (`SceneHolder::getRefusals`), `mirror/lightbuilder.hpp:36-38,163-167`,
-  `mirror/surfacedescription.hpp:80-81`, `sceneuploader.hpp:175` and `sceneuploader.cpp:317-322` on the room kept
-  for an arrival.
-
 ## Changed
 
 Items that landed in another shape than their target, each with how and why.
+
+- Batch 12's index asserts: no row is asserted where a table grows or a pool frees; an oversized row has no bound the
+  generic table knows, so it stays the caller's.
+- Batch 12's one of each: `GuiSlot` is a `RowIndex`, the worn rows' free list a `SlotPool`, and the two class caches
+  one `ClassAnswers`, whose overflow learns again where the callback classes asserted; `SceneSlot` stays, since the
+  world is a case and not a none. The maps' lists stay: `TextureRole` is what content binds, `SurfaceMap` what is kept,
+  and the material's fields the device record's.
+- Batch 12's dead code: the blocked buffer and its `Run::in`, the grid's span constructor and the kinds' overflow; the
+  runs' hole count is read by the content memory report, so it stays.
+- Batch 12's light grid: its reserves double; a lamp that comes or goes still makes the grid again, since the lamp list
+  is compacted and renumbers every lamp after it. The material table's mask scan runs over one hand-over's arrivals.
+  The refusals' bound is the content's, stated beside them.
+- Batch 12's setters and flags: the picture's copy is an enum at the trace and every two-part assert is two; the
+  profile's five setters stay, each with its own work (targets, samplers, constants), and a whole-profile setter would
+  diff and branch per field. `rebuildSubject` no longer takes its flag, and `setIndirectLighting` takes a setting's
+  value.
 
 - Batch 11's refused setting: the registry's sanitizers hold both values the derivation refuses, so the refusal could
   not come from the menu; the catch went, and a refusal there is a broken contract.
@@ -1459,3 +1446,6 @@ Items judged and not done, each with the reason.
 - Batch 11's tests: `GlRenderer` needs a GL context the test binaries have none of, an engine torn down early needs a
   whole engine, and `RendererTest`'s wall clock and settings are the pacer's and the presentation's, which the seam's
   proposal moves; its tests go with it.
+- Batch 12's causes an enum a kind: as batch 6's `openImage` found, no caller tells the causes apart, each kind is
+  counted by `Refused`, and the text carries the values a cause alone does not; an enum would be every message spelt
+  twice.

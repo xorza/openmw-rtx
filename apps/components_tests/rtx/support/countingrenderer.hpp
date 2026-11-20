@@ -97,8 +97,8 @@ namespace Rtx::Testing
         {
             ++mGuiAsked;
             if (width > mGuiSide || height > mGuiSide)
-                return Rtx::GuiSlot::none();
-            return Rtx::GuiSlot::at(mGuiTextures++);
+                return Rtx::GuiSlot();
+            return Rtx::GuiSlot(mGuiTextures++);
         }
         std::span<std::uint8_t> lendGuiTexture(Rtx::GuiSlot, const Rtx::GuiRegion& region) override
         {

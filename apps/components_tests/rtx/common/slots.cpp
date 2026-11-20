@@ -155,6 +155,10 @@ namespace Rtx
             SlotPool<Row> pool;
             pool.free(Row(2));
             Testing::expectAssertDies([&] { pool.free(Row(2)); }, "a slot freed twice");
+            Testing::expectAssertDies([&] { pool.free(Row()); }, "no slot freed");
+
+            SlotSet<Row> set;
+            Testing::expectAssertDies([&] { set.addMakingRoom(Row()); }, "no slot listed");
         }
 
         /// **A slot taken out and named again before the compact stands in the list once, where it

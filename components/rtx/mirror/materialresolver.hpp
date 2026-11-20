@@ -7,7 +7,6 @@
 #include <functional>
 #include <optional>
 #include <span>
-#include <typeinfo>
 #include <vector>
 
 #include <boost/unordered/unordered_flat_map.hpp>
@@ -16,8 +15,10 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <components/rtx/common/classanswers.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/rowvector.hpp>
+#include <components/rtx/common/slots.hpp>
 #include <components/rtx/image/imagefacts.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
@@ -167,7 +168,6 @@ namespace Rtx
             mAnimated.reserve(animated);
             mWorns.reserve(animated);
             mFreeWorns.reserve(animated);
-            mUpdaterClasses.reserve(sCallbackClasses);
         }
 
         /// `Kept::getPastRoom`, of the materials, the textures and the animated chains.
@@ -423,7 +423,7 @@ namespace Rtx
         /// What each animated material has worn, a row each (`HeldMaterial::mWorn`), and the rows
         /// a material that went gave back.
         RowVector<Worn, WornIndex> mWorns;
-        std::vector<WornIndex> mFreeWorns;
+        SlotPool<WornIndex> mFreeWorns;
 
         /// Which slot each image the walk has met stands in, so an animated material re-read every
         /// frame does not build four `VFS::Path::Normalized` strings a frame. The entry is a
@@ -435,11 +435,9 @@ namespace Rtx
         /// address would otherwise be handed the state set the first one's controllers were writing.
         Kept<boost::unordered_flat_map<Placed, Animated, ByPlacement, ByPlacement>> mAnimated{ mPass };
 
-        /// Whether a callback class is a state set's controller (`SceneUtil::StateSetUpdater`), by its
-        /// dynamic type, asked of each class once: `carriesUpdater`. By the type's identity, since
-        /// a class answers alike for every object of it.
-        static constexpr std::size_t sCallbackClasses = 64;
-        boost::unordered_flat_map<const std::type_info*, bool> mUpdaterClasses;
+        /// Whether a callback class is a state set's controller (`SceneUtil::StateSetUpdater`), asked of each class
+        /// once: `carriesUpdater`.
+        ClassAnswers<bool, 64> mUpdaterClasses;
 
         /// Whether either of `node`'s chains holds a state set's controller, by the classes of its
         /// callbacks (`mUpdaterClasses`).

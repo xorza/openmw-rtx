@@ -69,6 +69,7 @@ openmw_rtx_layer(
         common/asserts.hpp
         common/bufferpool.hpp
         common/cardaddress.hpp
+        common/classanswers.hpp
         common/clock.hpp
         common/deviceepoch.hpp
         common/error.hpp

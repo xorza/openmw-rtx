@@ -28,6 +28,21 @@ namespace Rtx
             return [value](Reading& reading) { reading.mValue = value; };
         }
 
+        /// **A growing reserve doubles past an exact one**: room for 3 from none is 3, for 4 is twice 3, and for 5 or
+        /// fewer is what stands.
+        TEST(RtxScratchTest, aGrowingReserveTakesTheCountOrTwiceTheRoomWhicheverIsMore)
+        {
+            std::vector<std::int32_t> values;
+            reserveGrowing(values, 3);
+            EXPECT_EQ(values.capacity(), 3u);
+            reserveGrowing(values, 4);
+            EXPECT_EQ(values.capacity(), 6u);
+            reserveGrowing(values, 5);
+            EXPECT_EQ(values.capacity(), 6u);
+            reserveGrowing(values, 20);
+            EXPECT_EQ(values.capacity(), 20u);
+        }
+
         /// **A buffer keeps its room within twice what it holds, and shrinks to what it holds past that, keeping
         /// it**: eight slots kept under four held, and three left under three, which is the boundary `trimSlack`
         /// draws; an empty buffer gives its room back, and one with no room is left as it is.

@@ -77,8 +77,8 @@ namespace Rtx
         Specular,
         Dark,
 
-        /// Named so a unit that carries one is a role and not an unknown, and read by nothing:
-        /// none of the four occurs in the shipped files, over every NIF the three archives hold.
+        /// Bound by no shipped file, over every NIF the three archives hold, and by a mod's surfaces, which the trace
+        /// reads as `objects.frag` does (`SurfaceMap`).
         Detail,
         Decal,
         Gloss,
