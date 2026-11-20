@@ -167,10 +167,11 @@ namespace RtxTool
 
             const Rtx::MemoryUses& uses = memory.mUses;
             return std::format(R"({{"heaps": {}, )"
-                               R"("uses": {{"frame": {}, "frameReserve": {}, "essential": {}, "structures": {}, )"
-                               R"("structureRoom": {}, "textures": {}, "textureRoom": {}}}}})",
-                heaps, uses.mFrame, uses.mFrameReserve, uses.mEssential, uses.mStructures, uses.mStructureRoom,
-                uses.mTextures, uses.mTextureRoom);
+                               R"("uses": {{"frame": {}, "frameReserve": {}, "essential": {}, "essentialGrowth": {}, )"
+                               R"("structures": {}, "structureGrowth": {}, "structureRoom": {}, "textures": {}, )"
+                               R"("textureRoom": {}}}}})",
+                heaps, uses.mFrame, uses.mFrameReserve, uses.mEssential, uses.mEssentialGrowth, uses.mStructures,
+                uses.mStructureGrowth, uses.mStructureRoom, uses.mTextures, uses.mTextureRoom);
         }
 
         /// What the graphics driver held, by region, or null where the system states none.

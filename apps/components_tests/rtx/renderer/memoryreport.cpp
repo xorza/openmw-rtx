@@ -62,15 +62,18 @@ namespace Rtx
             report.mUses = MemoryUses{ .mFrame = 6000ull << 20,
                 .mFrameReserve = 6500ull << 20,
                 .mEssential = 820ull << 20,
+                .mEssentialGrowth = 96ull << 20,
                 .mStructures = 174ull << 20,
+                .mStructureGrowth = 128ull << 20,
                 .mStructureRoom = 4096ull << 20,
                 .mTextures = 1290ull << 20,
                 .mTextureRoom = 3840ull << 20 };
 
             const std::string out = describeMemory(report);
             EXPECT_NE(
-                out.find("  uses  frame 6000.0 of 6500.0 kept   essential 820.0   structures 174.0, room 4096.0   "
-                         "textures 1290.0, room 3840.0\n"),
+                out.find(
+                    "  uses  frame 6000.0 of 6500.0 kept   essential 820.0, growth 96.0   structures 174.0, growth "
+                    "128.0, room 4096.0   textures 1290.0, room 3840.0\n"),
                 std::string::npos)
                 << out;
             EXPECT_EQ(std::count(out.begin(), out.end(), '\n'), 2) << "the heap and the uses";

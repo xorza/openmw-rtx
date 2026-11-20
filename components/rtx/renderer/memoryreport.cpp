@@ -63,11 +63,11 @@ namespace Rtx
     std::string describeUses(const MemoryUses& uses)
     {
         return std::format(
-            "frame {:.1f} of {:.1f} kept   essential {:.1f}   structures {:.1f}, room {:.1f}   textures {:.1f}, room "
-            "{:.1f}",
+            "frame {:.1f} of {:.1f} kept   essential {:.1f}, growth {:.1f}   structures {:.1f}, growth {:.1f}, "
+            "room {:.1f}   textures {:.1f}, room {:.1f}",
             mebibytes(uses.mFrame), mebibytes(uses.mFrameReserve), mebibytes(uses.mEssential),
-            mebibytes(uses.mStructures), mebibytes(uses.mStructureRoom), mebibytes(uses.mTextures),
-            mebibytes(uses.mTextureRoom));
+            mebibytes(uses.mEssentialGrowth), mebibytes(uses.mStructures), mebibytes(uses.mStructureGrowth),
+            mebibytes(uses.mStructureRoom), mebibytes(uses.mTextures), mebibytes(uses.mTextureRoom));
     }
 
     std::string describeSceneHeld(const SceneStats& scene)

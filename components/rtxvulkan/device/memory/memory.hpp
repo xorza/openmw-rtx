@@ -16,6 +16,7 @@
 #include <components/misc/result.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 
+#include "largestowed.hpp"
 #include "systemshare.hpp"
 
 struct VmaAllocation_T;
@@ -416,22 +417,19 @@ namespace Rtx
         bool isUnified() const { return mUnified; }
 
         /// What one owner's next growth of `use` takes, `bytes`, in place of the `was` it owed before
-        /// (`OwedGrowth`): kept free under the ceilings of the uses given room after it.
+        /// (`OwedGrowth`): the largest of `use`'s kept free under the ceilings of the uses given room after it.
         void owe(MemoryUse use, VkDeviceSize was, VkDeviceSize bytes) noexcept;
 
-        /// What `use` may take on the video heap at most, as the budget and the frame's reserve stand and what the
-        /// uses before it owe their growth: what a test of the ceiling reads.
+        /// What `use` may take on the video heap at most, as the budget and the frame's reserve stand and the largest
+        /// growth each use before it owes: what a test of the ceiling reads.
         VkDeviceSize getCeiling(MemoryUse use) const;
 
         /// What the structure storages hold free in their blocks, `bytes` in place of the `was` one storage said
         /// before: room only a structure takes, which the driver counts as held (`StructureStorage`).
         void noteStructureFree(VkDeviceSize was, VkDeviceSize bytes) noexcept;
 
-        /// What `use`'s owners owe their next growth on the video heap.
-        VkDeviceSize getOwed(MemoryUse use) const
-        {
-            return mOwed[static_cast<std::size_t>(use)].load(std::memory_order_relaxed);
-        }
+        /// The largest next growth one of `use`'s owners owes on the video heap.
+        VkDeviceSize getLargestOwed(MemoryUse use) const { return mOwed[static_cast<std::size_t>(use)].largest(); }
 
         /// How many calls to `vkAllocateMemory` stand behind everything handed out.
         std::size_t getBlockCount() const;
@@ -488,10 +486,15 @@ namespace Rtx
         /// Frees what `memory` holds and takes it off what its use holds.
         void give(DeviceMemory& memory);
 
-        /// How far up `heap` a use content takes may go, against the process's whole usage of it: the
-        /// budget, less what every use before `use` would take to be made again, for the reason `MemoryUse`
-        /// gives — on the video heap, what the frame's reserve has beyond what its targets hold, and
-        /// everything else held once more.
+        /// How far up `heap` a use content takes may go, against the process's whole usage of it: the budget,
+        /// less what the uses before `use` would take to grow, for the reason `MemoryUse` gives — on the video heap,
+        /// what the frame's reserve has beyond what its targets hold, and the largest growth one owner of each owes.
+        /// **One growth a use and not every owner's**: every owner's held 410 MiB of the handheld's heap from every
+        /// texture and refused both a texture and a structure block under it; two growths of one use at once take the
+        /// heap past its budget for a hand-over, and content gives the room back. A structure keeps a block of its own
+        /// above the textures: with only the larger of the two uses' growths kept, the textures filled the heap to the
+        /// structures' ceiling on the PBR replacers and left a mesh out
+        /// (`docs/research/2026-11-20-handheld-open-issues.md`).
         ///
         /// **What the process holds outside the library is counted once, in the usage**: the swapchain and
         /// the driver's own memory. Taken off the budget as well, it stood twice under the ceiling, and a
@@ -545,8 +548,8 @@ namespace Rtx
         /// What each use holds on each heap. Atomic, for the threads `take` is reached from.
         std::array<std::array<std::atomic<VkDeviceSize>, sMemoryUses>, VK_MAX_MEMORY_HEAPS> mHeld{};
 
-        /// What each use's owners owe their next growth on the video heap (`OwedGrowth`).
-        std::array<std::atomic<VkDeviceSize>, sMemoryUses> mOwed{};
+        /// What each use's owners owe their next growth on the video heap, by its largest (`OwedGrowth`).
+        std::array<LargestOwed, sMemoryUses> mOwed{};
 
         /// What the structure storages hold free in their blocks (`noteStructureFree`).
         std::atomic<VkDeviceSize> mStructureFree = 0;

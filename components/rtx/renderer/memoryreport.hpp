@@ -51,7 +51,12 @@ namespace Rtx
         /// and the staging behind uploads.
         std::uint64_t mEssential = 0;
 
+        /// The largest next growth one essential table owes, which the ceilings of the uses after it hold back, and one
+        /// structure storage's, which the textures' ceiling holds back as well.
+        std::uint64_t mEssentialGrowth = 0;
+
         std::uint64_t mStructures = 0;
+        std::uint64_t mStructureGrowth = 0;
         std::uint64_t mStructureRoom = 0;
         std::uint64_t mTextures = 0;
         std::uint64_t mTextureRoom = 0;
@@ -75,8 +80,9 @@ namespace Rtx
     /// the renderer says, indented to sit under the place it belongs to.
     std::string describeMemory(const MemoryReport& report);
 
-    /// The uses as one line says them: what the frame holds of the room kept for it, what is essential, and what
-    /// structures and textures hold with the room each may still take.
+    /// The uses as one line says them: what the frame holds of the room kept for it, what is essential and what
+    /// structures and textures hold, with the largest next growth one owner of the first two owes and the room the last
+    /// two may still take.
     std::string describeUses(const MemoryUses& uses);
 
     /// What the scene holds as one line says it: its instances, its structures and its textures. The harness

@@ -352,7 +352,9 @@ namespace RtxTool
             place.mMemory.mUses = Rtx::MemoryUses{ .mFrame = 10,
                 .mFrameReserve = 11,
                 .mEssential = 12,
+                .mEssentialGrowth = 17,
                 .mStructures = 13,
+                .mStructureGrowth = 18,
                 .mStructureRoom = 14,
                 .mTextures = 15,
                 .mTextureRoom = 16 };
@@ -420,7 +422,8 @@ namespace RtxTool
                 = R"("memory": {"heaps": [{"size": 1, "budget": 2, "held": 3, "reserved": 4, "live": 5, "blocks": 6, )"
                   R"("deviceLocal": true}, {"size": 7, "budget": 0, "held": 0, "reserved": 0, "live": 0, )"
                   R"("blocks": 0, "deviceLocal": false}], "uses": {"frame": 10, "frameReserve": 11, "essential": 12, )"
-                  R"("structures": 13, "structureRoom": 14, "textures": 15, "textureRoom": 16}})";
+                  R"("essentialGrowth": 17, "structures": 13, "structureGrowth": 18, "structureRoom": 14, "textures": 15, )"
+                  R"("textureRoom": 16}})";
             constexpr std::string_view content
                 = R"("content": {"vertexEnd": 21, "verticesUsed": 22, "indexEnd": 23, "indicesUsed": 24, )"
                   R"("restingVertices": 40, "restingIndices": 41, "geometryBytes": 42, )"

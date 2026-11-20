@@ -304,9 +304,10 @@ namespace RtxTool
             record.add(vivec);
 
             record.finish(request);
-            EXPECT_NE(record.getReport().find("\nthe device held at most 1050.0 MiB by use, at balmora: frame 100.0 of "
-                                              "400.0 kept   essential 50.0   structures 300.0, room 70.0   textures "
-                                              "600.0, room 80.0\n"),
+            EXPECT_NE(
+                record.getReport().find("\nthe device held at most 1050.0 MiB by use, at balmora: frame 100.0 of "
+                                        "400.0 kept   essential 50.0, growth 0.0   structures 300.0, growth 0.0, room "
+                                        "70.0   textures 600.0, room 80.0\n"),
                 std::string::npos)
                 << record.getReport();
             EXPECT_NE(record.getReport().find("\nthe textures stood above their want at most 30.0 of 120.0 MiB stood "

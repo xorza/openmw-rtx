@@ -427,11 +427,16 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
 - **A texture's image and sampler stand apart, paired at each read**: AMD's Windows driver hung on a combined array
   (`research/2026-11-09-separate-samplers.md`).
 - **The frame's targets are counted from what makes them**, and the reserve is the running mode's.
-- **Content's ceiling keeps what essential memory will grow by, not what it holds**: a doubling table owes its next
-  size and a blocked stream its next block, each stating its own (`MemoryAllocator`'s growth owed), and the ceiling is
-  the budget less the frame's gap and their sum. A scratch or a storage held to a room owes nothing. Refused: a second
-  copy of memory that is appended and never made again; no reserve, under which a table's growth could end the
-  renderer.
+- **Content leaves room for one growth a use**, by the user's decision: a doubling table owes its next size, a blocked
+  stream and a structure storage their next block, each stating its own (`MemoryAllocator`'s growth owed), and a
+  ceiling is the budget less the frame's gap and the largest growth one owner of each use before it owes. Two growths
+  of one use at once take the heap past its budget for a hand-over, and content gives the room back, as Unreal's
+  texture streaming pool takes what the rest leaves and Dawn evicts the least recently used when something must stand.
+  A scratch or a storage held to a room owes nothing. Refused: every owner's growth summed, which held 410 MiB of the
+  handheld's heap from every texture and refused a texture and a structure block under it; the larger of the uses'
+  largest growths alone, under which the textures filled the PBR replacers' heap to the structures' ceiling and left a
+  mesh out (`research/2026-11-20-handheld-open-issues.md`); a second copy of memory that is appended and never made
+  again; no reserve, under which a growth past what the card holds, on a driver that refuses it, ends the renderer.
 - **On a unified device the device and the caches split the system's memory** (`SystemShare`), by the user's
   decision: the device is held to what it holds and what the system leaves beside it, less half a gigabyte, half the
   caches' reserve, so as the two meet the caches stop first; that bound is an exponential average over a minute, both

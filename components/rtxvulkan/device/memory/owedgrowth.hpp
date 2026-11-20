@@ -10,8 +10,8 @@ namespace Rtx
 {
     /// **What one owner's next growth will take of the video heap**, owed to the allocator for as long as the owner
     /// stands: a table made again at twice its size beside the old one, a blocked buffer's next block, a structure
-    /// storage's next block. Content's ceilings keep room for every owner's (`MemoryAllocator::ceilingOf`), not for a
-    /// second copy of everything it holds.
+    /// storage's next block. Content's ceilings keep room for the largest owner's of each use before them
+    /// (`MemoryAllocator::ceilingOf`), not for every owner's or a second copy of everything it holds.
     class OwedGrowth
     {
     public:

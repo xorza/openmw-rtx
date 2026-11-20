@@ -506,11 +506,12 @@ namespace Rtx
             owed += mFrameReserve - frame;
         // **What the uses given room before `use` owe their next growth, and not what they hold**: what they hold is
         // in the driver's usage already, and a second copy of it was kept free for a table that grows by being made
-        // again, which tables alone do, and their own next size is what they take beside what they hold.
+        // again, which tables alone do, and their own next size is what they take beside what they hold. The largest
+        // one owner of each owes, and not every owner's (`ceilingOf`'s reason).
         if (heap == mContent.mHeap)
             for (auto before = static_cast<std::size_t>(MemoryUse::Essential); before < static_cast<std::size_t>(use);
                 ++before)
-                owed += mOwed[before].load(std::memory_order_relaxed);
+                owed += mOwed[before].largest();
 
         const VkDeviceSize held = heldTo(budget);
         return held > owed ? held - owed : 0;
@@ -689,9 +690,7 @@ namespace Rtx
 
     void MemoryAllocator::owe(const MemoryUse use, const VkDeviceSize was, const VkDeviceSize bytes) noexcept
     {
-        std::atomic<VkDeviceSize>& owed = mOwed[static_cast<std::size_t>(use)];
-        [[maybe_unused]] const VkDeviceSize before = owed.fetch_add(bytes - was, std::memory_order_relaxed);
-        assert(before + bytes >= was && "growth forgiven that was never owed");
+        mOwed[static_cast<std::size_t>(use)].change(was, bytes);
     }
 
     void MemoryAllocator::noteBlocksComing(const std::uint32_t was, const std::uint32_t blocks) noexcept
@@ -775,7 +774,9 @@ namespace Rtx
         return MemoryUses{ .mFrame = getHeld(mContent.mHeap, MemoryUse::Frame) + mHeldOutside,
             .mFrameReserve = mFrameReserve,
             .mEssential = getHeld(mContent.mHeap, MemoryUse::Essential),
+            .mEssentialGrowth = getLargestOwed(MemoryUse::Essential),
             .mStructures = getHeld(mContent.mHeap, MemoryUse::Structure),
+            .mStructureGrowth = getLargestOwed(MemoryUse::Structure),
             .mStructureRoom = getRoom(MemoryUse::Structure),
             .mTextures = getHeld(mContent.mHeap, MemoryUse::Texture),
             .mTextureRoom = getRoom(MemoryUse::Texture) };

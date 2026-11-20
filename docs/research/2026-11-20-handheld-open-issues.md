@@ -62,8 +62,46 @@ series applied, each leg's frames written (`--frame-times`). The records stand i
 - **It stands at master**: a 0.4 MiB texture with no name refused at leg 3 frame 645, the texture pool's 4288 MiB of
   blocks holding 4285.9 MiB allocated with its largest free range 0.1 MiB, while the heap held 5593 of 6144 MiB; the
   textures-readable check failed twice.
-- **A second cause beside it**: `tx_b_n_argonian_f_n.dds` and `tx_b_n_argonian_m_n.dds`, BC5 normal maps, are drawn as
-  stand-ins where a colour is read, at legs 3 and 4 (four times in the log).
+- **A second stand-in beside it is the content's**: `tx_b_n_argonian_f_n.dds` and `tx_b_n_argonian_m_n.dds`, drawn as
+  stand-ins where a colour is read at legs 3 and 4, are the Argonian necks' colour textures (`_N`, the neck, as `_C` is
+  the chest), which MVR's own copies hold in DXT1 and MVR PBR's, ahead of them in the profile, in BC5: a map at the
+  colour's name, its own normal map beside it as `..._N_n.dds`.
+
+## What the code says of the two refusals
+
+- **A structure's room is counted in free bytes, and taken in runs**: the arrival room the uploader evicts against
+  (`MemoryAllocator::getRoom(MemoryUse::Structure)`) is the storages' free runs summed, and a structure takes one run
+  (`StructureStorage::take`). At master's first refusal the structure blocks held 2120 MiB with 76.5 MiB free across
+  them, so `SceneUploader::evictForRoom` found no structure short while no run held the structure, and the storage asked
+  the heap for a new 64 MiB block over its ceiling.
+- **A structure built loose posts no want**: `BottomLevelStore::build` asks a room want (`RoomWant`) only for a mesh
+  that refits, so a static mesh that finds no room waits on nothing that evicts for it and is refused after
+  `sMostRoomWaits` placements, however much rests.
+- **A texture ranks behind the structures' and the tables' next growth**: a new pool block is held under the budget
+  less what the uses before it owe (`MemoryAllocator::ceilingOf`): a doubling table twice its size, each structure
+  storage a block. The PBR refusal's heap held 5593 MiB with 249 MiB free in blocks (2.1 in the texture pool, 246.7 in
+  the structure storages, which no texture takes), 5842 MiB in all, so a 64 MiB block over 6144 means more than 238
+  MiB owed.
+- **What is owed, measured**: the same legs flown on the desk, the uses' owed growth recorded, hold the essential tables
+  owing 268–274 MiB (58% of the 470 MiB they held at the PBR's leg 4) and the two structure storages 136 MiB: 410 MiB
+  of the heap a texture block cannot take, 272 a structure block cannot.
+
+## The ceilings held to one growth a use, flown
+
+The same handheld, release builds, uncommitted on `7e6bec917f`: the PBR's legs 1–5 and the Repack's legs 1–45, each
+against the same legs of the night's master flight. The largest growth one owner owes stood at 64 MiB for the essential
+tables and 64 for the structure storages on both.
+
+| ceiling held back by | PBR: structure blocks refused | PBR: stand-ins | Repack: structure blocks refused | Repack: meshes left out | Repack: textures refused for room | Repack: stand-ins |
+|---|---|---|---|---|---|---|
+| every owner's growth (master) | 0 | 2 | 90 | 3 | 311 | 1 |
+| the larger of the two uses' largest | 54 | 2 | 0 | 0 | 6 | 2 |
+| the largest of each use, summed | 0 | 2 | 2 | 1 | 12 | 2 |
+
+- **Held back by the larger alone, the textures filled the PBR's heap to the structures' ceiling**: 6038 of 6144 MiB
+  held from leg 3, and a mesh left out at leg 5.
+- **Held back by each use's largest**, the Repack leaves one mesh out (leg 34) where it left three, and the PBR's
+  stand-in at leg 3 stands as it did.
 
 ## What these do not tell
 
@@ -74,5 +112,3 @@ series applied, each leg's frames written (`--frame-times`). The records stand i
   were read for (`2026-11-18-handheld-rooms-and-device-memory.md`), and the baseline's record holds no driver residency.
 - **Which pass refuses before evicting**: the refusals name the resting content beside them, not whether eviction was
   asked first or how far behind it ran.
-- **Why the BC5 maps are read as colour**: which model's material names them in a colour slot, or whether the
-  replacer's naming is read as a base texture.

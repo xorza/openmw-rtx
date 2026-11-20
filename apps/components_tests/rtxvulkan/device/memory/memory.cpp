@@ -378,23 +378,31 @@ namespace Rtx
             EXPECT_LT(memory.getBlockCount(), grown) << "emptied blocks were kept";
         }
 
-        /// **Content's ceiling keeps room for what the uses before it owe their growth, not a copy of what they hold**:
-        /// a blocked buffer opened owes its next block, and blocks it makes after change no ceiling; a table made at a
-        /// size owes twice that, its next growth, and made again at twice it owes four times; let go of, it owes
-        /// nothing. The textures' ceiling stands under the structures' by what the structures owe.
-        TEST_F(RtxMemoryTest, contentsCeilingKeepsRoomForWhatTheUsesBeforeItOweTheirGrowth)
+        /// **Content's ceiling keeps room for the largest growth each use before it owes, not every owner's or a copy
+        /// of what they hold**: a blocked buffer opened owes its next block, and blocks it makes after change no
+        /// ceiling; a table made at a size owes twice that, its next growth, and made again at twice it owes four
+        /// times; let go of, it owes nothing. Each moves the structures' ceiling by what it takes the largest past the
+        /// one the device's own tables owe, `essential`; a table made larger than that moves it by all of its own past
+        /// it. The textures' ceiling stands under the structures' by the largest a structure storage owes, whatever the
+        /// tables owe.
+        TEST_F(RtxMemoryTest, contentsCeilingKeepsRoomForTheLargestGrowthEachUseBeforeItOwes)
         {
             Device& device = getDevice();
             MemoryAllocator& memory = device.getMemory();
             memory.refreshBudget(device.getTimeline().getNext());
             const VkDeviceSize base = memory.getCeiling(MemoryUse::Structure);
             const VkDeviceSize ahead = memory.getCeiling(MemoryUse::Structure) - memory.getCeiling(MemoryUse::Texture);
+            const VkDeviceSize essential = memory.getLargestOwed(MemoryUse::Essential);
+            const VkDeviceSize storages = memory.getLargestOwed(MemoryUse::Structure);
+            EXPECT_EQ(ahead, storages) << "a storage's growth, beside the tables'";
 
             constexpr std::uint32_t sBlock = 1024;
+            constexpr VkDeviceSize sBlockBytes = VkDeviceSize{ sBlock } * sizeof(std::uint32_t);
             BlockedBuffer blocks(sBlock, sizeof(std::uint32_t));
             blocks.open(device, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "owed blocks");
             const VkDeviceSize opened = memory.getCeiling(MemoryUse::Structure);
-            EXPECT_EQ(base - opened, VkDeviceSize{ sBlock } * sizeof(std::uint32_t)) << "its next block";
+            EXPECT_EQ(base - opened, std::max(essential, sBlockBytes) - essential)
+                << "its next block, past the largest";
             {
                 Batch batch(getPool());
                 blocks.reserve(batch, 3 * sBlock);
@@ -402,18 +410,24 @@ namespace Rtx
             }
             EXPECT_EQ(memory.getCeiling(MemoryUse::Structure), opened) << "geometry that stands moved the ceiling";
 
-            constexpr VkDeviceSize sTable = 64 * 1024;
+            // Larger than any growth the device owes already, so its own is the largest.
+            const VkDeviceSize largest = std::max(essential, sBlockBytes);
+            const VkDeviceSize sized = std::max(VkDeviceSize{ 64 } * 1024, largest);
             {
                 GrowableBuffer table(device, BufferKind::DeviceLocal, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "owed table");
-                table.growTo(sTable);
+                table.growTo(sized);
                 const VkDeviceSize made = table.get().getSize();
-                EXPECT_EQ(opened - memory.getCeiling(MemoryUse::Structure), 2 * made) << "its next growth";
+                ASSERT_GT(2 * made, largest);
+                EXPECT_EQ(opened - memory.getCeiling(MemoryUse::Structure), 2 * made - largest)
+                    << "its next growth, past the largest before it";
                 table.outgrow(made + 1);
-                EXPECT_EQ(opened - memory.getCeiling(MemoryUse::Structure), 2 * table.get().getSize());
                 EXPECT_EQ(table.get().getSize(), 2 * made) << "a growth doubles";
+                EXPECT_EQ(opened - memory.getCeiling(MemoryUse::Structure), 4 * made - largest);
+                EXPECT_EQ(memory.getCeiling(MemoryUse::Structure) - memory.getCeiling(MemoryUse::Texture), storages)
+                    << "a storage's growth, whatever the table owes";
             }
             EXPECT_EQ(memory.getCeiling(MemoryUse::Structure), opened) << "a table let go of still owed";
-            EXPECT_EQ(memory.getCeiling(MemoryUse::Structure) - memory.getCeiling(MemoryUse::Texture), ahead)
+            EXPECT_EQ(memory.getCeiling(MemoryUse::Structure) - memory.getCeiling(MemoryUse::Texture), storages)
                 << "the structures owe what they owed";
 
             // **A structure takes the storages' free runs**: a storage of 4 MiB blocks with a megabyte handed out holds
@@ -550,13 +564,13 @@ namespace Rtx
         }
 
         /// Each use's room is what content's blocks have free and the whole blocks its ceiling leaves, and the ceiling
-        /// of each stands below the one before it by what the one before it owes its next growth.
+        /// of each stands below the budget by the largest growth one owner of each use before it owes.
         ///
         /// **Hand-computed from the heap's own figures.** The budget is set to what the heap holds (the process's
-        /// memory outside the allocator counted once) plus what essential memory owes its growth, plus three blocks
-        /// and a megabyte: the structures' ceiling is then three whole blocks above the heap, and the megabyte keeps
-        /// the division by a block off its edge. The textures' ceiling stands lower by what the structure storages
-        /// owe, whatever structures the device holds.
+        /// memory outside the allocator counted once) plus the largest growth an essential table owes, plus three
+        /// blocks and a megabyte: the structures' ceiling is then three whole blocks above the heap, and the megabyte
+        /// keeps the division by a block off its edge. The textures' ceiling stands lower by what a structure storage
+        /// owes, whatever structures the device holds.
         ///
         /// **The frame's targets are owed their reserve and not themselves once more**: sixteen megabytes held and a
         /// reserve of exactly that leave the three blocks; a reserve two blocks beyond it leaves one. **Content fits
@@ -612,7 +626,10 @@ namespace Rtx
             }
 
             ASSERT_GE(memory.getHeld(heap, MemoryUse::Structure), VkDeviceSize{ 48 } << 20);
-            const VkDeviceSize structures = memory.getOwed(MemoryUse::Structure);
+            const VkDeviceSize essential = memory.getLargestOwed(MemoryUse::Essential);
+            const VkDeviceSize storage = memory.getLargestOwed(MemoryUse::Structure);
+            EXPECT_EQ(memory.report().mUses.mStructureGrowth, storage) << "the report says what a storage owes";
+            EXPECT_EQ(memory.report().mUses.mEssentialGrowth, essential);
             const HeapUse heapNow = memory.report().mHeaps[heap];
             ASSERT_GT(heapNow.mHeld - heapNow.mReserved, VkDeviceSize{ 1 } << 20)
                 << "no memory outside the allocator past the margin, so counting it twice would show nothing";
@@ -621,8 +638,8 @@ namespace Rtx
             const Testing::BudgetLimit limit(memory, Testing::budgetAbove(memory, MemoryUse::Structure, above));
 
             EXPECT_EQ(memory.getRoom(MemoryUse::Structure), 3 * block);
-            EXPECT_EQ(memory.getRoom(MemoryUse::Texture),
-                free + (structures < above ? (above - structures) / block * block : 0));
+            EXPECT_EQ(
+                memory.getRoom(MemoryUse::Texture), free + (storage < above ? (above - storage) / block * block : 0));
 
             memory.reserveFrame(frame + 2 * block);
             EXPECT_EQ(memory.getRoom(MemoryUse::Structure), block) << "the reserve beyond the targets";

@@ -38,8 +38,8 @@ namespace Rtx
     };
 
     /// What a world's tables are made with room for. A growth past the room is a table and both its
-    /// copies made again on the frame a cell arrives on, its room owed under content's ceiling
-    /// (`OwedGrowth`) and not made ahead. The placements are some one and a half times the suites'
+    /// copies made again on the frame a cell arrives on, its room owed under content's ceiling where it is the
+    /// largest growth owed (`OwedGrowth`) and not made ahead. The placements are some one and a half times the suites'
     /// largest place (80,324), the slots a bench held at the ship's first place (87,964) under it; meshes and materials
     /// five times the most one session through every place held (5,641 and 1,561), for a mod list's; the runs' tables
     /// twice what that session and the crossing reached, to a power of two, read off `ContentMemory`. A growth past one

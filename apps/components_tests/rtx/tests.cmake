@@ -151,6 +151,7 @@ target_sources(
         rtxvulkan/device/instance.cpp
         rtxvulkan/device/memory/formats.cpp
         rtxvulkan/device/memory/imagearena.cpp
+        rtxvulkan/device/memory/largestowed.cpp
         rtxvulkan/device/memory/memorypriority.cpp
         rtxvulkan/device/memory/memorytypes.cpp
         rtxvulkan/device/memory/systemshare.cpp
