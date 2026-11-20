@@ -8,7 +8,7 @@
 namespace
 {
     /// **An error says what its thread was doing as it was raised**, which the note forgets as the
-    /// stack unwinds: each of the three that reach the player, the note's path whole, nothing added
+    /// stack unwinds: each of the four that reach the player, the note's path whole, nothing added
     /// where the thread noted nothing, and nothing twice where an error is raised again as another.
     TEST(RtxErrorTest, anErrorCarriesWhatItsThreadWasDoing)
     {
@@ -20,6 +20,7 @@ namespace
         EXPECT_EQ(std::string(Rtx::DeviceError("no room").what()), "no room" + noted);
         EXPECT_EQ(std::string(Rtx::InputError("a bad shader").what()), "a bad shader" + noted);
         EXPECT_EQ(std::string(Rtx::UpscalerRefused("NGX refused").what()), "NGX refused" + noted);
+        EXPECT_EQ(std::string(Rtx::Unsupported("no ray queries").what()), "no ray queries" + noted);
 
         const Rtx::UpscalerRefused refused("NGX refused");
         EXPECT_EQ(std::string(Rtx::DeviceError(refused.what()).what()), "NGX refused" + noted);
