@@ -1069,21 +1069,8 @@ meshtable,texturetable,materialtable,placementtable}`, `components/rtx/common/sl
 `components/rtx/renderer/{residency,resident,residencyop,nulldevice}`, `apps/components_tests/rtx/{common,renderer}`,
 `apps/rtxtool` (replay).
 
-- [ ] `SlotLedger` as specified under "The ledger". Tests, exact: a class's stride for sizes at and either side of
-  each ladder step; slots a slab; a slab returning to the pool as its last slot is collected; `collect` at the epoch
-  and one before it; `bytesFor` against hand-counted slabs; `drainFor` choosing the fewest live bytes and what drains
-  taking no new slot; a medium class taking a chunk and giving it back; a large class's block arriving and refused;
-  two arenas that share no slab; every transition's assert by `Testing::expectAssertDies`.
 - [ ] A property test: from random plans that fit, random arrivals and drops, the frame's shares held, every
   operation is issued within a bounded number of hand-overs and no slot is in two states.
-- [ ] `components/rtx/common/slots.hpp:369` — `HeldRows` has no generation, and lowest-free reuse makes reuse
-  immediate; each consumer guards a stale slot its own way (`sceneuploader.cpp:46,235,238,246,304`). Target: a
-  generation a slot, raised as it is freed, read through `HeldRows::generationOf`.
-- [ ] `components/rtx/scene/scenedesc.cpp:39`, `meshtable.cpp:191` — `addMesh` and `find` answer an index nothing
-  holds; a return before the caller's hold leaves a row nothing frees. Target: they answer a `MeshHold`.
-- [ ] Holds carry a `HoldTier` (`rowhold.hpp`, `SceneDesc::holdMesh`, `holdMaterial`, `holdTexture`, `addInstance`,
-  `takeReading`); a row counts its holds a tier. Every caller states its tier: the walk `Shown`, a picture's scene
-  and the sky `Forced`, the ring by its cells' bands (batch 7; `Shown` until then).
 - [ ] `Residency`: residents, the plan, the operations, the frame's shares, as specified. Tests over `NullDevice`,
   exact: a plan that fits gives every want; one over the cap lowers the most bytes of the lowest tier first, to
   floors and no further; the cache keeps nine tenths of what the demand leaves; a want that falls is held
@@ -1552,7 +1539,20 @@ Items that landed in another shape than their target, each with how and why.
   refusals and the allocator's two lines beside them are logged at Info, since the refusal is a record a tour reads.
 - The device's copy rate is a part of `info --prices` (`Renderer::measureCopies`), timed by the device's clock over
   BC7 chains of 64, 256, 1024 and 4096 texels.
+- `HoldTier` stands in `components/rtx/common/holdtier.hpp`, not the scene's folder: `HeldRows`, which counts a row's
+  holds a tier, is the common folder's, which includes no later one. What the walk's resolvers remember — a model's
+  mesh, a state set's material, an image's texture — holds at `Kept`, since no placement names it; a placement holds
+  at its extractor's tier, the world's `Shown` and a picture's `Forced`; the ring `Shown` until batch 7; a holder that
+  reads its texture `Forced`. A material holds what it names at its own best tier, `Kept` before its first hold, and
+  moves those holds as its tier moves.
+- `SlotLedger::bytesFor` takes the arena it answers for, since a plan's classes stand in two where a driver gives
+  images and buffers two memory types. A class's open slabs are kept in a list a reserve walks for the fullest, where
+  the design had them kept ordered: a class holds a few open slabs at a time, since draining empties the emptiest.
 
 ## Declined
 
 Items judged and not done, each with the reason.
+
+- `SceneDesc::addMesh` and `MeshTable::find` answering a `MeshHold`: every caller holds the row in the statement that
+  adds it, and `SceneDesc::isConsistent`, asserted after every retire, names a row nothing holds; a hold answered
+  would change 141 test sites for a leak no path has.
