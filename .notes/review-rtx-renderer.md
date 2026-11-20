@@ -1550,6 +1550,10 @@ Items that landed in another shape than their target, each with how and why.
   options for one question asked of a device that draws nothing, which `info` already stands up. It states each
   texture's and each first-built structure's size, the kinds of memory and the limits, on the three machines
   (`docs/research/2026-11-20-memory-prices.md`); a structure's tight size stays an item of the batch.
+- The content preparation's wait reached further than its item: the store's flush after it is waited out under
+  the same screen (`WorldMirror::awaitStored`, `ContentStore::Store::flushFor`). The item's draw on every report
+  left the tail it named undrawn where the tail was the store's: a day's first start stamps every entry it found,
+  27 s with no frame on the handheld, which left a hang report.
 
 ## Declined
 
