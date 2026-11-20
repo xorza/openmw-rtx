@@ -339,6 +339,8 @@ openmw_rtx_layer(
         mirror/materialresolver.cpp
         mirror/meshreader.cpp
         mirror/meshresolver.cpp
+        mirror/modelderivation.cpp
+        mirror/modelfold.cpp
         mirror/nodekind.cpp
         mirror/posecull.cpp
         mirror/sceneextractor.cpp
@@ -372,6 +374,8 @@ openmw_rtx_layer(
         mirror/meshresolver.hpp
         mirror/mirroridentity.hpp
         mirror/mirrorpass.hpp
+        mirror/modelderivation.hpp
+        mirror/modelfold.hpp
         mirror/nodekind.hpp
         mirror/posecull.hpp
         mirror/poseupdate.hpp

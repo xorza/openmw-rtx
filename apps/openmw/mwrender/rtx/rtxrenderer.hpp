@@ -81,6 +81,7 @@ namespace ContentStore
 namespace Rtx
 {
     class ImageDerivation;
+    class ModelDerivation;
     class PoseUpdate;
     class TextureHands;
 }
@@ -442,6 +443,11 @@ namespace MWRender
         /// loader's thread, and taken back before this goes (`mDerivesHeaders`).
         std::unique_ptr<Rtx::ImageDerivation> mDerivation;
 
+        /// What is derived of a model where a loader first loads it (`Rtx::ModelDerivation`): each geometry's fold,
+        /// kept on it. After the store it asks; handed to the scene manager and taken back before this goes
+        /// (`mDerivesModels`).
+        std::unique_ptr<Rtx::ModelDerivation> mModelDerivation;
+
         /// Where every texture's texels come from, read and with their chains made again on half the processors
         /// (`Rtx::TextureHands`). After the store its threads write to, before residency and the mirror that ask it.
         std::unique_ptr<Rtx::TextureHands> mHands;
@@ -522,6 +528,7 @@ namespace MWRender
         struct TakesDerivationBack
         {
             void operator()(Resource::ImageManager* images) const noexcept;
+            void operator()(Resource::SceneManager* scene) const noexcept;
         };
 
         /// **The image manager while it derives through this renderer** (`configureResources`), and so nothing for a
@@ -529,5 +536,9 @@ namespace MWRender
         /// reached for an image manager that was never handed, ending the fatal error box's start in a crash. Last,
         /// so it is taken back first: the image manager outlives this, and whatever loads a model has ended by then.
         std::unique_ptr<Resource::ImageManager, TakesDerivationBack> mDerivesHeaders;
+
+        /// The scene manager while it derives models through this renderer, as `mDerivesHeaders` holds the image
+        /// manager.
+        std::unique_ptr<Resource::SceneManager, TakesDerivationBack> mDerivesModels;
     };
 }

@@ -64,6 +64,7 @@
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/mirror/modelderivation.hpp>
 #include <components/rtx/mirror/poseupdate.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/imagederivation.hpp>
@@ -133,6 +134,8 @@ namespace MWRender
                   ? std::make_unique<ContentStore::Store>(*setup.mContentStore, Rtx::sContentStorePolicy)
                   : nullptr)
         , mDerivation(std::make_unique<Rtx::ImageDerivation>(
+              mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
+        , mModelDerivation(std::make_unique<Rtx::ModelDerivation>(
               mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
         , mHands(std::make_unique<Rtx::TextureHands>(
               mContentStore.get(), mTexelPool, std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
@@ -320,16 +323,24 @@ namespace MWRender
         // asks of a file is derived where a loader first reads it.
         // Held first, so a manager handed again is taken back from before it is handed the derivation, not after.
         mDerivesHeaders.reset();
+        mDerivesModels.reset();
         mHeaderSources = std::make_unique<HeaderSources>(*resources.getVFS(), *mDerivation,
             mContentStore != nullptr ? std::optional(mContentStore->getDirectory() / "sources.index") : std::nullopt);
         mDerivesHeaders.reset(resources.getImageManager());
         resources.getImageManager()->setModelImages(Resource::ModelImages::Headers, mHeaderSources.get());
+        mDerivesModels.reset(&scene);
+        scene.setModelDeriver(mModelDerivation.get());
         setAutoMaps(scene);
     }
 
     void RtxRenderer::TakesDerivationBack::operator()(Resource::ImageManager* const images) const noexcept
     {
         images->setModelImages(Resource::ModelImages::Texels, nullptr);
+    }
+
+    void RtxRenderer::TakesDerivationBack::operator()(Resource::SceneManager* const scene) const noexcept
+    {
+        scene->setModelDeriver(nullptr);
     }
 
     void RtxRenderer::setAutoMaps(Resource::SceneManager& scene)
@@ -923,6 +934,7 @@ namespace MWRender
                 mWalked.mSession += mWalked.mAgain->mPreprocessed;
             mWalked.mSession.mPrepared += mHands->takeStats();
             mWalked.mSession.mDerived += mDerivation->takeStats();
+            mWalked.mSession.mDerived += mModelDerivation->takeStats();
             if (mContentStore != nullptr)
                 mWalked.mStore = mContentStore->getStats();
         }

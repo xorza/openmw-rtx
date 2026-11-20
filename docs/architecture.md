@@ -152,6 +152,14 @@ What the game reads from files (`components/resource`), changed for the handheld
   which reads the file to key what the store holds; facts made at a material's first ask, which read the file again
   once the texels went; four fact passes, four entries a file, each read at its own ask, which the first read asks
   anyway; a preprocessor a thread (`thread_local`), global state no owner bounds.
+- **A model's geometry carries its fold from where the model is loaded** (`Rtx::ModelDerivation`, `Rtx::ModelFold`):
+  the scene manager hands each template to the renderer on its loader's thread, which finds each geometry's fold in
+  the store or makes it and keeps it on the geometry, held there against the key of what it read, so the ring's
+  reader takes it with no ask and a clone whose parts the game moves, as an actor's animation does, keys otherwise
+  and folds itself, 86 shapes and 4.9 ms over the frames at `seyda-neen-ship` in the debug build. As Unreal's derived
+  data rides its asset. Refused: the store's memory holding every shape for the frame, 222 MiB on the Fullrest
+  Repack; a fold computed where a template is first read by whichever reader comes first, which a clone and its
+  template would race to.
 - **A file whose stamp stands is a header with no read of it** (`Rtx::SourceIndex`, `MWRender::HeaderSources`): every
   source texture's shape and derivation are kept by its path and its stamp in one file beside the store, so a session
   whose files stood as they were reads none of them to load a model, as Git's index answers a file whose stat stands.

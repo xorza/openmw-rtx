@@ -122,6 +122,52 @@ namespace
         EXPECT_EQ(sceneManager->getTemplate(kept), keptLoaded) << "a path not named stays";
     }
 
+    /// **A template eight loaders ask at once is derived once, before any of them has it**
+    /// (`SceneManager::getTemplate`, `ModelDeriver`): the deriver runs on one loader's thread, with the model whole,
+    /// and every loader takes that very template; a template asked again is not derived again.
+    TEST(ResourceResourceSystem, a_template_loaders_ask_at_once_is_derived_once)
+    {
+        const VFS::Manager vfs;
+        const ToUTF8::Utf8Encoder encoder(ToUTF8::WINDOWS_1252);
+        Resource::ResourceSystem resources(&vfs, 1.0, &encoder.getStatelessEncoder());
+        Resource::SceneManager& scenes = *resources.getSceneManager();
+        scenes.setModelPrograms(Resource::ModelPrograms::Omitted);
+
+        struct Counted final : Resource::ModelDeriver
+        {
+            void derive(osg::Node& model) override
+            {
+                mDerived.fetch_add(1);
+                mLast.store(&model);
+            }
+            std::atomic<std::uint32_t> mDerived = 0;
+            std::atomic<const osg::Node*> mLast = nullptr;
+        };
+        Counted deriver;
+        scenes.setModelDeriver(&deriver);
+
+        constexpr VFS::Path::NormalizedView path("meshes/none.nif");
+        constexpr std::size_t sLoaders = 8;
+        std::latch start(sLoaders);
+        std::array<osg::ref_ptr<const osg::Node>, sLoaders> templates;
+        {
+            std::vector<std::jthread> loaders;
+            loaders.reserve(sLoaders);
+            for (std::size_t at = 0; at < sLoaders; ++at)
+                loaders.emplace_back([&, at] {
+                    start.arrive_and_wait();
+                    templates[at] = scenes.getTemplate(path);
+                });
+        }
+        EXPECT_EQ(deriver.mDerived.load(), 1u) << "a template derived by more than one loader";
+        for (const osg::ref_ptr<const osg::Node>& loaded : templates)
+            EXPECT_EQ(loaded, templates[0]) << "two templates of one path";
+        EXPECT_EQ(deriver.mLast.load(), templates[0].get()) << "another model derived than the one handed out";
+        EXPECT_EQ(scenes.getTemplate(path), templates[0]);
+        EXPECT_EQ(deriver.mDerived.load(), 1u) << "a kept template derived again";
+        scenes.setModelDeriver(nullptr);
+    }
+
     /// **An image is kept by its pixels' bytes**: a 2 by 2 TGA of 32-bit pixels holds 2 * 2 * 4 = 16, which its
     /// cache and the budget count.
     TEST(ResourceResourceSystem, an_image_is_kept_by_its_pixels_bytes)

@@ -291,6 +291,10 @@ namespace Resource
                 for (const osg::ref_ptr<osg::PrimitiveSet>& primitives : geometry.getPrimitiveSetList())
                     if (const osg::DrawElements* const elements = primitives->getDrawElements())
                         mBytes += elements->getTotalDataSize();
+                if (const osg::UserDataContainer* const user = geometry.getUserDataContainer())
+                    for (std::uint32_t at = 0; at < user->getNumUserObjects(); ++at)
+                        if (const auto* const derived = dynamic_cast<const DerivedBytes*>(user->getUserObject(at)))
+                            mBytes += derived->getBytes();
             }
         };
 
@@ -1173,6 +1177,8 @@ namespace Resource
 
         // The file it was read from, on its root beside its hash, so what reads the scene can name the model.
         loaded->setUserValue(Misc::OsgUserValues::sFilePath, std::string(path.value()));
+        if (mModelDeriver != nullptr)
+            mModelDeriver->derive(*loaded);
         return loaded;
     }
 

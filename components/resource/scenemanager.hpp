@@ -12,6 +12,8 @@
 #include <unordered_set>
 #include <utility>
 
+#include <osg/CopyOp>
+#include <osg/Object>
 #include <osg/Texture>
 #include <osg/ref_ptr>
 
@@ -68,9 +70,34 @@ namespace Resource
 
     /// What `node`'s geometry holds, the bytes a template is kept by: every array and index list of each drawable,
     /// skinned and morphed ones by their source and their targets, and not the arrays a skinned one writes its pose
-    /// into, which it makes as it is given its source; not its images, which the image cache counts once however many
-    /// templates share one.
+    /// into, which it makes as it is given its source; what a deriver kept beside a geometry (`DerivedBytes`); not its
+    /// images, which the image cache counts once however many templates share one.
     std::uint64_t geometryBytes(osg::Node& node);
+
+    /// What a deriver keeps among a geometry's user objects (`ModelDeriver`), counted in its template's bytes.
+    class DerivedBytes : public osg::Object
+    {
+    public:
+        virtual std::uint64_t getBytes() const = 0;
+
+    protected:
+        DerivedBytes() = default;
+        DerivedBytes(const DerivedBytes& copy, const osg::CopyOp& op)
+            : osg::Object(copy, op)
+        {
+        }
+        ~DerivedBytes() override = default;
+    };
+
+    /// **What a renderer derives of a model where it is loaded**, handed the template on the thread that loaded it,
+    /// before any other thread sees it (`SceneManager::setModelDeriver`), as `ImageManager::setModelImages` hands a
+    /// renderer each image read. Asked from every loader's thread at once.
+    class ModelDeriver
+    {
+    public:
+        virtual ~ModelDeriver() = default;
+        virtual void derive(osg::Node& model) = 0;
+    };
 
     /// @brief Handles loading and caching of scenes, e.g. .nif files or .osg files
     /// @note Some methods of the scene manager can be used from any thread, see the methods documentation for more
@@ -225,6 +252,9 @@ namespace Resource
         /// companion maps of `setAutoMaps` are attached either way.
         void setModelPrograms(ModelPrograms programs) { mPrograms = programs; }
 
+        /// Before any model is loaded, which every loader thread derives through: null for none.
+        void setModelDeriver(ModelDeriver* deriver) { mModelDeriver = deriver; }
+
     private:
         /// The template at `path` read from the files and readied, or the error marker: `getTemplate`'s one load.
         osg::ref_ptr<osg::Node> loadTemplate(VFS::Path::NormalizedView path, bool compile);
@@ -263,6 +293,7 @@ namespace Resource
         bool mSupportsNormalsRT = false;
         bool mWeatherParticleOcclusion = false;
         ModelPrograms mPrograms = ModelPrograms::Rasterized;
+        ModelDeriver* mModelDeriver = nullptr;
         bool mUnRefImageDataAfterApply = false;
     };
 }

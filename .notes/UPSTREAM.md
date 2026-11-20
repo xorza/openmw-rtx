@@ -126,6 +126,12 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   again for either, and reads none of a file whose record stands; the headers are a `GenericObjectCache` kept by no
   time, so loaders that meet a file at once derive it once (`getOrLoad`). Cost: the fork's own lines in upstream's
   file. Approved with item 12 of the tree and content memory plan (2026-11-17).
+- A model is handed to the renderer where it is loaded (`SceneManager::setModelDeriver`, `Resource::ModelDeriver`),
+  once a template on its loader's thread before any other thread sees it, as the image manager hands each image
+  read, so the renderer keeps each geometry's fold on it and no reader asks the store for one; what a deriver keeps
+  among a geometry's user objects is counted in the template's bytes (`Resource::DerivedBytes`, `geometryBytes`).
+  Cost: some thirty lines in `scenemanager.{hpp,cpp}`, a conflict with an edit to `loadTemplate`'s end or to the bytes'
+  walk. Approved with the renderer review's plan (2026-11-20).
 - The navigator's tile cache under the caches' byte budget (`DetourNavigator::NavMeshTilesCache` a
   `Resource::BudgetedCache`, the budget handed down from `makeNavigator`), and `[Navigator] max nav mesh tiles cache
   size` gone with its default: a fixed 256 MiB, full on every tour, outside the budget every other cache yields to. Its

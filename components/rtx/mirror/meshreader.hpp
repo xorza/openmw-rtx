@@ -17,6 +17,7 @@
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 
+#include <components/contentstore/key.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
@@ -89,6 +90,14 @@ namespace Rtx
         MeshArrays mArrays;
 
         FoldedShape mShape;
+
+        /// What the split made: the normals where it changed any, empty where it changed none, and what each vertex
+        /// it added copies, as `ModelFold` keeps them. Valid until the reader's next read.
+        std::span<const osg::Vec3f> mSplitNormals{};
+        std::span<const std::uint32_t> mSources{};
+
+        /// The key of what the fold read (`ShapePass::digest`), which a kept fold is held against.
+        ContentStore::Key mShapeKey{};
     };
 
     /// What a drawable read came to where it was not refused: triangles to place, or none — vertices and no
@@ -116,6 +125,9 @@ namespace Rtx
         /// base that is not the length of its source, a triangle naming a vertex the drawable does not have, an array
         /// of normals, coordinates or colours of another length than the vertices, or an array of a type this does not
         /// read.
+        ///
+        /// **The fold and split its model's derivation kept on the geometry where there is one** (`ModelFold`), and
+        /// made through `content` otherwise.
         ///
         /// @param model the model the drawable stands in (`modelOf`), whose other shapes the split cuts its normals
         ///        across — `CreaseSplit::Beside` — or null for none.

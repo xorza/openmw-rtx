@@ -26,11 +26,14 @@
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <components/misc/osguservalues.hpp>
 #include <components/misc/result.hpp>
+#include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/mirror/meshresolver.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
+#include <components/rtx/mirror/modelderivation.hpp>
+#include <components/rtx/mirror/modelfold.hpp>
 #include <components/rtx/mirror/nodekind.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -212,6 +215,74 @@ namespace Rtx::Testing
             };
             EXPECT_EQ(normalsOf(*wall, *growing), wallIn(*growing)) << "the wall, read after the floor";
             EXPECT_EQ(normalsOf(*floor, *fresh), beside) << "the floor in another model";
+        }
+
+        /// **A model's derivation keeps each geometry's fold on it, and a read that keys alike takes it**: the floor
+        /// beside the wall in a marked model, derived, carries its split normals, 2 of its corners turned up, which a
+        /// read of the floor in that model takes without asking a shape; and the model's bytes count them, three
+        /// floats a split normal and four bytes a kept corner and a copy. Beside a wall a callback moves, as a clone's
+        /// animated part stands, the read keys otherwise and folds the floor itself, keeping the lean.
+        TEST(RtxMeshReaderTest, aModelsDerivationKeepsEachFoldAndAReadThatKeysAlikeTakesIt)
+        {
+            const osg::Vec3f averaged = osg::Vec3f(0.0f, -1.0f, 1.0f) / std::numbers::sqrt2_v<float>;
+            const osg::Vec3f up(0.0f, 0.0f, 1.0f);
+            const osg::Vec3f wallNormal(0.0f, -1.0f, 0.0f);
+            const auto makeFloor = [&] {
+                osg::ref_ptr<osg::Geometry> floor = makeQuad();
+                floor->setNormalArray(makePositions({ up, up, averaged, averaged }), osg::Array::BIND_PER_VERTEX);
+                return floor;
+            };
+            const auto makeWall = [&] {
+                osg::ref_ptr<osg::Geometry> wall = new osg::Geometry;
+                wall->setVertexArray(makePositions({ osg::Vec3f(0.0f, 1.0f, 0.0f), osg::Vec3f(1.0f, 1.0f, 0.0f),
+                    osg::Vec3f(1.0f, 1.0f, 1.0f), osg::Vec3f(0.0f, 1.0f, 1.0f) }));
+                wall->setNormalArray(
+                    makePositions({ averaged, averaged, wallNormal, wallNormal }), osg::Array::BIND_PER_VERTEX);
+                wall->addPrimitiveSet(makeTriangles({ 0, 1, 2, 0, 2, 3 }));
+                return wall;
+            };
+
+            const osg::ref_ptr<osg::Geometry> floor = makeFloor();
+            osg::ref_ptr<osg::Group> model = new osg::Group;
+            model->setUserValue(Misc::OsgUserValues::sFileHash, std::string("hash"));
+            model->addChild(floor);
+            model->addChild(makeWall());
+            const std::uint64_t unfolded = Resource::geometryBytes(*model);
+
+            ModelDerivation derivation(nullptr, 1);
+            derivation.derive(*model);
+            const ModelFold* const fold = ModelFold::of(*floor);
+            ASSERT_NE(fold, nullptr);
+            ASSERT_EQ(fold->mNormals.size(), 4u);
+            EXPECT_LT((fold->mNormals[2] - up).length(), 1e-6f);
+            EXPECT_LT((fold->mNormals[3] - up).length(), 1e-6f);
+            EXPECT_EQ(fold->mKept, (std::vector<std::uint32_t>{ 0, 1, 2, 0, 2, 3 }));
+            EXPECT_TRUE(fold->mSources.empty()) << "no vertex added";
+            EXPECT_EQ(Resource::geometryBytes(*model) - unfolded, 6u * 4u + 4u * 12u + 4u * 6u + 4u * 12u)
+                << "both shapes' kept corners and split normals";
+
+            const auto read = [&](const osg::Node& in, std::uint32_t& asked) {
+                ContentPreprocessor content;
+                MeshReader reader;
+                MeshReading reading;
+                EXPECT_EQ(reader.read(content, readDrawable(*floor, NodeKinds{}.of(*floor), {}), &in, reading).value(),
+                    MeshRead::Triangles);
+                asked = content.takeStats().at(ContentPassId::Shape).mAsked;
+                return std::vector<osg::Vec3f>(reading.mArrays.mNormals.begin(), reading.mArrays.mNormals.end());
+            };
+            std::uint32_t asked = 0;
+            EXPECT_EQ(read(*model, asked), fold->mNormals);
+            EXPECT_EQ(asked, 0u) << "a shape asked where the floor carried its fold";
+
+            osg::ref_ptr<osg::Group> clone = new osg::Group;
+            clone->setUserValue(Misc::OsgUserValues::sFileHash, std::string("hash"));
+            clone->addChild(floor);
+            osg::ref_ptr<osg::MatrixTransform> moved = new osg::MatrixTransform;
+            moved->addUpdateCallback(new osg::NodeCallback);
+            moved->addChild(makeWall());
+            clone->addChild(moved);
+            EXPECT_EQ(read(*clone, asked), (std::vector<osg::Vec3f>{ up, up, averaged, averaged }));
+            EXPECT_EQ(asked, 1u) << "the fold kept for another beside taken";
         }
 
         /// **A drawable's model is the nearest node above it the loader marked as a file's**, and
