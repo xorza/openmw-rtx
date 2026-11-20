@@ -47,6 +47,7 @@
 
 namespace Resource
 {
+    class ImageManager;
     class ResourceSystem;
     class SceneManager;
 }
@@ -418,7 +419,7 @@ namespace MWRender
 
         /// What is derived of a file where a loader first reads it (`Rtx::ImageDerivation`), on as many preprocessors
         /// as the chains' threads. After the store it asks; handed to the image manager, which calls it on every
-        /// loader's thread, and taken back before this goes (`~RtxRenderer`).
+        /// loader's thread, and taken back before this goes (`mDerivesHeaders`).
         std::unique_ptr<Rtx::ImageDerivation> mDerivation;
 
         /// The world's normal and data maps with their chains made again, on half the processors
@@ -492,5 +493,17 @@ namespace MWRender
 
         /// Whether a camera the builder refused has already been reported (`refuseEye`).
         bool mComplained = false;
+
+        /// Takes the header derivation back from the image manager it was handed to.
+        struct TakesDerivationBack
+        {
+            void operator()(Resource::ImageManager* images) const noexcept;
+        };
+
+        /// **The image manager while it derives through this renderer** (`configureResources`), and so nothing for a
+        /// start that ended before there were resources: a missing archive throws ahead of them, and the destructor
+        /// reached for an image manager that was never handed, ending the fatal error box's start in a crash. Last,
+        /// so it is taken back first: the image manager outlives this, and whatever loads a model has ended by then.
+        std::unique_ptr<Resource::ImageManager, TakesDerivationBack> mDerivesHeaders;
     };
 }

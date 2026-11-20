@@ -262,10 +262,6 @@ namespace MWRender
     // Out of line because the members it destroys are only forward declared in the header.
     RtxRenderer::~RtxRenderer()
     {
-        // **The derivation taken back from the image manager, which outlives this**: the world, the engine's work
-        // queue and the loading screen, whatever loads a model, have ended by now, so no loader is inside it.
-        getResources().getImageManager()->setModelImages(Resource::ModelImages::Texels, {});
-
         // `Engine` has stopped the screenshot writer by now, so no write on the queue still holds
         // an image of a frame this owns the memory for. The members go in the order they are
         // declared for: the frozen texture, the backend, the window.
@@ -337,10 +333,17 @@ namespace MWRender
         scene.setModelPrograms(Resource::ModelPrograms::Omitted);
         // The device keeps a texture's copy, and the host its texels only until the device has it: what the renderer
         // asks of a file is derived where a loader first reads it.
+        // Held first, so a manager handed again is taken back from before it is handed the derivation, not after.
+        mDerivesHeaders.reset(resources.getImageManager());
         resources.getImageManager()->setModelImages(Resource::ModelImages::Headers,
             [derivation = mDerivation.get()](
                 const osg::Image& texels, const Resource::ImageHeader& header) { derivation->derive(texels, header); });
         setAutoMaps(scene);
+    }
+
+    void RtxRenderer::TakesDerivationBack::operator()(Resource::ImageManager* const images) const noexcept
+    {
+        images->setModelImages(Resource::ModelImages::Texels, {});
     }
 
     void RtxRenderer::setAutoMaps(Resource::SceneManager& scene)
