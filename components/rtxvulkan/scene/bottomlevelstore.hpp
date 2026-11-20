@@ -144,6 +144,10 @@ namespace Rtx
             const BlockedBuffer& positions, const BlockedBuffer& indices, std::uint64_t placement,
             std::vector<Refusal>& refused);
 
+        /// The meshes the last `buildWaiting` stood: every row placing one names no structure until it is written
+        /// again, since it was written while the mesh went without.
+        std::span<const MeshIndex> getBuiltWaiting() const { return mRetryingMeshes; }
+
         /// Appends what each structure built since the last take takes, and forgets them: the device's half of what a
         /// static mesh rests on (`MeshTable::stand`), into `into.mMeshes`; what each copy made tight gives back of the
         /// storage once its mesh rests, into `into.mMeshFits`; and each structure the storage had no room for that a
@@ -447,7 +451,7 @@ namespace Rtx
         };
 
         /// The meshes waiting for room, one each at most (`Row::mWaiting`), so no more than the mesh rows; and what
-        /// `buildWaiting` builds again and the meshes of it, refilled each time.
+        /// `buildWaiting` builds again and the meshes of it that then stand, refilled each time.
         std::vector<Waiting> mWaiting;
         std::vector<Waiting> mRetrying;
         std::vector<MeshIndex> mRetryingMeshes;

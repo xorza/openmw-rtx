@@ -189,6 +189,7 @@ namespace Rtx
         sizeRefitScratch();
         // A structure built is a top level to build, for the reason `buildArrived` gives.
         mBuiltOverWrites.reset();
+        mPlacesBuiltWaiting = true;
     }
 
     void SceneAcceleration::sizeRefitScratch()
@@ -310,6 +311,11 @@ namespace Rtx
 
         writeRows(records, changed);
 
+        // **A structure built once its room came is placed by the placement that built it.** Its placements' rows
+        // were written while the mesh went without, naming no structure, and nothing has changed them since.
+        if (std::exchange(mPlacesBuiltWaiting, false))
+            placeMeshes(scene, records, mBottomLevel.getBuiltWaiting());
+
         // After the rows are grown to the scene and before the copy they are synced from. A
         // structure copied tight has moved, and the rows naming it are written again here — into
         // the same table, so every copy owes them the way it owes anything else.
@@ -346,14 +352,19 @@ namespace Rtx
             return false;
 
         // Every row that placed one of these names an address that has moved.
-        for (const MeshIndex mesh : moved.getSlots())
+        placeMeshes(scene, records, moved.getSlots());
+        return true;
+    }
+
+    void SceneAcceleration::placeMeshes(const SceneDesc& scene, RowSpan<const InstanceRecord, PlacementIndex> records,
+        const std::span<const MeshIndex> meshes)
+    {
+        for (const MeshIndex mesh : meshes)
             scene.placements().forEachPlacing(mesh, [&](const PlacementIndex slot) {
-                assert(records[slot].mPlaced && records[slot].mMesh == mesh
-                    && "a record behind the scene it was made from");
+                assert(records[slot].mPlaced && "a record behind the scene it was made from");
+                assert(records[slot].mMesh == mesh && "a record behind the scene it was made from");
                 placeRow(slot, records[slot]);
             });
-
-        return true;
     }
 
     void SceneAcceleration::writeRows(

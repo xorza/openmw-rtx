@@ -222,11 +222,7 @@ namespace Rtx
 
     void DeviceScene::takeAnswer(DeviceAnswer& into)
     {
-        into.mRefused.insert(into.mRefused.end(), mAnswer.mRefused.begin(), mAnswer.mRefused.end());
-        into.mShort.insert(into.mShort.end(), mAnswer.mShort.begin(), mAnswer.mShort.end());
-        into.mWants.insert(into.mWants.end(), mAnswer.mWants.begin(), mAnswer.mWants.end());
-        into.mTextureFits.insert(into.mTextureFits.end(), mAnswer.mTextureFits.begin(), mAnswer.mTextureFits.end());
-        mAnswer.clear();
+        mAnswer.handTo(into);
         mAcceleration.takeAnswer(into);
     }
 

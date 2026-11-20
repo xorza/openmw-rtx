@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cassert>
 #include <cstdint>
+#include <iterator>
 #include <variant>
 #include <vector>
 
@@ -112,5 +114,27 @@ namespace Rtx
             mTextureFits.clear();
             mMeshFits.clear();
         }
+
+        /// Hands everything this holds on to `into`, after what that holds already, and empties this. **The one place
+        /// beside `clear` that names every list**, so a list added to the answer is carried by every holder that
+        /// forwards one: a forwarder that named them itself left the moved textures behind.
+        void handTo(DeviceAnswer& into)
+        {
+            assert(&into != this && "an answer handed to itself");
+            const auto hand = [](auto& from, auto& to) {
+                to.insert(to.end(), std::make_move_iterator(from.begin()), std::make_move_iterator(from.end()));
+                from.clear();
+            };
+            hand(mRefused, into.mRefused);
+            hand(mMeshes, into.mMeshes);
+            hand(mShort, into.mShort);
+            hand(mMoved, into.mMoved);
+            hand(mWants, into.mWants);
+            hand(mTextureFits, into.mTextureFits);
+            hand(mMeshFits, into.mMeshFits);
+        }
     };
+
+    static_assert(sizeof(DeviceAnswer) == 7 * sizeof(std::vector<Refusal>),
+        "a list added to the answer is cleared and handed on with the rest");
 }

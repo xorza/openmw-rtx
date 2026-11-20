@@ -180,11 +180,11 @@ namespace Rtx
         const BlockedBuffer& positions, const BlockedBuffer& indices, const std::uint64_t placement,
         std::vector<Refusal>& refused)
     {
+        mRetryingMeshes.clear();
         if (mWaiting.empty())
             return 0;
 
         mRetrying.assign(mWaiting.begin(), mWaiting.end());
-        mRetryingMeshes.clear();
         for (const Waiting& waiting : mRetrying)
             mRetryingMeshes.push_back(waiting.mMesh);
         build(batch, scene, mRetryingMeshes, poses, positions, indices, placement, BuildCompaction::Streamed, refused);
@@ -204,8 +204,8 @@ namespace Rtx
         }
         std::erase_if(mWaiting, [&](const Waiting& waiting) { return !mRows[waiting.mMesh].mWaiting; });
 
-        return static_cast<std::size_t>(
-            std::ranges::count_if(mRetryingMeshes, [&](const MeshIndex mesh) { return stands(mesh); }));
+        std::erase_if(mRetryingMeshes, [&](const MeshIndex mesh) { return !stands(mesh); });
+        return mRetryingMeshes.size();
     }
 
     void BottomLevelStore::takeAnswer(DeviceAnswer& into)

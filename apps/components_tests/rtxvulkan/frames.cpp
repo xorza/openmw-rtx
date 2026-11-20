@@ -29,6 +29,7 @@
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
+#include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -712,6 +713,47 @@ namespace Rtx
             }
             mProbe.setReservedUpscales({});
             EXPECT_EQ(runAt(Upscale::Off), alone) << "the reserve did not follow the run's modes back";
+        }
+
+        /// **A structure built once its room came is placed by the placement that built it.** A wall arrives while the
+        /// device has no room for content and a texture rests, so it waits; every row placing it is written naming no
+        /// structure. The next placement, on which nothing of the scene moves, builds it and writes those rows again:
+        /// before, the wall stayed out of the top level until its tight copy landed, or its placement next moved.
+        TEST_F(RtxFramesTest, aStructureBuiltOnceItsRoomCameIsPlacedByThePlacementThatBuiltIt)
+        {
+            // The fixture's wall walks behind the eye, so what a frame hits is the arrival alone.
+            mScene.clearArrivals();
+            mScene.placements().move(mInstance, osg::Matrixf::translate(0.0f, -1000.0f, 0.0f));
+            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+            mScene.placements().advance();
+
+            // A texture rests, so room is coming, and what the device has no room for waits.
+            const TextureIndex resting = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_resting.dds"));
+            mScene.textures().stand(resting, 64, false, 0);
+            mScene.drop(mScene.holdTexture(resting));
+            mScene.compact();
+            ASSERT_EQ(mScene.textures().getResting().getBytes(), 64u);
+
+            const MeshIndex arrival = Testing::addMesh(
+                mScene, MeshArrays{ .mPositions = Testing::wallAt(100.0f), .mIndices = Testing::sQuadIndices });
+            mScene.addInstance(MeshInstance{ .mMesh = arrival });
+            {
+                const Testing::NoRoomForContent full(mProbe.getDevice());
+                mRenderer.extendScene(Rtx::SceneSlot::world(), mScene, {});
+                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+            }
+            mScene.clearArrivals();
+            mScene.placements().advance();
+            Rtx::DeviceAnswer answer;
+            mRenderer.takeAnswer(Rtx::SceneSlot::world(), answer);
+            ASSERT_TRUE(answer.mRefused.empty()) << "the wall was refused, where room was coming";
+
+            mProbe.traceFrame(ahead(), FrameOptions{});
+            ASSERT_EQ(finishedHits(), 0u) << "the device had room for the wall, so nothing waited";
+
+            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+            mProbe.traceFrame(ahead(), FrameOptions{});
+            EXPECT_EQ(finishedHits(), sEveryPixel) << "the wall was built and no row placing it was written again";
         }
 
         /// **The world is handed over with its structures tight, and a picture's scene with its

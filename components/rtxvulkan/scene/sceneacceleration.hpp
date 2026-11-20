@@ -234,6 +234,11 @@ namespace Rtx
         /// anything moved, which is also when there is a copy to record.
         bool placeCompacted(const SceneDesc& scene, RowSpan<const InstanceRecord, PlacementIndex> records);
 
+        /// Writes again the row of every placement of `meshes`, whose structures stand somewhere they did not when
+        /// the rows were last written: copied tight, moved, or built at last.
+        void placeMeshes(const SceneDesc& scene, RowSpan<const InstanceRecord, PlacementIndex> records,
+            std::span<const MeshIndex> meshes);
+
         const Device& mDevice;
         const std::uint32_t mPlacementRoom;
 
@@ -265,6 +270,9 @@ namespace Rtx
         /// `mRowTable.getWrites()` when the top level was last built: none before the first build,
         /// which an empty world asks for too, and none again once a structure arrives.
         std::optional<std::uint64_t> mBuiltOverWrites;
+
+        /// Whether `buildWaiting` stood a structure since the last placement, whose rows that placement writes.
+        bool mPlacesBuiltWaiting = false;
 
         /// Kept across frames and built into again, made anew only when the slot table grows
         /// past what it was sized for: destroyed and created every frame, it would ask the driver

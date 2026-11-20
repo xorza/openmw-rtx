@@ -83,6 +83,7 @@ target_sources(
         rtx/renderer/sceneuploader.cpp
         rtx/renderer/shaderset.cpp
         rtx/scene/compositequeue.cpp
+        rtx/scene/deviceanswer.cpp
         rtx/scene/instancerecord.cpp
         rtx/scene/lightgrid.cpp
         rtx/scene/mesharrivals.cpp
