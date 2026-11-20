@@ -44,7 +44,8 @@ target_sources(
         rtx/image/spritelight.cpp
         rtx/image/texels.cpp
         rtx/mirror/cells/cellgrid.cpp
-        rtx/mirror/cells/cellring.cpp
+        rtx/mirror/cells/cellstreamer.cpp
+        rtx/mirror/cells/celltable.cpp
         rtx/mirror/cells/groundreader.cpp
         rtx/mirror/cells/templatewalk.cpp
         rtx/mirror/drawableposer.cpp

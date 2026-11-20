@@ -63,7 +63,7 @@ namespace MWRender
 
         /// Whether each walk waits for the cell it adopts, or nothing to let the frame clock's stated
         /// step decide (`Misc::LoopClock::getStatedStep`): a stated step waits. Settled is what makes two processes
-        /// draw one picture; a run timing the streaming path says no (`Rtx::CellRing::setSettled`).
+        /// draw one picture; a run timing the streaming path says no (`Rtx::CellStreamer::setSettled`).
         std::optional<bool> mSettled{};
 
         /// The shaders the renderer reads, where not the ones the game compiles in (`shippedShadersOf`): the

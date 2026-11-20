@@ -10,7 +10,7 @@
 #include <components/esm/defs.hpp>
 #include <components/esm/position.hpp>
 #include <components/esm/util.hpp>
-#include <components/rtx/mirror/cells/cellring.hpp>
+#include <components/rtx/mirror/cells/cellstreamer.hpp>
 #include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/terrain/pagedcellref.hpp>
 
@@ -29,7 +29,7 @@ namespace MWRender
     }
 
     TracedGround::TracedGround(
-        const GroundSpec& spec, Resource::SceneManager& scenes, const std::uint32_t nodeMask, Rtx::CellRing& ring)
+        const GroundSpec& spec, Resource::SceneManager& scenes, const std::uint32_t nodeMask, Rtx::CellStreamer& ring)
         : mTerrain(spec.mSceneRoot, spec.mWorldRoot, spec.mStorage, scenes, *this, nodeMask, spec.mWorldspace)
         , mRing(ring)
     {

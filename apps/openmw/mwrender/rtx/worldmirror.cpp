@@ -480,7 +480,7 @@ namespace MWRender
                 .mGroundcover = worldspace == ESM::Cell::sDefaultWorldspaceId ? mGroundcover.get() : nullptr,
                 .mWorldspace = worldspace,
                 .mGrid = mGrid,
-                // The world's mask and never the walk's own: a moving mask makes `Rtx::CellRing::forget`
+                // The world's mask and never the walk's own: a moving mask makes `Rtx::CellStreamer::forget`
                 // read the ring from nothing, and the player bit moves while the camera settles.
                 .mMask = sWorldTraversal,
                 // What `extractWorld` walks every reference root under, below.

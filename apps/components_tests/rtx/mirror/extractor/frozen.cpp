@@ -25,7 +25,7 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/graph.hpp>
-#include <components/rtx/mirror/cells/cellring.hpp>
+#include <components/rtx/mirror/cells/cellstreamer.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
@@ -87,7 +87,7 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Group> mRoot = new osg::Group;
             osg::ref_ptr<osg::Group> mCell = new osg::Group;
             std::size_t mFrame = 1;
-            CellRing mRing{ mExtractor };
+            CellStreamer mRing{ mExtractor };
         };
 
         /// **A reference nothing changes is walked once and passed after**, its rows kept through
@@ -437,7 +437,7 @@ namespace Rtx::Testing
             SceneIdentities mIdentities;
             SceneDesc mScene{ mIdentities };
             SceneExtractor mExtractor{ mScene, mContext, room(), HoldTier::Shown };
-            CellRing mRing{ mExtractor };
+            CellStreamer mRing{ mExtractor };
             osg::ref_ptr<osg::Group> mRoot = new osg::Group;
             osg::ref_ptr<osg::Group> mCell = new osg::Group;
             std::size_t mFrame = 1;

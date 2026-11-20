@@ -275,6 +275,16 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
   time. A reference a local script enables or disables stands behind a gate the game evaluates
   (`MWScript::VisibilityGates`). The size rule thins what reflects light, never what gives it. Refused, by the user's
   decision: a cache of what no cell holds, which the resource cache and the ring's hysteresis already cover.
+- **One table between the frame and the cell reader, a record a cell** (`Rtx::CellTable`): each of a cell's two reads,
+  its own and its groundcover's, is a stage — wanted, in hand, read, adopted — that the frame and the reader move it
+  through under one monitor, so "is it on its way" and "is the band whole" are a record's answer. Refused: a request
+  list re-sent whole as the eye moved, the lists handed over and the takes counted between them, kept in step by hand.
+- **The reader runs at most `CellTable::sReadAheadMost` reads ahead of the frame**, a read nearer than every one waiting
+  taken past it, so a settled walk's wait for its nearest cell is never a wait for room. Refused: a reader let read a whole band ahead of a frame that adopts one cell a frame.
+- **A cell's ground is held `Shown` inside the band a load waits on and `Kept` past it, and indoors the land rests**:
+  the grounds held `Kept` and the reader's wants withdrawn, so the plan keeps the exterior while it fits beside a
+  room and gives its room to the room where it does not. Refused: the ring's whole hold live beside a room nothing of
+  it is drawn in.
 - **`Rtx::ContentPreprocessor` is the one way anything is computed from the content**, one on each thread that reads
   content. Every pass states everything it reads, which is the key its output is filed under in the content store.
 - **`Rtx::SceneUploader` hands a scene to the backend once a frame**, in the cheapest of three ways: place what moved,
@@ -718,7 +728,7 @@ graph TD
     Rtx --> VR["VulkanRenderer"]
     Mirror --> Scene["SceneDesc"]
     Mirror --> Ext["SceneExtractor"]
-    Mirror --> Ring["CellRing (reader thread)"]
+    Mirror --> Ring["CellStreamer (reader thread)"]
     Mirror --> Up["SceneUploader"]
     VR --> Dev["Device, Timeline, Graveyard"]
     VR --> FR["FrameRing"]
@@ -827,7 +837,7 @@ and includes the instruments, never the reverse. `AGENTS.md` lists the commands.
 | how the ray tracer answers it             | `apps/openmw/mwrender/rtx/rtxrenderer.hpp`                                               |
 | the walk, the sweep, the hand-over        | `mwrender/rtx/worldmirror.hpp`, `components/rtx/mirror/sceneextractor.hpp`, `components/rtx/renderer/sceneuploader.hpp` |
 | what the scene is                         | `components/rtx/scene/scenedesc.hpp`                                                     |
-| the cells past the active grid            | `components/rtx/mirror/cells/cellring.hpp`                                               |
+| the cells past the active grid            | `components/rtx/mirror/cells/cellstreamer.hpp`                                               |
 | what is computed from content, and cached | `components/rtx/preprocess/contentpreprocessor.hpp`, `contentpass.hpp`                   |
 | the sky, the air and the sea              | `components/rtx/world/frameworld.hpp`, `mwrender/rtx/skyreader.hpp`                      |
 | the surface model                         | `components/rtx/shaders/brdf.h`                                                          |

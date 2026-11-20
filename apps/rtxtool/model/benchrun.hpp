@@ -70,7 +70,7 @@ namespace RtxTool
         /// rebuild are an order of magnitude apart.
         CrossingsAppend,
 
-        /// An exterior's ground reaches past the square the simulation holds. `Rtx::CellRing`
+        /// An exterior's ground reaches past the square the simulation holds. `Rtx::CellStreamer`
         /// stands it off the land records, and a world stopping at the active grid looks like a
         /// short view rather than a fault.
         GroundReaches,

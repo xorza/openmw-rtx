@@ -1,15 +1,15 @@
 #pragma once
 
-#include <cstdint>
+#include <cstddef>
 #include <memory>
+#include <optional>
 #include <vector>
-
-#include <osg/Vec2i>
 
 #include <components/misc/monitor.hpp>
 #include <components/platform/thread.hpp>
 #include <components/rtx/common/ownedby.hpp>
 
+#include "celltable.hpp"
 #include "cellworld.hpp"
 #include "readermemory.hpp"
 
@@ -20,31 +20,6 @@ namespace Rtx
     struct PreparedGrass;
     struct PreparedModel;
     struct PreparedTexture;
-
-    /// What the reading thread is to read next: the cells, and the cells whose groundcover to read.
-    /// What is read of a cell is the world's (`CellWorld::mStatics`), which a reader is made with.
-    struct CellRequest
-    {
-        std::vector<osg::Vec2i> mCells;
-
-        /// The cells whose groundcover to read, apart from `mCells`: read first, because they are
-        /// the few cells around the eye.
-        std::vector<osg::Vec2i> mGrass;
-
-        bool operator==(const CellRequest& other) const = default;
-
-        bool empty() const { return mCells.empty() && mGrass.empty(); }
-
-        /// Empties both lists and keeps the room they grew.
-        void clear()
-        {
-            mCells.clear();
-            mGrass.clear();
-        }
-
-        /// Takes what `from` holds, leaving it empty and keeping the room both grew.
-        void take(CellRequest& from);
-    };
 
     /// What the frame has finished with, on its way back to the reader: a cell, the models it
     /// named and the images its ground named leave together.
@@ -64,21 +39,19 @@ namespace Rtx
         void take(CellReturns& from);
     };
 
-    /// Cells read ahead of the eye, on a thread of its own: the thread, the reader it drives, and the two channels
-    /// between them: what to read next, and what the frame has finished with. A newer ask replaces an older one it has
-    /// not finished. Everything read is lent and given back; `Spares` says why an address and not a shared count.
-    ///
-    /// **A cell is read once for the asks that name it while it is on its way.** An ask names what the ring lacks as of
-    /// its last `take`, so the cell in hand, and every cell handed over since that take, are in the next ask as well:
-    /// read again, they were 42 of the 143 reads a band of 101 cells took, every copy turned away. A take counts, so
-    /// the thread knows which of what it handed over an ask could not have known of.
+    /// Cells read ahead of the eye, on a thread of its own: the thread, the reader it drives, and between them the
+    /// table of what is wanted, in hand and read (`CellTable`) and what the frame has finished with. Everything read is
+    /// lent and given back; `Spares` says why an address and not a shared count.
     class CellSupply
     {
     public:
         CellSupply();
 
-        /// Stops the thread. A cell in flight is finished and dropped rather than waited out.
+        /// Stops the thread, which stops between a cell's references.
         ~CellSupply();
+
+        CellSupply(const CellSupply&) = delete;
+        CellSupply& operator=(const CellSupply&) = delete;
 
         /// Whether this is already reading `world`, so a caller need not let go of what it holds.
         bool isReading(const CellWorld& world) const { return mWorld == world; }
@@ -89,23 +62,29 @@ namespace Rtx
         /// Whether there is a reader at all, which a world with no content answers no to.
         bool hasReader() const { return mReader != nullptr; }
 
-        /// Points it at `world`, stopping and joining whatever it was reading and forgetting both
-        /// channels. The caller lets go of what it held first, or a hold handed back would reach a
-        /// reader that never lent it.
+        /// Points it at `world`, stopping and joining whatever it was reading and forgetting the table. The caller lets
+        /// go of what it held first, or a hold handed back would reach a reader that never lent it.
         void follow(const CellWorld& world);
 
-        /// Hands the thread `request`. Costs nothing where it equals the last one handed over.
-        void ask(const CellRequest& request);
+        /// `CellTable::retarget`, waking the reader: what was read and never known goes to `giveBack`.
+        void retarget(const CellTarget& target, CellsDropped& dropped);
 
-        /// Moves what the thread has read into `cells` and `grass`, appended. Empty where it has read
-        /// nothing.
-        void take(std::vector<PreparedCell*>& cells, std::vector<PreparedGrass*>& grass);
+        /// `CellTable::withdraw`.
+        void withdraw();
 
-        /// Blocks until the thread has read at least one more cell or one more cell's grass, for a
-        /// settled run (`CellRing::setSettled`), and says whether it did: false where the thread has
-        /// nothing left to read — its lists finished or cancelled by a newer ask — so the wait ends
-        /// rather than waiting for what nobody is reading.
-        bool waitForOne();
+        /// For a settled walk: blocks until the read of `kind` the band lacks nearest the eye is read
+        /// (`CellTable::findOwed`), or the reader has nothing it can read. Nothing to wait for where none is owed.
+        void awaitOwed(ReadKind kind);
+
+        /// `CellTable::collectFiled`.
+        void collectFiled(std::vector<PreparedCell*>& cells, std::vector<PreparedGrass*>& grass);
+
+        /// `CellTable::adoptCell` and `adoptGrass`, waking the reader where the bound held it.
+        PreparedCell* adoptCell();
+        PreparedGrass* adoptGrass();
+
+        /// `CellTable::countStood`.
+        std::size_t countStood(ReadKind kind);
 
         /// Where a caller puts what it has finished with. Handed over by `publish`.
         CellReturns& giveBack()
@@ -122,13 +101,12 @@ namespace Rtx
         ReaderMemory getReaderMemory();
 
     private:
-        /// The reader's loop: a list at a time, until asked to stop. `Misc::Monitor::serve` is the loop,
-        /// and this is what it takes and what it does.
+        /// The reader's loop: a read at a time, until asked to stop.
         void work(const std::stop_token& stop);
 
-        /// Reads the list `work` took, a cell at a time, and stops at the first sign of a newer
-        /// one. On the thread, outside the lock but for what it hands over.
-        void read(const std::stop_token& stop);
+        /// Reads what `pick` names and files it, or gives it back where no band wants it as the read ends. On the
+        /// thread, outside the lock but for the filing.
+        void read(const CellPick& pick, const std::stop_token& stop);
 
         /// Gives the reader what the frame gave back, taken out of `mReturned` under the lock into
         /// `mRecycling`. On the thread, outside the lock: putting a cell's memory away is the
@@ -137,74 +115,28 @@ namespace Rtx
 
         CellWorld mWorld;
 
-        /// Which thread the two below belong to. The frame's, and `mOnFrame.check()` is what
-        /// says so at each of the calls that touch them.
+        /// Which thread `mReturning` belongs to. The frame's, and `mOnFrame.check()` is what says so at each of the
+        /// calls that touch it.
         OwnedBy mOnFrame;
 
-        /// The frame's side: the last ask handed over, and what it is collecting to hand back.
-        CellRequest mRequested;
+        /// What the frame is collecting to hand back.
         CellReturns mReturning;
 
         /// The lock between the frame and the reader, and the two waits across it. It guards the
-        /// five below and nothing else.
+        /// three below and nothing else.
         Misc::Monitor mMonitor;
 
-        /// What the thread is to read next, written whole under the lock and taken whole by the
-        /// thread. A newer request replaces an older one it has not finished.
-        CellRequest mWanted;
+        CellTable mTable;
 
-        /// How many asks were handed over, which is what tells the thread its list is no longer
-        /// wanted: an ask for nothing leaves `mWanted` as empty as a taken one, and has to cancel
-        /// the list in flight all the same.
-        std::uint64_t mAsked = 0;
-
-        /// What the thread has read, under the lock.
-        std::vector<PreparedCell*> mDone;
-        std::vector<PreparedGrass*> mDoneGrass;
-
-        /// How many times the frame has taken what was read, and how many it had when it made the
-        /// ask in `mWanted`, under the lock.
-        std::uint64_t mTakes = 0;
-        std::uint64_t mWantedTakes = 0;
-
-        /// What the frame has given back, under the lock, for the thread to refill.
+        /// What the frame has given back, for the thread to refill.
         CellReturns mReturned;
 
-        /// `CellReader::measure` as the thread last finished a cell, under the lock.
+        /// `CellReader::measure` as the thread last finished a cell.
         ReaderMemory mMeasured;
 
-        /// What of a cell the thread reads: its references, or its groundcover.
-        enum class Read : std::uint8_t
-        {
-            Cell,
-            Grass,
-        };
-
-        /// A cell or a cell's grass the thread handed over, and how many takes the frame had made by
-        /// then: it reaches the ring with the next take, so an ask made before that take names it
-        /// still.
-        struct Handed
-        {
-            osg::Vec2i mCell;
-            Read mRead = Read::Cell;
-            std::uint64_t mTakes = 0;
-        };
-
-        /// Whether `read` of `cell` is on its way already.
-        bool onTheWay(const osg::Vec2i& cell, Read read) const;
-
-        /// Whether a newer ask replaced the one being read, taking what the frame gave back as it
-        /// looks. On the thread.
-        bool superseded();
-
-        /// The thread's own: the request it is working through, the ask it came from and the takes
-        /// that ask knew of, what the frame gave back that it is putting away, and what it handed
-        /// over that the request cannot have known of.
-        CellRequest mReading;
-        std::uint64_t mReadingAsked = 0;
-        std::uint64_t mReadingTakes = 0;
+        /// The thread's own: the read it took, and what the frame gave back that it is putting away.
+        std::optional<CellPick> mPicked;
         CellReturns mRecycling;
-        std::vector<Handed> mOnTheWay;
 
         /// Owned here and used by the thread alone while it runs.
         std::unique_ptr<CellReader> mReader;

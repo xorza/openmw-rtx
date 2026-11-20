@@ -1,6 +1,5 @@
 #pragma once
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -49,18 +48,18 @@ namespace Rtx
     /// not become one, because both renderers read the paging's type filter; rays go everywhere, and a town four cells
     /// away that goes dark at dusk is the world stating something the content files do not. Read with the cell's other
     /// records in one walk, off the frame: the light stood by `CellPlacer::place`, and the model as any static's.
-    class CellRing
+    class CellStreamer
     {
     public:
         /// @param adopter what every row this stands is adopted through, and the scene it stands
         ///        them in — the extractor whose world walk collects this.
-        explicit CellRing(SceneAdopter& adopter);
+        explicit CellStreamer(SceneAdopter& adopter);
 
-        CellRing(const CellRing&) = delete;
-        CellRing& operator=(const CellRing&) = delete;
+        CellStreamer(const CellStreamer&) = delete;
+        CellStreamer& operator=(const CellStreamer&) = delete;
 
         /// Stops the thread. A cell in flight is finished and dropped rather than waited out.
-        ~CellRing();
+        ~CellStreamer();
 
         /// Where the world is now, and what of it is read. A world with no content stands nothing,
         /// and a change of what is read drops everything held and starts again. A change of the
@@ -139,6 +138,9 @@ namespace Rtx
         /// trace draws it — `CellPlacer::standsGround`.
         bool standsGround(const osg::Vec2i& cell) const { return mPlacer.standsGround(cell); }
 
+        /// `CellPlacer::getGroundTier`.
+        HoldTier getGroundTier(const osg::Vec2i& cell) const { return mPlacer.getGroundTier(cell); }
+
         /// The placements of the cell at `cell`, standing or not, which a game's ray meets where the
         /// trace draws them — `CellPlacer::placementsIn`. Valid until the next walk.
         std::span<const Placement> placementsIn(const osg::Vec2i& cell) const { return mPlacer.placementsIn(cell); }
@@ -148,14 +150,6 @@ namespace Rtx
         RingStanding countStanding() const { return mPlacer.countStanding(mAround.mWorld.mGrid.cellOf(mAround.mEye)); }
 
     private:
-        /// Whether the supply handed over and the frame has not adopted `cell`'s, a cell or a
-        /// cell's grass, as `list` holds them.
-        template <class Prepared>
-        static bool handed(const std::vector<Prepared*>& list, const osg::Vec2i& cell)
-        {
-            return std::any_of(list.begin(), list.end(), [&](const Prepared* held) { return held->mCell == cell; });
-        }
-
         /// Counts one more cell naming each of `models`, so the frame knows of every model a cell
         /// it may adopt names.
         void know(std::span<PreparedModel* const> models);
@@ -165,22 +159,13 @@ namespace Rtx
         template <class Prepared>
         void adoptModels(Prepared& prepared);
 
-        /// Moves the supply's finished cells into the frame's own list, counting their models.
-        void takeDone();
+        /// Moves the table's bands to `target`, lets go of the cells past what they keep, and counts the bands' cells
+        /// against what the placer holds.
+        void retarget(const CellTarget& target);
 
-        /// Hands the supply the cells the prepared disc lacks and the cells whose groundcover the
-        /// grass disc lacks, nearest first. `band` is the disc's radius in units, which is the reach
-        /// and the prepared band past it, and `grassBand` the grass disc's, nought for none.
-        void ask(const osg::Vec3f& eye, float band, float grassBand);
-
-        /// Forgets the last ask and the band's counts made from it, for a walk that stands nothing:
+        /// Forgets the target with the band's counts made from it, for a walk that stands nothing:
         /// indoors, or with no reader.
         void standNothing();
-
-        /// Gives back every handed cell past what the band keeps (`keptTo`), and every handed cell's
-        /// grass past what the grass band keeps. Run after every `takeDone`, because what was handed
-        /// over during the wait was asked for from where the eye stood before.
-        void sift(const osg::Vec3f& eye, float band, float grassBand);
 
         /// How far out a cell asked for within `band` is kept: one cell past it, nought for a band of
         /// nought. A cell is read at the band and let go a cell further out, so an eye that walks to
@@ -188,37 +173,27 @@ namespace Rtx
         /// range, as every open-world streamer keeps. What stands is the reach whatever is held.
         float keptTo(float band) const;
 
-        /// How many cells of the band the last `ask` walked the ring holds, and the grass's, counted
-        /// off the cells: what the two counts `ask` and `adopt` keep must equal, which the walk
+        /// How many cells of the band the last target walked the ring holds, and the grass's, counted
+        /// off the cells: what the two counts `retarget` and `adopt` keep must equal, which the walk
         /// asserts.
         std::uint32_t countHeldInBand() const;
         std::uint32_t countGrassHeldInBand() const;
 
-        /// Blocks until the supply has handed over the nearest cell the walk wants, and the nearest
-        /// cell's grass, where the last `ask` names one nearer than everything handed already
-        /// (`setSettled`), or until the reader has nothing left to read, which returns with what was
-        /// handed.
-        void waitForNext(const osg::Vec3f& eye, float band, float grassBand);
-
-        /// Adopts the nearest handed cell to `eye` and the nearest handed cell's grass, by the rule
-        /// `ask` sorts by, one of each and `frame`'s worth.
-        void adoptHanded(std::size_t frame, const osg::Vec3f& eye);
+        /// Counts the models of every read the table filed since the last walk, and adopts the nearest cell and the
+        /// nearest cell's grass read, one of each and `frame`'s worth.
+        void adoptRead(std::size_t frame);
 
         void adopt(PreparedCell& cell);
         void adopt(PreparedGrass& grass);
-
-        /// Lets go of a handed cell, or a handed cell's grass, the frame will not adopt.
-        void discard(PreparedCell& cell);
-        void discard(PreparedGrass& grass);
 
         /// The grass disc's radius: the groundcover's reach and the prepared band past it, nought
         /// where the world has no groundcover.
         float grassBand() const;
 
-        /// What a held cell the ring lets go of owes: its hold on each model, and the reader's
-        /// holds on its models and its ground's images, handed to the supply. A cell's grass, held
-        /// or handed, owes the same of its models, and so does a handed cell (`discard`). A hold is
-        /// a cell's, which is what makes a return exact whatever the thread read in between.
+        /// What a cell the ring lets go of owes: its hold on each model, and the reader's holds on its models and its
+        /// ground's images, handed to the supply. A cell's grass owes the same of its models, and so does a cell read
+        /// and never adopted. A hold is a cell's, which is what makes a return exact whatever the thread read in
+        /// between.
         void letGo(const HeldCell& cell);
         void letGo(std::span<PreparedModel* const> models);
 
@@ -256,39 +231,17 @@ namespace Rtx
 
         bool mSettled = false;
 
-        /// What a request is made from. `ask` rebuilds the whole band, and nothing else on the frame
-        /// path is proportional to the band, so it rebuilds where any of these differs from the last
-        /// request's and nowhere else: a function of its inputs, where a flag set at each place an
-        /// input moves missed the reach, which grows under a still eye.
-        struct AskInputs
-        {
-            osg::Vec3f mEye;
-            float mBand = 0.0f;
-            float mGrassBand = 0.0f;
-            std::size_t mHeld = 0;
-            std::size_t mHanded = 0;
-            std::size_t mGrassHeld = 0;
-            std::size_t mGrassHanded = 0;
+        /// What the table was last retargeted to, which a walk retargets it from only where it moved: the bands are
+        /// walked on the frames the eye moves, and on no other.
+        std::optional<CellTarget> mAsked;
 
-            /// How many cells were ever taken from the supply, and how many worlds followed: a cell
-            /// discarded on arrival and a new reader change no set, and are asked for again.
-            std::uint64_t mTaken = 0;
-            std::uint64_t mFollowed = 0;
-
-            bool operator==(const AskInputs& other) const = default;
-        };
-
-        std::optional<AskInputs> mAsked;
-        std::uint64_t mTaken = 0;
-        std::uint64_t mFollowed = 0;
-
-        /// How many cells the band held when `ask` last walked it, the reach and the band past it,
+        /// How many cells the band held when `retarget` last walked it, the reach and the band past it,
         /// or nought where the last walk stood nothing — indoors, or with no reader. The grass band's
         /// the same way.
         std::uint32_t mBandCells = 0;
         std::uint32_t mGrassBandCells = 0;
 
-        /// How many of those the ring holds: counted where `ask` walks the band, and one more for
+        /// How many of those the ring holds: counted where `retarget` walks the band, and one more for
         /// each cell adopted inside it after. Not the held count, which takes in the cells kept past
         /// the band (`keptTo`), so what is left to stand is the band's cells less these.
         std::uint32_t mBandHeld = 0;
@@ -299,16 +252,9 @@ namespace Rtx
         std::size_t mAdoptedFrame = ~std::size_t{ 0 };
         std::size_t mGrassAdoptedFrame = ~std::size_t{ 0 };
 
-        /// What the thread read and handed over, and the frame has not adopted yet, in the order it
-        /// arrived.
-        std::vector<PreparedCell*> mHanded;
-        std::vector<PreparedGrass*> mHandedGrass;
-
-        // Refilled per frame.
-        std::vector<PreparedCell*> mDoneScratch;
-        std::vector<PreparedGrass*> mDoneGrassScratch;
-
-        /// What the supply is asked for, refilled per walk and never freed.
-        CellRequest mAsking;
+        // Refilled per walk.
+        CellsDropped mDropped;
+        std::vector<PreparedCell*> mFiledScratch;
+        std::vector<PreparedGrass*> mFiledGrassScratch;
     };
 }

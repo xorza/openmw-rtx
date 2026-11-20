@@ -44,7 +44,7 @@ namespace Rtx
 
         ReaderMemory mReader;
 
-        /// What the ring holds against what stands, by distance (`CellRing::countStanding`).
+        /// What the ring holds against what stands, by distance (`CellStreamer::countStanding`).
         RingStanding mRing{};
     };
 }

@@ -26,7 +26,7 @@
 #include <components/misc/result.hpp>
 #include <components/nifosg/autotransform.hpp>
 #include <components/rtx/common/finite.hpp>
-#include <components/rtx/mirror/cells/cellring.hpp>
+#include <components/rtx/mirror/cells/cellstreamer.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
@@ -644,7 +644,7 @@ namespace Rtx
     }
 
     ExtractionStats SceneExtractor::extractWorld(
-        const osg::Node& root, std::size_t anchor, std::size_t frame, CellRing& ring)
+        const osg::Node& root, std::size_t anchor, std::size_t frame, CellStreamer& ring)
     {
         assert(ring.adoptsThrough(*this) && "a ring made on another extractor adopts into its scene");
 
@@ -682,7 +682,7 @@ namespace Rtx
     }
 
     ExtractionStats SceneExtractor::walk(const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor,
-        std::size_t frame, CellRing* const ring, const Placed placed)
+        std::size_t frame, CellStreamer* const ring, const Placed placed)
     {
         ExtractionStats stats;
         const WalkGuard walking(mPass, mPhase, stats, placed, mFrozen);
@@ -744,7 +744,7 @@ namespace Rtx
         return stats;
     }
 
-    Retirement SceneExtractor::detach(CellRing& ring)
+    Retirement SceneExtractor::detach(CellStreamer& ring)
     {
         mPhase.expect(Phase::Between);
 

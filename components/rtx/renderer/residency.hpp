@@ -457,6 +457,10 @@ namespace Rtx
         /// The arenas whose drain this hand-over's moves met a slot of they could not move: another scene's, or one
         /// whose class had no room left (`issueMoves`).
         std::array<bool, 256> mDrainStalled{};
+
+        /// The demanded structures this hand-over's issue found no room for, and of those the ones of a large class.
+        std::uint32_t mStructuresRoomless = 0;
+        std::uint32_t mStructuresRoomlessLarge = 0;
         bool mPlanStale = true;
         std::uint32_t mNextTicket = 0;
 

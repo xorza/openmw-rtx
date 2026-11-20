@@ -63,7 +63,7 @@ namespace SceneUtil
 
 namespace Rtx
 {
-    class CellRing;
+    class CellStreamer;
 
     /// What an extractor's identity maps are made with room for (`SceneExtractor`'s constructor).
     struct ExtractorRoom
@@ -214,7 +214,7 @@ namespace Rtx
         /// (`FrozenRoots`), and a root that moved would leave every frozen run where it stood.
         ///
         /// @param ring one made on this extractor, which is what it adopts through; asserted.
-        ExtractionStats extractWorld(const osg::Node& root, std::size_t anchor, std::size_t frame, CellRing& ring);
+        ExtractionStats extractWorld(const osg::Node& root, std::size_t anchor, std::size_t frame, CellStreamer& ring);
 
         /// `extract`, for what the weather drops: every emitter met under `fall` is placed as one whose sprites a roof
         /// keeps off (`MirrorPass::mFalls`). The precipitation's walk and nothing else, because a hearth's smoke under
@@ -240,7 +240,7 @@ namespace Rtx
         /// given back (the two releases read nothing of a walk) and then a retire at a fresh epoch, which keeps nothing
         /// but what is held, because a walk that will not happen has met nothing. What is left of the world in the
         /// scene is nothing, which `SceneDesc::isEmpty` says. Between walks, and the ring already told of no world.
-        Retirement detach(CellRing& ring);
+        Retirement detach(CellStreamer& ring);
 
         /// Drops everything the walks since the last call did not find, placements included, and with it the holds
         /// those entries took on the scene's rows, which a row goes with the last of. Only sound where the walks were
@@ -394,7 +394,7 @@ namespace Rtx
         /// What the three walks are, differing only in whether the ring's geometry is asked for
         /// and whether what is placed falls.
         ExtractionStats walk(const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor,
-            std::size_t frame, CellRing* ring, Placed placed);
+            std::size_t frame, CellStreamer* ring, Placed placed);
 
         /// The maps a frozen root's keys are held in, handed to `mFrozen` at each call.
         FrozenRoots::Holders frozenHolders() { return { mPlacements, mMeshes, mMaterials, mReleased }; }

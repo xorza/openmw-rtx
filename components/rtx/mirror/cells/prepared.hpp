@@ -393,7 +393,7 @@ namespace Rtx
         std::vector<PreparedRef> mRefs;
 
         /// The `LIGH` references whose record casts where it is placed, whether or not the statics
-        /// were read — `CellRing` says why the ring stands lamps at all.
+        /// were read — `CellStreamer` says why the ring stands lamps at all.
         std::vector<PreparedLight> mLights;
 
         /// The models and the lamps of the cell this renderer cannot take, which only the frame's

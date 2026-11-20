@@ -26,6 +26,11 @@ namespace Rtx
         /// Meshes placing nothing.
         std::uint32_t mMeshes = 0;
 
+        /// Of those, the ones the hand-over found no room for, and of these the ones of a large class, which stands in
+        /// a block of its own.
+        std::uint32_t mMeshesForRoom = 0;
+        std::uint32_t mMeshesForRoomLarge = 0;
+
         constexpr std::uint32_t textures() const
         {
             return mAsked + mArrived + mUnaskedFiles + mUnaskedBakes + mUnaskedComposites + mUnaskedForRoom;

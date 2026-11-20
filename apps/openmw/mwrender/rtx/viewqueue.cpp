@@ -23,7 +23,7 @@ namespace MWRender
         mSchedule.redraw(view);
     }
 
-    void ViewQueue::draw(const std::uint32_t worldViews, const osg::FrameStamp& posing, const Rtx::CellRing& ring,
+    void ViewQueue::draw(const std::uint32_t worldViews, const osg::FrameStamp& posing, const Rtx::CellStreamer& ring,
         Rtx::Released& releasing)
     {
         mSchedule.draw(worldViews, ring, posing, releasing);

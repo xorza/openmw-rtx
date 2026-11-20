@@ -59,7 +59,7 @@
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/cells/cellplacer.hpp>
 #include <components/rtx/mirror/cells/cellreader.hpp>
-#include <components/rtx/mirror/cells/cellring.hpp>
+#include <components/rtx/mirror/cells/cellstreamer.hpp>
 #include <components/rtx/mirror/cells/cellsupply.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/cells/groundcoversource.hpp>
@@ -453,10 +453,10 @@ namespace Rtx::Testing
 
         /// A world with nothing on its graph and a ring beside it, walked from a fixed eye. Every
         /// cell of the land has a record, so every cell stands two ground types.
-        class RtxCellRingTest : public ::testing::Test
+        class RtxCellStreamerTest : public ::testing::Test
         {
         protected:
-            RtxCellRingTest()
+            RtxCellStreamerTest()
             {
                 for (std::int32_t x = -8; x <= 30; ++x)
                     for (std::int32_t y = -8; y <= 30; ++y)
@@ -520,7 +520,7 @@ namespace Rtx::Testing
             /// Walks until the ring has adopted every cell the band wants, and answers what those walks came to.
             ///
             /// **A walk adopts one cell, settled or not**, so a band of `sPreparedCells` is that many walks
-            /// (`CellRing::setSettled` says why the settled rule is the wait and not the count). What a walk added
+            /// (`CellStreamer::setSettled` says why the settled rule is the wait and not the count). What a walk added
             /// is summed, and what stands is the last walk's: summing the standing counts would count the whole
             /// ring once for every walk it took to build.
             ExtractionStats fill()
@@ -610,19 +610,19 @@ namespace Rtx::Testing
             SceneIdentities mIdentities;
             SceneDesc mScene{ mIdentities };
             SceneExtractor mExtractor{ mScene, mContext, sWorldExtractorRoom, HoldTier::Shown };
-            CellRing mRing{ mExtractor };
+            CellStreamer mRing{ mExtractor };
         };
 
         /// **A `_diffusespec` is an authored albedo** with its roughness in alpha, as the PBR packs ship
         /// every one, and bound as a colour, as every layer's diffuse is.
-        TEST_F(RtxCellRingTest, aDiffusespecIsAnAuthoredAlbedo)
+        TEST_F(RtxCellStreamerTest, aDiffusespecIsAnAuthoredAlbedo)
         {
             EXPECT_EQ(rockLayer(), Shaders::LAYER_AUTHORED | Shaders::LAYER_PARALLAX);
         }
 
         /// **A ring is walked by the extractor it adopts through and no other**: one made on another
         /// adopts its rows into that extractor's scene inside this one's walk.
-        TEST_F(RtxCellRingTest, aRingIsWalkedOnlyByTheExtractorItAdoptsThrough)
+        TEST_F(RtxCellStreamerTest, aRingIsWalkedOnlyByTheExtractorItAdoptsThrough)
         {
             SceneIdentities identities;
             WalkContext context{};
@@ -635,10 +635,10 @@ namespace Rtx::Testing
         /// **A ring that ends gives its holds back, detached or not**: the adopter outlives it, and a
         /// ring that went with no `detach` left the rows it held standing in the scene after the
         /// sweep. One ring of its own, walked until its band stands whole, then ended.
-        TEST_F(RtxCellRingTest, aRingThatEndsGivesItsHoldsBackWithoutADetach)
+        TEST_F(RtxCellStreamerTest, aRingThatEndsGivesItsHoldsBackWithoutADetach)
         {
             start();
-            std::optional<CellRing> ring(std::in_place, mExtractor);
+            std::optional<CellStreamer> ring(std::in_place, mExtractor);
             ring->setMinSize(0.0f);
             ring->setSettled(true);
             std::size_t frame = 0;
@@ -662,7 +662,7 @@ namespace Rtx::Testing
         /// A reference stands where the game would stand its clone, on the mesh every copy shares;
         /// what the active grid holds is left to the game; every cell of the reach stands its
         /// ground on a row of the ring's own; and a second walk adds nothing.
-        TEST_F(RtxCellRingTest, referencesStandWhereTheGameWouldStandThemOnOneMeshEach)
+        TEST_F(RtxCellStreamerTest, referencesStandWhereTheGameWouldStandThemOnOneMeshEach)
         {
             const Placed tree{ .mCell = osg::Vec2i(3, 0),
                 .mModel = "tree.nif",
@@ -860,7 +860,7 @@ namespace Rtx::Testing
         /// (`CellWorld::mAbove`). Here the root states a material, the tree's root turns culling off
         /// and its sheet paints the bark — three links — and the walk meets them again in the clone
         /// the game stands under the root, and adds no material for it.
-        TEST_F(RtxCellRingTest, aModelTheRingStandsAndTheWalkMeetsWearsOneMaterial)
+        TEST_F(RtxCellStreamerTest, aModelTheRingStandsAndTheWalkMeetsWearsOneMaterial)
         {
             mEmpty->getOrCreateStateSet()->setAttribute(new SceneUtil::Material);
             mContent.mTree->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
@@ -911,7 +911,7 @@ namespace Rtx::Testing
         /// **A fake and not a cell, because the shipped content cannot ask about an unlit lamp.** Every one of the
         /// 1559 exterior cells of `Morrowind.esm`, `Tribunal.esm` and `Bloodmoon.esm` places its lights lit: the
         /// off-default flag is an interior's brazier and a storeroom's torch.
-        TEST_F(RtxCellRingTest, lampsStandWithTheirCellsOutsideTheGridAndBurnAtTheFramesHour)
+        TEST_F(RtxCellStreamerTest, lampsStandWithTheirCellsOutsideTheGridAndBurnAtTheFramesHour)
         {
             const osg::Vec3f far(4.5f * sCellSize, 0.5f * sCellSize, 40.0f);
             mStorage.mLit = {
@@ -980,7 +980,7 @@ namespace Rtx::Testing
         /// hundred units, the anchor stands at its own length from the lamp, thirty above it, and
         /// not where the content puts it. Moved out of its cell it stands nowhere, and a cleared
         /// world stands it where the content does.
-        TEST_F(RtxCellRingTest, aLampTheGameMovedStandsWhereTheGameHoldsIt)
+        TEST_F(RtxCellStreamerTest, aLampTheGameMovedStandsWhereTheGameHoldsIt)
         {
             const osg::Vec3f far(4.5f * sCellSize, 0.5f * sCellSize, 40.0f);
             mStorage.mLit = { Lit{
@@ -1022,7 +1022,7 @@ namespace Rtx::Testing
         /// and what else the cell holds stands. A land texture that does not read is not the
         /// reader's to refuse: its layer stands, and the texture table stands it in and refuses it
         /// as it does any texture.
-        TEST_F(RtxCellRingTest, whatTheReaderCannotTakeIsRefusedWhereItsCellIsAdopted)
+        TEST_F(RtxCellStreamerTest, whatTheReaderCannotTakeIsRefusedWhereItsCellIsAdopted)
         {
             mContent.mImages.lose("textures/rock_diffusespec.dds");
 
@@ -1075,7 +1075,7 @@ namespace Rtx::Testing
         /// to the cell is not stood, and the threshold is the eye's and not the chunk's. A model
         /// that glows is never thinned, however small, and nor is a lamp whose light stands, one that
         /// takes light away among them.
-        TEST_F(RtxCellRingTest, theSizeRuleIsTheEyesDistanceTimesTheSetting)
+        TEST_F(RtxCellStreamerTest, theSizeRuleIsTheEyesDistanceTimesTheSetting)
         {
             const Placed tree{ .mCell = osg::Vec2i(3, 0),
                 .mModel = "tree.nif",
@@ -1132,7 +1132,7 @@ namespace Rtx::Testing
         /// edge of the band before it, one cell, 8192 units. A pixel opening by 2^-10 is 8 units wide there, a level
         /// of 3: the material is asked at -9 + 3 = -6, step 26. Opened by 2^-9, step 27; by nought, the finest, step 0.
         /// The eye a cell nearer stands 1.46 cells off, the band from 1 to 2, asked at half a cell: step 25.
-        TEST_F(RtxCellRingTest, aHeldCellAsksItsMaterialsAtTheFootprintItsDistanceMakes)
+        TEST_F(RtxCellStreamerTest, aHeldCellAsksItsMaterialsAtTheFootprintItsDistanceMakes)
         {
             mStorage.mPlaced = { Placed{ .mCell = osg::Vec2i(3, 0),
                 .mModel = "panel.nif",
@@ -1172,7 +1172,7 @@ namespace Rtx::Testing
         /// once its cell loads (`RtxSceneExtractorTest.aClockwiseFrontIsThePlacementsAndNotTheSharedMaterials`): of a
         /// tree and the same sheet under a clockwise front, the second alone is clockwise.
 
-        TEST_F(RtxCellRingTest, aStaticStandsUnderTheWindingItsModelStates)
+        TEST_F(RtxCellStreamerTest, aStaticStandsUnderTheWindingItsModelStates)
         {
             const osg::Vec3f at(3.5f * sCellSize, 0.5f * sCellSize, 0.0f);
             mStorage.mPlaced = {
@@ -1201,7 +1201,7 @@ namespace Rtx::Testing
         /// 2121.3, 1697.1, 1272.8, 848.5 and 424.3. The eye stands half a cell in and cell 3 begins
         /// two and a half cells away, 20480 units, so a setting of `t / 20480` is a threshold of
         /// `t`: 1000 admits three, 600 admits four, 400 all five.
-        TEST_F(RtxCellRingTest, theSizeRuleAdmitsAPrefixAndAToggleLandsAtOnce)
+        TEST_F(RtxCellStreamerTest, theSizeRuleAdmitsAPrefixAndAToggleLandsAtOnce)
         {
             constexpr float sDistance = 2.5f * sCellSize;
 
@@ -1349,7 +1349,7 @@ namespace Rtx::Testing
         /// wins over an open gate, and a cleared world keeps the gates, which the game tells again
         /// anyway. Once the grid covers both cells, every reference behind a gate that decided has
         /// its verdict, the lamp's among them.
-        TEST_F(RtxCellRingTest, aGateDecidesItsReferencesInTheDistanceOverAScriptsWord)
+        TEST_F(RtxCellStreamerTest, aGateDecidesItsReferencesInTheDistanceOverAScriptsWord)
         {
             for (std::uint32_t scale = 3; scale >= 1; --scale)
                 mStorage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(3, 0),
@@ -1427,7 +1427,7 @@ namespace Rtx::Testing
         /// any walk: the day's at dawn, the day's again in a mode past the switch's two children,
         /// which `DayNightCallback` answers with the first, and the night's where the game drives
         /// no switch, because the file opens on it.
-        TEST_F(RtxCellRingTest, aDayNightSwitchStandsTheBranchOfTheWorldsMode)
+        TEST_F(RtxCellStreamerTest, aDayNightSwitchStandsTheBranchOfTheWorldsMode)
         {
             mStorage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(3, 0),
                 .mModel = "window.nif",
@@ -1465,7 +1465,7 @@ namespace Rtx::Testing
         /// so lets go of their models, before it waits for the cells that entered, and one of those names the
         /// same model. The return written earlier in the walk would have the reader give the model back under
         /// the frame's feet and refill it for the next model.
-        TEST_F(RtxCellRingTest, aModelNamedAgainByACellDeliveredInsideTheWaitIsNotGivenBack)
+        TEST_F(RtxCellStreamerTest, aModelNamedAgainByACellDeliveredInsideTheWaitIsNotGivenBack)
         {
             const Placed near{ .mCell = osg::Vec2i(3, 0),
                 .mModel = "tree.nif",
@@ -1507,7 +1507,7 @@ namespace Rtx::Testing
 
         /// Unsettled, the ring adopts one cell a frame as the thread delivers them, and a frame
         /// walked twice adopts once.
-        TEST_F(RtxCellRingTest, unsettledTheRingAdoptsOneCellAFrame)
+        TEST_F(RtxCellStreamerTest, unsettledTheRingAdoptsOneCellAFrame)
         {
             const Placed tree{ .mCell = osg::Vec2i(3, 0),
                 .mModel = "tree.nif",
@@ -1542,7 +1542,7 @@ namespace Rtx::Testing
         /// **A recycled cell whose new land stands nothing stands no ground.** An ESM4 world leaves a cell with
         /// no land out rather than laying a plane, and the cell that takes a dropped cell's place must not keep
         /// that cell's ground, which stands rows it no longer holds.
-        TEST_F(RtxCellRingTest, aRecycledCellWhoseLandStandsNothingStandsNoGround)
+        TEST_F(RtxCellStreamerTest, aRecycledCellWhoseLandStandsNothingStandsNoGround)
         {
             mLand.mWithData.clear();
             for (std::int32_t x = -6; x <= 6; ++x)
@@ -1571,7 +1571,7 @@ namespace Rtx::Testing
         /// nothing read adopts nothing, while a settled walk waits for the cell it is about to adopt, so the
         /// count after N walks is exactly N and never more, which waiting for the whole band would put at a
         /// hundred cells on one frame.
-        TEST_F(RtxCellRingTest, settledAWalkWaitsForItsOneCellAndTakesNoMore)
+        TEST_F(RtxCellStreamerTest, settledAWalkWaitsForItsOneCellAndTakesNoMore)
         {
             start();
 
@@ -1614,7 +1614,7 @@ namespace Rtx::Testing
         /// the same ground in other slots in two runs. So after the eye moves two cells east, every
         /// walk adopts exactly the waiting cell that comes first by the ask's own rule — the nearest
         /// by `CellGrid::distanceSquaredTo`, then the lower cell among equals — and no other.
-        TEST_F(RtxCellRingTest, settledAWalkAdoptsTheNearestCellItWantsWhateverTheReaderHandedFirst)
+        TEST_F(RtxCellStreamerTest, settledAWalkAdoptsTheNearestCellItWantsWhateverTheReaderHandedFirst)
         {
             const auto waits = [&](const osg::Vec2i& cell) {
                 return mRing.waitsUnder(
@@ -1667,7 +1667,7 @@ namespace Rtx::Testing
         /// the ring has not adopted waits, and stops waiting on the walk that adopts the cell. A box
         /// that only touches a cell's edge is not over it, and one past the band has nothing to
         /// wait for, as a ring that stood nothing has not.
-        TEST_F(RtxCellRingTest, aBoxWaitsForTheGroundUnderItUntilItsCellIsHeld)
+        TEST_F(RtxCellStreamerTest, aBoxWaitsForTheGroundUnderItUntilItsCellIsHeld)
         {
             const auto square = [](const osg::Vec2i& cell) {
                 return std::pair(
@@ -1701,7 +1701,7 @@ namespace Rtx::Testing
         /// under an eye standing still asks for the cells it takes in, which a request rebuilt only
         /// where the eye moved would never ask for. And a walk indoors has nothing to stand, where
         /// an exterior band left short before it would keep its shortfall.
-        TEST_F(RtxCellRingTest, aReachThatGrowsUnderAStillEyeAsksForItsNewCellsAndIndoorsHasNoneToStand)
+        TEST_F(RtxCellStreamerTest, aReachThatGrowsUnderAStillEyeAsksForItsNewCellsAndIndoorsHasNoneToStand)
         {
             start();
             walk(mWalked++);
@@ -1718,6 +1718,11 @@ namespace Rtx::Testing
             EXPECT_FALSE(mRing.standsGround(osg::Vec2i(4, 4))) << "a held cell past the reach";
             EXPECT_FALSE(mRing.standsGround(osg::Vec2i(6, 0)));
 
+            // **A ground is held `Shown` inside the band a load waits on and `Kept` past it**: (4, 4) at
+            // `sqrt(3.5² + 3.5²) ≈ 4.95` cells is past the reach of four and inside the band of five.
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(0, 0)), HoldTier::Shown);
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(4, 4)), HoldTier::Shown);
+
             mAround.mReach += sCellSize;
             walk(mWalked++);
             const std::uint32_t outer = mRing.getCellsToStand();
@@ -1725,10 +1730,21 @@ namespace Rtx::Testing
             EXPECT_EQ(mRing.getHeldCellCount(), sPreparedCells + 1) << "and its walk adopted nothing new";
             EXPECT_TRUE(mRing.standsGround(osg::Vec2i(4, 4))) << "24.5 against 25 now";
 
+            // The grown band's nearest new cells are `sqrt(4.5² + 2.5²) ≈ 5.15` cells out, the first by the cell's
+            // order (-5, -3): adopted inside the band of six, then past the band of five and inside the six it keeps.
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(-5, -3)), HoldTier::Shown);
+            mAround.mReach -= sCellSize;
+            walk(mWalked++);
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(-5, -3)), HoldTier::Kept);
+            mAround.mReach += sCellSize;
+            walk(mWalked++);
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(-5, -3)), HoldTier::Shown);
+
             mAround.mExterior = false;
             walk(mWalked++);
             EXPECT_EQ(mRing.getCellsToStand(), 0u) << "the exterior's shortfall outlived it";
             EXPECT_FALSE(mRing.standsGround(osg::Vec2i(0, 0))) << "a room stands no ground";
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(0, 0)), HoldTier::Kept) << "indoors the land rests";
         }
 
         /// **A cell is read at the band and let go a cell past it**, so an eye that steps across the
@@ -1738,7 +1754,7 @@ namespace Rtx::Testing
         /// the band is still held, because a cell within five of an eye is within six of an eye one
         /// cell from it, and nothing is read. What is left to stand counts the band's cells alone:
         /// nought once the band is whole, however many cells the ring keeps beside it.
-        TEST_F(RtxCellRingTest, aCellIsReadAtTheBandAndLetGoACellPastIt)
+        TEST_F(RtxCellStreamerTest, aCellIsReadAtTheBandAndLetGoACellPastIt)
         {
             using Cells = std::set<std::pair<std::int32_t, std::int32_t>>;
 
@@ -1822,7 +1838,7 @@ namespace Rtx::Testing
         ///
         /// **A plant wears upstream's cut and not the model's own**: the fern read as grass is a material apart
         /// from the fern read as a static, cut at half its alpha and marked groundcover, which the static is not.
-        TEST_F(RtxCellRingTest, groundcoverStandsWithinItsReachAndGoesWholePastIt)
+        TEST_F(RtxCellStreamerTest, groundcoverStandsWithinItsReachAndGoesWholePastIt)
         {
             mStorage.mPlaced = { Placed{ .mCell = osg::Vec2i(3, 0),
                 .mModel = "fern.nif",
@@ -1899,7 +1915,7 @@ namespace Rtx::Testing
 
         /// **Groundcover under `[Groundcover] point lighting` off wears a material no lamp lights**,
         /// and the same model read as a static is lit as before.
-        TEST_F(RtxCellRingTest, groundcoverWithoutPointLightingIsAMaterialNoLampLights)
+        TEST_F(RtxCellStreamerTest, groundcoverWithoutPointLightingIsAMaterialNoLampLights)
         {
             mStorage.mPlaced = { Placed{ .mCell = osg::Vec2i(3, 0),
                 .mModel = "fern.nif",
@@ -1933,7 +1949,7 @@ namespace Rtx::Testing
         /// Nothing catches it on the reader's thread, so the crash catcher's report keeps that
         /// thread's stack; a catch that carried it to the frame handed over the message alone. The
         /// first walk asks and waits, and the wait is where the process ends.
-        TEST_F(RtxCellRingTest, aReaderThatThrowsEndsTheProcessNamingWhatItThrew)
+        TEST_F(RtxCellStreamerTest, aReaderThatThrowsEndsTheProcessNamingWhatItThrew)
         {
             mStorage.mThrows = true;
             expectDies(
@@ -1946,7 +1962,7 @@ namespace Rtx::Testing
 
         /// **A walk that was not told where the world is dies where it happens**, rather than
         /// standing last frame's rings under this frame's eye.
-        TEST_F(RtxCellRingTest, aWalkThatWasNotToldWhereTheWorldIsDies)
+        TEST_F(RtxCellStreamerTest, aWalkThatWasNotToldWhereTheWorldIsDies)
         {
             start();
             walk(mWalked++);
@@ -1998,7 +2014,7 @@ namespace Rtx::Testing
                 .mContent = &content,
                 .mWorldspace = ESM::Cell::sDefaultWorldspaceId });
             for (std::int32_t pass = 0; pass < 3; ++pass)
-                reader.giveBack(reader.read(osg::Vec2i(0, 0)));
+                reader.giveBack(reader.read(osg::Vec2i(0, 0), {}));
 
             EXPECT_EQ(storage.mModelsAsked, 1) << "the storage was asked for a record's model more than once";
         }
@@ -2022,9 +2038,9 @@ namespace Rtx::Testing
                 .mContent = &content,
                 .mWorldspace = ESM::Cell::sDefaultWorldspaceId });
 
-            PreparedCell& west = reader.read(osg::Vec2i(0, 0));
+            PreparedCell& west = reader.read(osg::Vec2i(0, 0), {});
             EXPECT_EQ(content.mImages.getOpened(), 3u) << "grass, rock and the rock's normal map";
-            PreparedCell& east = reader.read(osg::Vec2i(1, 0));
+            PreparedCell& east = reader.read(osg::Vec2i(1, 0), {});
             EXPECT_EQ(content.mImages.getOpened(), 3u) << "a file opened again while a cell held it";
 
             ASSERT_EQ(east.mGround.mLayers.size(), 2u);
@@ -2057,7 +2073,7 @@ namespace Rtx::Testing
             }
 
             content.mImages.lose("textures/grass.dds");
-            PreparedCell& again = reader.read(osg::Vec2i(0, 0));
+            PreparedCell& again = reader.read(osg::Vec2i(0, 0), {});
             EXPECT_EQ(content.mImages.getOpened(), 6u) << "a reading given back was kept";
             ASSERT_EQ(again.mGround.mLayers.size(), 2u);
             EXPECT_EQ(again.mGround.mLayers[0].mTexture->mImage, nullptr);
@@ -2095,7 +2111,7 @@ namespace Rtx::Testing
         /// between the three walks and the third asks exactly what the first did: kept, the ask
         /// answered "unchanged", and the band stood back outside with nought left to stand while
         /// every cell of it was still being read.
-        TEST_F(RtxCellRingTest, aRoomBetweenTwoWalksAtOneEyeForgetsTheAskTheBandWasCountedBy)
+        TEST_F(RtxCellStreamerTest, aRoomBetweenTwoWalksAtOneEyeForgetsTheAskTheBandWasCountedBy)
         {
             HeldContent held;
             mRing.setSettled(false);
@@ -2138,12 +2154,10 @@ namespace Rtx::Testing
             EXPECT_EQ(describeChange(from, to), "the worldspace, the mask");
         }
 
-        /// **An ask for nothing cancels the list in flight**, as a newer list does: the eye has
-        /// moved and nothing it lacked is lacked now. It left the list to be read to its end,
-        /// because what said "newer" was a list that was not empty. The thread is held inside the
-        /// first of three cells while the empty ask is made, and the next cell it reads is the one
-        /// asked after. Between the two, a wait for a cell nobody is reading ends.
-        TEST(RtxCellSupplyTest, anAskForNothingCancelsTheListInFlight)
+        /// **A read no band keeps as it ends is given back and never handed, and the reader reads on.** The thread is
+        /// held inside the eye's cell while the eye leaves for a cell ten away, past what the band keeps; let go, it
+        /// files the new band's cell and nothing of the old one.
+        TEST(RtxCellSupplyTest, aReadNoBandKeepsAsItEndsIsGivenBackAndTheReaderReadsOn)
         {
             FakeLand land;
             FewStatics storage;
@@ -2157,79 +2171,33 @@ namespace Rtx::Testing
                 .mMask = ~0u,
             });
 
-            supply.ask(CellRequest{ .mCells = { osg::Vec2i(0, 0), osg::Vec2i(1, 0), osg::Vec2i(2, 0) }, .mGrass = {} });
+            // A band of the eye's cell alone.
+            const auto at = [&](const osg::Vec2i& cell) {
+                return CellTarget{ .mGrid = CellGrid(sCellSize),
+                    .mEye = osg::Vec3f((static_cast<float>(cell.x()) + 0.5f) * sCellSize,
+                        (static_cast<float>(cell.y()) + 0.5f) * sCellSize, 0.0f),
+                    .mBand = 0.25f * sCellSize,
+                    .mKept = 1.25f * sCellSize,
+                    .mGrassBand = 0.0f,
+                    .mGrassKept = 0.0f };
+            };
+            CellsDropped dropped;
+            supply.retarget(at(osg::Vec2i(0, 0)), dropped);
             ASSERT_TRUE(content.mEntered.try_acquire_for(Testing::sHandOverPatience)) << "the reader never read";
-            supply.ask(CellRequest{});
+            supply.retarget(at(osg::Vec2i(10, 0)), dropped);
+            EXPECT_TRUE(dropped.mCells.empty());
             content.mLetGo.release();
 
+            supply.awaitOwed(ReadKind::Cell);
             std::vector<PreparedCell*> read;
             std::vector<PreparedGrass*> grass;
-            EXPECT_TRUE(supply.waitForOne());
-            supply.take(read, grass);
-            ASSERT_EQ(read.size(), 1u);
-            EXPECT_EQ(read[0]->mCell, osg::Vec2i(0, 0)) << "the cell in hand is finished";
-
-            // Nothing is left to read, and the wait says so rather than waiting for ever.
-            EXPECT_FALSE(supply.waitForOne());
-
-            supply.ask(CellRequest{ .mCells = { osg::Vec2i(5, 0) }, .mGrass = {} });
-            for (const Testing::WaitBound bound(Testing::sHandOverPatience); std::none_of(read.begin(), read.end(),
-                     [](const PreparedCell* cell) { return cell->mCell == osg::Vec2i(5, 0); });)
-            {
-                ASSERT_FALSE(bound.passed()) << "the cell asked after the cancel was never read";
-                supply.waitForOne();
-                supply.take(read, grass);
-            }
-
-            ASSERT_EQ(read.size(), 2u) << "a cell of the cancelled list was read";
-            EXPECT_EQ(read[1]->mCell, osg::Vec2i(5, 0));
-        }
-
-        /// **A cell on its way is not read again for an ask that could not know of it.** The ring
-        /// asks for what it lacks as of its last take, so an ask made while the thread is inside a
-        /// cell names that cell again; reading it twice handed over a copy the ring turned away. An
-        /// ask made after a take that brought the cell is one the ring made knowing of it — a copy
-        /// it turned away, or a cell it let go — and is read.
-        TEST(RtxCellSupplyTest, aCellOnItsWayIsNotReadAgainForAnAskThatCouldNotKnowOfIt)
-        {
-            FakeLand land;
-            FewStatics storage;
-            HeldContent content;
-            CellSupply supply;
-            supply.follow(CellWorld{
-                .mStorage = &storage,
-                .mGround = &land,
-                .mContent = &content,
-                .mWorldspace = ESM::Cell::sDefaultWorldspaceId,
-                .mMask = ~0u,
-            });
-
-            const osg::Vec2i a(0, 0);
-            const osg::Vec2i b(1, 0);
-            const osg::Vec2i c(2, 0);
-            supply.ask(CellRequest{ .mCells = { a, b }, .mGrass = {} });
-            ASSERT_TRUE(content.mEntered.try_acquire_for(Testing::sHandOverPatience)) << "the reader never read";
-            supply.ask(CellRequest{ .mCells = { a, b, c }, .mGrass = {} });
-            content.mLetGo.release();
-
-            std::vector<PreparedCell*> read;
-            std::vector<PreparedGrass*> grass;
-            while (supply.waitForOne())
-                supply.take(read, grass);
-            supply.take(read, grass);
-
-            std::vector<osg::Vec2i> cells;
-            cells.reserve(read.size());
-            for (const PreparedCell* cell : read)
-                cells.push_back(cell->mCell);
-            EXPECT_EQ(cells, (std::vector<osg::Vec2i>{ a, b, c })) << "each cell once, in the order asked";
-
-            read.clear();
-            supply.ask(CellRequest{ .mCells = { a }, .mGrass = {} });
-            ASSERT_TRUE(supply.waitForOne()) << "an ask made after the take that brought it is read";
-            supply.take(read, grass);
-            ASSERT_EQ(read.size(), 1u);
-            EXPECT_EQ(read[0]->mCell, a);
+            supply.collectFiled(read, grass);
+            ASSERT_EQ(read.size(), 1u) << "the cell in hand was handed";
+            EXPECT_EQ(read[0]->mCell, osg::Vec2i(10, 0));
+            EXPECT_TRUE(grass.empty());
+            EXPECT_EQ(supply.adoptCell(), read[0]);
+            supply.giveBack().mCells.push_back(read[0]);
+            supply.publish();
         }
 
         /// **A model's room is counted where it stands: lent to a cell, then spare, never both.**
@@ -2291,7 +2259,7 @@ namespace Rtx::Testing
             EXPECT_EQ(none.mLentModels + none.mSpareModels, 0u);
             EXPECT_EQ(none.mLentBytes + none.mSpareBytes, 0u);
 
-            PreparedCell& cell = reader.read(osg::Vec2i(0, 0));
+            PreparedCell& cell = reader.read(osg::Vec2i(0, 0), {});
             ASSERT_EQ(cell.mModels.size(), 1u);
             PreparedModel& tree = *cell.mModels.front();
             ASSERT_FALSE(tree.mParts.empty()) << "the sheet was read";
@@ -2344,7 +2312,7 @@ namespace Rtx::Testing
             const std::int32_t held = content.mFace->referenceCount();
             for (std::int32_t pass = 0; pass < 3; ++pass)
             {
-                PreparedCell& cell = reader.read(osg::Vec2i(0, 0));
+                PreparedCell& cell = reader.read(osg::Vec2i(0, 0), {});
                 EXPECT_TRUE(cell.mModels.empty()) << "a model the walk refused was named";
                 EXPECT_TRUE(cell.mRefs.empty());
                 reader.giveBack(cell);

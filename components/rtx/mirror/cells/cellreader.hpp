@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <memory>
+#include <stop_token>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -49,7 +50,9 @@ namespace Rtx
         /// statics, every reference that names a model with something to trace, as one `PreparedRef` each. The cell is
         /// lent, and `giveBack` is where it returns; every model and ground texture it names is lent to it as well, one
         /// hold each, and those come back on their own.
-        PreparedCell& read(const osg::Vec2i& cell);
+        ///
+        /// A stop asked between two references ends the read there, for a reader about to go with everything it lent.
+        PreparedCell& read(const osg::Vec2i& cell, const std::stop_token& stop);
 
         /// Takes a cell back, once the frame has copied what it wanted of it.
         void giveBack(PreparedCell& cell);
@@ -57,7 +60,7 @@ namespace Rtx
         /// Reads the groundcover of the cell at `cell`: a `PreparedRef` a plant, of a model read as
         /// groundcover (`readModel`). Lent as a cell is, its models lent to it a hold each; nothing
         /// for a world with no groundcover. `giveBack` is where it returns.
-        PreparedGrass& readGrass(const osg::Vec2i& cell);
+        PreparedGrass& readGrass(const osg::Vec2i& cell, const std::stop_token& stop);
 
         /// Takes a cell's groundcover back, once the frame has copied what it wanted of it.
         void giveBack(PreparedGrass& grass);
@@ -77,7 +80,7 @@ namespace Rtx
     private:
         /// Reads the cell into `prepared`, which `read` has taken and lends after: the whole of a
         /// read but the pool's part.
-        void fill(PreparedCell& prepared, const osg::Vec2i& cell);
+        void fill(PreparedCell& prepared, const osg::Vec2i& cell, const std::stop_token& stop);
 
         /// What `readLamp` carried of a reference.
         struct CarriedLamp

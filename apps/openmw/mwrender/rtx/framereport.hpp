@@ -67,7 +67,7 @@ namespace MWRender
         /// appended what arrived, or placed what was there — and what it built and described.
         Rtx::SceneUpload mUpload{};
 
-        /// How many cells the walk left to stand, `Rtx::CellRing::getCellsToStand`.
+        /// How many cells the walk left to stand, `Rtx::CellStreamer::getCellsToStand`.
         std::uint32_t mCellsToStand = 0;
 
         /// What residency planned, issued and held as the world was handed over (`Rtx::Residency::getReport`): its

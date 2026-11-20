@@ -186,7 +186,7 @@ namespace MWRender
 
         /// The ground of one worldspace and the distance over it, as this renderer draws them. A
         /// renderer that stands the ground itself hands back a `Terrain::World` that builds nothing,
-        /// because chunks beside `Rtx::CellRing` would be built for nobody, inside
+        /// because chunks beside `Rtx::CellStreamer` would be built for nobody, inside
         /// `Scene::changeCellGrid`'s synchronous wait. Once per worldspace; everything the game says
         /// about the distance from then on is said to what this hands back.
         virtual std::unique_ptr<Ground> createGround(const GroundSpec& spec) = 0;

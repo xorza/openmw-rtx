@@ -691,7 +691,7 @@ namespace RtxTool
         option(sFramed, "distant-statics", bpo::value<bool>()->implicit_value(true),
             "stand on the distant ground what the content files put there — the buildings, trees "
             "and rocks — as instances of their templates, read ahead of the eye on a thread of the "
-            "renderer's own (`Rtx::CellRing`); it is the game's `object paging` setting, which "
+            "renderer's own (`Rtx::CellStreamer`); it is the game's `object paging` setting, which "
             "this renderer never pages by. **Off is the A/B that says what they cost**: the same "
             "ground with nothing on it. The ground itself always stands, read off the land records "
             "by the same ring. Not given, `settings-default.cfg`'s `[Terrain] object paging`, or "

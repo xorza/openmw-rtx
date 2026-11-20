@@ -54,7 +54,7 @@ namespace MWRender
     public:
         virtual bool standsGround(const osg::Vec2i& cell) const = 0;
 
-        /// The placements the ring holds in `cell`, standing or not — `Rtx::CellRing::placementsIn`.
+        /// The placements the ring holds in `cell`, standing or not — `Rtx::CellStreamer::placementsIn`.
         virtual std::span<const Rtx::Placement> placementsIn(const osg::Vec2i& cell) const = 0;
 
     protected:
@@ -62,7 +62,7 @@ namespace MWRender
     };
 
     /// The ground as the ray tracer stands it: a `Terrain::World` that holds the storage, the worldspace and
-    /// the active grid and draws no chunks, as `Rtx::CellRing` reads the land records itself. The preloader
+    /// the active grid and draws no chunks, as `Rtx::CellStreamer` reads the land records itself. The preloader
     /// still asks every world for a view to fill, so upstream's callers run unchanged.
     ///
     /// Upstream's cell borders need no chunk: `ToggleBorders` stands a line strip over each loaded cell's

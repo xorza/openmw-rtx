@@ -22,7 +22,7 @@ namespace osg
 
 namespace Rtx
 {
-    class CellRing;
+    class CellStreamer;
     class PictureRenderer;
     class Released;
 }
@@ -73,7 +73,7 @@ namespace MWRender
         /// @param posing the renderer's own clock, which advances once per drawn frame whether or not the
         ///        world's does: a doll posed against a stopped clock is frozen at its first drawing. Never stored.
         /// @param releasing what a subject's sweep lets go of goes into (`OffscreenTrace::rebuildSubject`).
-        void draw(const Rtx::CellRing& ring, const osg::FrameStamp& posing, Rtx::Released& releasing);
+        void draw(const Rtx::CellStreamer& ring, const osg::FrameStamp& posing, Rtx::Released& releasing);
 
         bool isOfWorld() const { return mTrace.isOfWorld(); }
 
@@ -84,7 +84,7 @@ namespace MWRender
         /// Whether this picture of the world taken straight down still waits for ground under its box: `ring`
         /// holds a cell there in the band it asked for and has not adopted it. A tile taken before then shows
         /// the cell's objects on nothing, and nothing asks for it again.
-        bool waitsForGround(const Rtx::CellRing& ring) const;
+        bool waitsForGround(const Rtx::CellStreamer& ring) const;
 
         /// Gives up the redraw asked for, which the queue will not draw: its scene was left.
         void abandon();

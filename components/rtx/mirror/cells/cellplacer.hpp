@@ -14,6 +14,7 @@
 #include <osg/Vec4i>
 
 #include <components/esm3/refnum.hpp>
+#include <components/rtx/common/holdtier.hpp>
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/image/specularlayout.hpp>
@@ -42,7 +43,7 @@ namespace Rtx
     };
 
     /// The cells the ring holds, and where they stand: which of their placements are in the top
-    /// level, by the rings and the size rule, and how their ground shades, by the grid. `CellRing`
+    /// level, by the rings and the size rule, and how their ground shades, by the grid. `CellStreamer`
     /// decides what is prepared and adopted; this holds it and decides what of it stands. The
     /// ground's rows are adopted here too, because the ground is the one thing this stands that no
     /// model was read for.
@@ -102,6 +103,21 @@ namespace Rtx
 
         /// Whether a cell at `cell` is held.
         bool holds(const osg::Vec2i& cell) const { return mCells.contains(cell); }
+
+        /// Holds every held cell's ground at `Shown` where `shown(cell)` says, its band one a load waits on, and at
+        /// `Kept` where not, past the band or with the eye indoors, so the plan lowers and leaves it first.
+        template <class Shown>
+        void retierGrounds(Shown shown)
+        {
+            for (HeldCell& cell : mCells)
+                retierGround(cell.mGround, shown(cell.mCell) ? HoldTier::Shown : HoldTier::Kept);
+        }
+
+        /// `retierGrounds` for the held cell at `cell` alone, as it is adopted: its ground is held `Kept` until this.
+        void retierGround(const osg::Vec2i& cell, HoldTier tier);
+
+        /// The tier the ground of the cell at `cell` is held at, `Unheld` where none stands.
+        HoldTier getGroundTier(const osg::Vec2i& cell) const;
 
         /// Holds the groundcover of `grass.mCell` from now on: a placement a part of each plant, as
         /// `holds` adopted its models. Nothing stands until a `place`.
@@ -227,6 +243,9 @@ namespace Rtx
 
         /// Takes a cell's placements out of the top level, keeping the cell.
         void dropSlots(HeldCell& cell);
+
+        /// Takes the ground's holds again at `tier` where they stand at another, the new before the old goes.
+        void retierGround(HeldGround& ground, HoldTier tier);
 
         std::uint32_t place(HeldCell& cell, const WorldAround& around);
 

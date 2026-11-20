@@ -1237,8 +1237,18 @@ namespace Rtx
 
                 if (std::holds_alternative<NotStanding>(structure.mStanding))
                 {
-                    if (mSpent.mBuildTriangles >= shares.mBuildTriangles || !ensureRoom(structure.mLooseClass))
+                    if (mSpent.mBuildTriangles >= shares.mBuildTriangles)
                         continue;
+                    if (!ensureRoom(structure.mLooseClass))
+                    {
+                        if (isDemanded(tier))
+                        {
+                            ++mStructuresRoomless;
+                            mStructuresRoomlessLarge
+                                += mLedger.getTier(structure.mLooseClass) == SlabTier::Large ? 1u : 0u;
+                        }
+                        continue;
+                    }
                     const Slot loose = mLedger.reserve(structure.mLooseClass, ownerOf(indexOf(scene), true, at));
                     mLedger.commit(loose);
                     mOps.push_back(BuildStructure{ .mMesh = row,
@@ -1294,6 +1304,8 @@ namespace Rtx
         mStandingChanges.clear();
         mStructureStandingChanges.clear();
         mDrainStalled.fill(false);
+        mStructuresRoomless = 0;
+        mStructuresRoomlessLarge = 0;
         ++scene.mHandOvers;
         for (const OwedDrop& owed : scene.mDropsOwed)
         {
@@ -1389,6 +1401,8 @@ namespace Rtx
         }
         mReport.mWaiting = waiting;
         mReport.mWaitingDemanded = demanded;
+        missing.mMeshesForRoom = mStructuresRoomless;
+        missing.mMeshesForRoomLarge = mStructuresRoomlessLarge;
         mReport.mMissingDemanded = missing;
         return epoch;
     }

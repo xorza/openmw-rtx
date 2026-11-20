@@ -84,6 +84,14 @@ it is shown") is carried here whole, rewritten to fit, and its own file is gone.
   cell outrun while a raise was always waiting somewhere. Batch 7's wholeness replaces it with its two predicates.
 - **A texture's row that fails says why, as the upload's own check words it** (`checkUploadable`): a BC5 normal map
   read as a colour is a known format in the wrong slot, which the handheld's PBR flight's expectations name.
+- **The reader's bound is `CellTable::sReadAheadMost` = 8 reads, cells and groundcover together, and a read nearer
+  than every waiting one of its kind is taken past it.** The frame adopts one of each a frame; eight is a crossing's
+  worth of half a band's edge ahead, and what a waiting read holds is its models' lends. Taking the nearest past the
+  bound is what keeps a settled walk's wait for its nearest cell from waiting on room the frame frees only by
+  adopting, a bounded producer that never blocks the consumer's next item. Refused: the bound strict, with the farthest read given back to make room, which reads it again later.
+- **`CellSupply` stays as the reader thread's owner and the monitor's, now over `CellTable`**, and `CellStreamer` is
+  the ring renamed. The layout's "cellstreamer in place of cellring and cellsupply" would put the thread, the lock and
+  the frame's policy in one class; the ownership table keeps the supply's monitor as the one channel.
 
 **Superseded by the first decision**, all "by the user's decision" in `docs/architecture.md`: "the limit is derived
 from the budget" (the nine tenths stay, as the cache's share); "what waits is given the resting row that surely
@@ -1073,23 +1081,18 @@ Files: `components/rtx/mirror/cells/` (all), `components/rtx/mirror/sceneextract
 {rtxrenderer,worldmirror,tracedterrain,framereport}`, `apps/openmw/mwrender/{renderer.hpp,renderingmanager}`,
 `apps/openmw/mwworld/scene.cpp`, `apps/rtxtool/{stager,session}`, `apps/rtxtool/model/`.
 
-- [ ] `CellStreamer`: the cell table, the bands, the pump, as specified, in place of `CellRing`'s walk and
-  `CellSupply`'s lists (`cellsupply.hpp:135-197`, `cellring.hpp:263-312`). `AskInputs`, `mOnTheWay`, the takes
-  counters, `mHanded`, `mHandedGrass` and every pair for groundcover go.
-- [ ] `cellsupply.cpp:189-229` — the reader reads the whole list while the frame adopts one a frame, and a stale
-  cell is always handed. Target: it waits at `sReadAheadMost`; a record with no band is given back unhanded; the
-  stop token is asked between a cell's models (`cellsupply.cpp:52` joins a whole cell's read on the frame).
+- [ ] `CellStreamer`'s bands: the eye's alone stands today; `Awaited` and `Predicted` bands, each record's band bits
+  and tier, and the pump called from a covered frame come with the items below that need them.
 - [ ] `cellring.cpp:358-380` — the adoption's budget is a count. Target: steps of bounded cost under the frame's
   share, resumable inside a cell (`AdoptCursor`); under a covered frame, a time slice in the settled order.
 - [ ] `mirror/sceneextractor.cpp:718-719` — the ring can stand only inside the extractor's walk. Target: the pump
   is called by the walk and by a covered frame alike.
 - [ ] `cells/prepared.hpp:243`, `cells/held.cpp:54` — a lent model keeps its packed streams for as long as a cell
   names it. Target: the reader lets them go as the frame reports the model adopted.
-- [ ] `cellring.cpp:521-527` — indoors the ring keeps all it holds live and the reader reads on. Target: no eye
-  band; the cells hold `Kept`; the ask is withdrawn. One room leg flown after land legs says whether this is the
-  rooms' 21 against 51 ms.
-- [ ] Tiers: a cell's holds are taken at its record's tier and retaken as it changes; a hidden cell asks its
-  textures by its distance from its own band's centre (`cellplacer.cpp:612-617` asks by the eye's).
+- [ ] One room leg flown after land legs on the handheld says whether the land resting indoors is the rooms' 21
+  against 51 ms.
+- [ ] A hidden cell asks its textures by its distance from its own band's centre (`cellplacer.cpp:612-617` asks by
+  the eye's), with the predicted bands.
 - [ ] `TracedTerrain::preload` registers a band and returns; `createView` answers the band's hold
   (`tracedterrain.hpp:93-95`). The list between the preload worker and the frame is the streamer's, locked, bounded
   by upstream's views.
@@ -1326,6 +1329,10 @@ Files: `components/rtx/{common,scene,renderer,mirror}`, `apps/components_tests/r
 ## Changed
 
 Items that landed in another shape than their target, each with how and why.
+
+- Batch 7's streamer: `CellTable` is the one table under the reader's monitor, a cell's two reads its two stages, and
+  `CellSupply` stays as the thread's owner over it (see the decision). The bands, the tiers and `Adopting`'s cursor
+  are left to the items that need them; the eye's band is the one band.
 
 - The backend's half of residency's contract is its own interface, `ResidencyDevice`, which `SceneHolder` takes on in
   batch 4: `Residency` and `NullDevice` need none of the rest of a backend, and the conformance suite is

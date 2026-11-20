@@ -10,7 +10,7 @@
 
 namespace Rtx
 {
-    class CellRing;
+    class CellStreamer;
 }
 
 namespace Resource
@@ -41,7 +41,7 @@ namespace MWRender
     {
     public:
         TracedGround(
-            const GroundSpec& spec, Resource::SceneManager& scenes, std::uint32_t nodeMask, Rtx::CellRing& ring);
+            const GroundSpec& spec, Resource::SceneManager& scenes, std::uint32_t nodeMask, Rtx::CellStreamer& ring);
 
         Terrain::World& getTerrain() override { return mTerrain; }
 
@@ -68,6 +68,6 @@ namespace MWRender
         TracedTerrain mTerrain;
 
         /// Borrowed: the renderer that made this owns the mirror the ring stands in, and outlives it.
-        Rtx::CellRing& mRing;
+        Rtx::CellStreamer& mRing;
     };
 }

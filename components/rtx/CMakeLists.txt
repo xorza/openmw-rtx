@@ -326,8 +326,9 @@ openmw_rtx_layer(
         mirror/cells/cellgrid.cpp
         mirror/cells/cellplacer.cpp
         mirror/cells/cellreader.cpp
-        mirror/cells/cellring.cpp
+        mirror/cells/cellstreamer.cpp
         mirror/cells/cellsupply.cpp
+        mirror/cells/celltable.cpp
         mirror/cells/cellworld.cpp
         mirror/cells/groundreader.cpp
         mirror/cells/held.cpp
@@ -353,8 +354,9 @@ openmw_rtx_layer(
         mirror/cells/cellgrid.hpp
         mirror/cells/cellplacer.hpp
         mirror/cells/cellreader.hpp
-        mirror/cells/cellring.hpp
+        mirror/cells/cellstreamer.hpp
         mirror/cells/cellsupply.hpp
+        mirror/cells/celltable.hpp
         mirror/cells/cellworld.hpp
         mirror/cells/groundcoversource.hpp
         mirror/cells/groundreader.hpp

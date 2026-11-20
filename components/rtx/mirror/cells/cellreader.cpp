@@ -8,6 +8,7 @@
 #include <limits>
 #include <optional>
 #include <span>
+#include <stop_token>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -207,17 +208,17 @@ namespace Rtx
         return anchored->second;
     }
 
-    PreparedCell& CellReader::read(const osg::Vec2i& cell)
+    PreparedCell& CellReader::read(const osg::Vec2i& cell, const std::stop_token& stop)
     {
         PreparedCell& prepared = mCells.take([&](PreparedCell& into) {
-            fill(into, cell);
+            fill(into, cell, stop);
             into.mPreprocessed = mComputed.mPreprocessor.takeStats();
         });
         mCells.lend(prepared);
         return prepared;
     }
 
-    void CellReader::fill(PreparedCell& prepared, const osg::Vec2i& cell)
+    void CellReader::fill(PreparedCell& prepared, const osg::Vec2i& cell, const std::stop_token& stop)
     {
         prepared.mCell = cell;
 
@@ -248,6 +249,8 @@ namespace Rtx
 
         for (const Terrain::PagedCellRef& ref : mRefScratch)
         {
+            if (stop.stop_requested())
+                return;
             const CarriedLamp lamp = readLamp(ref, prepared);
             if (mStatics)
                 readStatic(ref, lamp, prepared);
@@ -357,7 +360,7 @@ namespace Rtx
         refs.back().mModel = index;
     }
 
-    PreparedGrass& CellReader::readGrass(const osg::Vec2i& cell)
+    PreparedGrass& CellReader::readGrass(const osg::Vec2i& cell, const std::stop_token& stop)
     {
         PreparedGrass& prepared = mGrass.take([&](PreparedGrass& into) {
             into.mCell = cell;
@@ -368,6 +371,8 @@ namespace Rtx
             mGroundcover->collect(cell, mRefScratch);
             for (const Terrain::PagedCellRef& ref : mRefScratch)
             {
+                if (stop.stop_requested())
+                    return;
                 const VFS::Path::NormalizedView path = mGroundcover->modelOf(ref.mRefId);
                 if (path.empty())
                     continue;

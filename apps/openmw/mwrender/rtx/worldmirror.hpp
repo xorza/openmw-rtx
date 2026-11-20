@@ -21,7 +21,7 @@
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/cells/cellplacer.hpp>
-#include <components/rtx/mirror/cells/cellring.hpp>
+#include <components/rtx/mirror/cells/cellstreamer.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
@@ -159,8 +159,8 @@ namespace MWRender
 
         /// The distant cells: the one route to them, for the ground, the frame, a picture asking whether its
         /// ground stands yet, and the harness's checks.
-        Rtx::CellRing& getRing() { return mRing; }
-        const Rtx::CellRing& getRing() const { return mRing; }
+        Rtx::CellStreamer& getRing() { return mRing; }
+        const Rtx::CellStreamer& getRing() const { return mRing; }
 
         /// The menu moved the reach, or the view distance it falls back to. Told rather than read
         /// per frame, so the ring, the air and the map follow one number a frame was handed.
@@ -239,7 +239,7 @@ namespace MWRender
 
         /// The cells themselves: their ground off the land records, their statics as instances
         /// of their templates, and their lamps. After the scene, which it adopts into.
-        Rtx::CellRing mRing{ mExtractor };
+        Rtx::CellStreamer mRing{ mExtractor };
 
         Rtx::SceneUploader mUploader;
 

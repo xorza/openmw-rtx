@@ -210,8 +210,9 @@ namespace RtxTool
                 "asked 1 files, 0 bakes and 1 composites, and 0 made with no room)");
 
             // And a mesh standing nothing is named apart.
-            EXPECT_EQ(describeUnstood(MeasureWindow::Unstood{ .mMissing = Rtx::MissingDemanded{ .mMeshes = 3 } }),
-                "3 meshes still being built");
+            EXPECT_EQ(describeUnstood(MeasureWindow::Unstood{ .mMissing
+                          = Rtx::MissingDemanded{ .mMeshes = 3, .mMeshesForRoom = 2, .mMeshesForRoomLarge = 1 } }),
+                "3 meshes still being built (2 with no room, 1 of them of a large class)");
         }
 
         /// A pause ahead of the measurement fails the stop on the frame past its limit: a limit of

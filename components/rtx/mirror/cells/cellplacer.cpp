@@ -399,8 +399,8 @@ namespace Rtx
 
         // Held on the scene, because no drawable and no state set will ever name them:
         // `dropGround` is what lets go.
-        stands.mMeshHold = mScene.holdMesh(stands.mStood.mMesh, HoldTier::Shown);
-        stands.mMaterialHold = mScene.holdMaterial(stands.mStood.mMaterial, HoldTier::Shown);
+        stands.mMeshHold = mScene.holdMesh(stands.mStood.mMesh, HoldTier::Kept);
+        stands.mMaterialHold = mScene.holdMaterial(stands.mStood.mMaterial, HoldTier::Kept);
 
         ++stats.mMeshesAdded;
         ++stats.mMaterialsAdded;
@@ -426,6 +426,33 @@ namespace Rtx
                 .mReference = reference,
                 .mState = state,
             });
+    }
+
+    void CellPlacer::retierGround(const osg::Vec2i& cell, const HoldTier tier)
+    {
+        const auto held = mCells.find(cell);
+        assert(held != mCells.end() && "a ground retiered whose cell is not held");
+        retierGround(held->mGround, tier);
+    }
+
+    HoldTier CellPlacer::getGroundTier(const osg::Vec2i& cell) const
+    {
+        const auto held = mCells.find(cell);
+        return held == mCells.end() || !held->mGround.mStands ? HoldTier::Unheld : held->mGround.mMeshHold.getTier();
+    }
+
+    void CellPlacer::retierGround(HeldGround& ground, const HoldTier tier)
+    {
+        if (!ground.mStands || ground.mMeshHold.getTier() == tier)
+            return;
+        assert(ground.mMaterialHold.getTier() == ground.mMeshHold.getTier() && "a ground held at two tiers");
+
+        MeshHold mesh = mScene.holdMesh(ground.mStood.mMesh, tier);
+        MaterialHold material = mScene.holdMaterial(ground.mStood.mMaterial, tier);
+        mScene.drop(std::move(ground.mMeshHold));
+        mScene.drop(std::move(ground.mMaterialHold));
+        ground.mMeshHold = std::move(mesh);
+        ground.mMaterialHold = std::move(material);
     }
 
     void CellPlacer::adoptPlacements(const PreparedCell& cell, HeldCell& held, CellHolds& holds)
