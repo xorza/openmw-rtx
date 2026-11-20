@@ -1029,54 +1029,15 @@ Files: `components/rtxvulkan/{scene,device,gui,upscale}`, `vulkanrenderer.cpp`, 
 `components/detournavigator`, `apps/openmw/mwworld/cellpreloader.cpp`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp`,
 `components/sdlutil`, `apps/navmeshtool`, `apps/bulletobjecttool`, their tests.
 
-- [ ] `components/rtxvulkan/scene/devicescene.cpp:223-231` — `takeAnswer` forwards four of the answer's lists and
-  clears the rest, so `DeviceAnswer::mMoved` never reaches `sceneuploader.cpp:244`: a texture moved down keeps a stale
-  level and never comes back finer, and the rest's bytes stay overstated. Target: the answer is appended whole;
-  `Testing::CountingRenderer::takeAnswer` likewise; a test hands a scene through `SceneHolder` and reads every field.
-- [ ] `components/rtxvulkan/scene/sceneacceleration.cpp:182-192` — `buildWaiting` rewrites no instance row, so a
-  structure built after waiting is not placed until its tight copy lands or its placement next changes. Target: what
-  it built joins the set `placeCompacted` rewrites; a test at `SceneAcceleration`, not at the store alone.
-- [ ] `components/contentstore/store.cpp:392-411,455`, `components/platform/fileposix.cpp:92-103`,
-  `filewin32.cpp:94-112` — `Platform::File::readAt` throws (`std::system_error` on POSIX, `std::runtime_error` on
-  Windows), does not loop on a short count or retry `EINTR`, and clamps to 4 GiB on Windows; `Store::openFile` and
-  `readSegments` do not catch on the chain hands, where a throw ends the process; `store.cpp:387` catches the POSIX
-  type alone. Target: `readAt` answers `Result<std::size_t, IoError>`, loops inside, one error type on both systems;
-  a failed read of an entry is a counted miss; `ConstrainedFileStreamBuf::xsgetn` and the store read through it. A
-  test of a short read and of a failing one.
-- [ ] `components/rtx/common/bufferpool.cpp:111-121` — a `take` past the pool's most is admitted "alone" at the
-  call, but the wait's predicate never becomes true for it, so it waits for ever where anything is out. Target:
-  `mInUse == 0` in the predicate; a test of a take past the most while busy.
-- [ ] `components/rtx/preprocess/contentpreprocessor.cpp:93`, `components/contentstore/store.cpp:752` — an entry's
-  payload is bounded at `sPayloadMost` by `readFile` and not by `open`, and the pool is asked before the layout is
-  checked: a self-consistent file over 1 GiB indexes `BufferPool::mFree` out of range. Target: `checkTrailer` bounds
-  the payload on every path; the layout is checked before a take.
-- [ ] `components/rtx/prepare/contentpreparation.cpp:205-221` — the manifest's signature lists six pass versions by
-  hand and omits `SolidReach::sVersion` and the `"file"` key's. Target: folded over one `constexpr` table of passes
-  that `ContentPassId` indexes; a test that every pass is in it.
-- [ ] **(upstream, approved)** `apps/openmw/mwworld/cellpreloader.cpp:446-450` — `isTerrainLoaded` reads
-  `SceneManager::getExpiryDelay()`, which the budget's constructor leaves at nought, so it is false at every
-  exterior crossing of a played session and true in a stated-step harness run. Target: the terrain's own expiry,
-  handed to the preloader; no `mExpiryDelay` on a budgeted manager. One line; a test of the preloader.
-- [ ] **(upstream, approved)** `components/detournavigator/navmeshtilescache.cpp:142-152` — `releaseItem` lowers
-  `mUseCount` before it takes the mutex, so a `get` between the two leaves an in-use item on the free list, which the
-  budget may evict. Target: the count under the mutex. Three lines upstream could take.
-- [ ] `apps/openmw/mwrender/rtx/rtxrenderer.cpp:267` — the destructor dereferences `getResources()`, null until
-  `Engine::prepareEngine` line 499, and a missing archive throws four lines before it: the player gets a crash where
-  the fatal error box was owed. Target: the image manager's hook is a guard made in `configureResources`.
 - [ ] `apps/openmw/mwrender/rtx/rtxrenderer.cpp:114-140`, `apps/openmw/mwgui/loadingscreen.cpp:219-224`,
   `components/sdlutil/sdlinputwrapper.cpp:74-86` — the content preparation's wait calls `setProgress`, which skips
   the draw unless the bar moved a pixel: no event pump and no `Crash::heartbeat` at a preparation's tail, where the
   20 s hang limit can fire; and a close request is ignored for the whole wait. Target: the wait draws through
   `increaseProgress`, which always asks for a draw; it asks the input manager for a quit each patience and leaves.
-- [ ] `components/rtxvulkan/vulkanrenderer.cpp:267-268`, `frametracer.cpp:48-49` — under DLSS a change between
-  `Native` and `Off` remakes the trace chain at equal extents and declares no lost past, so the new fog volume blends
-  from nought for about 22 frames. Target: `Moves` yields the `FramePast`; a test across `setUpscale` reads the air.
 - [ ] `components/rtxvulkan/vulkanrenderer.cpp:310-311` against `:344-352` — NGX's feature is made before the
   reserve is raised and textures are moved down, so a larger mode on a full card ends in `DeviceError` where FSR
   makes room first. Target: reserve and room before `prepare` where the mode was measured, the largest known figure
   otherwise.
-- [ ] `components/rtx/common/error.hpp:49-53` — `Unsupported` inherits its constructors and loses the crash note its
-  three siblings carry; 21 throw sites. Target: `withNote`, as they do.
 - [ ] `components/rtxvulkan/device/pipelinecache.cpp:324-329`, `vulkanrenderer.cpp:776-781` — `save` returns
   silently on `VK_INCOMPLETE`, which the tuple compile's growth of the cache makes likely, and the start's save is
   marked done. Target: `save` answers whether it wrote; `VK_INCOMPLETE` retried a bounded number of times.
@@ -1590,3 +1551,19 @@ Files: `components/rtx/{common,scene,renderer,mirror}`, `apps/components_tests/r
 - [ ] Stale comments: `scene/refusal.hpp:46` (`SceneHolder::getRefusals`), `mirror/lightbuilder.hpp:36-38,163-167`,
   `mirror/surfacedescription.hpp:80-81`, `sceneuploader.hpp:175` and `sceneuploader.cpp:317-322` on the room kept
   for an arrival.
+
+## Changed
+
+Items that landed in another shape than their target, each with how and why.
+
+- `Platform::File::readAt` answers `Result<std::size_t, std::error_code>`, not an `IoError` of the fork's: the
+  standard's type is one type on both systems and keeps the system's own code, which a new enum would map and lose.
+- `CellPreloader::isTerrainLoaded` reads `ResourceSystem::getExpiryDelay`, the delay the system was made with and
+  last set. A budgeted manager still carries an `mExpiryDelay` it never reads: taking the field off it is batch 8's
+  split of the budgeted cache from upstream's, and an upstream change this item was not approved for.
+- The past lost with a chain made again is `FrameTracer::Moves::losesPast`, held by a host test of its table. The
+  target's test across `setUpscale` that reads the air needs DLSS, which one vendor's cards run and CI's do not.
+
+## Declined
+
+Items judged and not done, each with the reason.
