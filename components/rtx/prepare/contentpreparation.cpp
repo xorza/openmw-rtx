@@ -132,6 +132,7 @@ namespace Rtx
         , mManifest(PreparationManifest::read(setup.mManifest, mSignature))
         , mDay(setup.mDay)
         , mBudget(setup.mBudget)
+        , mAdmission(setup.mMemory)
         , mWalked(mModels.size() + mLayers.size())
         , mStood(mWalked.size())
         , mDispatcher(setup.mHands, mWalked.size(), setup.mBudget)

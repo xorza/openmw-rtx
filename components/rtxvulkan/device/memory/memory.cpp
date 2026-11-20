@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <bit>
 #include <cassert>
-#include <chrono>
 #include <cstdint>
 #include <format>
 #include <optional>
@@ -14,7 +13,6 @@
 #include <volk.h>
 
 #include <components/crashcatcher/crash.hpp>
-#include <components/platform/memory.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/graveyard.hpp>
@@ -392,20 +390,15 @@ namespace Rtx
     void MemoryAllocator::refreshBudget(const std::uint64_t frame)
     {
         vmaSetCurrentFrameIndex(mLibrary.get(), static_cast<std::uint32_t>(frame));
-        if (!mUnified)
-            return;
+    }
 
-        // **Once a second at most**, a read of the system's figure, so no hand-over pays more than one in that time.
-        const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-        if (mSystemRead.has_value() && now - *mSystemRead < std::chrono::seconds(1))
-            return;
-        const std::optional<std::uint64_t> available = Platform::availableMemory();
-        if (!available.has_value())
-            return;
+    std::optional<VkDeviceSize> MemoryAllocator::getSystemHeld() const
+    {
+        if (!mUnified)
+            return std::nullopt;
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
         vmaGetHeapBudgets(mLibrary.get(), budgets);
-        mShare.read(budgets[mContent.mHeap].usage, *available, now - mSystemRead.value_or(now));
-        mSystemRead = now;
+        return budgets[mContent.mHeap].usage;
     }
 
     void MemoryAllocator::owe(const VkDeviceSize was, const VkDeviceSize bytes) noexcept
@@ -422,7 +415,7 @@ namespace Rtx
 
     VkDeviceSize MemoryAllocator::heldTo(const VkDeviceSize budget) const
     {
-        return std::min({ budget, mBudgetLimit.value_or(budget), mShare.getBound().value_or(budget) });
+        return std::min({ budget, mBudgetLimit.value_or(budget), mSystemBound.value_or(budget) });
     }
 
     std::size_t MemoryAllocator::getLiveCount() const

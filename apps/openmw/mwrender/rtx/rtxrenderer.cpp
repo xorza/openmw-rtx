@@ -56,6 +56,7 @@
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/platform/process.hpp>
 #include <components/resource/imagemanager.hpp>
+#include <components/resource/memoryarbiter.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/clock.hpp>
@@ -137,8 +138,6 @@ namespace MWRender
               mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
         , mModelDerivation(std::make_unique<Rtx::ModelDerivation>(
               mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
-        , mHands(std::make_unique<Rtx::TextureHands>(
-              mContentStore.get(), mTexelPool, std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
         , mMirror(setup.mMirror, mContentStore.get(), mSceneIdentities)
     {
         mSettled = setup.mSettled;
@@ -207,7 +206,6 @@ namespace MWRender
         mRenderer = createBackend(setup.mBackend, options);
         mResidency.emplace(*mRenderer, Rtx::SlotLayout{});
         mMirror.getWalkContext().mResidency = &*mResidency;
-        mMirror.getWalkContext().mFeed = mHands.get();
         mUpscale = setup.mRun.mProfile.mUpscale;
 
         Log(Debug::Info) << "Ray tracing device\n" << mRenderer->describeDevice();
@@ -316,6 +314,15 @@ namespace MWRender
         mMirror.getRing().setSettled(mSettled.value_or(stated.has_value()));
 
         resources.getCacheBudget().limit(mCacheBudget);
+
+        // **The hands are made once the resource system is handed over**, whose arbiter their makings are admitted
+        // against, and once: what residency asked of them stands across a manager handed again.
+        if (mHands == nullptr)
+        {
+            mHands = std::make_unique<Rtx::TextureHands>(mContentStore.get(), mTexelPool,
+                std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2), &resources.getMemoryArbiter());
+            mMirror.getWalkContext().mFeed = mHands.get();
+        }
 
         Resource::SceneManager& scene = *resources.getSceneManager();
         scene.setModelPrograms(Resource::ModelPrograms::Omitted);
@@ -1123,8 +1130,11 @@ namespace MWRender
         report.mCellsToStand = mMirror.getRing().getCellsToStand();
         report.mResidency = mResidency->getReport();
 
-        // What the device gave back lately stays its own to take again, not the caches' next second.
-        getResources().getCacheBudget().yieldTo(mRenderer->getSystemClaim());
+        // **The device's figure posted and its bound taken back**, so the arbiter's tick derives both from one reading
+        // of the system: what the device gave back lately stays its own to take again, not the caches' next second.
+        Resource::MemoryArbiter& arbiter = getResources().getMemoryArbiter();
+        arbiter.postDeviceHeld(mRenderer->getSystemHeld());
+        mRenderer->setSystemBound(arbiter.getDeviceBound());
 
         if (handed.mKind == Rtx::SceneUpload::Kind::Rebuilt)
             Log(Debug::Info) << "Ray tracing built " << mMirror.getScene().meshes().getRows().size() << " meshes into "

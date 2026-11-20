@@ -2,9 +2,12 @@
 
 #include <cstdint>
 #include <memory>
+#include <stop_token>
+#include <thread>
 #include <vector>
 
 #include "cachebudget.hpp"
+#include "memoryarbiter.hpp"
 
 namespace VFS
 {
@@ -78,8 +81,11 @@ namespace Resource
         double getExpiryDelay() const { return mExpiryDelay; }
 
         /// What keeps the caches of what is read from files, derived from the memory the system leaves the process
-        /// (`CacheBudget::derive`) as the resource system is made and at every `updateCache`.
+        /// (`CacheBudget::derive`) as the resource system is made and at every tick of its arbiter.
         CacheBudget& getCacheBudget() { return mCacheBudget; }
+
+        /// The one sampler of the system's memory, ticked once a second on a thread of its own.
+        MemoryArbiter& getMemoryArbiter() { return mArbiter; }
 
         /// @note May be called from any thread.
         const VFS::Manager* getVFS() const;
@@ -90,8 +96,12 @@ namespace Resource
         void releaseGLObjects(osg::State* state);
 
     private:
+        /// The arbiter's loop, until stopped.
+        void arbitrate(const std::stop_token& stop);
+
         /// Before every manager: a budget outlives the caches held to it.
         CacheBudget mCacheBudget;
+        MemoryArbiter mArbiter;
 
         std::unique_ptr<SceneManager> mSceneManager;
         std::unique_ptr<ImageManager> mImageManager;
@@ -108,6 +118,9 @@ namespace Resource
         const VFS::Manager* mVFS;
 
         double mExpiryDelay;
+
+        /// Last, so the arbiter's thread is joined before anything it ticks goes.
+        std::jthread mArbiterThread;
     };
 
 }

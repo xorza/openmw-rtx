@@ -103,7 +103,8 @@ namespace Rtx
         MemoryReport getMemoryReport() const override { return {}; }
         MemoryPrices priceMemory() const override;
         std::vector<CopyRate> measureCopies() override { return {}; }
-        std::uint64_t getSystemClaim() const override { return 0; }
+        std::optional<std::uint64_t> getSystemHeld() const override { return std::nullopt; }
+        void setSystemBound(std::optional<std::uint64_t>) override {}
         const SceneStats& getSceneStats() const override { return mStats; }
         void readPixels(std::vector<std::uint8_t>& pixels) override;
         void readDeepPixels(std::vector<std::uint16_t>& samples) override;

@@ -1228,14 +1228,20 @@ namespace MWWorld
             sqrDistToPlayer
                 = std::min(sqrDistToPlayer, (predictedPos - door.getRefData().getPosition().asVec3()).length2());
 
-            // The preloader's budget asked before the destination is found, which loads its references for good:
-            // a preload it would refuse has loaded the cell all the same.
-            if (sqrDistToPlayer < mPreloadDistance * mPreloadDistance && mPreloader->admitsPreload())
-            {
-                CellStore* dest = mWorld.getWorldModel().findCell(door.getCellRef().getDestCell());
-                if (dest != nullptr)
-                    preloadCellWithSurroundings(*dest);
-            }
+            if (sqrDistToPlayer >= mPreloadDistance * mPreloadDistance)
+                continue;
+            // **A destination preloaded already is stamped, and the budget asked only before one is found**, which
+            // loads its references for good: a preload it would refuse has loaded the cell all the same, and a
+            // refusal ahead of the stamp let a preloaded destination expire.
+            const ESM::RefId destination = door.getCellRef().getDestCell();
+            const CellStore* const known = mWorld.getWorldModel().findCell(destination, false);
+            if (known != nullptr && mPreloader->refreshPreloaded(*known, mRendering.getReferenceTime()))
+                continue;
+            if (!mPreloader->admitsPreload())
+                continue;
+            CellStore* dest = mWorld.getWorldModel().findCell(destination);
+            if (dest != nullptr)
+                preloadCellWithSurroundings(*dest);
         }
     }
 

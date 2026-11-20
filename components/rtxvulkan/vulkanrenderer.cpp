@@ -621,9 +621,14 @@ namespace Rtx
         mMedia.keepRipples(scene);
     }
 
-    std::uint64_t VulkanRenderer::getSystemClaim() const
+    std::optional<std::uint64_t> VulkanRenderer::getSystemHeld() const
     {
-        return mDevice.getMemory().getSystemClaim();
+        return mDevice.getMemory().getSystemHeld();
+    }
+
+    void VulkanRenderer::setSystemBound(const std::optional<std::uint64_t> bound)
+    {
+        mDevice.getMemory().setSystemBound(bound);
     }
 
     MemoryPrices VulkanRenderer::priceMemory() const

@@ -11,6 +11,11 @@ namespace osg
     class Image;
 }
 
+namespace Resource
+{
+    class MemoryArbiter;
+}
+
 namespace Rtx
 {
     /// **Whether a chain is made, against what the system has left less what every making admitted before it holds**:
@@ -40,14 +45,17 @@ namespace Rtx
             std::uint64_t mBytes = 0;
         };
 
-        ChainAdmission() = default;
+        /// @param memory the one sampler of the system's memory, whose last figure a making is admitted against, or
+        /// null
+        ///        for none, where every making is admitted.
+        explicit ChainAdmission(const Resource::MemoryArbiter* memory);
         ChainAdmission(const ChainAdmission&) = delete;
         ChainAdmission& operator=(const ChainAdmission&) = delete;
         ~ChainAdmission();
 
-        /// `file`'s making, which holds `scratch` at most, admitted where it fits what the system has left
-        /// (`Platform::availableMemory`) less what the makings admitted hold; nothing where it does not, which is
-        /// logged, the file's own chain drawing.
+        /// `file`'s making, which holds `scratch` at most, admitted where it fits what the system had left at the
+        /// arbiter's last tick (`Resource::MemoryArbiter::getAvailable`) less what the makings admitted hold; nothing
+        /// where it does not, which is logged, the file's own chain drawing.
         std::optional<Ticket> admit(const ChainScratch& scratch, const osg::Image& file);
 
         /// What the makings admitted hold.
@@ -55,6 +63,8 @@ namespace Rtx
 
     private:
         void release(std::uint64_t bytes);
+
+        const Resource::MemoryArbiter* const mMemory;
 
         std::mutex mMutex;
         std::uint64_t mHeld = 0;

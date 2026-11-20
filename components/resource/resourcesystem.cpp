@@ -1,11 +1,16 @@
 #include "resourcesystem.hpp"
 
 #include <algorithm>
+#include <chrono>
+#include <condition_variable>
 #include <cstdint>
+#include <mutex>
 #include <optional>
+#include <stop_token>
 
 #include <components/platform/heap.hpp>
 #include <components/platform/memory.hpp>
+#include <components/platform/thread.hpp>
 
 #include "animblendrulesmanager.hpp"
 #include "bgsmfilemanager.hpp"
@@ -21,6 +26,7 @@ namespace Resource
     ResourceSystem::ResourceSystem(
         const VFS::Manager* vfs, double expiryDelay, const ToUTF8::StatelessUtf8Encoder* encoder)
         : mCacheBudget(CacheBudget::derive(Platform::availableMemory(), 0, 0))
+        , mArbiter(mCacheBudget)
         , mVFS(vfs)
         , mExpiryDelay(expiryDelay)
     {
@@ -41,6 +47,9 @@ namespace Resource
         addResourceManager(mSceneManager.get());
         addResourceManager(mImageManager.get());
         addResourceManager(mAnimBlendRulesManager.get());
+
+        mArbiterThread
+            = Platform::startThread("memory arbiter", [this](const std::stop_token& stop) { arbitrate(stop); });
     }
 
     ResourceSystem::~ResourceSystem()
@@ -48,6 +57,27 @@ namespace Resource
         // this has to be defined in the .cpp file as we can't delete incomplete types
 
         mResourceManagers.clear();
+    }
+
+    void ResourceSystem::arbitrate(const std::stop_token& stop)
+    {
+        // **The system read once a tick, after the caches' evictions are destroyed** (`MemoryArbiter::tick`), off every
+        // frame and every loader's queue.
+        std::mutex mutex;
+        std::condition_variable_any woken;
+        while (!stop.stop_requested())
+        {
+            mArbiter.tick([] {
+                const std::optional<Platform::HeapHeld> heap = Platform::heapHeld();
+                return SystemReading{
+                    .mAvailable = Platform::availableMemory(),
+                    .mHeapFree = heap.has_value() && heap->mTaken > heap->mInUse ? heap->mTaken - heap->mInUse : 0,
+                    .mAt = std::chrono::steady_clock::now(),
+                };
+            });
+            std::unique_lock lock(mutex);
+            woken.wait_for(lock, stop, MemoryArbiter::sPeriod, [] { return false; });
+        }
     }
 
     SceneManager* ResourceSystem::getSceneManager()
@@ -96,15 +126,6 @@ namespace Resource
     {
         for (auto& resourceManager : mResourceManagers)
             resourceManager->updateCache(referenceTime);
-        // After the caches stamped what is in use: one read of the system's figure and of the heap's, and one look for
-        // room, off the frame, on the preloader's worker once a second and on the scene's thread as a cell changes.
-        // **What insertions evicted since the last look is destroyed before the read**: alive, its bytes were in no
-        // term of the budget, which came out that much lower and evicted that much more.
-        mCacheBudget.destroyEvicted();
-        const std::optional<Platform::HeapHeld> heap = Platform::heapHeld();
-        const std::uint64_t heapFree
-            = heap.has_value() && heap->mTaken > heap->mInUse ? heap->mTaken - heap->mInUse : 0;
-        mCacheBudget.setBytes(CacheBudget::derive(Platform::availableMemory(), mCacheBudget.getHeld(), heapFree));
     }
 
     void ResourceSystem::clearCache()

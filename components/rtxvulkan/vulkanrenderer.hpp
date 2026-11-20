@@ -92,7 +92,8 @@ namespace Rtx
         MemoryReport getMemoryReport() const override;
         MemoryPrices priceMemory() const override;
         std::vector<CopyRate> measureCopies() override;
-        std::uint64_t getSystemClaim() const override;
+        std::optional<std::uint64_t> getSystemHeld() const override;
+        void setSystemBound(std::optional<std::uint64_t> bound) override;
         void resize(std::uint32_t width, std::uint32_t height) override;
         void showIn(std::uint32_t width, std::uint32_t height) override;
         void setUpscale(Upscale upscale) override;

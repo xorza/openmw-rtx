@@ -103,9 +103,11 @@ namespace Rtx
         return made.has_value() ? shapeOfLayout(*made, encoding) : stands;
     }
 
-    TextureHands::TextureHands(ContentStore::Store* const store, BufferPool& pool, const std::size_t hands)
+    TextureHands::TextureHands(ContentStore::Store* const store, BufferPool& pool, const std::size_t hands,
+        const Resource::MemoryArbiter* const memory)
         : mStore(store)
         , mPool(pool)
+        , mAdmission(memory)
     {
         assert(hands >= 1 && "no thread to make texels on");
         for (std::size_t at = 0; at < hands; ++at)

@@ -80,8 +80,12 @@ namespace MWWorld
 
         /// Whether a preload may be made now: the caches stand within their budget, everything past it being in use.
         /// A preload is a guess, dropped where they do not and asked again on a later frame; a refusal is counted as
-        /// skipped. Asked before a door's destination is loaded to be preloaded, which loads its references for good.
+        /// skipped. Asked before a door's destination is loaded to be preloaded, which loads its references for good,
+        /// and after `refreshPreloaded`, so a destination already preloaded keeps its place whatever the budget says.
         bool admitsPreload();
+
+        /// Stamps `cell` as wanted at `timestamp` where it is preloaded already, and says whether it was.
+        bool refreshPreloaded(const CellStore& cell, double timestamp);
 
         void setWorkQueue(std::shared_ptr<SceneUtil::WorkQueue> workQueue);
 

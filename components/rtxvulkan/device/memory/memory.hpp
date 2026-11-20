@@ -15,7 +15,6 @@
 #include <components/rtx/renderer/memoryreport.hpp>
 
 #include "largestowed.hpp"
-#include "systemshare.hpp"
 
 struct VmaAllocation_T;
 struct VmaAllocator_T;
@@ -276,13 +275,16 @@ namespace Rtx
 
         /// Has the library ask the driver its budget again, which it otherwise does only every
         /// few dozen allocations. Before a decision about what content fits, so the decision is
-        /// made against what the device says now. On a device whose memory is the system's, reads
-        /// what the system leaves the process as well, once a second at most (`SystemShare`).
+        /// made against what the device says now.
         void refreshBudget(std::uint64_t frame);
 
-        /// What the device claims of the host's caches, on a device whose memory is the system's: what it gave back
-        /// lately (`SystemShare::getClaim`); nought on a device with memory of its own.
-        VkDeviceSize getSystemClaim() const { return mShare.getClaim(); }
+        /// What the device holds of its content's heap where that heap is the system's memory, nothing on a device with
+        /// memory of its own: what the host's sampler takes the device's share from (`Resource::MemoryArbiter`).
+        std::optional<VkDeviceSize> getSystemHeld() const;
+
+        /// What the host's sampler holds the device to, on a device whose memory is the system's
+        /// (`Resource::SystemShare`); nothing leaves it to its driver's word.
+        void setSystemBound(std::optional<VkDeviceSize> bound) { mSystemBound = bound; }
 
         /// Whether the device's memory is the system's: an integrated device, as its type states.
         bool isUnified() const { return mUnified; }
@@ -377,11 +379,9 @@ namespace Rtx
         std::optional<VkDeviceSize> mBudgetLimit;
         VkDeviceSize mFrameReserve = 0;
 
-        /// Whether the device's memory is the system's, and what that leaves the device as `refreshBudget` last read
-        /// it, and when: nothing on a device with memory of its own.
+        /// Whether the device's memory is the system's, and what the host's sampler holds it to then.
         bool mUnified = false;
-        SystemShare mShare;
-        std::optional<std::chrono::steady_clock::time_point> mSystemRead;
+        std::optional<VkDeviceSize> mSystemBound;
 
         /// `budget` held to `limitBudget`'s and the system's bound, whichever are less.
         VkDeviceSize heldTo(VkDeviceSize budget) const;

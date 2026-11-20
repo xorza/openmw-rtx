@@ -4,23 +4,21 @@
 
 #include <gtest/gtest.h>
 
-#include <vulkan/vulkan_core.h>
-
 #include <components/resource/cachebudget.hpp>
-#include <components/rtxvulkan/device/memory/systemshare.hpp>
+#include <components/resource/systemshare.hpp>
 
-namespace Rtx
+namespace Resource
 {
     namespace
     {
-        constexpr VkDeviceSize sGiB = VkDeviceSize{ 1 } << 30;
+        constexpr std::uint64_t sGiB = std::uint64_t{ 1 } << 30;
         using Seconds = std::chrono::duration<double>;
 
         /// **A device whose memory is the system's may hold what it holds and what the system leaves beside it, less
         /// the host's half gigabyte**: holding 2 GiB with 5 left beside it, 6.5; holding a quarter with a half left, a
         /// quarter; holding an eighth with a quarter left, nothing. The host's half is below the caches' gigabyte, so
         /// they stop first.
-        TEST(RtxSystemShareTest, theBoundIsWhatTheDeviceHoldsAndWhatTheSystemLeavesLessTheHostsHalf)
+        TEST(ResourceSystemShareTest, theBoundIsWhatTheDeviceHoldsAndWhatTheSystemLeavesLessTheHostsHalf)
         {
             static_assert(SystemShare::boundOf(2 * sGiB, 5 * sGiB) == 6 * sGiB + sGiB / 2);
             static_assert(SystemShare::boundOf(sGiB / 4, sGiB / 2) == sGiB / 4);
@@ -31,7 +29,7 @@ namespace Rtx
         /// **The bound follows its readings over a minute, both ways**: taken whole at the first; a reading 1 GiB
         /// lower held a minute moves it `1 - 1/e` of the way, 0.632 GiB; a second's reading barely moves it, by
         /// `1 - e^(-1/60)` of the step; and back up, it follows the same way.
-        TEST(RtxSystemShareTest, theBoundFollowsItsReadingsOverAMinuteBothWays)
+        TEST(ResourceSystemShareTest, theBoundFollowsItsReadingsOverAMinuteBothWays)
         {
             SystemShare share;
             EXPECT_EQ(share.getBound(), std::nullopt) << "before any reading";
@@ -60,13 +58,13 @@ namespace Rtx
         /// GiB, then 3 a second later, it claims `e^(-1/60)` of the gigabyte it gave back; a minute on at 3, `1/e` of
         /// that; holding more than its average, nothing. **And a block given back moves no bound**: what it holds falls
         /// as what the system leaves rises, by the same bytes.
-        TEST(RtxSystemShareTest, whatTheDeviceGaveBackStaysClaimedAndMovesNoBound)
+        TEST(ResourceSystemShareTest, whatTheDeviceGaveBackStaysClaimedAndMovesNoBound)
         {
             SystemShare share;
             EXPECT_EQ(share.getClaim(), 0u) << "before any reading";
             share.read(4 * sGiB, 2 * sGiB, Seconds(0.0));
             EXPECT_EQ(share.getClaim(), 0u);
-            const std::optional<VkDeviceSize> bound = share.getBound();
+            const std::optional<std::uint64_t> bound = share.getBound();
 
             share.read(3 * sGiB, 3 * sGiB, Seconds(1.0));
             const double claimed = std::exp(-1.0 / 60.0);

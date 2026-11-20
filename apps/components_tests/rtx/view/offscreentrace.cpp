@@ -365,7 +365,7 @@ namespace Rtx
 
             Testing::CountingRenderer renderer;
             BufferPool pool(TextureHands::sPoolBytes);
-            TextureHands hands(nullptr, pool, 1);
+            TextureHands hands(nullptr, pool, 1, nullptr);
             Residency residency(renderer, SlotLayout{});
             WalkContext context{ .mResidency = &residency, .mFeed = &hands };
             OffscreenTrace trace(renderer, request, context, identities);

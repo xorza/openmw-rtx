@@ -76,7 +76,7 @@ namespace DetourNavigator
 
         // Outside the lock, since making room takes this cache's lock and the others'; the tile is in use here, so
         // the room made is never its own.
-        mBudget.makeRoomForInsertion();
+        mBudget.makeRoomForInsertion(itemSize);
         return handed;
     }
 

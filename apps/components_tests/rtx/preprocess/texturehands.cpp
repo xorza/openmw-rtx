@@ -47,7 +47,7 @@ namespace Rtx
         TEST(RtxTextureHandsTest, aChainIsHandedOverFromTheFirstLevelAskedInTheOrderAsked)
         {
             BufferPool pool(TextureHands::sPoolBytes);
-            TextureHands hands(nullptr, pool, 2);
+            TextureHands hands(nullptr, pool, 2, nullptr);
             const osg::ref_ptr<const osg::Image> loose = Testing::makeImage("textures/loose.dds", 8, 8);
             const osg::ref_ptr<const osg::Image> odd
                 = Testing::makeImage("textures/odd.dds", 2, 2, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
@@ -91,7 +91,7 @@ namespace Rtx
             BufferPool pool(TextureHands::sPoolBytes);
             const osg::ref_ptr<const osg::Image> loose = Testing::makeImage("textures/loose.dds", 64, 64);
             {
-                TextureHands hands(nullptr, pool, 1);
+                TextureHands hands(nullptr, pool, 1, nullptr);
                 hands.ask(requestOf(loose, 1, 0));
                 hands.ask(requestOf(loose, 2, 0));
                 hands.forget(FeedTicket{ 2 });
@@ -103,7 +103,7 @@ namespace Rtx
                 EXPECT_EQ(taken[1].mRequest.mTicket, FeedTicket{ 3 });
             }
             {
-                TextureHands going(nullptr, pool, 2);
+                TextureHands going(nullptr, pool, 2, nullptr);
                 for (std::uint32_t at = 0; at < 12; ++at)
                     going.ask(requestOf(loose, 10 + at, 0));
             }

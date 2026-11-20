@@ -9,7 +9,7 @@
 #include <osg/Image>
 
 #include <components/debug/debuglog.hpp>
-#include <components/platform/memory.hpp>
+#include <components/resource/memoryarbiter.hpp>
 #include <components/rtx/common/mebibytes.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
 
@@ -45,6 +45,11 @@ namespace Rtx
             mOwner->release(mBytes);
     }
 
+    ChainAdmission::ChainAdmission(const Resource::MemoryArbiter* const memory)
+        : mMemory(memory)
+    {
+    }
+
     ChainAdmission::~ChainAdmission()
     {
         assert(mHeld == 0 && "an admission that goes while a making it admitted holds its bytes");
@@ -56,7 +61,8 @@ namespace Rtx
         // allocated on this thread, it ended the game. Asked as it starts and not as it is queued, since what the
         // system has left moves with the world.
         const std::uint64_t bytes = scratch.total();
-        const std::optional<std::uint64_t> available = Platform::availableMemory();
+        const std::optional<std::uint64_t> available
+            = mMemory != nullptr ? mMemory->getAvailable() : std::optional<std::uint64_t>();
         std::uint64_t held = 0;
         {
             const std::scoped_lock lock(mMutex);

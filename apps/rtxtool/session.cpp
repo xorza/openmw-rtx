@@ -31,6 +31,7 @@
 #include <components/platform/heap.hpp>
 #include <components/platform/process.hpp>
 #include <components/resource/cachebudget.hpp>
+#include <components/resource/memoryarbiter.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/rtx/common/mebibytes.hpp>
 
@@ -560,10 +561,13 @@ namespace RtxTool
             anonymous.has_value())
         {
             const std::optional<Platform::HeapHeld> heap = Platform::heapHeld();
+            const std::chrono::nanoseconds slowest = resources.getMemoryArbiter().takeSlowestRead();
             Log(Debug::Info) << std::format(
-                "Host memory after stop {}: {:.1f} MiB anonymous resident, {:.1f} MiB not resident{}", (mAt + 1),
-                Rtx::mebibytes(anonymous->mResident), Rtx::mebibytes(anonymous->mNotResident),
-                heap.has_value() ? "; " + describeHeap(*heap) : std::string());
+                "Host memory after stop {}: {:.1f} MiB anonymous resident, {:.1f} MiB not resident{}; the system read "
+                "in {:.2f} ms at the most since the stop before",
+                (mAt + 1), Rtx::mebibytes(anonymous->mResident), Rtx::mebibytes(anonymous->mNotResident),
+                heap.has_value() ? "; " + describeHeap(*heap) : std::string(),
+                std::chrono::duration<double, std::milli>(slowest).count());
             mRecord.noteHostMemory(currentStop().mName, *anonymous, heap);
         }
 

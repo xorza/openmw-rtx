@@ -84,6 +84,8 @@ target_sources(
         platform/uniquehold.cpp
         platform/userhome.cpp
         platform/wholefile.cpp
+        resource/memoryarbiter.cpp
+        resource/systemshare.cpp
         resource/testcolladastream.cpp
         resource/testmultiobjectcache.cpp
         resource/testobjectcache.cpp

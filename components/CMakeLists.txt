@@ -1141,6 +1141,7 @@ target_sources(
         resource/imageheader.cpp
         resource/imagemanager.cpp
         resource/keyframemanager.cpp
+        resource/memoryarbiter.cpp
         resource/niffilemanager.cpp
         resource/resourcesystem.cpp
         resource/scenemanager.cpp
@@ -1160,6 +1161,7 @@ target_sources(
                 resource/imageheader.hpp
                 resource/imagemanager.hpp
                 resource/keyframemanager.hpp
+                resource/memoryarbiter.hpp
                 resource/multiobjectcache.hpp
                 resource/niffilemanager.hpp
                 resource/objectcache.hpp
@@ -1168,6 +1170,7 @@ target_sources(
                 resource/scenemanager.hpp
                 resource/sptfilemanager.hpp
                 resource/stats.hpp
+                resource/systemshare.hpp
 )
 
 target_sources(

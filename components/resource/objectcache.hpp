@@ -267,19 +267,27 @@ namespace Resource
             // Outside the lock, since making room takes this cache's lock and others'; the entry is held here, so
             // the room made is never its own.
             if (mBudget != nullptr)
-                mBudget->makeRoomForInsertion();
+                mBudget->makeRoomForInsertion(loaded.mBytes);
             return std::move(loaded.mValue);
         }
 
-        /** Remove Object from cache.*/
+        /// Removes the entry under `key`, where one stands. **Its value leaves by eviction's door**: to the evicted
+        /// list a budgeted cache's tick destroys, and out of the lock on the caller's thread for a cache of no budget,
+        /// so the texels a renderer gives back are never freed under the cache's lock nor on its frame.
         void removeFromObjectCache(const auto& key)
         {
-            std::scoped_lock lock(mMutex);
-            const auto itr = mItems.find(key);
-            if (itr != mItems.end())
+            ValueType removed{};
             {
+                const std::scoped_lock lock(mMutex);
+                const auto itr = mItems.find(key);
+                if (itr == mItems.end())
+                    return;
                 mGone.insert(itr->first);
                 forget(*itr);
+                if (mBudget != nullptr)
+                    mEvicted.push_back(std::move(itr->second.mValue));
+                else
+                    removed = std::move(itr->second.mValue);
                 mItems.erase(itr);
             }
         }

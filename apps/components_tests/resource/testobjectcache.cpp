@@ -630,6 +630,14 @@ namespace Resource
             EXPECT_EQ(deferred.getStats().mSize, 2);
             EXPECT_EQ(watched.getHeld(), 80);
 
+            // **A removal leaves by the same door**: the third, removed, lives until the worker destroys it.
+            const std::weak_ptr<const std::string> third = *deferred.getRefFromObjectCacheOrNone(3);
+            deferred.removeFromObjectCache(3);
+            EXPECT_EQ(watched.getHeld(), 40);
+            EXPECT_FALSE(third.expired()) << "destroyed under the cache's lock by the remover";
+            watched.destroyEvicted();
+            EXPECT_TRUE(third.expired());
+
             // The same three under a budget of 120 keep all three: the budget is what decides.
             CacheBudget roomy(120);
             SharedCache kept(roomy);
@@ -661,6 +669,27 @@ namespace Resource
             budget.limit(sHeld);
             for (std::int32_t key = 0; key < sEntries; ++key)
                 EXPECT_EQ(cache.getRefFromObjectCacheOrNone(key).has_value(), key < sHeld) << key;
+        }
+
+        /// **An insertion evicts as many bytes as it added, and the look the rest**: four entries of 30 under a budget
+        /// of 200, then held to 60 from outside; a load of 10 evicts the oldest, 30, and stops past its 10, 100 held;
+        /// the budget's own look takes it to 60.
+        TEST(ResourceGenericObjectCacheTest, anInsertionEvictsAsManyBytesAsItAdded)
+        {
+            CacheBudget budget(200);
+            SharedCache cache(budget);
+            for (std::int32_t key = 1; key <= 4; ++key)
+                cache.getOrLoad(key, loadOf(30));
+            budget.yieldTo(140);
+            EXPECT_EQ(budget.getHeld(), 120) << "the claim makes no room on its own";
+
+            cache.getOrLoad(5, loadOf(10));
+            EXPECT_EQ(budget.getHeld(), 100) << "the oldest of 30 for an insertion of 10";
+            EXPECT_EQ(cache.getRefFromObjectCacheOrNone(1), std::nullopt);
+            EXPECT_NE(cache.getRefFromObjectCacheOrNone(2), std::nullopt);
+
+            budget.makeRoom();
+            EXPECT_EQ(budget.getHeld(), 40) << "30 and 30 more, the look stopping at the budget of 60";
         }
 
         /// **A hit moves an entry to the front**: 1 asked again after 2 was loaded makes 2 the one to go.

@@ -43,6 +43,11 @@ namespace ContentStore
     class Store;
 }
 
+namespace Resource
+{
+    class MemoryArbiter;
+}
+
 namespace Rtx
 {
     class ContentSource;
@@ -73,8 +78,12 @@ namespace Rtx
         std::size_t mHands = 1;
 
         /// The bytes the jobs may hold together (`PreparationDispatcher`), or nothing for no bound, where
-        /// the system states no memory (`Platform::availableMemory`).
+        /// the system states no memory (`Resource::MemoryArbiter::getAvailable`).
         std::optional<std::uint64_t> mBudget{};
+
+        /// The one sampler of the system's memory, which a chain's making is admitted against (`ChainAdmission`), or
+        /// null for none.
+        const Resource::MemoryArbiter* mMemory = nullptr;
 
         /// Today, in days since the epoch in UTC: the day the manifest notes a model was named on, so
         /// a content list no run named for a month leaves it (`PreparationManifest::sUnnamedDaysMost`).

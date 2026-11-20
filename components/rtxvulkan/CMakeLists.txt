@@ -538,7 +538,6 @@ target_sources(
                 device/memory/referencealignment.hpp
                 device/memory/slottable.hpp
                 device/memory/stagingring.hpp
-                device/memory/systemshare.hpp
                 device/memory/uploads.hpp
                 device/owned.hpp
                 device/physicaldevice.hpp

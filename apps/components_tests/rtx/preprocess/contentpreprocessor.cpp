@@ -24,7 +24,8 @@
 #include <components/contentstore/key.hpp>
 #include <components/contentstore/store.hpp>
 #include <components/misc/bytebuffer.hpp>
-#include <components/platform/memory.hpp>
+#include <components/resource/cachebudget.hpp>
+#include <components/resource/memoryarbiter.hpp>
 #include <components/rtx/common/bufferpool.hpp>
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/chainbuild.hpp>
@@ -960,19 +961,29 @@ namespace Rtx
             EXPECT_EQ(foundKept, kept);
         }
 
-        /// **A chain's making is admitted against what the system has left less what the makings admitted hold**: two
-        /// makings of six tenths of what the system has left each pass alone, and the second beside the first does
-        /// not; its ticket moved holds what it held, and both gone hold nothing.
+        /// **A chain's making is admitted against what the system had left at the arbiter's last tick less what the
+        /// makings admitted hold**: of 10 GiB left, two makings of six each pass alone, and the second beside the
+        /// first does not; its ticket moved holds what it held, and both gone hold nothing. With no arbiter, or one
+        /// that has not ticked, every making is admitted.
         TEST(RtxChainAdmissionTest, aMakingIsAdmittedAgainstWhatTheOthersHold)
         {
-            const std::optional<std::uint64_t> available = Platform::availableMemory();
-            if (!available.has_value())
-                GTEST_SKIP() << "a system that says nothing of its memory admits every making";
+            constexpr std::uint64_t gib = std::uint64_t{ 1 } << 30;
+            Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+            Resource::MemoryArbiter memory(budget);
             ChainScratch scratch;
-            scratch[ChainBuffer::Made] = static_cast<std::size_t>(*available / 10 * 6);
+            scratch[ChainBuffer::Made] = static_cast<std::size_t>(6 * gib);
             const osg::ref_ptr<osg::Image> file = makeImage(sPaint, "painted.dds");
 
-            ChainAdmission admission;
+            ChainAdmission unbounded(nullptr);
+            std::optional<ChainAdmission::Ticket> one = unbounded.admit(scratch, *file);
+            std::optional<ChainAdmission::Ticket> two = unbounded.admit(scratch, *file);
+            EXPECT_TRUE(one.has_value()) << "no figure, no bound";
+            EXPECT_TRUE(two.has_value()) << "no figure, no bound";
+            one.reset();
+            two.reset();
+
+            memory.take(Resource::SystemReading{ .mAvailable = 10 * gib, .mHeapFree = 0, .mAt = {} });
+            ChainAdmission admission(&memory);
             std::optional<ChainAdmission::Ticket> first = admission.admit(scratch, *file);
             ASSERT_TRUE(first.has_value());
             EXPECT_EQ(admission.getHeld(), scratch.total());

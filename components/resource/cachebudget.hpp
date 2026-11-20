@@ -81,10 +81,11 @@ namespace Resource
         /// A cache let `bytes` go.
         void remove(std::uint64_t bytes);
 
-        /// Evicts the least recently used entries nothing holds while the caches hold more than the budget: what
-        /// the thread that put an entry in calls once it has let go of its cache's lock. Nothing where the last
-        /// look found everything in use and no `makeRoom` has come since.
-        void makeRoomForInsertion();
+        /// Evicts the least recently used entries nothing holds while the caches hold more than the budget, `bytes`
+        /// of them at the most, which is what the thread that put an entry of `bytes` in calls once it has let go of
+        /// its cache's lock: no insertion, the frame's among them, evicts a whole excess. Nothing where the last look
+        /// found everything in use and no `makeRoom` has come since.
+        void makeRoomForInsertion(std::uint64_t bytes);
 
         /// Looks for room where the caches stand past the budget, lets the next insertion look again, and destroys what
         /// every eviction since the last let go of: called once the caches have updated, when what they held may have
@@ -103,7 +104,9 @@ namespace Resource
         /// against. Past it, everything they hold is in use and an eviction found nothing to let go.
         bool hasRoom() const { return getHeld() < getBytes(); }
 
-        std::uint64_t getBytes() const { return mBytes.load(std::memory_order_relaxed); }
+        /// The budget: what the system's memory derives, less the device's claim, held to the limit. Derived at each
+        /// ask from the three, each set alone, so no stored figure goes stale between two of them.
+        std::uint64_t getBytes() const;
 
         /// How many looks for room found everything in use past the budget: a run's measure of how often its
         /// content wanted more than the budget, which on a machine short of memory is the expected state and not a
@@ -122,22 +125,19 @@ namespace Resource
         /// **What a device whose memory is the system's claims of the budget**: memory it gave back lately and is
         /// likely to take again, which the caches leave it (`docs/architecture.md`, "On a unified device the device
         /// and the caches split the system's memory"). Without it every block the device gave back was the caches'
-        /// the next second, and the device's room fell after it. Told once a frame by the renderer; the room it makes
-        /// is made by the next look (`makeRoom`, `makeRoomForInsertion`), never on the frame.
+        /// the next second, and the device's room fell after it. Told by the arbiter's tick (`MemoryArbiter`); the room
+        /// it makes is made by the next look (`makeRoom`, `makeRoomForInsertion`), never on a frame.
         void yieldTo(std::uint64_t claim);
 
     private:
-        void evictToBudget();
+        /// Evicts toward the budget, `most` bytes at the most.
+        void evictToBudget(std::uint64_t most);
 
         std::atomic<std::uint64_t> mHeld = 0;
         std::atomic<std::uint64_t> mStamp = 0;
-        std::atomic<std::uint64_t> mBytes;
         std::atomic<std::uint64_t> mDerived;
         std::atomic<std::uint64_t> mLimit = sUnbounded;
         std::atomic<std::uint64_t> mClaim = 0;
-
-        /// Sets the budget from what the system derives, less the device's claim, held to the limit.
-        void refresh();
 
         /// Over the members and the evictions, so that two threads past the budget do not both evict for one
         /// insertion. Taken before a member's own lock, never after.

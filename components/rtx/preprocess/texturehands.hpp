@@ -25,6 +25,11 @@ namespace ContentStore
     class Store;
 }
 
+namespace Resource
+{
+    class MemoryArbiter;
+}
+
 namespace Rtx
 {
     /// Whether `file` read as `encoding` has its chain made: none in a format the scene refuses (`describeImage`); a
@@ -54,7 +59,9 @@ namespace Rtx
         /// @param store where the chains are found and kept, or null for none.
         /// @param pool what the made chains are read into, which outlives this and every completion it hands out.
         /// @param hands how many threads make them.
-        TextureHands(ContentStore::Store* store, BufferPool& pool, std::size_t hands);
+        /// @param memory the one sampler of the system's memory, which a making is admitted against, or null for none.
+        TextureHands(
+            ContentStore::Store* store, BufferPool& pool, std::size_t hands, const Resource::MemoryArbiter* memory);
 
         /// Stops every thread, dropping what is queued.
         ~TextureHands();

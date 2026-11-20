@@ -719,10 +719,13 @@ namespace Rtx
         /// once, on a device that draws nothing; empty where nothing can be timed.
         virtual std::vector<CopyRate> measureCopies() = 0;
 
-        /// What the device claims of the host's caches, where its memory is the system's: memory it gave back lately
-        /// and is likely to take again, which the caches leave it (`Resource::CacheBudget::yieldTo`); nought where the
-        /// device has memory of its own. Asked once a frame.
-        virtual std::uint64_t getSystemClaim() const = 0;
+        /// What the device holds of the system's memory, where its memory is the system's; nothing where the device has
+        /// memory of its own. Asked once a frame, for the host's sampler (`Resource::MemoryArbiter`).
+        virtual std::optional<std::uint64_t> getSystemHeld() const = 0;
+
+        /// What the host's sampler holds the device to, where its memory is the system's; nothing leaves it to its
+        /// driver's word. Told once a frame.
+        virtual void setSystemBound(std::optional<std::uint64_t> bound) = 0;
 
         /// What the world scene is made of, as the backend last placed it. Only meaningful once
         /// `Renderer::setScene` has been called for the world.

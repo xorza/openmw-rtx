@@ -90,6 +90,9 @@ it is shown") is carried here whole, rewritten to fit, and its own file is gone.
   eighteenth leg on, held 4727 MiB under a cap of 4872. Refused: handing every picture over each frame its slots
   drain, which draws pictures nobody shows; a drain's owner of no scene, which the slots of two scenes share slabs
   against.
+- **`RunAllocator` stays**: a handheld Repack flight of 32 legs ended with 2357 vertex holes and 1513 index holes
+  among 3.1 M vertices' runs, whose free elements an earlier leg measured at 0.03 M and 0.13 M in 176 and 119 holes:
+  a run the next mesh of its size takes again, where a compaction would move live geometry for room that small.
 - **The reader's bound is `CellTable::sReadAheadMost` = 8 reads, cells and groundcover together, and a read nearer
   than every waiting one of its kind is taken past it.** The frame adopts one of each a frame; eight is a crossing's
   worth of half a band's edge ahead, and what a waiting read holds is its models' lends. Taking the nearest past the
@@ -1069,47 +1072,12 @@ tours beside the desk's. Whoever addresses an item deletes it. An item marked
 An item that says "ends" names a defect in code its batch deletes: it is there so the new shape gets the test the
 old one lacked.
 
-## Batch 5: structures onto the arena
-
-Files: `components/rtxvulkan/scene/{bottomlevelstore,sceneacceleration,devicescene,whenroomless.hpp}`,
-`components/rtxvulkan/device/memory/{memory,structurestorage,blocklist,blockscoming,owedgrowth,buffer,image}`,
-`components/rtx/scene/{meshtable,restqueue.hpp,deviceanswer.hpp,scenedesc}`, `components/rtx/renderer/
-{arrivalwindow.hpp,roomwaits.hpp}`, the tests of each.
-
-- [ ] The first and second open issues (`.notes/ISSUES.md`) flown on the handheld's Repack tour, the first with a CPU
-  profile of the rooms after the land legs.
-- [ ] `RunAllocator`'s fate decided on the holes a whole Repack tour leaves its vertex and index runs (the report's
-  `vertexHoles`, `indexHoles`), now that nothing walks them a placement.
-
-## Batch 7: the world is whole before it is shown
-
-Files: `components/rtx/mirror/cells/` (all), `components/rtx/mirror/sceneextractor`, `apps/openmw/mwrender/rtx/
-{rtxrenderer,worldmirror,tracedterrain,framereport}`, `apps/openmw/mwrender/{renderer.hpp,renderingmanager}`,
-`apps/openmw/mwworld/scene.cpp`, `apps/rtxtool/{stager,session}`, `apps/rtxtool/model/`.
-
-- [ ] One room leg flown after land legs on the handheld says whether the land resting indoors is the rooms' 21
-  against 51 ms.
-
 ## Batch 8: host memory
 
 Files: `components/resource/{memoryarbiter,cachebudget,objectcache.hpp,budgetedobjectcache.hpp,resourcesystem,
 resourcemanager.hpp,imageheader}`, `components/platform/{memory*,heap*}`, `apps/openmw/mwworld/cellpreloader.cpp`,
 `components/rtxvulkan/device/memory/{memory,systemshare.hpp}`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp`.
 
-- [ ] `Resource::MemoryArbiter`: a `std::jthread` at one second that destroys, reads, derives both budgets and
-  evicts, as specified. `SystemShare` is sampled by it (`memory.cpp:670-687` samples only when content arrives, so
-  a claim outstanding when arrivals stop is withheld from the caches for good); `CacheBudget::yieldTo` each frame
-  and the read on a hand-over go. `Platform::availableMemory` has one reader in a process
-  (`memory.cpp:680`, `resourcesystem.cpp:102`, `chainadmission.cpp:21`, `worldmirror.cpp:246`,
-  `vulkanrenderer.cpp:387` today).
-- [ ] **(upstream, approved)** `cellpreloader.cpp:357-364` — the budget's tick is a queue item behind the preloader's
-  work. Target: `UpdateCacheItem` and `ResourceSystem::updateCache` return to upstream's text.
-- [ ] `cachebudget.cpp:104` — an inserting thread evicts the whole excess, the frame's included, where the header
-  says as many bytes as it added. Target: `makeRoomForInsertion(bytes)`.
-- [ ] `objectcache.hpp:275-285`, `imageheader.cpp:41-45` — `removeFromObjectCache` destroys under the cache's lock
-  on the caller. Target: the value goes to the evicted list.
-- [ ] `cachebudget.cpp:87-94` — `mBytes` is a stored function of three atomics refreshed from two threads. Target:
-  derived in `getBytes()`.
 - [ ] **(upstream, approved)** `objectcache.hpp` — two residencies in one class behind a nullable pointer, eight
   branches, 357 lines in upstream's file. Target: `BudgetedObjectCache` of the fork's beside an untouched upstream
   cache; `GenericResourceManager` takes the cache's type. `mFlights` holds the `std::shared_future`.
@@ -1119,10 +1087,6 @@ resourcemanager.hpp,imageheader}`, `components/platform/{memory*,heap*}`, `apps/
 - [ ] `cachebudget.cpp:14-15` — the heap's free memory counts in full as the caches' room though blocks of 1 MiB
   and over never enter an arena. Target: measured against a tour's resident set, then counted for what small
   entries can take, or not at all.
-- [ ] `cellpreloader.cpp:243-249`, `scene.cpp:1229` — `admitsPreload` is asked twice a door a frame, a preloaded
-  door's stamp is not refreshed before it is refused, and `hasRoom` has a byte of hysteresis. Target: asked once,
-  after the refresh.
-- [ ] `components/platform/filestdio.cpp` is in no target. It goes.
 - [ ] Tests: the tick's order; `CacheBudget`'s own file; the arbiter over a fake system; a claim that ends when
   arrivals stop.
 
@@ -1302,6 +1266,23 @@ Files: `components/rtx/{common,scene,renderer,mirror}`, `apps/components_tests/r
 ## Changed
 
 Items that landed in another shape than their target, each with how and why.
+
+- Batch 8's preload admission: a door's destination preloaded already is stamped first (`refreshPreloaded`, found
+  with no load), and the budget asked only after; a destination it admits is asked again by `preload` with the
+  same answer, which counts nothing. The byte of hysteresis stays: a preload is a guess asked again on the next frame,
+  and a margin would refuse guesses the budget holds room for. No test of the door's path: a cell preloaded
+  stands on a world's store, which the preloader's test has none of.
+
+- Batch 8's arbiter: `Resource::MemoryArbiter` is the logic, ticked by a thread `ResourceSystem` owns, so a test ticks
+  it on a fake reading; `SystemShare` moved to `components/resource`, the backend posting what it holds of a unified
+  heap (`Renderer::getSystemHeld`) and taking back its bound (`setSystemBound`). The backend's `check` report still reads
+  the system's figure once for its own line. `ResourceSystem::updateCache` is upstream's but for its loop, which
+  `modernize-loop-convert` writes as the range the rest of the file is in.
+
+- Batch 5's open issues flown on the handheld: the structure block refused is gone, no block refused over 52 legs at
+  `6217c4224f`, and its entry with it; the rooms after the land legs stand at a p99 median of 27.0 ms against the
+  baseline's 22.8, 32.5 over the first rooms (`research/2026-11-20-handheld-open-issues.md`). No CPU profile was
+  taken: the gap that is left stays the open issue's own.
 
 - Batch 7's wait stands the drawn reach and not the band: a covered frame counts the reach's cells left to stand
   (`CellStreamer::getCellsToShow`), and a ground is held `Shown` inside the reach and `Hidden` in the band past it, so

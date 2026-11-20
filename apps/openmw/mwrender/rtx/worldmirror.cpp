@@ -38,7 +38,7 @@
 #include <components/misc/result.hpp>
 #include <components/nifosg/nifloader.hpp>
 #include <components/platform/heap.hpp>
-#include <components/platform/memory.hpp>
+#include <components/resource/memoryarbiter.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/jobprogress.hpp>
@@ -204,18 +204,18 @@ namespace MWRender
 
     namespace
     {
-        /// What the loading screen keeps beside the preparation, out of `Platform::availableMemory`: the
+        /// What the loading screen keeps beside the preparation, out of what the system leaves the process: the
         /// store's queue of writes (64 MiB at most), the screen's own growth (51 MB on the Fullrest Repack),
         /// and the rest for a compile still running (`docs/research/2026-11-09-content-preparation-cost.md`,
         /// "The reserve"). Nothing after the preparation is reserved: it lets go of everything before the
         /// world loads.
         constexpr std::uint64_t sPreparationReserve = std::uint64_t{ 1 } << 30;
 
-        /// The bytes the preparation's jobs may hold together, read once at its start, or nothing where
-        /// the system states no memory.
-        std::optional<std::uint64_t> preparationBudget()
+        /// The bytes the preparation's jobs may hold together, read once at its start off the arbiter's last
+        /// figure, or nothing where the system states no memory.
+        std::optional<std::uint64_t> preparationBudget(const Resource::MemoryArbiter& memory)
         {
-            const std::optional<std::uint64_t> available = Platform::availableMemory();
+            const std::optional<std::uint64_t> available = memory.getAvailable();
             if (!available.has_value())
                 return std::nullopt;
             return *available - std::min(*available, sPreparationReserve);
@@ -240,7 +240,8 @@ namespace MWRender
                        .mMask = sWorldTraversal,
                        .mAutoMaps = resources.getSceneManager()->getAutoMaps(),
                        .mHands = hands,
-                       .mBudget = preparationBudget(),
+                       .mBudget = preparationBudget(resources.getMemoryArbiter()),
+                       .mMemory = &resources.getMemoryArbiter(),
                        .mDay = static_cast<std::uint32_t>(
                            std::chrono::floor<std::chrono::days>(std::chrono::system_clock::now())
                                .time_since_epoch()

@@ -106,15 +106,18 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   in place of `cache expiry delay`; each load states its bytes (`Resource::Loaded`), and `navmeshtool` and
   `bulletobjecttool` hand a budget with no bound, as upstream's delay there was never applied. A run may hold it under a limit (`CacheBudget::limit`, the harness's
   `--cache-budget`), so the desk loads as a machine short of memory does. Cost: also a conflict with an edit to the
-  managers' constructors, `ResourceSystem`'s, or the physics system's shape manager. The budget counts the heap's free memory, which the
-  system counts as the process's (`ResourceSystem::updateCache` reads `Platform::heapHeld` with the system's figure);
-  an eviction keeps its value until the deriving worker destroys it (`BudgetedCache::destroyEvicted`), so an inserting
-  thread, the frame's among them, destroys nothing; and `GenericObjectCache::update` stamps a budgeted cache in runs of
+  managers' constructors, `ResourceSystem`'s, or the physics system's shape manager. The budget is derived once a
+  second by `Resource::MemoryArbiter`, which `ResourceSystem` owns and ticks on a thread of its own, from one reading of
+  the system and the heap, whose free memory the system counts as the process's; `ResourceSystem::updateCache` and the
+  preloader's `UpdateCacheItem` are upstream's text again (the user's yes, 2026-11-20), the tick off the preloader's
+  queue. An eviction keeps its value until the arbiter's tick destroys it (`BudgetedCache::destroyEvicted`), so an
+  inserting thread, the frame's among them, destroys nothing; and `GenericObjectCache::update` stamps a budgeted cache in runs of
   256 entries, the lock let go between them. Approved with item 10 of the tree and content memory plan (2026-11-17).
 - `CellPreloader::preload` skips a cell while the caches stand past their budget with everything in use, counted as
-  `CellPreloader Skipped`: a preload is a guess, and past the budget it holds memory the frame needs. `Scene::preloadTeleportDoorDestinations` asks
-  the same (`CellPreloader::admitsPreload`) before `findCell` loads a door's destination, which a skipped preload had
-  loaded all the same. Cost: a conflict with an edit to that loop. Approved with item 10 of the tree and content
+  `CellPreloader Skipped`: a preload is a guess, and past the budget it holds memory the frame needs. `Scene::preloadTeleportDoorDestinations` stamps
+  a destination preloaded already (`CellPreloader::refreshPreloaded`, found with no load) and only then asks the same
+  (`CellPreloader::admitsPreload`) before `findCell` loads a door's destination, which a skipped preload had loaded all
+  the same, and where a refusal ahead of the stamp let a preloaded destination expire. Cost: a conflict with an edit to that loop. Approved with item 10 of the tree and content
   memory plan (2026-11-17).
 - `CellPreloader::isTerrainLoaded` reads the delay the resource system was made with and last set
   (`ResourceSystem::getExpiryDelay`), where it read the scene manager's: a budgeted manager is made with none, so
