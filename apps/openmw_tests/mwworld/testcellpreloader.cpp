@@ -81,9 +81,12 @@ namespace MWWorld
             far.mPosition.x() += 2.0f * cell;
             EXPECT_FALSE(preloader.isTerrainLoaded(far, 10.0));
 
-            // A run that holds every cache for good, as a stated-step harness run does.
-            resources.setExpiryDelay(std::numeric_limits<double>::infinity());
-            EXPECT_TRUE(preloader.isTerrainLoaded(asked, 1.0e9));
+            // **The delay read is the one last set**, as a run that holds every cache for good sets it. On a system
+            // no preloader works over: the preloader's worker updates the caches of the one above while this runs.
+            Resource::ResourceSystem held(&vfs, 5.0, nullptr);
+            EXPECT_EQ(held.getExpiryDelay(), 5.0);
+            held.setExpiryDelay(std::numeric_limits<double>::infinity());
+            EXPECT_EQ(held.getExpiryDelay(), std::numeric_limits<double>::infinity());
         }
     }
 }

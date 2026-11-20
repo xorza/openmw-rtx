@@ -5,6 +5,7 @@
 #include <mutex>
 #include <stop_token>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -29,10 +30,12 @@ namespace RtxTool
     }
 
     FileWriter::FileWriter()
-        : mWorker([this](const std::stop_token& stop) { serve(stop); })
     {
         mPending.reserve(sPendingMost);
         mFailures.reserve(sFailuresMost);
+        // Started once what it reads stands: begun in the initializer list, it read the queue the lines above
+        // were still reserving.
+        mWorker = std::jthread([this](const std::stop_token& stop) { serve(stop); });
     }
 
     void FileWriter::write(std::filesystem::path path, std::string text, const As as)
