@@ -168,7 +168,7 @@ namespace MWRender
         , mWalk{ .mContent{} }
         , mScene(identities, Rtx::sWorldRoom)
         , mKnobs(knobs)
-        , mExtractor(mScene, mWalk, Rtx::sWorldExtractorRoom, Rtx::HoldTier::Shown)
+        , mExtractor(mScene, mWalk, Rtx::sWorldExtractorRoom, Rtx::HoldTier::Near)
         , mTraversal(worldTraversal(~0u))
     {
         mRing.setMinSize(knobs.mMinSize);

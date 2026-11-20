@@ -144,14 +144,14 @@ namespace Rtx
                 std::ranges::count_if(ops, [](const ResidencyOp& op) { return std::holds_alternative<Op>(op); }));
         }
 
-        /// **A plan that fits gives every want**: three 512² textures, shown, under a cap of a gigabyte. The first
-        /// hand-over asks the feed for each whole chain and a chunk of the device; the second, both arrived, stands
-        /// each in a slot at its want, level 0, uploading its ten levels. Nothing is starved or below its want, and
-        /// the shown tier is settled.
+        /// **A plan that fits gives every want**: three 512² textures, one near and two shown, under a cap of a
+        /// gigabyte. The first hand-over asks the feed for each whole chain and a chunk of the device, and counts the
+        /// three standing nothing, of them the near one; the second, both arrived, stands each in a slot at its want,
+        /// level 0, uploading its ten levels. Nothing is starved or below its want, and the shown tier is settled.
         TEST(RtxResidencyTest, aPlanThatFitsGivesEveryWant)
         {
             World world(1024 * sMiB);
-            const std::vector<TextureIndex> textures{ world.texture("textures/a.dds", 512, HoldTier::Shown),
+            const std::vector<TextureIndex> textures{ world.texture("textures/a.dds", 512, HoldTier::Near),
                 world.texture("textures/b.dds", 512, HoldTier::Shown),
                 world.texture("textures/c.dds", 512, HoldTier::Shown) };
 
@@ -161,6 +161,8 @@ namespace Rtx
             EXPECT_EQ(world.mDevice.getBlocksHeld(), 1u) << "a chunk asked one ahead";
             EXPECT_EQ(world.mResidency.getReport().mMissingDemanded, (MissingDemanded{ .mAsked = 3 }))
                 << "three textures planned, asked of the feed, and standing nothing";
+            EXPECT_EQ(world.mResidency.getReport().mMissingNear, (MissingDemanded{ .mAsked = 1 }))
+                << "of them the near one";
             EXPECT_FALSE(world.mResidency.isSettled(HoldTier::Shown));
             EXPECT_TRUE(world.mResidency.owes(SceneSlot::world()));
 
@@ -177,6 +179,7 @@ namespace Rtx
             EXPECT_EQ(world.mResidency.getReport().mBelowWant, 0u);
             EXPECT_TRUE(world.mResidency.isSettled(HoldTier::Shown));
             EXPECT_EQ(world.mResidency.getReport().mMissingDemanded, MissingDemanded{});
+            EXPECT_EQ(world.mResidency.getReport().mMissingNear, MissingDemanded{});
             EXPECT_FALSE(world.mResidency.owes(SceneSlot::world()));
             EXPECT_TRUE(world.mResidency.getLedger().isConsistent());
         }
@@ -446,15 +449,21 @@ namespace Rtx
         }
 
         /// **A structure is built loose, then copied tight once the device answers its size**; one that refits is kept
-        /// as built. A shown quad's mesh: its build on the second frame, the chunk asked on the first; the device's
-        /// answer the frame after, and its tight copy then, the loose slot given back.
+        /// as built. A near quad's mesh: its build on the second frame, the chunk asked on the first, where it is a
+        /// near mesh missing; the device's answer the frame after, and its tight copy then, the loose slot given back.
         TEST(RtxResidencyTest, aStructureIsBuiltLooseThenCopiedTight)
         {
             World world(1024 * sMiB);
             const MeshIndex mesh = Testing::addQuadMesh(world.mScene);
-            world.mMeshes.push_back(world.mScene.holdMesh(mesh, HoldTier::Shown));
+            world.mMeshes.push_back(world.mScene.holdMesh(mesh, HoldTier::Near));
             world.frame();
+            EXPECT_EQ(
+                world.mResidency.getReport().mMissingDemanded, (MissingDemanded{ .mMeshes = 1, .mMeshesForRoom = 1 }))
+                << "no room for it until the chunk asked comes";
+            EXPECT_EQ(world.mResidency.getReport().mMissingNear, (MissingDemanded{ .mMeshes = 1 }))
+                << "the room's count the whole's alone";
             world.frame();
+            EXPECT_EQ(world.mResidency.getReport().mMissingNear, MissingDemanded{}) << "built on its second frame";
             ASSERT_EQ(countOps<BuildStructure>(world.mDevice.getLastOps()), 1u);
             const auto& build = std::get<BuildStructure>(world.mDevice.getLastOps()[0]);
             EXPECT_EQ(build.mMesh, mesh);

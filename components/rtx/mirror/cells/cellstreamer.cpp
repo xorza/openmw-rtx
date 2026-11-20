@@ -90,13 +90,14 @@ namespace Rtx
         mSettled = settled;
     }
 
-    std::uint32_t CellStreamer::getCellsToShow() const
+    std::uint32_t CellStreamer::getCellsToShow(const HoldTier through) const
     {
+        assert((through == HoldTier::Near || through == HoldTier::Shown) && "a change waits for the near or the reach");
         if (!mAsked.has_value())
             return 0;
         std::uint32_t lacking = 0;
-        mAsked->mGrid.forEachCellWithin(
-            mAsked->mEye, mAround.mReach, [&](const osg::Vec2i& cell) { lacking += mPlacer.holds(cell) ? 0u : 1u; });
+        mAsked->mGrid.forEachCellWithin(mAsked->mEye, mAround.mReach,
+            [&](const osg::Vec2i& cell) { lacking += !mPlacer.holds(cell) && tierOf(cell) <= through ? 1u : 0u; });
         return lacking;
     }
 
@@ -244,7 +245,7 @@ namespace Rtx
     {
         assert(mAsked.has_value() && "a ground's tier asked with no band");
         if (mAsked->nearEye(cell, mAround.mReach))
-            return HoldTier::Shown;
+            return inActiveGrid(cell, mAsked->mActiveGrid) ? HoldTier::Near : HoldTier::Shown;
         return mAsked->wants(cell) ? HoldTier::Hidden : HoldTier::Kept;
     }
 
@@ -438,6 +439,7 @@ namespace Rtx
         mTarget.mKept = keptTo(band);
         mTarget.mGrassBand = grass;
         mTarget.mGrassKept = keptTo(grass);
+        mTarget.mActiveGrid = mAround.mActiveGrid;
         mTarget.mPredicted.clear();
         mPredictedBands.collect(mTarget.mPredicted);
         if (mAsked != mTarget)

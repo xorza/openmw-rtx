@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 
+#include <components/rtx/common/holdtier.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 
 namespace RtxTool
@@ -126,6 +127,13 @@ namespace RtxTool
         /// and `--hud` decides whether anything of the interface is drawn over it
         /// (`MWRender::RunSetup::mInterface`).
         bool mPlayed = false;
+
+        /// What a change of cells holds the session until it stands (`MWRender::RunSetup::mStandsAtChange`): the cells
+        /// the game stands for itself in every command, as in the game, the distance streaming in behind; the whole
+        /// reach in a tour alone, whose crossings are what it measures and whose frames must not meet the distance
+        /// arriving. A stop that measures or pictures still waits for the whole world before its first measured
+        /// frame (`MeasureWindow`), with its clock held: that is when a frame is taken, not how the world loads.
+        Rtx::HoldTier mStandsAtChange = Rtx::HoldTier::Near;
 
         /// The width the light is traced at: the game's where frames are measured or played, since
         /// those are the frames a player sees and none is summed, and the reference's where they

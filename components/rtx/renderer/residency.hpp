@@ -179,6 +179,10 @@ namespace Rtx
         /// Residents of a demanded tier the plan gives something that stand nothing yet, by why.
         MissingDemanded mMissingDemanded;
 
+        /// Of those, the residents of `HoldTier::Near` and above: what a change of cells waits on but in a tour. The
+        /// room's counts (`MissingDemanded::mMeshesForRoom`) are the whole's alone.
+        MissingDemanded mMissingNear;
+
         /// Textures of a demanded tier the hand-over raised from a level that stood to a finer one: each sharpened in
         /// view, where it was drawn.
         std::uint32_t mLevelSteps = 0;

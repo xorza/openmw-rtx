@@ -1,6 +1,7 @@
 #include "residency.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -49,6 +50,10 @@ namespace Rtx
         {
             return tier < HoldTier::Kept;
         }
+
+        /// Every demanded tier, the most protected first: the order the issue walks them in.
+        constexpr std::array sDemandedTiers{ HoldTier::Forced, HoldTier::Near, HoldTier::Shown, HoldTier::Hidden };
+        static_assert(sDemandedTiers.size() == static_cast<std::size_t>(HoldTier::Kept), "a demanded tier left out");
 
         ClassIndex classAt(const TextureResident& texture, const std::uint8_t level)
         {
@@ -1151,7 +1156,7 @@ namespace Rtx
 
         // Arrivals and raisings, the most protected first: texels asked of the feed, then stood once they came; a bake
         // once what it is made of stands.
-        for (const HoldTier tier : { HoldTier::Forced, HoldTier::Shown, HoldTier::Hidden })
+        for (const HoldTier tier : sDemandedTiers)
             for (std::uint32_t at = 0; at < scene.mTextures.size(); ++at)
             {
                 const TextureIndex row(at);
@@ -1248,7 +1253,7 @@ namespace Rtx
 
     void Residency::issueStructures(Scene& scene, const Shares& shares)
     {
-        for (const HoldTier tier : { HoldTier::Forced, HoldTier::Shown, HoldTier::Hidden })
+        for (const HoldTier tier : sDemandedTiers)
             for (std::uint32_t at = 0; at < scene.mStructures.size(); ++at)
             {
                 const MeshIndex row(at);
@@ -1391,6 +1396,7 @@ namespace Rtx
         std::uint32_t waiting = 0;
         std::uint32_t demanded = 0;
         MissingDemanded missing;
+        MissingDemanded missingNear;
         for (const Scene& each : mScenes)
         {
             for (const TextureResident& texture : each.mTextures)
@@ -1399,25 +1405,32 @@ namespace Rtx
                     || standingLevelOf(texture).has_value())
                     continue;
                 const auto* const arriving = std::get_if<TextureArriving>(&texture.mStanding);
-                if (arriving != nullptr)
-                    ++(arriving->mMade.has_value() ? missing.mArrived : missing.mAsked);
-                else if (texture.mBakedFrom != sNoRow)
-                {
-                    const std::optional<std::uint8_t> source = standingLevelOf(each.mTextures[texture.mBakedFrom]);
-                    ++(source == texture.mPlannedLevel ? missing.mUnaskedForRoom : missing.mUnaskedBakes);
-                }
-                else if (texture.mGroundOf != sNoRow)
+                const auto why = [&]() -> std::uint32_t MissingDemanded::* {
+                    if (arriving != nullptr)
+                        return arriving->mMade.has_value() ? &MissingDemanded::mArrived : &MissingDemanded::mAsked;
+                    if (texture.mBakedFrom != sNoRow)
+                        return standingLevelOf(each.mTextures[texture.mBakedFrom]) == texture.mPlannedLevel
+                            ? &MissingDemanded::mUnaskedForRoom
+                            : &MissingDemanded::mUnaskedBakes;
                     // The layers are told apart in the scene handed over alone, whose description this has.
-                    ++(&each == &scene && layersStand(each.mTextures, handing.mScene, texture.mGroundOf)
-                            ? missing.mUnaskedForRoom
-                            : missing.mUnaskedComposites);
-                else
-                    ++missing.mUnaskedFiles;
+                    if (texture.mGroundOf != sNoRow)
+                        return &each == &scene && layersStand(each.mTextures, handing.mScene, texture.mGroundOf)
+                            ? &MissingDemanded::mUnaskedForRoom
+                            : &MissingDemanded::mUnaskedComposites;
+                    return &MissingDemanded::mUnaskedFiles;
+                }();
+                ++(missing.*why);
+                if (texture.mTier <= HoldTier::Near)
+                    ++(missingNear.*why);
             }
-            missing.mMeshes += static_cast<std::uint32_t>(
-                std::ranges::count_if(each.mStructures, [](const StructureResident& structure) {
-                    return isDemanded(structure.mTier) && structure.mPlanned && !slotOf(structure).has_value();
-                }));
+            for (const StructureResident& structure : each.mStructures)
+            {
+                if (!isDemanded(structure.mTier) || !structure.mPlanned || slotOf(structure).has_value())
+                    continue;
+                ++missing.mMeshes;
+                if (structure.mTier <= HoldTier::Near)
+                    ++missingNear.mMeshes;
+            }
             waiting += static_cast<std::uint32_t>(std::ranges::count_if(each.mTextures, textureWaits));
             waiting += static_cast<std::uint32_t>(std::ranges::count_if(each.mStructures, structureWaits));
             demanded += static_cast<std::uint32_t>(std::ranges::count_if(each.mTextures,
@@ -1433,6 +1446,7 @@ namespace Rtx
         missing.mMeshesForRoom = mStructuresRoomless;
         missing.mMeshesForRoomLarge = mStructuresRoomlessLarge;
         mReport.mMissingDemanded = missing;
+        mReport.mMissingNear = missingNear;
         return epoch;
     }
 

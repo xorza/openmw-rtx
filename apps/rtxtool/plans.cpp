@@ -215,6 +215,7 @@ namespace RtxTool
         request.mHud = line.mHud;
         request.mSpellHands = line.mSpellHands;
         request.mSetup.mInterface = request.mPlayed || request.mHud;
+        request.mSetup.mStandsAtChange = policy.mStandsAtChange;
         request.mVanity = line.mVanity;
         request.mNightEye = line.mNightEye;
         request.mRandomSeed = line.mRandomSeed;

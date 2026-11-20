@@ -12,7 +12,12 @@ namespace Rtx
         /// A picture's scene, the sky's sheets, a holder that reads the texture itself.
         Forced,
 
-        /// A placement of the walk, a cell inside the drawn reach, the band a load waits on.
+        /// What the game stands for itself: a placement of the walk, and the ground of a cell of its active grid. What
+        /// every change of cells waits on, at a door, a load and a crossing (`MWRender::RunSetup::mStandsAtChange`).
+        Near,
+
+        /// A cell inside the drawn reach and past the active grid, its ground and its statics: what streams in behind a
+        /// change of cells, and a tour's change waits on as well.
         Shown,
 
         /// A cell of a predicted band.

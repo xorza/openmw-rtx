@@ -84,10 +84,11 @@ namespace Rtx
         /// not.
         std::uint32_t getCellsToStand() const;
 
-        /// How many cells of the drawn reach the last walk left unheld: what a frame shows the world without, which the
-        /// world's wait under the loading screen waits out (`MWRender::RtxRenderer::standWhole`). The band past the
-        /// reach streams on behind it, hidden.
-        std::uint32_t getCellsToShow() const;
+        /// How many cells of the drawn reach held at `through` or above the last walk left unheld: what a frame shows
+        /// the world without, which the world's wait under the loading screen waits out
+        /// (`MWRender::RtxRenderer::standWhole`), the active grid's alone at `HoldTier::Near` and the whole reach at
+        /// `HoldTier::Shown`. The band past the reach streams on behind it, hidden.
+        std::uint32_t getCellsToShow(HoldTier through) const;
 
         /// Whether a cell under the square from `low` to `high`, world units on the plane, is in the
         /// band the last walk asked over and not yet held: a picture of the ground there taken now

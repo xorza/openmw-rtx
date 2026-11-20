@@ -33,6 +33,7 @@ namespace Rtx
                 .mGrassBand = 0.4f * sCell,
                 .mGrassKept = 1.4f * sCell,
                 .mPredicted = {},
+                .mActiveGrid = {},
             };
         }
 

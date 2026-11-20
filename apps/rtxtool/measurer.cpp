@@ -126,8 +126,12 @@ namespace RtxTool
         // Counted at the frame the run traced and never at the frame the device answered for it: a result comes back
         // one frame later or two, so counting results would put two runs of one build at different points of the
         // sequence and pair one frame's scene with another's picture. What the device answered is taken in below.
+        // **A played stop's world stands from its first frame**: the change stood what the game stands for itself
+        // (`RunSetup::mStandsAtChange`), and the rest of the reach streams in as the game's does, behind a clock that
+        // runs. Held for the whole reach, a window at thirty cells stood still for seconds, its histories reset on
+        // every frame of the wait.
         const MeasureWindow::Taken taken = mProgress.mWindow.take(WindowFrame{
-            .mWhole = report.isWhole(),
+            .mWhole = mRequest.mPlayed || report.isWhole(),
             // The stager's own hold is the wait, which the window counts as one; a pause is anything else.
             .mPaused = report.mPaused && Staging::pausedBeyondHold(),
             .mCellsToStand = report.mCellsToStand,

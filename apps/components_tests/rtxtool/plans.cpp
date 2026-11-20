@@ -157,6 +157,8 @@ namespace RtxTool
             EXPECT_EQ(plain.mRequest.mHashes, std::filesystem::path());
             EXPECT_EQ(plain.mRequest.mPictures, std::filesystem::path());
             EXPECT_TRUE(plain.mRequest.mMeasures);
+            EXPECT_EQ(plain.mRequest.mSetup.mStandsAtChange, Rtx::HoldTier::Near)
+                << "a bench stands what is near at a change and waits for the rest before it measures";
 
             const std::filesystem::path out = TestingOpenMW::currentTestDirPath() / "bench";
             const HostedRun kept = planOf(Verb::Bench,
@@ -183,6 +185,8 @@ namespace RtxTool
             EXPECT_FALSE(open.mRequest.mSetup.mHeadless) << "a `Framed` is headless until a verb says otherwise";
             EXPECT_EQ(open.mRequest.mStep, std::nullopt);
             EXPECT_TRUE(open.mRequest.mPlayed);
+            EXPECT_EQ(open.mRequest.mSetup.mStandsAtChange, Rtx::HoldTier::Near)
+                << "a window stands what is near and streams the rest in, as the game does";
             EXPECT_FALSE(open.mRequest.mQuitAtEnd);
             ASSERT_EQ(open.mRequest.mStops.size(), 1u);
             EXPECT_EQ(open.mRequest.mStops.front().mName, "seyda-neen-ship") << "where the game starts";
@@ -233,6 +237,8 @@ namespace RtxTool
             EXPECT_EQ(run.mPhysicsThreads, 1) << "the game's threaded physics";
             EXPECT_TRUE(request.mHud) << "the interface over the frame, as a player sees it";
             EXPECT_TRUE(request.mSetup.mInterface);
+            EXPECT_EQ(request.mSetup.mStandsAtChange, Rtx::HoldTier::Shown)
+                << "a tour alone holds a change for the whole reach";
             EXPECT_EQ(mLine.mFrame.mSize.mWidth, 800u) << "read off a line that names no size";
             EXPECT_EQ(mLine.mFrame.mSize.mHeight, 600u);
             EXPECT_TRUE(request.mMeasures);

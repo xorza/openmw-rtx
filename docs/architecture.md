@@ -297,8 +297,15 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
 - **The reader runs at most `CellTable::sReadAheadMost` reads ahead of the frame**, a read nearer than every one waiting
   taken past it, so a settled walk's wait for its nearest cell is never a wait for room. Refused: a reader let read a whole band ahead of a frame that adopts one cell a frame.
 - **The world is whole before a frame shows it** (`Renderer::standWhole`), asked at the three places upstream's
-  `Scene` changes the cells: the ray tracer loops covered frames from the change's position — the walk, the hand-over,
-  no trace — until no cell of the drawn reach is left to stand and no demanded resident stands nothing, under the
+  `Scene` changes the cells, at a door, a load and a crossing alike: what the game stands for itself, a tier of its own
+  (`HoldTier::Near`: the walk's placements and its active grid's ground), the rest of the drawn reach streaming in
+  behind the first frames, nearest cell first, in the game and every harness command but the tour, which holds the
+  whole reach (`RunSetup::mStandsAtChange`, `VerbPolicy::mStandsAtChange`). A harness stop that measures or pictures
+  waits for the whole world before its first measured frame with its clock held, which is when a frame is taken and
+  not how the world loads; a played window's stands from its first frame. Refused: holding the whole reach in the
+  game, a loading screen that grows with it, some 2800 cells at thirty; and holding nothing, which drew the player's
+  own cell in stand-ins. The ray tracer loops covered frames from the change's position — the walk, the hand-over,
+  no trace — until no cell of what it waits for is left to stand and no resident of its tiers stands nothing, under the
   loading screen only where the first frame is not whole, so a crossing whose reach stands shows no screen; the band
   past the reach streams on behind it, hidden. Refused: waiting out the band, which held every crossing of a flight
   for the rim it reads ahead. A wait that brings

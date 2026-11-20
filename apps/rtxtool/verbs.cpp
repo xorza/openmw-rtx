@@ -39,7 +39,8 @@ namespace RtxTool
             { Verb::Film, "film",
                 VerbPolicy{ .mFollowsTracks = true, .mMeasures = true, .mShaders = VerbShaders::Shipped } },
             { Verb::Noise, "noise", VerbPolicy{ .mFreezes = true } },
-            { Verb::Tour, "tour", VerbPolicy{ .mFollowsTracks = true, .mMeasures = true } },
+            { Verb::Tour, "tour",
+                VerbPolicy{ .mFollowsTracks = true, .mMeasures = true, .mStandsAtChange = Rtx::HoldTier::Shown } },
         } };
 
         /// The names, checked where they are declared: each command once, in enum order, no spelling shared.

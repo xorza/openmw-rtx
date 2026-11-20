@@ -8,6 +8,7 @@
 
 #include <osg/Vec2i>
 #include <osg/Vec3f>
+#include <osg/Vec4i>
 
 #include "cellgrid.hpp"
 
@@ -92,6 +93,9 @@ namespace Rtx
 
         /// Where the game predicts the eye will stand (`PredictedBands`).
         std::vector<osg::Vec3f> mPredicted;
+
+        /// The cells the game stands for itself (`WorldAround::mActiveGrid`), whose ground is held `HoldTier::Near`.
+        osg::Vec4i mActiveGrid;
 
         bool operator==(const CellTarget& other) const = default;
 

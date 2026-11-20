@@ -2,7 +2,7 @@
 
 ## Code
 
-- Remove the visibility limit.
+
 
 ## Prompts
 

@@ -1715,6 +1715,12 @@ namespace Rtx::Testing
         {
             start();
             walk(mWalked++);
+
+            // **What a change waits for, by its tier**: the first settled walk holds the eye's cell alone, so the
+            // active grid's nine lack eight and the drawn reach's `sPlacedCells`, 69, lack 68.
+            EXPECT_EQ(mRing.getCellsToShow(HoldTier::Near), 8u);
+            EXPECT_EQ(mRing.getCellsToShow(HoldTier::Shown), sPlacedCells - 1);
+
             while (mRing.getCellsToStand() > 0 && mWalked < 1000)
                 walk(mWalked++);
             ASSERT_EQ(mRing.getHeldCellCount(), sPreparedCells);
@@ -1728,12 +1734,24 @@ namespace Rtx::Testing
             EXPECT_FALSE(mRing.standsGround(osg::Vec2i(4, 4))) << "a held cell past the reach";
             EXPECT_FALSE(mRing.standsGround(osg::Vec2i(6, 0)));
 
-            // **A ground is held `Shown` inside the drawn reach, `Hidden` in the band past it and `Kept` past that**:
-            // (4, 4) at `sqrt(3.5² + 3.5²) ≈ 4.95` cells is past the reach of four and inside the band of five, and
-            // the cells to show are none.
-            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(0, 0)), HoldTier::Shown);
+            // **A ground is held `Near` inside the active grid, `Shown` inside the drawn reach, `Hidden` in the band
+            // past it and `Kept` past that**: (1, 1) is the grid's corner, which runs from (-1, -1) to (2, 2)
+            // exclusive, and (2, 0) the first cell past it; (4, 4) at `sqrt(3.5² + 3.5²) ≈ 4.95` cells is past the
+            // reach of four and inside the band of five, and the cells to show are none at either tier.
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(0, 0)), HoldTier::Near);
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(1, 1)), HoldTier::Near);
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(2, 0)), HoldTier::Shown);
             EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(4, 4)), HoldTier::Hidden);
-            EXPECT_EQ(mRing.getCellsToShow(), 0u);
+            EXPECT_EQ(mRing.getCellsToShow(HoldTier::Near), 0u);
+            EXPECT_EQ(mRing.getCellsToShow(HoldTier::Shown), 0u);
+
+            // The grid moved a cell east, as a crossing moves it, retiers what it left and what it took.
+            mAround.mActiveGrid = osg::Vec4i(0, -1, 3, 2);
+            walk(mWalked++);
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(-1, 0)), HoldTier::Shown) << "left behind by the grid";
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(2, 0)), HoldTier::Near) << "taken in by the grid";
+            mAround.mActiveGrid = osg::Vec4i(-1, -1, 2, 2);
+            walk(mWalked++);
 
             mAround.mReach += sCellSize;
             walk(mWalked++);
@@ -1773,7 +1791,7 @@ namespace Rtx::Testing
                 std::this_thread::yield();
             }
             EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(13, 0)), HoldTier::Hidden);
-            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(0, 0)), HoldTier::Shown);
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(0, 0)), HoldTier::Near) << "the active grid's own";
             mRing.getPredictedBands().close(slot);
             walk(mWalked++);
             EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(13, 0)), HoldTier::Unheld) << "past every band's keep";
@@ -2212,7 +2230,8 @@ namespace Rtx::Testing
                     .mKept = 1.25f * sCellSize,
                     .mGrassBand = 0.0f,
                     .mGrassKept = 0.0f,
-                    .mPredicted = {} };
+                    .mPredicted = {},
+                    .mActiveGrid = {} };
             };
             CellsDropped dropped;
             supply.retarget(at(osg::Vec2i(0, 0)), dropped);

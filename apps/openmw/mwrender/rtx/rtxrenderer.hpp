@@ -413,6 +413,9 @@ namespace MWRender
         /// `RunSetup::mInterface`: read by every frame's `drawGui`.
         bool mInterface;
 
+        /// `RunSetup::mStandsAtChange`: what `standWhole` holds the game until it stands.
+        Rtx::HoldTier mStandsAtChange;
+
         /// `RunSetup::mKernels`: what `prepareContent` waits for.
         Rtx::KernelSet mKernels;
 

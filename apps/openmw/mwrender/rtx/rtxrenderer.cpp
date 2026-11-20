@@ -125,6 +125,7 @@ namespace MWRender
         : Renderer(spec)
         , mRun(run != nullptr ? run->mRun : mPlayed)
         , mInterface(setup.mInterface)
+        , mStandsAtChange(setup.mStandsAtChange)
         , mKernels(setup.mKernels)
         , mWindow(RtxWindow::hasDisplay() ? std::optional(surfaceFlagsOf(setup.mBackend)) : std::nullopt,
               setup.mHeadless, setup.mWindowPixels)
@@ -669,15 +670,19 @@ namespace MWRender
         eye.setTrans(changed.mPosition);
         const osg::Matrixd view = osg::Matrixd::inverse(eye);
 
-        // What is left to stand, nought once whole: the cells, the demanded residents standing nothing, and a hand-over
-        // that did more than place.
+        // What is left to stand, nought once whole: the cells, the demanded residents standing nothing, and for the
+        // whole reach a hand-over that did more than place. **A change that waits for what is near alone** asks
+        // nothing of the hand-over: the distant geometry arriving behind it extends every one, which it would wait out.
+        const bool near = mStandsAtChange == Rtx::HoldTier::Near;
         FrameReport report;
+        const auto missingOf
+            = [&] { return near ? report.mResidency.mMissingNear : report.mResidency.mMissingDemanded; };
         const auto cover = [&] {
             advance(getFrameStamp().getSimulationTime());
             report = FrameReport{};
             coverFrame(frame, view, report);
-            const std::uint32_t lacking = report.mCellsToShow + report.mResidency.mMissingDemanded.total();
-            if (lacking == 0 && report.mUpload.mKind == Rtx::SceneUpload::Kind::Placed)
+            const std::uint32_t lacking = report.mCellsToShow + missingOf().total();
+            if (lacking == 0 && (near || report.mUpload.mKind == Rtx::SceneUpload::Kind::Placed))
                 return 0u;
             return std::max(1u, lacking);
         };
@@ -719,7 +724,7 @@ namespace MWRender
             mHeldAtCrossingMs = Rtx::since(began, std::chrono::steady_clock::now());
         if (gaveUp)
         {
-            const Rtx::MissingDemanded& missing = report.mResidency.mMissingDemanded;
+            const Rtx::MissingDemanded missing = missingOf();
             Log(Debug::Warning) << std::format(
                 "Ray tracing showed the world with {} cells to show, {} textures standing nothing ({} asked, {} come "
                 "and waiting for room, {} files, {} bakes and {} composites not asked, {} made with no room) and {} "
@@ -753,7 +758,7 @@ namespace MWRender
             report.mResidency = mResidency->getReport();
         }
 
-        report.mCellsToShow = mMirror.getRing().getCellsToShow();
+        report.mCellsToShow = mMirror.getRing().getCellsToShow(mStandsAtChange);
 
         mPhase.step(Phase::Tracing, Phase::Placing);
         mRenderer->skipFrame();

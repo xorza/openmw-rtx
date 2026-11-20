@@ -411,7 +411,8 @@ namespace MWRender
         virtual void prepareContent(const MWWorld::ESMStore& store, Loading::Listener& listener) {}
 
         /// **Holds the game until the world around `changed.mPosition` stands whole**, where the cells changed: what a
-        /// frame would show of it stands, so nothing pops in after the change. `frame` is the world as it stands,
+        /// frame would show of it stands, so nothing pops in after the change — the cells the game stands for itself,
+        /// the distance streaming in behind, unless the run holds the whole reach. `frame` is the world as it stands,
         /// still. It waits under `listener`'s screen only where it has to wait at all, and a crossing whose band
         /// already stands returns with no frame. The rasterizer draws what the graph holds and waits on nothing.
         virtual void standWhole(const SceneFrame& frame, const WorldChanged& changed, Loading::Listener& listener) {}

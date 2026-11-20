@@ -8,6 +8,7 @@
 
 #include <osg/Vec2i>
 
+#include <components/rtx/common/holdtier.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -65,6 +66,12 @@ namespace MWRender
         /// step decide (`Misc::LoopClock::getStatedStep`): a stated step waits. Settled is what makes two processes
         /// draw one picture; a run timing the streaming path says no (`Rtx::CellStreamer::setSettled`).
         std::optional<bool> mSettled{};
+
+        /// What a change of cells holds the game until it stands (`RtxRenderer::standWhole`), at a door, a load and a
+        /// crossing alike: the cells the game stands for itself and what they show, `HoldTier::Near`, the rest of the
+        /// drawn reach streaming in behind, nearest cell first — the game's and every harness command's but one; and
+        /// the whole reach, `HoldTier::Shown`, for a tour (`RtxTool::VerbPolicy::mStandsAtChange`).
+        Rtx::HoldTier mStandsAtChange = Rtx::HoldTier::Near;
 
         /// The shaders the renderer reads, where not the ones the game compiles in (`shippedShadersOf`): the
         /// harness's sets, which count non-finite stores into the census and keep their source for a profiler,
