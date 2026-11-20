@@ -37,6 +37,11 @@ namespace Resource
     class SceneManager;
 }
 
+namespace Rtx
+{
+    class PredictedBands;
+}
+
 namespace Terrain
 {
     class Storage;
@@ -48,21 +53,25 @@ namespace MWRender
     struct RefnumMarker;
 
     /// Which cells past the loaded ones stand ground the trace draws, and what statics: the ring's
-    /// word, which the ground that owns both forwards. Asked by a ray cast, and by nothing else.
+    /// word, which the ground that owns both forwards. Asked by a ray cast, and by nothing else; and where the game
+    /// predicts the eye will stand, which the preload worker tells.
     class StandingGround
     {
     public:
         virtual bool standsGround(const osg::Vec2i& cell) const = 0;
 
-        /// The placements the ring holds in `cell`, standing or not — `Rtx::CellRing::placementsIn`.
+        /// The placements the ring holds in `cell`, standing or not — `Rtx::CellStreamer::placementsIn`.
         virtual std::span<const Rtx::Placement> placementsIn(const osg::Vec2i& cell) const = 0;
+
+        /// `Rtx::CellStreamer::getPredictedBands`, whose lock is its own, so any thread may tell it.
+        virtual Rtx::PredictedBands& getPredictedBands() const = 0;
 
     protected:
         ~StandingGround() = default;
     };
 
     /// The ground as the ray tracer stands it: a `Terrain::World` that holds the storage, the worldspace and
-    /// the active grid and draws no chunks, as `Rtx::CellRing` reads the land records itself. The preloader
+    /// the active grid and draws no chunks, as `Rtx::CellStreamer` reads the land records itself. The preloader
     /// still asks every world for a view to fill, so upstream's callers run unchanged.
     ///
     /// Upstream's cell borders need no chunk: `ToggleBorders` stands a line strip over each loaded cell's
@@ -90,9 +99,15 @@ namespace MWRender
         /// Out of line, where the grids' types are whole.
         ~TracedTerrain() override;
 
-        /// A view that holds nothing and resets to nothing, because there is nothing to preload
-        /// into it.
+        /// **A view that is a predicted band's hold**: a slot of `Rtx::PredictedBands`, which `preload` fills with the
+        /// position the preloader predicts and a reset or the view's going empties, upstream's own word that the
+        /// position is predicted no more. Any thread.
         std::unique_ptr<Terrain::View> createView() override;
+
+        /// Stands a band hidden around `viewPoint` from the next walk on, outdoors, and returns: the ring reads and
+        /// stands the cells on the frame's share (`Rtx::CellStreamer`). On the preload worker.
+        void preload(Terrain::View* view, const osg::Vec3f& viewPoint, const osg::Vec4i& cellgrid,
+            std::atomic<bool>& abort, Loading::Reporter& reporter) override;
 
         /// Stands the cell's grid for the intersector out of one a cell that left gave back, the arrays
         /// refilled in place, so a cell arriving allocates nothing after the first few.

@@ -17,7 +17,6 @@ target_sources(
         mwrender/debugwalk.cpp
         mwrender/framesaside.cpp
         mwrender/frametimer.cpp
-        mwrender/groundcovershapes.cpp
         mwrender/localmap.cpp
         mwrender/pendingpaints.cpp
         mwrender/pixels.cpp
@@ -31,6 +30,7 @@ target_sources(
         mwrender/rtxsettings.cpp
         mwrender/rtxsupport.cpp
         mwrender/rtxwindow.cpp
+        mwrender/screenwait.cpp
         mwrender/searules.cpp
         mwrender/skystate.cpp
         mwrender/traceclocks.cpp
@@ -44,6 +44,7 @@ target_sources(
         mwscript/visibilitygates.cpp
         mwsound/testheadcache.cpp
         mwsound/testwarmqueue.cpp
+        mwworld/testcellpreloader.cpp
         mwworld/testdatetimemanager.cpp
         mwworld/testduration.cpp
         mwworld/testlocalscripts.cpp

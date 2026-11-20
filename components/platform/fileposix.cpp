@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <system_error>
 
 #include <fcntl.h>
 #include <sys/types.h>
@@ -89,17 +90,27 @@ namespace Platform::File
         return static_cast<std::size_t>(position);
     }
 
-    std::size_t readAt(Handle handle, std::size_t offset, void* data, std::size_t size)
+    Result<std::size_t, std::error_code> readAt(
+        Handle handle, std::uint64_t offset, void* data, std::size_t size) noexcept
     {
         const auto nativeHandle = getNativeHandle(handle);
 
-        const ssize_t amount = ::pread(nativeHandle, data, size, static_cast<off_t>(offset));
-        if (amount == -1)
+        std::size_t done = 0;
+        while (done < size)
         {
-            throw std::system_error(errno, std::generic_category(),
-                "An attempt to read " + std::to_string(size) + " bytes at " + std::to_string(offset) + " failed");
+            const ssize_t amount = ::pread(
+                nativeHandle, static_cast<char*>(data) + done, size - done, static_cast<off_t>(offset + done));
+            if (amount == -1)
+            {
+                if (errno == EINTR)
+                    continue;
+                return Err{ std::error_code(errno, std::generic_category()) };
+            }
+            if (amount == 0)
+                break;
+            done += static_cast<std::size_t>(amount);
         }
-        return static_cast<std::size_t>(amount);
+        return done;
     }
 
     std::size_t read(Handle handle, void* data, std::size_t size)

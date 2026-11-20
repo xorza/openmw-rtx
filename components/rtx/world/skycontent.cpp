@@ -99,7 +99,8 @@ namespace Rtx
 
         // Cleaned where it enters, by the reader that takes it off the weather (`SkyReader::read`):
         // the builder is handed a share and never a content file's division.
-        assert(blend >= 0.0f && blend <= 1.0f && "a cloud blend the reader did not clean");
+        assert(blend >= 0.0f && "a cloud blend the reader did not clean");
+        assert(blend <= 1.0f && "a cloud blend the reader did not clean");
 
         // **The four cases the rasterizer's two meshes make**: the near sheet at `1 - blend` and the one
         // ahead at `blend`. Both cross. The near one alone stands at both ends of the blend on its own

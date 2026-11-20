@@ -13,10 +13,11 @@ from pathlib import Path
 
 from omw.build import Build
 from omw.exitstatus import ExitStatus
+from omw.record import Record, read_record
 from omw.system import Refusal, Switches, read_text, temporary_folder
 
-# What a tour names the findings it writes after every leg (`SessionRequest::Watching::mFindings`).
-FINDINGS = "findings.txt"
+# What a tour names the record it adds to after every leg (`RtxTool::planTour`), its findings' counts in it.
+RECORD = "tour.jsonl"
 
 # The worst first: a run that could not read its line, one that failed, one that found a difference, one that passed.
 SEVERITY = (ExitStatus.REFUSED, ExitStatus.FAILED, ExitStatus.DIFFERED, ExitStatus.PASSED)
@@ -68,10 +69,12 @@ def plan(args: list[str]) -> Plan:
     return Plan(tuple(contents), asked.out.resolve() if asked.out else None, tuple(rest))
 
 
-def read_counts(findings: str) -> tuple[int, int] | None:
-    """The faults and the costs a tour's findings file counts, or nothing where it holds no count."""
-    found = re.search(r"tour findings: (\d+) faults, (\d+) costs and marks", findings)
-    return (int(found[1]), int(found[2])) if found else None
+def read_counts(record: Record) -> tuple[int, int] | None:
+    """The faults and the costs a tour's record counts, or nothing where it states no count: a tour that died before
+    its first leg ended."""
+    if record.findings is None:
+        return None
+    return (int(record.findings["faults"]), int(record.findings["costs"]))
 
 
 def worst(statuses: list[int]) -> int:
@@ -104,8 +107,8 @@ def run(build: Build, args: list[str]) -> int:
             with log.open("w", encoding="utf-8") as written:
                 ended = build.harness("tour", *content.args, *asked.rest, f"--out={folder}", stdout=written,
                                       stderr=written)
-            findings = folder / FINDINGS
-            counts = read_counts(read_text(findings)) if findings.is_file() else None
+            record = folder / RECORD
+            counts = read_counts(read_record(read_text(record))) if record.is_file() else None
             outcomes.append(Outcome(content.label, ended.returncode, *(counts or (None, None))))
             if ended.returncode != ExitStatus.PASSED:
                 print(f"  ended {ended.returncode}, see {log}", file=sys.stderr, flush=True)

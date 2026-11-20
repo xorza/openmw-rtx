@@ -130,6 +130,10 @@ namespace MWRender
         /// Describes this frame off `sources` and the facts kept here, and keeps it until the next.
         const SceneFrame& describe(const FrameSources& sources);
 
+        /// The world as it stands, still and carrying no jump, for a wait under the loading screen
+        /// (`Renderer::standWhole`): the step and the jumps stay for the next `describe`, whose frame is drawn.
+        const SceneFrame& describeStill(const FrameSources& sources);
+
         /// The frame `describe` last made. Asserts that it has.
         const SceneFrame& get() const;
 

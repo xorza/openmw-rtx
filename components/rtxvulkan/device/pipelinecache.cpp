@@ -2,10 +2,12 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <format>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -315,22 +317,44 @@ namespace Rtx
         }
     }
 
+    std::optional<Misc::ByteBuffer> PipelineCache::readBlob(const BlobRead& read)
+    {
+        Misc::ByteBuffer data;
+        for (std::uint32_t tries = 0; tries < sReadTries; ++tries)
+        {
+            std::size_t bytes = 0;
+            if (read(bytes, nullptr) != VK_SUCCESS || bytes == 0)
+                return std::nullopt;
+
+            data.resize(bytes);
+            const VkResult result = read(bytes, data.data());
+            if (result != VK_SUCCESS && result != VK_INCOMPLETE)
+                return std::nullopt;
+            assert(bytes <= data.size() && "a driver wrote past the bytes it was given");
+            data.resize(bytes);
+            if (result == VK_SUCCESS)
+                break;
+        }
+        if (data.empty())
+            return std::nullopt;
+        return data;
+    }
+
     void PipelineCache::save()
     {
         if (mPath.empty() || mHandle.get() == VK_NULL_HANDLE)
             return;
 
-        std::size_t bytes = 0;
-        if (vkGetPipelineCacheData(mDevice, mHandle.get(), &bytes, nullptr) != VK_SUCCESS || bytes == 0)
+        const std::optional<Misc::ByteBuffer> read = readBlob([&](std::size_t& size, void* const into) {
+            return vkGetPipelineCacheData(mDevice, mHandle.get(), &size, into);
+        });
+        if (!read.has_value())
             return;
-
-        Misc::ByteBuffer data(bytes);
-        if (vkGetPipelineCacheData(mDevice, mHandle.get(), &bytes, data.data()) != VK_SUCCESS)
-            return;
+        const Misc::ByteBuffer& data = *read;
+        const std::size_t bytes = data.size();
 
         // A run that compiled nothing new writes nothing: rewriting a megabyte to record no change
         // costs more than the cache saves.
-        data.resize(bytes);
         const Misc::DigestWords digest = digestOf(data);
         if (bytes == mKeptBytes && digest == mKeptDigest)
             return;

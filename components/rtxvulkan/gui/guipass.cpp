@@ -113,7 +113,8 @@ namespace Rtx
     void GuiPass::record(
         VkCommandBuffer commands, const Image& target, const Buffer& vertices, std::span<const GuiDraw> draws) const
     {
-        assert(!draws.empty() && draws.front().mBlend == Blend::None && "an interface drawn over no picture");
+        assert(!draws.empty() && "an interface drawn over no picture");
+        assert(draws.front().mBlend == Blend::None && "an interface drawn over no picture");
 
         // MyGUI computes its vertices for a clip space with +Y up, which is OpenGL's.
         beginDrawingOver(commands, target, ClipUp::Up, Underneath::Replaced);

@@ -28,6 +28,7 @@ namespace Rtx
         for (std::size_t at = 0; at < mPasses.size(); ++at)
             mPasses[at] += other.mPasses[at];
         mTexelReads += other.mTexelReads;
+        mFileKeys += other.mFileKeys;
 
         return *this;
     }

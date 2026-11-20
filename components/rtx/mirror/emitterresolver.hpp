@@ -136,10 +136,10 @@ namespace Rtx
             /// Whether the table refused the image a slot, which is asked again once it frees one.
             RefusedTakes mRefused;
 
-            /// That image's facts, or null until an effect's glow asks for its mean: read then and
-            /// kept, because `ImageFactCache` keeps a named file's facts for as long as its thread
-            /// runs, and every image here is a named file. Nulled with `mSprite`.
-            ImageFacts* mFacts = nullptr;
+            /// That image's facts, or null until an effect's glow asks for its mean: found then and
+            /// kept, because a header carries its facts and `ImageFactCache` keeps a named file's for as
+            /// long as its thread runs, and every image here is a named file. Nulled with `mSprite`.
+            const ImageFacts* mFacts = nullptr;
         };
 
         /// An emitter the walk met, waiting for the walk to finish before its particles are read.

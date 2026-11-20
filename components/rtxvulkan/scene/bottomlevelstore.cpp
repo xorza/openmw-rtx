@@ -3,13 +3,12 @@
 #include <algorithm>
 #include <cassert>
 #include <optional>
-#include <string>
 #include <utility>
+#include <variant>
 
 #include <volk.h>
 
 #include <components/crashcatcher/crashnote.hpp>
-#include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -19,17 +18,42 @@
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/batch.hpp>
-#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
-#include <components/rtxvulkan/device/memory/imageuse.hpp>
-#include <components/rtxvulkan/device/memory/memory.hpp>
+#include <components/rtxvulkan/device/memory/contentarena.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 
-#include "whenroomless.hpp"
-
 namespace Rtx
 {
+    namespace
+    {
+        /// After one run of builds, and after one copy: the structures for whatever reads them, as
+        /// `barrierAfterBuild` orders them, and the scratch for the next run's build, which writes it again.
+        void barrierAfterRun(const VkCommandBuffer commands)
+        {
+            handOver(commands,
+                BufferUse{ VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR
+                        | VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_COPY_BIT_KHR,
+                    VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR
+                        | VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR },
+                BufferUse{ VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR
+                        | VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_COPY_BIT_KHR
+                        | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR
+                        | VK_PIPELINE_STAGE_2_COPY_BIT,
+                    VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR
+                        | VK_ACCESS_2_TRANSFER_WRITE_BIT });
+        }
+
+        /// The triangles of a mesh of `vertices` described for a question of sizes: what the driver sizes a build by
+        /// is its counts and formats, which `describeTriangles` states for a mesh with its addresses.
+        VkAccelerationStructureGeometryKHR describeCounts(const std::uint32_t vertices)
+        {
+            MeshRange counted;
+            counted.mVertices.mCount = vertices;
+            return describeTriangles(counted, 0, 0);
+        }
+    }
+
     VkBuildAccelerationStructureFlagsKHR BottomLevelStore::buildFlagsOf(const StructureMotion motion)
     {
         // ALLOW_DATA_ACCESS is what lets a candidate's corners be fetched off the structure
@@ -43,6 +67,35 @@ namespace Rtx
         return every
             | (motion == StructureMotion::Refit ? VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR
                                                 : VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR);
+    }
+
+    ContentPrice BottomLevelStore::price(const Device& device, const StructureShape& shape)
+    {
+        assert(shape.mTriangles > 0 && "a structure priced over no triangles, which no structure is made of");
+        const VkAccelerationStructureGeometryKHR geometry = describeCounts(shape.mVertices);
+        const VkAccelerationStructureBuildGeometryInfoKHR build{
+            .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+            .pNext = nullptr,
+            .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+            .flags = buildFlagsOf(shape.mRefits ? StructureMotion::Refit : StructureMotion::Still),
+            .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+            .srcAccelerationStructure = VK_NULL_HANDLE,
+            .dstAccelerationStructure = VK_NULL_HANDLE,
+            .geometryCount = 1,
+            .pGeometries = &geometry,
+            .ppGeometries = nullptr,
+            .scratchData = {},
+        };
+        VkAccelerationStructureBuildSizesInfoKHR sizes{
+            .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
+            .pNext = nullptr,
+            .accelerationStructureSize = 0,
+            .updateScratchSize = 0,
+            .buildScratchSize = 0,
+        };
+        vkGetAccelerationStructureBuildSizesKHR(
+            device.getHandle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &build, &shape.mTriangles, &sizes);
+        return ContentPrice{ .mBytes = sizes.accelerationStructureSize, .mAlignment = sStructureOffsetAlignment };
     }
 
     VkDeviceSize BottomLevelStore::getRefitScratchBytes() const
@@ -77,215 +130,166 @@ namespace Rtx
         return picked;
     }
 
-    namespace
-    {
-        /// How much a placement copies out of the loose storage before it leaves the rest to the
-        /// next one. A budget and not the lot, because a copy needs its room while the loose room is
-        /// still standing, so compacting a cell in one placement would make the high-water mark the
-        /// sum.
-        constexpr VkDeviceSize sCompactionPerPlacement = 8 * 1024 * 1024;
-
-        /// After one run of builds and before the next works in the same room: the structures for
-        /// whatever reads them, as `barrierAfterBuild` orders them, and the scratch for the next run's
-        /// build, which writes it again.
-        void barrierAfterRun(const VkCommandBuffer commands)
-        {
-            handOver(commands,
-                BufferUse{ VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-                    VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR
-                        | VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR },
-                BufferUse{ VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR
-                        | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR
-                        | VK_PIPELINE_STAGE_2_COPY_BIT,
-                    VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR
-                        | VK_ACCESS_2_TRANSFER_WRITE_BIT });
-        }
-    }
-
-    BottomLevelStore::BottomLevelStore(
-        const Device& device, const VkDeviceSize buildRoom, const VkDeviceSize blockBytes)
+    BottomLevelStore::BottomLevelStore(const Device& device, const VkDeviceSize buildRoom)
         : mDevice(device)
         , mBuildRoom(buildRoom)
-        , mStorage(sStructureStorageUsage, "bottom level structures", blockBytes)
-        , mLooseStorage(sStructureStorageUsage, "loose bottom level structures", blockBytes)
         , mScratch(device, BufferKind::DeviceLocal, sScratchUsage, "build scratch", GrowableBuffer::Growth::Exact)
-        , mRefusedSeen(device.getMemory().getRefusedCount())
-        , mComing(device.getMemory())
     {
+    }
+
+    void BottomLevelStore::grow(const std::size_t meshes)
+    {
+        assert(meshes >= mRows.size() && "the scene's mesh table shrank under the structures");
+        mRows.resize(meshes);
+        mRefittable.grow(meshes);
     }
 
     void BottomLevelStore::retire(const MeshIndex slot)
     {
         Row& row = mRows[slot];
+        if (row.mStructure.isEmpty())
+            return;
 
-        Compaction& state = row.mCompaction;
-        if (state.mTightness == Tightness::Answered && shrinks(state))
+        if (row.mCompaction == Compaction::Answered && shrinks(row))
         {
-            mCompactableNow -= state.mBuiltSize;
-            mCompactableTight -= state.mTightSize;
+            mCompactableNow -= row.mSize;
+            mCompactableTight -= row.mTightSize;
         }
+        assert(mLiveBytes >= row.mSize && "a structure retired past what stands");
+        mLiveBytes -= row.mSize;
 
-        state.mTightness = Tightness::None;
-        // What leaves the kept storage may be the room a stuck block's structures wanted.
-        if (row.mStructure.getStorage() == &mStorage)
-            mStuck.reset();
-        row.mStructure = AccelerationStructure();
-        row.mWaiting = false;
-        markShortOfRoom(row, false);
-
+        // Buried under the next submit, which covers whatever earlier frame still traces it through the top level it
+        // was named in; its slot is residency's to hand out again once those frames are done.
+        const std::uint64_t rebuiltAt = row.mRebuiltAt;
+        row = Row{};
+        row.mRebuiltAt = rebuiltAt;
         if (mRefittable.has(slot))
             mRefittable.remove(slot);
+        mChanged.addMakingRoom(slot);
     }
 
-    void BottomLevelStore::waitAgain()
-    {
-        if (mShortOfRoom == 0)
-            return;
-        for (const MeshIndex slot : everyRow<MeshIndex>(mRows.size()))
-        {
-            Row& row = mRows[slot];
-            if (!row.mShortOfRoom || row.mWaiting)
-                continue;
-            row.mWaiting = true;
-            mWaiting.push_back(Waiting{ .mMesh = slot });
-        }
-    }
-
-    void BottomLevelStore::markShortOfRoom(Row& row, const bool shortOfRoom)
-    {
-        if (row.mShortOfRoom == shortOfRoom)
-            return;
-        assert((shortOfRoom || mShortOfRoom > 0) && "a row taken off a count it was never on");
-        row.mShortOfRoom = shortOfRoom;
-        mShortOfRoom = shortOfRoom ? mShortOfRoom + 1 : mShortOfRoom - 1;
-    }
-
-    void BottomLevelStore::release(std::span<const MeshIndex> meshes)
+    void BottomLevelStore::release(const std::span<const MeshIndex> meshes)
     {
         for (const MeshIndex mesh : meshes)
-        {
-            // A slot this never held: a scene can add a mesh and sweep it in the same window,
-            // before anything was handed over to build it.
-            if (!mRows.holds(mesh))
-                continue;
-
-            retire(mesh);
-        }
-
+            // A slot this never held: a scene can add a mesh and sweep it in the same window, before anything was
+            // handed over to build it.
+            if (mRows.holds(mesh))
+                retire(mesh);
         mRefittable.compact();
-        std::erase_if(mWaiting, [&](const Waiting& waiting) { return !mRows[waiting.mMesh].mWaiting; });
     }
 
-    std::size_t BottomLevelStore::buildWaiting(Batch& batch, const SceneDesc& scene, const BlockedBuffer& poses,
-        const BlockedBuffer& positions, const BlockedBuffer& indices, const std::uint64_t placement,
-        std::vector<Refusal>& refused)
+    void BottomLevelStore::execute(
+        const Executing& executing, const SceneDesc& scene, const std::span<const ResidencyOp> ops)
     {
-        if (mWaiting.empty())
-            return 0;
+        const Crash::NoteScope noted("standing bottom-level structures, {} operations", ops.size());
 
-        mRetrying.assign(mWaiting.begin(), mWaiting.end());
-        mRetryingMeshes.clear();
-        for (const Waiting& waiting : mRetrying)
-            mRetryingMeshes.push_back(waiting.mMesh);
-        build(batch, scene, mRetryingMeshes, poses, positions, indices, placement, BuildCompaction::Streamed, refused);
+        grow(scene.meshes().getRows().size());
 
-        // What waits again has waited one placement more, and what has waited its most goes without. Searched sorted,
-        // as an arrival the device refused whole is thousands waiting.
-        std::ranges::sort(mRetrying, {}, &Waiting::mMesh);
-        for (Waiting& waiting : mWaiting)
+        // **Drops, then copies, then builds**: a copy reads what stood before this hand-over, never what it builds,
+        // since residency moves and copies only what stood; a build lands in a slot no copy reads.
+        mBuilds.clear();
+        bool copied = false;
+        for (const ResidencyOp& op : ops)
         {
-            const auto before = std::ranges::lower_bound(mRetrying, waiting.mMesh, {}, &Waiting::mMesh);
-            assert(before != mRetrying.end() && before->mMesh == waiting.mMesh && "a mesh waits that was not retried");
-            waiting.mWaited = before->mWaited + 1;
-            if (waiting.mWaited < sMostRoomWaits)
-                continue;
-            mRows[waiting.mMesh].mWaiting = false;
-            refused.push_back(Refusal{ .mKind = Refused::Mesh, .mWhy = std::string(describe(waiting.mWhy)) });
+            if (const auto* dropped = std::get_if<DropStructure>(&op))
+                drop(*dropped);
+            else if (const auto* built = std::get_if<BuildStructure>(&op))
+                mBuilds.push_back(*built);
         }
-        std::erase_if(mWaiting, [&](const Waiting& waiting) { return !mRows[waiting.mMesh].mWaiting; });
+        for (const ResidencyOp& op : ops)
+            if (const auto* copying = std::get_if<CopyStructure>(&op))
+            {
+                // A barrier between two copies, since a structure moved out of a draining slab may be the one its
+                // compaction reads in the same hand-over.
+                if (std::exchange(copied, true))
+                    barrierAfterRun(executing.mBatch.getCommands());
+                copy(executing.mBatch.getCommands(), executing.mArena, *copying);
+            }
+        if (copied)
+            barrierAfterRun(executing.mBatch.getCommands());
+        mRefittable.compact();
 
-        return static_cast<std::size_t>(
-            std::ranges::count_if(mRetryingMeshes, [&](const MeshIndex mesh) { return stands(mesh); }));
+        if (!mBuilds.empty())
+            build(executing, scene);
+        askWhatCompactionWouldSave(executing.mBatch.getCommands());
     }
 
-    void BottomLevelStore::takeAnswer(DeviceAnswer& into)
+    void BottomLevelStore::drop(const DropStructure& op)
     {
-        // A slot let go of since its build stands nothing to say, and the mesh it stood for is gone; a copy said of a
-        // slot built again since stands no more, and a want met no more, built or let go of, waits no more.
-        for (const StoodMesh& built : mResized)
-            if (stands(built.mMesh))
-                into.mMeshes.push_back(built);
-        for (const FitBytes<MeshIndex>& fit : mFits)
-            if (stands(fit.mSlot) && mRows[fit.mSlot].mCompaction.mTightness == Tightness::Tight)
-                into.mMeshFits.push_back(fit);
-        for (const RoomWant& want : mWants)
+        // A mesh the scene freed went with its release already, and its slot may stand another tenant's since.
+        if (mRows.holds(op.mMesh) && !mRows[op.mMesh].mStructure.isEmpty() && mRows[op.mMesh].mSlot == op.mFrom)
+            retire(op.mMesh);
+    }
+
+    void BottomLevelStore::copy(const VkCommandBuffer commands, const ContentArena& arena, const CopyStructure& op)
+    {
+        Row& row = mRows[op.mMesh];
+        assert(!row.mStructure.isEmpty() && "a copy of a structure that stands nowhere");
+        assert(row.mSlot == op.mFrom && "a copy from a slot the structure does not stand in");
+        assert(row.mGeneration == op.mGeneration && "a copy of another tenant's structure");
+
+        const bool compact = op.mKind == StructureCopy::Compact;
+        assert((!compact || row.mCompaction == Compaction::Answered) && "made tight before its size was answered");
+        const VkDeviceSize size = compact && row.mTightSize > 0 ? row.mTightSize : row.mSize;
+        AccelerationStructure made
+            = AccelerationStructure::bottomLevel(mDevice, arena.getBuffer(op.mTo.mBlock), op.mTo.mOffset, size);
+        const VkCopyAccelerationStructureInfoKHR info{
+            .sType = VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR,
+            .pNext = nullptr,
+            .src = row.mStructure.getHandle(),
+            .dst = made.getHandle(),
+            .mode
+            = compact ? VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR : VK_COPY_ACCELERATION_STRUCTURE_MODE_CLONE_KHR,
+        };
+        vkCmdCopyAccelerationStructureKHR(commands, &info);
+
+        // Replaced though the copy reads it: the old structure buries itself under the submit this is recorded into,
+        // so what the burial covers is both this read and whatever earlier frame still traces it.
+        if (compact && shrinks(row))
         {
-            const MeshIndex mesh = std::get<MeshIndex>(want.mWaiter);
-            if (mRows[mesh].mWaiting || mRows[mesh].mCompaction.mTightness == Tightness::Answered)
-                into.mWants.push_back(want);
+            mCompactableNow -= row.mSize;
+            mCompactableTight -= row.mTightSize;
         }
-        mResized.clear();
-        mFits.clear();
-        mWants.clear();
+        if (!compact)
+            mMovedOut += size;
+        mLiveBytes = mLiveBytes - row.mSize + size;
+        row.mStructure = std::move(made);
+        row.mSlot = op.mTo.mSlot;
+        row.mSize = size;
+        if (compact)
+            row.mCompaction = Compaction::Tight;
+        mChanged.addMakingRoom(op.mMesh);
     }
 
-    void BottomLevelStore::build(Batch& batch, const SceneDesc& scene, std::span<const MeshIndex> meshes,
-        const BlockedBuffer& poses, const BlockedBuffer& positions, const BlockedBuffer& indices,
-        const std::uint64_t placement, const BuildCompaction compaction, std::vector<Refusal>& refused)
+    void BottomLevelStore::build(const Executing& executing, const SceneDesc& scene)
     {
-        const Crash::NoteScope noted("building bottom-level structures for {} meshes", meshes.size());
-        const std::size_t held = scene.meshes().getRows().size();
-
-        // Grown to what the scene now holds, and the scene never shrinks. Asserted and not guarded,
-        // because a mesh table that shrank has no right answer: the `resize` below would drop the
-        // handles above the new end and leak their structures.
-        assert(held >= mRows.size() && "the scene's mesh table shrank under the structures");
-        mRows.resize(held);
-
-        mBuild.sizeTo(meshes.size());
-        mLiveBuilds.clear();
-        mLiveBuilds.reserve(meshes.size());
-
+        const GpuZone timed(executing.mTimer, executing.mBatch.getCommands(), FrameZone::Blas);
         const VkDeviceSize scratchAlignment = mDevice.getPhysicalDevice().getStructureScratchAlignment();
+        mBuild.sizeTo(mBuilds.size());
+        mBuilding.assign(mBuilds.size(), BuildRow{});
 
-        // Every row at nought, which is what a mesh with no triangles is left at: nothing
-        // describes it, nothing builds it, and the gate below reads that nought.
-        mBuilding.clear();
-        mBuilding.resize(meshes.size());
-
-        for (std::size_t at = 0; at < meshes.size(); ++at)
+        for (std::size_t at = 0; at < mBuilds.size(); ++at)
         {
-            const MeshIndex slot = meshes[at];
-            const MeshRange& mesh = scene.meshes().getRows()[slot];
-            Row& row = mRows[slot];
+            const BuildStructure& op = mBuilds[at];
+            const MeshRange& mesh = scene.meshes().getRows()[op.mMesh];
+            assert(mesh.getTriangleCount() > 0 && "a structure built over no triangles");
 
-            // A slot handed out again arrives holding different geometry. Whatever was there is
-            // buried and its room given back before this one asks for room of its own, so the
-            // two can be the same run.
-            retire(slot);
+            // A slot built again arrives holding different geometry: whatever stood there is buried first.
+            retire(op.mMesh);
 
-            // A deforming mesh is built over the pose `SkinPass` wrote into the first copy, a static one
-            // over the positions a hit reads its corners from, so structure and hit hold the same
-            // numbers. A run never straddles a block, so its first vertex's address covers it.
-            const VkDeviceAddress vertices = mesh.mVertices.empty()
-                ? 0
-                : (mesh.deforms() ? poses.addressOf(mesh.mBindOffset) : positions.addressOf(mesh.mVertices.mOffset));
-
-            // Indices are mesh-local, so each structure is handed the slice of the shared buffers
-            // that belongs to it and addresses vertex zero as its own first vertex. The addresses
-            // are guarded here as well: a freed slot's run is nothing, and `addressOf` would name
-            // where it used to be.
-            mBuild.mGeometries[at] = describeTriangles(
-                mesh, vertices, !mesh.mIndices.empty() ? indices.addressOf(mesh.mIndices.mOffset) : 0);
-
-            const VkBuildAccelerationStructureFlagsKHR flags
-                = buildFlagsOf(mesh.deforms() ? StructureMotion::Refit : StructureMotion::Still);
-
+            // A deforming mesh is built over the pose `SkinPass` wrote into the first copy, a static one over the
+            // positions a hit reads its corners from, so structure and hit hold the same numbers. A run never
+            // straddles a block, so its first vertex's address covers it. Indices are mesh-local, so each structure
+            // is handed its slice of the shared buffers and addresses vertex zero as its own first vertex.
+            const VkDeviceAddress vertices = mesh.deforms() ? executing.mPoses.addressOf(mesh.mBindOffset)
+                                                            : executing.mPositions.addressOf(mesh.mVertices.mOffset);
+            mBuild.mGeometries[at]
+                = describeTriangles(mesh, vertices, executing.mIndices.addressOf(mesh.mIndices.mOffset));
             mBuild.mBuilds[at] = VkAccelerationStructureBuildGeometryInfoKHR{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
                 .pNext = nullptr,
                 .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
-                .flags = flags,
+                .flags = buildFlagsOf(mesh.deforms() ? StructureMotion::Refit : StructureMotion::Still),
                 .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
                 .srcAccelerationStructure = VK_NULL_HANDLE,
                 .dstAccelerationStructure = VK_NULL_HANDLE,
@@ -294,25 +298,7 @@ namespace Rtx
                 .ppGeometries = nullptr,
                 .scratchData = {},
             };
-
             const std::uint32_t triangles = mesh.getTriangleCount();
-
-            // A freed slot gets no structure at all. It keeps its index and its room and holds
-            // nothing until something fits into it, and a build over no primitives is not a small
-            // structure — it is a size the driver may answer zero for, which is not a size an
-            // acceleration structure can be created at.
-            if (triangles == 0)
-            {
-                row.mUpdatable = false;
-                row.mUpdateScratch = 0;
-                continue;
-            }
-
-            // Only a mesh that deforms is built to be refitted, and only where a structure is made. The flag
-            // costs a structure its tightness and the trace that reads it a little; a few dozen actors pay it
-            // and the thousands of static meshes around them do not.
-            row.mUpdatable = mesh.deforms();
-
             VkAccelerationStructureBuildSizesInfoKHR sizes{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
                 .pNext = nullptr,
@@ -322,44 +308,32 @@ namespace Rtx
             };
             vkGetAccelerationStructureBuildSizesKHR(mDevice.getHandle(),
                 VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &mBuild.mBuilds[at], &triangles, &sizes);
-
+            assert(sizes.accelerationStructureSize <= op.mBytes && "a structure larger than residency priced it at");
             mBuilding[at].mSize = sizes.accelerationStructureSize;
             mBuilding[at].mScratch = alignUp(sizes.buildScratchSize, scratchAlignment);
-
-            // Kept so a refit of this one mesh does not have to ask the driver its size again. The
-            // same geometry describes it, so the answer cannot have changed. The build's own scratch
-            // beside it, for the rota that builds a refitted structure whole again, which counts
-            // from this build.
-            row.mUpdateScratch = sizes.updateScratchSize;
-            row.mBuildScratch = sizes.buildScratchSize;
-            row.mRebuiltAt = placement;
-
             mBuild.mRanges[at] = VkAccelerationStructureBuildRangeInfoKHR{
                 .primitiveCount = triangles, .primitiveOffset = 0, .firstVertex = 0, .transformOffset = 0
             };
+
+            // Kept so a refit of this one mesh asks the driver nothing again: the same geometry describes it. The
+            // build's own scratch beside it, for the rota that builds a refitted structure whole again.
+            Row& row = mRows[op.mMesh];
+            row.mUpdatable = mesh.deforms();
+            row.mUpdateScratch = row.mUpdatable ? sizes.updateScratchSize : 0;
+            row.mBuildScratch = sizes.buildScratchSize;
+            row.mRebuiltAt = executing.mPlacement;
         }
 
-        // Before the structures below are made: a slot retired above and refitted again is then
-        // named once, and one that waited for room waits again only where the device refuses it again.
-        mRefittable.compact();
-        std::erase_if(mWaiting, [&](const Waiting& waiting) { return !mRows[waiting.mMesh].mWaiting; });
-
-        // **In runs whose scratch fits the build room**, each built over the room the run before used:
-        // one run over every mesh held the sum of their scratch, which on a world's build is the
-        // world's, as essential memory for as long as the scene stood. A mesh larger than the room
-        // is a run of its own, and the room is then what it needs.
+        // **In runs whose scratch fits the build room**, each built over the room the run before used: one run over
+        // every mesh held the sum of their scratch as essential memory. A mesh larger than the room is a run of its
+        // own, and the room is then what it needs.
         const VkDeviceSize mostScratch = splitIntoRuns(
-            meshes.size(), mBuildRoom,
-            [&](const std::size_t at) {
-                return mBuilding[at].mSize > 0 ? std::optional<std::uint64_t>(mBuilding[at].mScratch) : std::nullopt;
-            },
+            mBuilds.size(), mBuildRoom, [&](const std::size_t at) { return std::optional(mBuilding[at].mScratch); },
             [&](const std::size_t at, const std::uint64_t offset) { mBuilding[at].mScratchOffset = offset; }, mRunEnds);
-        if (mRunEnds.empty())
-            return;
-
         mScratch.growTo(mostScratch);
         const VkDeviceAddress scratchAddress = mScratch.get().addressFor();
 
+        const VkCommandBuffer commands = executing.mBatch.getCommands();
         std::size_t begin = 0;
         for (const std::size_t end : mRunEnds)
         {
@@ -367,95 +341,47 @@ namespace Rtx
             mBuild.mRangePointers.clear();
             for (std::size_t at = begin; at < end; ++at)
             {
-                if (mBuilding[at].mSize == 0)
-                    continue;
+                const BuildStructure& op = mBuilds[at];
+                Row& row = mRows[op.mMesh];
+                row.mStructure = AccelerationStructure::bottomLevel(
+                    mDevice, executing.mArena.getBuffer(op.mLoose.mBlock), op.mLoose.mOffset, mBuilding[at].mSize);
+                row.mSlot = op.mLoose.mSlot;
+                row.mGeneration = op.mGeneration;
+                row.mSize = mBuilding[at].mSize;
+                row.mTriangles = mBuild.mRanges[at].primitiveCount;
+                mLiveBytes += row.mSize;
+                mChanged.addMakingRoom(op.mMesh);
 
-                const MeshIndex slot = meshes[at];
-                Row& row = mRows[slot];
-                const bool kept = row.mUpdatable;
-                StructureStorage& storage = kept ? mStorage : mLooseStorage;
-
-                // Left out where the device has no room: the slot holds no structure and so nothing a
-                // refit or a rebuild reads, and the scratch it was counted into goes unread.
-                const Result<StructureRoom, MemoryRefusal> room = storage.take(mDevice, mBuilding[at].mSize);
-                if (!room.isOk())
+                // Built loose, and a mesh that refits keeps its slack: a refit writes back into it.
+                if (row.mUpdatable)
                 {
-                    row.mUpdatable = false;
-                    row.mUpdateScratch = 0;
-                    row.mBuildScratch = 0;
-                    markShortOfRoom(row, true);
-                    if (whenRoomless(mDevice, scene) == WhenRoomless::Waits)
-                    {
-                        row.mWaiting = true;
-                        mWaiting.push_back(Waiting{ .mMesh = slot, .mWhy = room.error() });
-                        if (kept)
-                            mWants.push_back(RoomWant{
-                                .mWaiter = slot, .mHole = alignUp(mBuilding[at].mSize, StructureStorage::sAlignment) });
-                    }
-                    else
-                        refused.push_back(
-                            Refusal{ .mKind = Refused::Mesh, .mWhy = std::string(describe(room.error())) });
-                    continue;
+                    row.mCompaction = Compaction::Kept;
+                    mRefittable.add(op.mMesh);
                 }
-
-                markShortOfRoom(row, false);
-                row.mStructure
-                    = AccelerationStructure::bottomLevel(mDevice, storage, room.value(), mBuilding[at].mSize);
-                mResized.push_back(StoodMesh{ .mMesh = slot, .mStructureBytes = mBuilding[at].mSize });
+                else
+                {
+                    row.mCompaction = Compaction::Loose;
+                    mLoose.push_back(op.mMesh);
+                }
 
                 mBuild.mBuilds[at].dstAccelerationStructure = row.mStructure.getHandle();
                 mBuild.mBuilds[at].scratchData.deviceAddress = scratchAddress + mBuilding[at].mScratchOffset;
-
-                // Kept per slot so the figure compaction is judged against covers the whole scene
-                // rather than the meshes this call happened to build.
-                row.mCompaction.mBuiltSize = mBuilding[at].mSize;
-
-                // Built loose whatever stood in the slot before, and a mesh that refits keeps its
-                // slack: a refit writes back into it.
-                row.mCompaction.mTightness = row.mUpdatable ? Tightness::None : Tightness::Loose;
-                if (row.mUpdatable)
-                    mRefittable.addMakingRoom(slot);
-                else
-                    mLoose.push_back(slot);
-
                 mLiveBuilds.push_back(mBuild.mBuilds[at]);
                 mBuild.mRangePointers.push_back(&mBuild.mRanges[at]);
             }
             begin = end;
 
-            // Every structure of the run refused: a build of none is not a command Vulkan takes.
-            if (mLiveBuilds.empty())
-                continue;
-
-            const VkCommandBuffer commands = batch.getCommands();
             vkCmdBuildAccelerationStructuresKHR(commands, static_cast<std::uint32_t>(mLiveBuilds.size()),
                 mLiveBuilds.data(), mBuild.mRangePointers.data());
             barrierAfterRun(commands);
-
-            if (compaction != BuildCompaction::Settled)
-                continue;
-
-            // The run built and asked about, waited on, every answer copied out with no budget,
-            // and waited on again, so the next run takes the rooms this one left.
-            askWhatCompactionWouldSave(commands);
-            batch.flush();
-            mCompactionCopies.clear();
-            mMovedMeshes.clear();
-            readAnswers();
-            copyAnswered(getAnsweredBytes());
-            if (!mCompactionCopies.empty())
-            {
-                recordCompaction(batch.getCommands(), nullptr);
-                batch.flush();
-            }
-            reclaim();
         }
-
-        askWhatCompactionWouldSave(batch.getCommands());
     }
 
     void BottomLevelStore::askWhatCompactionWouldSave(const VkCommandBuffer commands)
     {
+        if (mLoose.empty())
+            return;
+
         const auto held = static_cast<std::uint32_t>(mRows.size());
         if (held > mCompactablePool)
         {
@@ -481,36 +407,34 @@ namespace Rtx
                 if (isOutstanding(mAsked.at(at)))
                 {
                     const MeshIndex slot = mAsked.at(at).mSlot;
-                    mRows[slot].mCompaction.mTightness = Tightness::Loose;
+                    mRows[slot].mCompaction = Compaction::Loose;
                     mLoose.push_back(slot);
                 }
         }
 
-        // One reset and one write per run of consecutive slots, which is what a cell's arrivals are
-        // (the scene hands out slots in order). Each query is reset before it is written because the
-        // slot may have been asked about before, for a structure that has since gone.
-        //
-        // The value the batch rides is the pool's next submit: a batch is flushed into it or
-        // deferred ahead of it, and nothing else takes a value in between.
+        // One reset and one write per run of consecutive slots, which is what a cell's arrivals are (the scene hands
+        // out slots in order). Each query is reset before it is written because the slot may have been asked about
+        // before, for a structure that has since gone. The value the batch rides is the pool's next submit: a batch
+        // is flushed into it or deferred ahead of it, and nothing else takes a value in between.
         const std::uint64_t rides = mDevice.getTimeline().getNext();
-        std::sort(mLoose.begin(), mLoose.end());
+        std::ranges::sort(mLoose);
         std::uint32_t first = 0;
         mAskScratch.clear();
         for (const MeshIndex slot : mLoose)
         {
             // A slot named twice is asked once: the first naming leaves it asked.
-            Compaction& state = mRows[slot].mCompaction;
-            if (state.mTightness != Tightness::Loose)
+            Row& row = mRows[slot];
+            if (row.mCompaction != Compaction::Loose)
                 continue;
 
             if (!mAskScratch.empty() && slot.at() != first + mAskScratch.size())
                 askRun(commands, first);
             if (mAskScratch.empty())
                 first = slot.at();
-            mAskScratch.push_back(mRows[slot].mStructure.getHandle());
+            mAskScratch.push_back(row.mStructure.getHandle());
 
-            state.mTightness = Tightness::Asked;
-            state.mAskedAt = rides;
+            row.mCompaction = Compaction::Asked;
+            row.mAskedAt = rides;
             mAsked.push(Ask{ .mSlot = slot, .mAt = rides });
         }
         askRun(commands, first);
@@ -529,15 +453,13 @@ namespace Rtx
         mAskScratch.clear();
     }
 
-    void BottomLevelStore::readAnswers()
+    void BottomLevelStore::readAnswers(const SceneSlot scene, std::vector<TightSize>& into)
     {
         while (!mAsked.empty())
         {
             const Ask& oldest = mAsked.at(0);
 
-            // Read once the host has waited past the submit that carried the question, so which
-            // frame compacts a structure is a function of the frames and not of the clock. The
-            // questions are in the order they were asked, so what is ready is a prefix.
+            // The questions are in the order they were asked, so what is ready is a prefix.
             if (!mDevice.getTimeline().hasFinished(oldest.mAt))
                 break;
 
@@ -560,235 +482,34 @@ namespace Rtx
                 static_cast<std::uint32_t>(count), count * sizeof(VkDeviceSize), mReadScratch.data(),
                 sizeof(VkDeviceSize), VK_QUERY_RESULT_64_BIT);
 
-            // Asked again next placement where the answers are simply not there yet. Anything else
-            // is a fault, and a lost device shows up here first.
+            // Asked again next frame where the answers are simply not there yet. Anything else is a fault, and a
+            // lost device shows up here first.
             if (read == VK_NOT_READY)
                 break;
-
             checkVk(mDevice, read, "vkGetQueryPoolResults");
 
             for (std::size_t at = 0; at < count; ++at)
             {
                 const MeshIndex slot = mAsked.at(at).mSlot;
-                Compaction& state = mRows[slot].mCompaction;
-
-                // Every answer owes a copy, a tight one where it is smaller (`shrinks`): a structure
-                // left in the loose storage would hold its block there for good.
-                state.mTightness = Tightness::Answered;
-                state.mTightSize = mReadScratch[at];
-                if (shrinks(state))
+                Row& row = mRows[slot];
+                row.mCompaction = Compaction::Answered;
+                row.mTightSize = mReadScratch[at];
+                mTightness.add(row.mTriangles, row.mSize, row.mTightSize);
+                if (shrinks(row))
                 {
-                    mCompactableNow += state.mBuiltSize;
-                    mCompactableTight += state.mTightSize;
+                    mCompactableNow += row.mSize;
+                    mCompactableTight += row.mTightSize;
                 }
-                mAnswered.push(slot);
-            }
 
+                // No smaller, or no size said: what it stands as is what it comes to, and the loose slot is where
+                // residency keeps it.
+                into.push_back(TightSize{ .mScene = scene,
+                    .mMesh = slot,
+                    .mGeneration = row.mGeneration,
+                    .mBytes = shrinks(row) ? row.mTightSize : row.mSize });
+            }
             mAsked.pop(count);
         }
-
         mAsked.settle();
     }
-
-    const SlotSet<MeshIndex>& BottomLevelStore::prepareCompaction()
-    {
-        mCompactionCopies.clear();
-        mMovedMeshes.clear();
-
-        // Once a placement, so a block whose last structure left goes back to the device without
-        // waiting for the next arrival to ask for room.
-        reclaim();
-        readAnswers();
-        const VkDeviceSize copied = copyAnswered(sCompactionPerPlacement);
-        moveOut(sCompactionPerPlacement - std::min(copied, sCompactionPerPlacement));
-        mComing.set(givesBlockBack() ? 1 : 0);
-        return mMovedMeshes;
-    }
-
-    void BottomLevelStore::reclaim()
-    {
-        const std::uint64_t finished = mDevice.getTimeline().getKnownFinished();
-        mStorage.reclaim(finished);
-        mLooseStorage.reclaim(finished);
-    }
-
-    VkDeviceSize BottomLevelStore::getAnsweredBytes() const
-    {
-        VkDeviceSize bytes = 0;
-        for (std::size_t at = 0; at < mAnswered.size(); ++at)
-        {
-            const Compaction& state = mRows[mAnswered.at(at)].mCompaction;
-            if (state.mTightness == Tightness::Answered)
-                bytes += alignUp(shrinks(state) ? state.mTightSize : state.mBuiltSize, StructureStorage::sAlignment);
-        }
-        return bytes;
-    }
-
-    VkDeviceSize BottomLevelStore::copyAnswered(const VkDeviceSize budget)
-    {
-        VkDeviceSize taken = 0;
-        while (!mAnswered.empty() && taken < budget)
-        {
-            const MeshIndex slot = mAnswered.at(0);
-
-            // The slot may have been handed out again since it answered. A cell that left took
-            // its meshes with it, and whatever stands here now is not what this answer is about —
-            // its own question is.
-            Row& row = mRows[slot];
-            Compaction& state = row.mCompaction;
-            if (state.mTightness != Tightness::Answered)
-            {
-                mAnswered.pop(1);
-                continue;
-            }
-
-            // Made in a room of its own while the loose one stands, because the copy reads the
-            // loose one; the top level can be built over it in this same command buffer, since its
-            // address is its own from the moment it is made. Taken before the answer is popped, so
-            // a device that refuses the room leaves the answer to a later placement.
-            const bool tight = shrinks(state);
-            const VkDeviceSize size = tight ? state.mTightSize : state.mBuiltSize;
-            const Result<StructureRoom, MemoryRefusal> room = mStorage.take(mDevice, size);
-            if (!room.isOk())
-            {
-                mWants.push_back(RoomWant{ .mWaiter = slot, .mHole = alignUp(size, StructureStorage::sAlignment) });
-                break;
-            }
-
-            AccelerationStructure made = AccelerationStructure::bottomLevel(mDevice, mStorage, room.value(), size);
-            mAnswered.pop(1);
-
-            mCompactionCopies.push_back(VkCopyAccelerationStructureInfoKHR{
-                .sType = VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR,
-                .pNext = nullptr,
-                .src = row.mStructure.getHandle(),
-                .dst = made.getHandle(),
-                .mode = tight ? VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR
-                              : VK_COPY_ACCELERATION_STRUCTURE_MODE_CLONE_KHR,
-            });
-
-            // Replaced though the copy below reads it: the old structure buries itself under the
-            // frame this is recorded into, and the copy runs inside that frame — so what the stamp
-            // covers is both this read and whatever earlier frame is still tracing the structure
-            // through the top level it was named in.
-            row.mStructure = std::move(made);
-
-            // The pair the report prints follows the copy, so what it says is what is left to save
-            // rather than what was saved once.
-            if (tight)
-            {
-                mCompactableNow -= state.mBuiltSize;
-                mCompactableTight -= state.mTightSize;
-            }
-
-            state.mBuiltSize = size;
-            state.mTightness = Tightness::Tight;
-            mFits.push_back(FitBytes{ .mSlot = slot, .mBytes = alignUp(size, StructureStorage::sAlignment) });
-
-            mMovedMeshes.addMakingRoom(slot);
-            taken += alignUp(size, StructureStorage::sAlignment);
-        }
-
-        mAnswered.settle();
-        return taken;
-    }
-
-    void BottomLevelStore::moveOut(const VkDeviceSize budget)
-    {
-        // **Not one copied this placement**: its copy is in `mCompactionCopies` already, and a move would read the
-        // structure that copy writes, in the same run of copies with no barrier between them. A tight copy lands in
-        // the first block with room, which is the emptiest wherever every block before it is full, and the clone of a
-        // copy not yet written hung the handheld's GPU at a world's first placements.
-        const auto movable = [&](const MeshIndex slot) {
-            const Row& row = mRows[slot];
-            return !row.mStructure.isEmpty() && row.mStructure.getStorage() == &mStorage && !row.mUpdatable
-                && (row.mCompaction.mTightness == Tightness::Tight || row.mCompaction.mTightness == Tightness::None)
-                && !mMovedMeshes.has(slot);
-        };
-
-        const bool asked = mDevice.getMemory().asksForBlock(mRefusedSeen);
-        if (!mEmptying.has_value())
-        {
-            if (!asked)
-                return;
-            mEmptying = mStorage.blockToEmpty();
-            if (!mEmptying.has_value() || mEmptying == mStuck)
-            {
-                mEmptying.reset();
-                return;
-            }
-            // Listed once, as the block is chosen: a walk of every row a block, not a placement.
-            mLeaving.clear();
-            for (const MeshIndex slot : everyRow<MeshIndex>(mRows.size()))
-                if (movable(slot) && mRows[slot].mStructure.getRoom().mBlock == *mEmptying)
-                    mLeaving.push_back(slot);
-        }
-
-        VkDeviceSize taken = 0;
-        while (!mLeaving.empty() && taken < budget)
-        {
-            const MeshIndex slot = mLeaving.back();
-            Row& row = mRows[slot];
-            // Gone, built again or copied tight since it was listed: whatever stands there now is not in the block.
-            if (!movable(slot) || row.mStructure.getRoom().mBlock != *mEmptying)
-            {
-                mLeaving.pop_back();
-                continue;
-            }
-
-            const VkDeviceSize size
-                = VkDeviceSize{ row.mStructure.getRoom().mRun.mCount } * StructureStorage::sAlignment;
-            const std::optional<StructureRoom> room = mStorage.takeOutside(size, *mEmptying);
-            if (!room.has_value())
-            {
-                mStuck = mEmptying;
-                break;
-            }
-            mLeaving.pop_back();
-
-            AccelerationStructure made = AccelerationStructure::bottomLevel(mDevice, mStorage, *room, size);
-            mCompactionCopies.push_back(VkCopyAccelerationStructureInfoKHR{
-                .sType = VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR,
-                .pNext = nullptr,
-                .src = row.mStructure.getHandle(),
-                .dst = made.getHandle(),
-                .mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_CLONE_KHR,
-            });
-            // Replaced though the copy reads it, as a tight copy's is (`copyAnswered`).
-            row.mStructure = std::move(made);
-            mMovedMeshes.addMakingRoom(slot);
-            taken += size;
-            mMovedOut += size;
-        }
-
-        // Emptied, or no room for what is left: the next block is chosen afresh.
-        if (mLeaving.empty() || taken < budget)
-        {
-            mEmptying.reset();
-            mLeaving.clear();
-        }
-    }
-
-    bool BottomLevelStore::givesBlockBack() const
-    {
-        if (mEmptying.has_value())
-            return true;
-        const std::optional<std::uint32_t> block = mStorage.blockToEmpty();
-        return block.has_value() && block != mStuck;
-    }
-
-    void BottomLevelStore::recordCompaction(const VkCommandBuffer commands, GpuTimer* const timer)
-    {
-        const GpuZone timed(timer, commands, FrameZone::Compact);
-        // One run of copies with no barrier between them, so none reads what another writes.
-        assert(std::ranges::none_of(mCompactionCopies, [&](const VkCopyAccelerationStructureInfoKHR& copy) {
-            return std::ranges::any_of(mCompactionCopies,
-                [&](const VkCopyAccelerationStructureInfoKHR& other) { return other.dst == copy.src; });
-        }) && "a copy reads a structure another copy of the same run writes");
-        for (const VkCopyAccelerationStructureInfoKHR& copy : mCompactionCopies)
-            vkCmdCopyAccelerationStructureKHR(commands, &copy);
-
-        barrierAfterBuild(commands);
-    }
-
 }

@@ -63,7 +63,7 @@ namespace Rtx
 
         // Averaging a 512-square sheet is a quarter of a million texels; the image is the one the
         // upload is about to take out of the same cache.
-        const MeanTexel& painted = thread.meanOf(*image.value());
+        const MeanTexel& painted = thread.factsOf(*image.value()).mMean;
         sheet.mMean = painted.opaque() * Shaders::LUMINANCE_WEIGHTS;
         return at;
     }

@@ -8,6 +8,7 @@
 #include <limits>
 #include <optional>
 #include <span>
+#include <stop_token>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -91,7 +92,7 @@ namespace Rtx
         , mGroundcover(world.mGroundcover)
         , mStatics(world.mStatics)
         , mGround(*Crash::notNull(world.mGround, "a reader of a world with no land"), world.mWorldspace)
-        , mComputed(world.mStore, ContentStore::Reach::Disk)
+        , mComputed(world.mStore)
         , mWalk(world.mAbove)
         , mCollector(mStorage.makeCollector())
     {
@@ -120,9 +121,9 @@ namespace Rtx
         return texture;
     }
 
-    PreparedModel* CellReader::readModel(const VFS::Path::NormalizedView path, const bool groundcover)
+    PreparedModel* CellReader::readModel(const VFS::Path::NormalizedView path, const ModelUse use)
     {
-        if (const auto known = mModelsByPath.find(ModelKey{ path.value(), groundcover }); known != mModelsByPath.end())
+        if (const auto known = mModelsByPath.find(ModelKey{ path.value(), use }); known != mModelsByPath.end())
             return *known;
 
         // The loader's parse and the walk after it, both over content a mod may have written wrong.
@@ -147,9 +148,9 @@ namespace Rtx
             if (into.mParts.empty())
                 into.mTemplate = nullptr;
 
-            into.mGroundcover = groundcover;
+            into.mUse = use;
             into.trimSlack();
-            if (!groundcover)
+            if (use != ModelUse::Groundcover)
                 return;
 
             // At or above a half, and no blend: the alpha test upstream's groundcover chunk
@@ -207,17 +208,17 @@ namespace Rtx
         return anchored->second;
     }
 
-    PreparedCell& CellReader::read(const osg::Vec2i& cell)
+    PreparedCell& CellReader::read(const osg::Vec2i& cell, const std::stop_token& stop)
     {
         PreparedCell& prepared = mCells.take([&](PreparedCell& into) {
-            fill(into, cell);
+            fill(into, cell, stop);
             into.mPreprocessed = mComputed.mPreprocessor.takeStats();
         });
         mCells.lend(prepared);
         return prepared;
     }
 
-    void CellReader::fill(PreparedCell& prepared, const osg::Vec2i& cell)
+    void CellReader::fill(PreparedCell& prepared, const osg::Vec2i& cell, const std::stop_token& stop)
     {
         prepared.mCell = cell;
 
@@ -237,7 +238,7 @@ namespace Rtx
             PreparedTexture& normal = readTexture(files[at].mNormalPath);
             layer.mNormalTexture = &normal;
             if (files[at].mParallax && normal.mImage != nullptr && carriesHeight(*normal.mImage))
-                layer.mRelief = mComputed.alphaRangeOf(mComputed.factsOf(*normal.mImage), *normal.mImage);
+                layer.mRelief = mComputed.factsOf(*normal.mImage).mAlphaRange;
         }
 
         // One cell at a time, which is the paging's near answer: containers page here as they do in the active grid's
@@ -248,6 +249,8 @@ namespace Rtx
 
         for (const Terrain::PagedCellRef& ref : mRefScratch)
         {
+            if (stop.stop_requested())
+                return;
             const CarriedLamp lamp = readLamp(ref, prepared);
             if (mStatics)
                 readStatic(ref, lamp, prepared);
@@ -302,7 +305,7 @@ namespace Rtx
         if (model.empty())
             return;
 
-        PreparedModel* read = readStanding(model, false, prepared.mRefusals);
+        PreparedModel* read = readStanding(model, ModelUse::Reference, prepared.mRefusals);
         if (read == nullptr)
             return;
 
@@ -323,12 +326,12 @@ namespace Rtx
     }
 
     PreparedModel* CellReader::readStanding(
-        const VFS::Path::NormalizedView path, const bool groundcover, std::vector<Refusal>& refusals)
+        const VFS::Path::NormalizedView path, const ModelUse use, std::vector<Refusal>& refusals)
     {
         // A model this cannot read is a reference left out and refused, and never a cell
         // left out: a settled walk waits for every cell of the ring, and one that never came
         // would hold it for ever.
-        PreparedModel* read = readModel(path, groundcover);
+        PreparedModel* read = readModel(path, use);
         if (read == nullptr)
             return nullptr;
 
@@ -357,7 +360,7 @@ namespace Rtx
         refs.back().mModel = index;
     }
 
-    PreparedGrass& CellReader::readGrass(const osg::Vec2i& cell)
+    PreparedGrass& CellReader::readGrass(const osg::Vec2i& cell, const std::stop_token& stop)
     {
         PreparedGrass& prepared = mGrass.take([&](PreparedGrass& into) {
             into.mCell = cell;
@@ -368,11 +371,13 @@ namespace Rtx
             mGroundcover->collect(cell, mRefScratch);
             for (const Terrain::PagedCellRef& ref : mRefScratch)
             {
+                if (stop.stop_requested())
+                    return;
                 const VFS::Path::NormalizedView path = mGroundcover->modelOf(ref.mRefId);
                 if (path.empty())
                     continue;
 
-                PreparedModel* const read = readStanding(path, true, into.mRefusals);
+                PreparedModel* const read = readStanding(path, ModelUse::Groundcover, into.mRefusals);
                 if (read == nullptr)
                     continue;
 
@@ -442,7 +447,7 @@ namespace Rtx
             return;
 
         // Erased under the key it is still filed under, before `reuse` clears it.
-        const auto filed = mModelsByPath.find(ModelKey{ model.mPath, model.mGroundcover });
+        const auto filed = mModelsByPath.find(ModelKey{ model.mPath, model.mUse });
         Crash::contract(filed != mModelsByPath.end(), "a model given back that was never filed");
         mModelsByPath.erase(filed);
 

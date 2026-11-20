@@ -13,6 +13,7 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
 
+#include "featurebytes.hpp"
 #include "upscaleinputs.hpp"
 
 namespace Rtx::Dlss
@@ -78,7 +79,8 @@ namespace Rtx
 
         /// Makes the feature at `mode`'s quality for one pair of extents, where it does not stand at
         /// them already, and measures what NGX holds for it (`bytesAt`): **ahead of the frame's
-        /// reserve**, which counts it. Starts a history of its own. Throws `DeviceError` where NGX
+        /// reserve as it stands exactly**, which counts it, and after the room made for it by what was
+        /// measured before. Starts a history of its own. Throws `DeviceError` where NGX
         /// refuses the feature, which the constructor's own feature showed it would make.
         void prepare(Upscale mode, VkExtent2D render, VkExtent2D output);
 
@@ -101,8 +103,8 @@ namespace Rtx
 
         /// What NGX holds on the device for a feature at these extents, as `prepare` or `measure`
         /// read it off NGX (`NGX_DLSSD_GET_STATS`): frame memory the driver allocates and the
-        /// allocator does not, which the frame's reserve counts all the same. Nought where neither
-        /// measured these extents.
+        /// allocator does not, which the frame's reserve counts all the same. Where neither measured
+        /// these extents, the most either measured (`FeatureBytes::at`).
         VkDeviceSize bytesAt(VkExtent2D render, VkExtent2D output) const;
 
         /// What the feature that stands holds, which the allocator is told it holds outside itself
@@ -130,20 +132,9 @@ namespace Rtx
         struct Context;
         struct Targets;
 
-        /// What NGX held for a feature at one mode and pair of extents, as measured.
-        struct Measured
-        {
-            VkExtent2D mRender{};
-            VkExtent2D mOutput{};
-            VkDeviceSize mBytes = 0;
-        };
-
-        /// Makes a feature at `mode` and these extents and reads what NGX holds for it: the stats
+        /// Makes a feature at `mode` and these extents and answers what NGX holds for it: the stats
         /// after it stands less the stats before, so a feature standing beside it is not counted.
-        Measured makeAndMeasure(Upscale mode, VkExtent2D render, VkExtent2D output, std::unique_ptr<Targets>& into);
-
-        /// Keeps `measured`, dropping what was measured at another output: one entry a mode at most.
-        void remember(const Measured& measured);
+        VkDeviceSize makeAndMeasure(Upscale mode, VkExtent2D render, VkExtent2D output, std::unique_ptr<Targets>& into);
 
         static std::unique_ptr<Context> makeContext(const Device& device, const Dlss::Application* application);
 
@@ -157,9 +148,8 @@ namespace Rtx
         /// before NGX shuts down.
         std::unique_ptr<Targets> mTargets;
 
-        /// What `prepare` and `measure` read, at the current output, one a mode at most
-        /// (`sUpscaleMenu`'s size bounds it).
-        std::vector<Measured> mMeasured;
+        /// What `prepare` and `measure` read.
+        FeatureBytes mMeasured;
 
         bool mFresh = true;
     };

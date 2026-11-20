@@ -4,6 +4,9 @@
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
+#include <system_error>
+
+#include <components/misc/result.hpp>
 
 namespace Platform::File
 {
@@ -31,11 +34,20 @@ namespace Platform::File
 
     std::size_t read(Handle handle, void* data, std::size_t size);
 
-    /// Reads up to `size` bytes at `offset` into `data`, whatever the handle's own position: what any number of
+    /// Reads `size` bytes at `offset` into `data`, whatever the handle's own position: what any number of
     /// threads may do at once through one handle (POSIX `pread`, Windows `ReadFile` with the offset in an
     /// `OVERLAPPED`). Where the handle's position stands after is the system's, which Windows moves and POSIX
-    /// leaves, so a handle read at an offset is read no other way. Fewer bytes than asked only at the file's end.
-    std::size_t readAt(Handle handle, std::size_t offset, void* data, std::size_t size);
+    /// leaves, so a handle read at an offset is read no other way.
+    ///
+    /// **Read until the bytes asked are in or the file ends**: a system may answer fewer than asked for no reason of
+    /// the file's (a signal, a network volume, a request past what one call takes), so the read goes on from a short
+    /// count and is made again where a signal interrupted it. Fewer bytes than asked are answered only at the file's
+    /// end, as libstdc++'s `basic_filebuf::xsgetn` reads.
+    ///
+    /// **A failure is answered and not thrown**, as the system's own error on either system: a disk that errs is for
+    /// the caller beside the read to go on from, a cache as a miss.
+    Result<std::size_t, std::error_code> readAt(
+        Handle handle, std::uint64_t offset, void* data, std::size_t size) noexcept;
 
     /// The standard error written byte for byte, as a binary log needs: Windows' text mode would turn each `\n` into
     /// `\r\n`; Linux writes bytes as they are already.

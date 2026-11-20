@@ -604,6 +604,9 @@ namespace MWGui
         mHud->setVisible(mHudEnabled && !loading);
         mToolTips->setVisible(mHudEnabled && !loading);
 
+        // A refit under a load, drawn once the load's cells stand.
+        redrawMaps();
+
         bool gameMode = !isGuiMode();
 
         MWBase::Environment::get().getInputManager()->changeInputMode(!gameMode);
@@ -1344,17 +1347,32 @@ namespace MWGui
             MWBase::Environment::get().getLuaManager()->fontSizeChanged(mFonts->getFontSize());
         }
 
-        // The map's tiles are drawn at the raster (`LocalMap::mapResolution`): every tile the map
-        // and the minimap show is let go of, and asked for again at the new one, as a cell change would have them
-        // drawn — an interior's all at once through the player's cell.
-        if (mFonts->getFit().mRaster != raster
-            && MWBase::Environment::get().getStateManager()->getState() != MWBase::StateManager::State_NoGame)
+        // The map's tiles are drawn at the raster (`LocalMap::mapResolution`): owed at the new one, and drawn where no
+        // load is changing the cells under them (`redrawMaps`).
+        if (mFonts->getFit().mRaster != raster)
         {
-            mMap->dropMapViews();
-            mHud->dropMapViews();
-            if (const MWWorld::CellStore* const cell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell())
-                mMap->requestMapRender(cell);
+            mMapsOwed = true;
+            redrawMaps();
         }
+    }
+
+    void WindowManager::redrawMaps()
+    {
+        // Anywhere in the modes and not only on top: a message box a script shows over a load leaves the load running.
+        if (!mMapsOwed || containsMode(GM_Loading) || containsMode(GM_LoadingWallpaper))
+            return;
+        mMapsOwed = false;
+
+        // With no game there are no tiles, and the cells a game starts in draw theirs at the raster then.
+        if (MWBase::Environment::get().getStateManager()->getState() == MWBase::StateManager::State_NoGame)
+            return;
+
+        // Every tile the map and the minimap show is let go of, and asked for again, as a cell change would have them
+        // drawn — an interior's all at once through the player's cell.
+        mMap->dropMapViews();
+        mHud->dropMapViews();
+        if (const MWWorld::CellStore* const cell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell())
+            mMap->requestMapRender(cell);
     }
 
     void WindowManager::fitCursors()

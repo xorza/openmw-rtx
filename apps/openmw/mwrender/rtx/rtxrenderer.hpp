@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -16,6 +17,7 @@
 #include <apps/openmw/mwrender/ground.hpp>
 #include <apps/openmw/mwrender/renderer.hpp>
 #include <components/esm/refid.hpp>
+#include <components/rtx/common/bufferpool.hpp>
 #include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/frameextents.hpp>
@@ -23,6 +25,7 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/drawableposer.hpp>
 #include <components/rtx/mirror/released.hpp>
+#include <components/rtx/preprocess/texturehands.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/frametimehistogram.hpp>
@@ -47,6 +50,7 @@
 
 namespace Resource
 {
+    class ImageManager;
     class ResourceSystem;
     class SceneManager;
 }
@@ -78,8 +82,9 @@ namespace ContentStore
 namespace Rtx
 {
     class ImageDerivation;
+    class ModelDerivation;
     class PoseUpdate;
-    class PreparedImages;
+    class TextureHands;
 }
 
 namespace MyGUIRtx
@@ -89,6 +94,7 @@ namespace MyGUIRtx
 
 namespace MWRender
 {
+    class HeaderSources;
     class TracedView;
     enum class ViewKind;
 
@@ -152,7 +158,6 @@ namespace MWRender
         std::unique_ptr<Ground> createGround(const GroundSpec& spec) noexcept override;
 
         float getGroundReach() const noexcept override;
-        bool groundReadsGates() const noexcept override { return true; }
         SDL_Window* getWindow() const noexcept override { return mWindow.get(); }
 
         /// Into the presentation, which the next frame's fit sizes the trace and the surface to.
@@ -188,6 +193,11 @@ namespace MWRender
         /// A step of its own on the loading screen, where the kernels are not all made by the time
         /// the content is read: `Rtx::Renderer::awaitKernels`; and the content's preparation beside it.
         void prepareContent(const MWWorld::ESMStore& store, Loading::Listener& listener) override;
+        void standWhole(const SceneFrame& frame, const WorldChanged& changed, Loading::Listener& listener) override;
+
+        /// How long a wait for the world to stand whole goes on bringing it no nearer before the world is shown as it
+        /// stands: the harness's own patience for a stop's world (`RtxTool::sStallMs`).
+        static constexpr std::chrono::seconds sStandWholePatience{ 10 };
 
         void capture(osg::Image& image, std::int32_t width, std::int32_t height) noexcept override;
         void saveScreenshot() noexcept override;
@@ -230,8 +240,13 @@ namespace MWRender
 
         /// Draws the pictures asked for since the last frame — `ViewQueue::draw` with this
         /// renderer's budget of world views — and answers how long that took. From the frame's
-        /// own `Views` phase, and from the run's hook.
+        /// own `Views` phase.
         double drawViews();
+
+        /// The same from the run's hook, where a picture is wanted before the next frame: each draw stands under a
+        /// residency frame of its own, and a picture that awaits what residency owes its scene is drawn again once the
+        /// feed has made it, `sStopDrawsMost` times at most.
+        void drawViewsAtStop();
 
     protected:
         void drawFrame(const SceneFrame& frame, const AsideSpan& aside) override;
@@ -311,6 +326,11 @@ namespace MWRender
         void traceWorld(
             const SceneFrame& frame, const osg::Matrixd& view, FrameReport& report, std::optional<double> since);
 
+        /// One frame under a cover: the world walked from `view` and handed over, residency's frame opened and closed,
+        /// and no trace and no present. What `standWhole` loops, the frame stamp advanced before each, so the ring
+        /// adopts on every one.
+        void coverFrame(const SceneFrame& frame, const osg::Matrixd& view, FrameReport& report);
+
         /// Waits the frame behind out and reads what the device answered for it, into the report.
         void finishBehind(FrameReport& report);
 
@@ -336,6 +356,11 @@ namespace MWRender
         /// Hands MyGUI's triangles to the renderer, where there is a GUI up at all.
         void drawGui();
 
+        /// Sizes the trace, the surface and the viewport to the presentation as `RtxWindow::fit` settles it. Asked by
+        /// every frame that presents, the world's and a loading screen's, since the interface is laid out for the
+        /// presentation the moment the window moves, and a load draws none of the world's frames.
+        void fitWindow();
+
         /// Whose frame a present ends: the world's, which leaves the renderer and starts the game's update, or
         /// one the interface draws of its own inside that update, a stretch of `Rtx::Timing::Interface`.
         enum class PresentOf
@@ -359,6 +384,10 @@ namespace MWRender
         /// How many pictures of the world one frame draws; the rest wait. Three, because a cell crossing asks
         /// for a row of three map tiles and a fresh load for nine.
         static constexpr std::uint32_t sWorldViewsPerFrame = 3;
+
+        /// What a stop draws its pictures over at most: an ask of the feed, its arrival stood, and the redraw that
+        /// reads it, with room for a block the device answers a draw late.
+        static constexpr std::uint32_t sStopDrawsMost = 8;
 
         /// MyGUI's backend, which `createGuiPlatform` makes and the window manager owns. Never null
         /// where a frame runs, because the window manager outlives every frame.
@@ -390,6 +419,14 @@ namespace MWRender
 
         std::unique_ptr<Rtx::Renderer> mRenderer;
 
+        /// **What the made chains are read into** (`Rtx::TextureHands::sPoolBytes`): ahead of everything that holds one
+        /// of its buffers, the hands and residency's arrivals, so it goes after the last.
+        Rtx::BufferPool mTexelPool{ Rtx::TextureHands::sPoolBytes };
+
+        /// **What stands of every scene on the device** (`Rtx::Residency`): made once the backend says its arenas, and
+        /// told of each frame's start and end around every hand-over.
+        std::optional<Rtx::Residency> mResidency;
+
         /// What the settings or the command line upscale by, which a stop may set aside (`RtxRun::getUpscale`)
         /// and a menu moves. Taken at the next frame's start, so one place changes the targets, ahead of the
         /// camera built for them.
@@ -418,12 +455,17 @@ namespace MWRender
 
         /// What is derived of a file where a loader first reads it (`Rtx::ImageDerivation`), on as many preprocessors
         /// as the chains' threads. After the store it asks; handed to the image manager, which calls it on every
-        /// loader's thread, and taken back before this goes (`~RtxRenderer`).
+        /// loader's thread, and taken back before this goes (`mDerivesHeaders`).
         std::unique_ptr<Rtx::ImageDerivation> mDerivation;
 
-        /// The world's normal and data maps with their chains made again, on half the processors
-        /// (`Rtx::Hands::Half`). After the store its threads write to, before the mirror whose hand-over reads it.
-        std::unique_ptr<Rtx::PreparedImages> mPrepared;
+        /// What is derived of a model where a loader first loads it (`Rtx::ModelDerivation`): each geometry's fold,
+        /// kept on it. After the store it asks; handed to the scene manager and taken back before this goes
+        /// (`mDerivesModels`).
+        std::unique_ptr<Rtx::ModelDerivation> mModelDerivation;
+
+        /// Where every texture's texels come from, read and with their chains made again on half the processors
+        /// (`Rtx::TextureHands`). After the store its threads write to, before residency and the mirror that ask it.
+        std::unique_ptr<Rtx::TextureHands> mHands;
 
         /// Where every scene this renderer's slots meet takes its identity: the world's and every traced view's.
         /// Before the mirror, whose scene takes one, and every view.
@@ -447,6 +489,9 @@ namespace MWRender
         /// What the host said the next traced frame's past is worth, `notifyCut` and
         /// `notifyWorldspaceChanged`, kept until a frame traces the world and spends it.
         Rtx::HistoryLoss mLoss = Rtx::HistoryLoss::None;
+
+        /// How long the last crossing held the game for its band, until the next traced frame's report says so.
+        std::optional<double> mHeldAtCrossingMs;
 
         /// The worldspace the crash catcher was last told the player is in, so a load's every cell tells it once.
         ESM::RefId mWorldspace;
@@ -492,5 +537,26 @@ namespace MWRender
 
         /// Whether a camera the builder refused has already been reported (`refuseEye`).
         bool mComplained = false;
+
+        /// The headers the image manager is handed (`HeaderSources`), made with the resources: their records written
+        /// as they go, after the image manager has taken them back (`mDerivesHeaders`).
+        std::unique_ptr<HeaderSources> mHeaderSources;
+
+        /// Takes the header derivation back from the image manager it was handed to.
+        struct TakesDerivationBack
+        {
+            void operator()(Resource::ImageManager* images) const noexcept;
+            void operator()(Resource::SceneManager* scene) const noexcept;
+        };
+
+        /// **The image manager while it derives through this renderer** (`configureResources`), and so nothing for a
+        /// start that ended before there were resources: a missing archive throws ahead of them, and the destructor
+        /// reached for an image manager that was never handed, ending the fatal error box's start in a crash. Last,
+        /// so it is taken back first: the image manager outlives this, and whatever loads a model has ended by then.
+        std::unique_ptr<Resource::ImageManager, TakesDerivationBack> mDerivesHeaders;
+
+        /// The scene manager while it derives models through this renderer, as `mDerivesHeaders` holds the image
+        /// manager.
+        std::unique_ptr<Resource::SceneManager, TakesDerivationBack> mDerivesModels;
     };
 }

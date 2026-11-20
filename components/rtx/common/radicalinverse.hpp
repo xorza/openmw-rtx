@@ -13,7 +13,8 @@ namespace Rtx
     /// are more than twice 24 and two. Dividing a float at every digit rounded at each step for base three.
     inline float radicalInverse(std::uint32_t index, std::uint32_t base)
     {
-        assert(base >= 2 && base < (1u << 16) && "a base whose powers past a 32-bit index stay exact in a double");
+        assert(base >= 2 && "a base whose powers past a 32-bit index stay exact in a double");
+        assert(base < (1u << 16) && "a base whose powers past a 32-bit index stay exact in a double");
 
         std::uint64_t reversed = 0;
         std::uint64_t scale = 1;

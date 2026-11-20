@@ -62,7 +62,8 @@ namespace Rtx
         /// Says how many of them a scene keeps: at least one, at most all of them.
         void open(const std::uint32_t count)
         {
-            assert(count >= 1 && count <= sFrameSlots && "more frames in flight than there are copies");
+            assert(count >= 1 && "more frames in flight than there are copies");
+            assert(count <= sFrameSlots && "more frames in flight than there are copies");
             mCount = count;
         }
 

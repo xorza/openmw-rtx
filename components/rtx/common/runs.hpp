@@ -64,9 +64,6 @@ namespace Rtx
         return most;
     }
 
-    template <class T>
-    class BlockedValues;
-
     /// A run inside a buffer: where it starts, and how many elements it holds. A mesh's vertices,
     /// a material's layers, a layer's mask weights and an emitter's sprites are all runs.
     struct Run
@@ -82,12 +79,6 @@ namespace Rtx
         std::span<T> in(std::span<T> all) const
         {
             return all.subspan(mOffset, mCount);
-        }
-
-        template <class T>
-        std::span<const T> in(const BlockedValues<T>& all) const
-        {
-            return all.in(*this);
         }
 
         bool operator==(const Run& other) const = default;
@@ -149,92 +140,6 @@ namespace Rtx
 
         std::uint32_t mEnd = 0;
         std::uint32_t mBlock = 0;
-    };
-
-    /// The host's side of a buffer in blocks, the shape the device's has: whole blocks that never move, so a
-    /// growth allocates one block and copies nothing. Element `at` is the flat buffer's `at` — `at % block`
-    /// of block `at / block` — so the offsets a `RunAllocator` of the same block hands out name the same
-    /// elements here as on the device, and a run is inside one block because the allocator never lets one
-    /// straddle.
-    ///
-    /// **A block is storage until it is reached**, and `reach` value-initialises only what it reaches, so a
-    /// scene with a handful of meshes holds a few pages of each block; the holes a block's tail leaves are
-    /// nought, as a vector's growth left them.
-    template <class T>
-    class BlockedValues
-    {
-        static_assert(std::is_trivially_copyable_v<T> && std::is_trivially_destructible_v<T>,
-            "a block is raw storage, copied and dropped as bytes");
-        static_assert(alignof(T) <= __STDCPP_DEFAULT_NEW_ALIGNMENT__, "a block is aligned as new aligns it");
-
-    public:
-        explicit BlockedValues(std::uint32_t block)
-            : mBlock(block)
-        {
-            assert(block > 0 && "a buffer in blocks of nothing");
-        }
-
-        /// Makes the buffer `end` long, allocating whole blocks until `end` is inside them. Never
-        /// moves a block and never shrinks, like the allocator's buffer it follows.
-        void reach(std::uint32_t end)
-        {
-            if (end <= mEnd)
-                return;
-
-            while (static_cast<std::uint64_t>(mBlocks.size()) * mBlock < end)
-                mBlocks.push_back(std::make_unique_for_overwrite<std::byte[]>(std::size_t{ mBlock } * sizeof(T)));
-
-            for (std::uint32_t at = mEnd; at < end;)
-            {
-                const std::uint32_t upTo = std::min(end, (at / mBlock + 1) * mBlock);
-                std::uninitialized_value_construct_n(blockAt(at / mBlock) + at % mBlock, upTo - at);
-                at = upTo;
-            }
-
-            mEnd = end;
-        }
-
-        /// How far the buffer has been reached, which is how much of it is uploaded.
-        std::uint32_t size() const { return mEnd; }
-
-        T& operator[](std::uint32_t at) { return *elementAt(at); }
-        const T& operator[](std::uint32_t at) const { return *elementAt(at); }
-
-        /// One run's elements, which lie in one block.
-        std::span<T> in(Run run) { return std::span<T>(startOf(run), run.mCount); }
-        std::span<const T> in(Run run) const { return std::span<const T>(startOf(run), run.mCount); }
-
-        /// Hands `visit` each block's reached part, in order: the whole buffer, for a reader of all
-        /// of it such as the scene digest.
-        template <class Visit>
-        void forEachBlock(Visit&& visit) const
-        {
-            for (std::uint32_t at = 0; at < mEnd; at += mBlock)
-                visit(std::span<const T>(blockAt(at / mBlock), std::min(mBlock, mEnd - at)));
-        }
-
-    private:
-        T* blockAt(std::size_t block) const { return std::launder(reinterpret_cast<T*>(mBlocks[block].get())); }
-
-        T* elementAt(std::uint32_t at) const
-        {
-            assert(at < mEnd);
-            return blockAt(at / mBlock) + at % mBlock;
-        }
-
-        T* startOf(Run run) const
-        {
-            if (run.empty())
-                return nullptr;
-
-            assert(run.getEnd() <= mEnd && run.mOffset / mBlock == (run.getEnd() - 1) / mBlock
-                && "a run past the buffer's end, or across a block");
-            return elementAt(run.mOffset);
-        }
-
-        std::vector<std::unique_ptr<std::byte[]>> mBlocks;
-        std::uint32_t mBlock;
-        std::uint32_t mEnd = 0;
     };
 
     /// A `RunAllocator` and the buffer its runs name, so the buffer reaches the allocator's end

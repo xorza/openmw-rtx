@@ -4,8 +4,6 @@
 
 #include <components/rtx/mirror/cells/readermemory.hpp>
 #include <components/rtx/mirror/cells/ringstanding.hpp>
-#include <components/rtx/preprocess/preparedheld.hpp>
-#include <components/rtx/scene/texturetable.hpp>
 
 namespace Rtx
 {
@@ -22,6 +20,11 @@ namespace Rtx
         std::uint32_t mRestingVertices = 0;
         std::uint32_t mRestingIndices = 0;
 
+        /// How many separate holes the vertex and the index runs leave below their reach (`RunAllocator::
+        /// getHoleCount`): what says whether the runs' allocator, walked a hole at a time, wants another shape.
+        std::uint32_t mVertexHoles = 0;
+        std::uint32_t mIndexHoles = 0;
+
         /// What the host holds of the geometry: the arrivals waiting for a hand-over (`MeshTable::getGeometryBytes`).
         std::uint64_t mGeometryBytes = 0;
 
@@ -35,21 +38,13 @@ namespace Rtx
         std::uint32_t mPoseEnd = 0;
         std::uint32_t mBindVertexEnd = 0;
 
-        /// The textures nothing names that rest on the device until their room is needed (`TextureTable`), and the
-        /// bytes they were handed over in: what the scene's own figure of textures counts with the ones named.
+        /// The textures nothing names that keep their slot until a full table needs it (`TextureTable`): what stands of
+        /// each on the device is residency's.
         std::uint32_t mRestingTextures = 0;
-        std::uint64_t mRestingTextureBytes = 0;
-
-        /// What the textures stood whole hold above the level each is wanted from (`TexturesAboveWant`).
-        TexturesAboveWant mAboveWant{};
 
         ReaderMemory mReader;
 
-        /// What the files' chains made again and texels read hold that no slot was handed (`PreparedImages`), and the
-        /// slots that left while theirs were read; nought with none.
-        PreparedHeld mPrepared{};
-
-        /// What the ring holds against what stands, by distance (`CellRing::countStanding`).
+        /// What the ring holds against what stands, by distance (`CellStreamer::countStanding`).
         RingStanding mRing{};
     };
 }

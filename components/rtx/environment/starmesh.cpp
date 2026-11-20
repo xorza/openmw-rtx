@@ -301,7 +301,7 @@ namespace Rtx
 
                 // The field is laid over the whole dome, so its own mean is what it adds to the
                 // sky's — `STAR_RADIANCE` is the scale the shader draws it at.
-                sky.mGlow += thread.meanOf(*layer.mImage).mColour * Shaders::STAR_RADIANCE;
+                sky.mGlow += thread.factsOf(*layer.mImage).mMean.mColour * Shaders::STAR_RADIANCE;
                 continue;
             }
 
@@ -322,7 +322,7 @@ namespace Rtx
             // A cap of half-angle `t` is `1 - cos(t)` of a hemisphere, which is the share of the
             // sky's mean this patch speaks for. Overlaps are counted twice, which is the sky's mean
             // to first order and spent out of the weather's own ambient either way.
-            sky.mGlow += thread.meanOf(*layer.mImage).mColour
+            sky.mGlow += thread.factsOf(*layer.mImage).mMean.mColour
                 * (Shaders::NEBULA_RADIANCE * (1.0f - std::cos(layer.mAngularRadius)));
         }
 

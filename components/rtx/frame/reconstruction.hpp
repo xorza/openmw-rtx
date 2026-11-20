@@ -278,7 +278,8 @@ namespace Rtx
         /// The ratio's levels, and the epsilon the request adds.
         static float levelBiasOf(const FrameExtents& extents, const float epsilon)
         {
-            assert(extents.mRenderWidth > 0 && extents.mOutputWidth > 0 && "an upscaler with no extents to bias by");
+            assert(extents.mRenderWidth > 0 && "an upscaler with no extents to bias by");
+            assert(extents.mOutputWidth > 0 && "an upscaler with no extents to bias by");
 
             return std::log2(static_cast<float>(extents.mRenderWidth) / static_cast<float>(extents.mOutputWidth))
                 + epsilon;

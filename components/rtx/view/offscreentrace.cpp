@@ -37,6 +37,7 @@ namespace Rtx
     OffscreenTrace::OffscreenTrace(
         PictureRenderer& renderer, const ViewRequest& request, WalkContext& context, SceneIdentities& identities)
         : mRenderer(renderer)
+        , mResidency(*context.mResidency)
         , mRequest(request)
         , mExtentWidth(request.mWidth)
         , mExtentHeight(request.mHeight)
@@ -54,9 +55,12 @@ namespace Rtx
         held.mUpdate = std::make_unique<PoseUpdate>();
         held.mPose = std::make_unique<PoseCull>();
         held.mPoseStamp = new osg::FrameStamp;
-        held.mSlot = ViewScene(renderer);
 
-        held.mExtractor = std::make_unique<SceneExtractor>(*held.mScene, context, sSubjectExtractorRoom);
+        assert(context.mFeed != nullptr && "a picture's scene handed over with no feed");
+        held.mSlot = ViewScene(renderer, *context.mResidency, *context.mFeed);
+
+        held.mExtractor
+            = std::make_unique<SceneExtractor>(*held.mScene, context, sSubjectExtractorRoom, HoldTier::Forced);
         held.mExtractor->setTraversalMask(request.mSubjectMask);
         held.mPose->setFrameStamp(held.mPoseStamp);
     }
@@ -103,10 +107,14 @@ namespace Rtx
 
     bool OffscreenTrace::awaitsImages() const
     {
-        return mSubject != nullptr && mSubject->mUploader.getPendingCount() > 0;
+        // What residency still owes the picture's scene, a texture still arriving, which a redraw stands once it has;
+        // and for a picture of the world, what the world's shown content still waits on.
+        if (mSubject == nullptr)
+            return !mResidency.isSettled(HoldTier::Shown);
+        return mResidency.owes(mSubject->mSlot.get());
     }
 
-    bool OffscreenTrace::rebuildSubject(const osg::FrameStamp& posing, Released& releasing, const bool settled)
+    bool OffscreenTrace::rebuildSubject(const osg::FrameStamp& posing, Released& releasing)
     {
         if (mSubject == nullptr)
             return true;
@@ -163,16 +171,17 @@ namespace Rtx
         releasing.keepAll(subject.mExtractor->getReleased());
 
         // It consumes the arrivals and ends the placement, so nothing here clears either.
+        const WalkContext& context = subject.mExtractor->getContext();
         subject.mUploader.hand(mRenderer,
             SceneUploader::Handing{ .mSlot = subject.mSlot.get(),
                 .mScene = *subject.mScene,
-                .mPrepared = subject.mExtractor->getContext().mPrepared,
-                .mSettled = settled });
+                .mResidency = *context.mResidency,
+                .mFeed = *context.mFeed });
 
         return subject.mScene->placements().getCounts().mPlaced > 0;
     }
 
-    bool OffscreenTrace::traceInto(const GuiSlot texture, const bool readBack)
+    bool OffscreenTrace::traceInto(const GuiSlot texture, const Copy copy)
     {
         const std::optional<Viewpoint> camera = describeCamera();
         if (!camera.has_value())
@@ -189,7 +198,7 @@ namespace Rtx
             *camera,
             GuiTraceOptions{
                 .mClear = { clear.r(), clear.g(), clear.b(), clear.a() },
-                .mReadBack = readBack,
+                .mReadBack = copy == Copy::Kept,
                 .mRayMask = mRequest.mRayMask,
                 .mLamps = mRequest.mLamps,
                 .mLight = PictureLight{ .mDirection = sun,

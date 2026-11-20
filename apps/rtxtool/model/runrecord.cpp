@@ -28,7 +28,7 @@ namespace RtxTool
         /// What the device's video heap held by use, the frame's own memory among it.
         std::uint64_t heldByUse(const Rtx::MemoryUses& uses)
         {
-            return uses.mFrame + uses.mEssential + uses.mStructures + uses.mTextures;
+            return uses.mFrame + uses.mEssential + uses.mContent;
         }
 
         /// The meshes the ring holds that stand in no placement, and their vertices, at every distance together.
@@ -82,39 +82,12 @@ namespace RtxTool
                 const Rtx::ContentMemory& content = peak->mContent;
                 out += std::format(
                     "the geometry reached at most {:.2f} M vertices and {:.2f} M indices, at {}: {:.2f} M and {:.2f} M "
-                    "of them resting, {:.2f} M and {:.2f} M in holes; {:.1f} MiB on the host, {:.1f} MiB on the "
-                    "device\n",
+                    "of them resting, {:.2f} M and {:.2f} M in {} and {} holes; {:.1f} MiB on the host, {:.1f} MiB "
+                    "on the device\n",
                     content.mVertexEnd / 1e6, content.mIndexEnd / 1e6, peak->mView, content.mRestingVertices / 1e6,
                     content.mRestingIndices / 1e6, (content.mVertexEnd - content.mVerticesUsed) / 1e6,
-                    (content.mIndexEnd - content.mIndicesUsed) / 1e6, Rtx::mebibytes(content.mGeometryBytes),
-                    Rtx::mebibytes(peak->mScene.mGeometryBytes));
-            }
-
-            // What stood whole above the level its nearest reader asks, at its most (`docs/architecture.md`, "A
-            // texture stands from the level its nearest user asks").
-            if (const BenchPlace* const peak
-                = peakOf(places, [](const BenchPlace& place) { return place.mContent.mAboveWant.mAbove; }))
-            {
-                const Rtx::TexturesAboveWant& above = peak->mContent.mAboveWant;
-                out += std::format(
-                    "the textures stood above their want at most {:.1f} of {:.1f} MiB stood whole, {:.1f}%, in {} "
-                    "textures, at {}\n",
-                    Rtx::mebibytes(above.mAbove), Rtx::mebibytes(above.mStood),
-                    above.mStood > 0 ? 100.0 * static_cast<double>(above.mAbove) / static_cast<double>(above.mStood)
-                                     : 0.0,
-                    above.mTextures, peak->mView);
-            }
-            if (const BenchPlace* const peak
-                = peakOf(places, [](const BenchPlace& place) { return place.mContent.mAboveWant.mRestingAbove; }))
-            {
-                const Rtx::TexturesAboveWant& above = peak->mContent.mAboveWant;
-                out += std::format(
-                    "the resting textures stood above their last want at most {:.1f} of {:.1f} MiB, {:.1f}%, at {}\n",
-                    Rtx::mebibytes(above.mRestingAbove), Rtx::mebibytes(above.mRestingStood),
-                    above.mRestingStood > 0
-                        ? 100.0 * static_cast<double>(above.mRestingAbove) / static_cast<double>(above.mRestingStood)
-                        : 0.0,
-                    peak->mView);
+                    (content.mIndexEnd - content.mIndicesUsed) / 1e6, content.mVertexHoles, content.mIndexHoles,
+                    Rtx::mebibytes(content.mGeometryBytes), Rtx::mebibytes(peak->mScene.mGeometryBytes));
             }
 
             if (const BenchPlace* const peak
@@ -125,11 +98,6 @@ namespace RtxTool
                     "the ring held at most {} meshes standing in no placement, {:.2f} M vertices, at {}\n",
                     unstood.mMeshes, static_cast<double>(unstood.mVertices) / 1e6, peak->mView);
             }
-
-            if (const BenchPlace* const peak
-                = peakOf(places, [](const BenchPlace& place) { return place.mContent.mPrepared.mBytes; }))
-                out += std::format("the prepared images held at most {} unhanded, {:.1f} MiB, at {}\n",
-                    peak->mContent.mPrepared.mEntries, Rtx::mebibytes(peak->mContent.mPrepared.mBytes), peak->mView);
 
             if (const BenchPlace* const peak
                 = peakOf(places, [](const BenchPlace& place) { return readerRoomOf(place.mContent.mReader); }))
@@ -149,9 +117,6 @@ namespace RtxTool
             if (!places.empty())
             {
                 const BenchPlace& last = places.back();
-                if (last.mContent.mPrepared.mLeftPending > 0)
-                    out += std::format(
-                        "{} slots left while their files were read\n", last.mContent.mPrepared.mLeftPending);
                 if (last.mGame.mStarvedLooks > 0)
                     out += std::format("{} looks for room in the caches found all in use\n", last.mGame.mStarvedLooks);
                 if (const std::string reads = describeTexelReads(last.mTexelReads); !reads.empty())
@@ -340,17 +305,38 @@ namespace RtxTool
             }
         }
 
-        if (!request.mJson.empty())
-        {
-            if (wrote(writeJson(request.mJson, mHeader, mPlaces)))
-                mReport += "wrote " + Files::pathToUnicodeString(request.mJson) + '\n';
-        }
+        // **A record that measured no place is written all the same**: one that was not would leave the last run's
+        // at its path, to be compared as this one's.
+        save(request);
+        bool written = true;
+        for (const std::string& failure : mFiles.finish())
+            written = wrote(Result<void, std::string>(Err{ failure })) && written;
+        if (written && !request.mJson.empty())
+            mReport += "wrote " + Files::pathToUnicodeString(request.mJson) + '\n';
     }
 
     void RunRecord::save(const SessionRequest& request)
     {
-        if (!request.mJson.empty())
-            wrote(writeJson(request.mJson, mHeader, mPlaces));
+        if (request.mJson.empty())
+            return;
+
+        if (!mHeaderSaved)
+        {
+            mFiles.write(request.mJson, recordHeaderLine(mHeader), FileWriter::As::Whole);
+            mHeaderSaved = true;
+        }
+        for (; mPlacesSaved < mPlaces.size(); ++mPlacesSaved)
+            mFiles.write(request.mJson, recordPlaceLine(mPlaces[mPlacesSaved]), FileWriter::As::Appended);
+        if (mFindingCounts.has_value() && mFindingCounts != mCountsSaved)
+        {
+            mFiles.write(request.mJson, recordFindingsLine(*mFindingCounts), FileWriter::As::Appended);
+            mCountsSaved = mFindingCounts;
+        }
+    }
+
+    void RunRecord::writeBeside(const std::filesystem::path& path, std::string text)
+    {
+        mFiles.write(path, std::move(text), FileWriter::As::Whole);
     }
 
     void RunRecord::abandon(const SessionRequest& request)

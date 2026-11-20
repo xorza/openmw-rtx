@@ -2,15 +2,17 @@
 
 #include <cstdint>
 #include <optional>
+#include <string>
 
 #include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/missingdemanded.hpp>
 
 namespace RtxTool
 {
     /// **How long a stop waits on a world that stopped arriving, in milliseconds of the wall.** A settled walk
     /// adopts a cell a frame and an unsettled one whenever the reader hands one over (the deck's whole band, 420
-    /// frames, stood in seven seconds); ten seconds with no cell is a stuck reader or a ring that leaves cells it
-    /// never asks for, not a slow one.
+    /// frames, stood in seven seconds); ten seconds with no cell and no image nearer is a stuck reader or a ring that
+    /// leaves cells it never asks for, not a slow one.
     inline constexpr double sStallMs = 10000.0;
 
     /// What one frame tells the measuring window: the facts of `MWRender::FrameReport` it decides by.
@@ -22,8 +24,13 @@ namespace RtxTool
         /// The world stood paused under the frame.
         bool mPaused = false;
 
-        /// How many cells the ring still has to stand.
+        /// How many cells the ring still has to stand, and which demanded residents still stand nothing
+        /// (`FrameReport::mMissing`).
         std::uint32_t mCellsToStand = 0;
+        Rtx::MissingDemanded mMissing{};
+
+        /// The frame's placement brought something to the device, which a whole frame's does not.
+        bool mArriving = false;
 
         /// How many meshes the frame's placement brought.
         std::uint32_t mArrivedMeshes = 0;
@@ -64,8 +71,9 @@ namespace RtxTool
     /// A stop is measured from the frame after one that drew the whole world, plus the warm-up it
     /// asked for. Never by a count of frames from its first: a ring adopts one cell a frame, so a
     /// reach of ten cells is some four hundred frames before its last cell stands. The wait lasts as
-    /// long as the world comes nearer — a frame that leaves fewer cells to stand than any before it
-    /// — and fails after `sStallMs` of frames that brought none. Paused frames ahead of the
+    /// long as the world comes nearer — a frame that leaves fewer cells to stand or fewer images to make
+    /// than any before it, each of what a whole frame asks that counts down — and fails after `sStallMs`
+    /// of frames that brought neither. Paused frames ahead of the
     /// measurement count toward neither the wait nor the warm-up, and fail it after `pauseLimit`
     /// of them, except in a session somebody plays, whose pauses are theirs.
     class MeasureWindow
@@ -152,7 +160,18 @@ namespace RtxTool
         /// world that stood already. **Paused frames of the wait among them**, which `getWaited` leaves out.
         std::uint32_t getStoodAt() const { return mStoodAt; }
 
-        std::uint32_t getLeastToStand() const { return mLeastToStand; }
+        /// What kept the world from standing whole: the fewest cells and images any frame of the wait left, and
+        /// whether its last frame still brought something. What a stalled wait names.
+        struct Unstood
+        {
+            std::uint32_t mCells = 0;
+            Rtx::MissingDemanded mMissing{};
+            bool mArriving = false;
+
+            bool operator==(const Unstood& other) const = default;
+        };
+        const Unstood& getUnstood() const { return mUnstood; }
+
         double getStalledMs() const { return mStalledMs; }
         std::uint32_t getWarmup() const { return mWarmup; }
         std::uint32_t getWarmedPaused() const { return mWarmedPaused; }
@@ -166,7 +185,7 @@ namespace RtxTool
         bool mWhole = false;
         std::uint32_t mStoodAt = 0;
         std::uint32_t mWaited = 0;
-        std::uint32_t mLeastToStand = 0;
+        Unstood mUnstood;
         double mStalledMs = 0.0;
         std::uint32_t mWarmedRan = 0;
         std::uint32_t mWarmedPaused = 0;
@@ -177,4 +196,8 @@ namespace RtxTool
         std::optional<bool> mPendingCrossing;
         const void* mLastCell = nullptr;
     };
+
+    /// Which of what a whole frame asks held a wait, as a stalled stop's failure says it: "5 cells short, 12 images
+    /// still being made, content still arriving", each part only where it held.
+    std::string describeUnstood(const MeasureWindow::Unstood& unstood);
 }

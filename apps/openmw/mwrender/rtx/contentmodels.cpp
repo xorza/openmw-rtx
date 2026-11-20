@@ -136,9 +136,8 @@ namespace MWRender
         const auto add = [&](VFS::Path::NormalizedView texture) {
             const Terrain::LayerInfo info
                 = storage.getLayerInfo(Misc::ResourceHelpers::correctTexturePath(texture, vfs));
-            layers.push_back(Rtx::PreparationLayer{ .mDiffuse = std::string(info.mDiffuseMap.value()),
-                .mNormal = std::string(info.mNormalMap.value()),
-                .mParallax = info.mParallax });
+            layers.push_back(Rtx::PreparationLayer{
+                .mDiffuse = std::string(info.mDiffuseMap.value()), .mNormal = std::string(info.mNormalMap.value()) });
         };
         add(VFS::Path::NormalizedView("_land_default.dds"));
         for (const auto& [id, path] : store.get<ESM::LandTexture>())

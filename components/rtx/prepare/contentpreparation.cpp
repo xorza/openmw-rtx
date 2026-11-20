@@ -15,7 +15,6 @@
 #include <components/contentstore/store.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/misc/bytebuffer.hpp>
 #include <components/misc/hash.hpp>
 #include <components/misc/result.hpp>
 #include <components/platform/heap.hpp>
@@ -28,12 +27,11 @@
 #include <components/rtx/mirror/cells/templatewalk.hpp>
 #include <components/rtx/mirror/surfacedescription.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
-#include <components/rtx/preprocess/preparedimages.hpp>
-#include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texelreads.hpp>
 #include <components/rtx/preprocess/texture/chainadmission.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
-#include <components/rtx/preprocess/texture/texturepass.hpp>
+#include <components/rtx/preprocess/texture/filefactspass.hpp>
+#include <components/rtx/preprocess/texturehands.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -47,7 +45,7 @@ namespace Rtx
     struct ContentPreparation::Hand
     {
         explicit Hand(ContentStore::Store& store)
-            : mContent(&store, ContentStore::Reach::Disk)
+            : mContent(&store)
             , mWalk(nullptr)
         {
         }
@@ -56,12 +54,8 @@ namespace Rtx
         ThreadContent mContent;
         TemplateWalk mWalk;
         PreparedModel mModel;
-        MadeChain mChain;
         std::vector<std::string> mFiles;
         std::vector<StoredKey> mKeys;
-
-        /// What a stored shape is read into as its model is found standing (`standingDigest`).
-        Misc::ByteBuffer mStood;
 
         /// Its number among the threads, which the dispatcher knows it by.
         std::size_t mIndex = 0;
@@ -138,6 +132,7 @@ namespace Rtx
         , mManifest(PreparationManifest::read(setup.mManifest, mSignature))
         , mDay(setup.mDay)
         , mBudget(setup.mBudget)
+        , mAdmission(setup.mMemory)
         , mWalked(mModels.size() + mLayers.size())
         , mStood(mWalked.size())
         , mDispatcher(setup.mHands, mWalked.size(), setup.mBudget)
@@ -204,13 +199,11 @@ namespace Rtx
 
     std::uint64_t ContentPreparation::signatureOf(const PreparationSetup& setup)
     {
+        // Every pass's version and the file key's, so whichever of them moves leaves no model standing: written out
+        // pass by pass, the list left a fact pass and the file key out.
         ContentStore::Digest digest("preparation", TemplateWalk::sVersion);
-        digest.add(ShapePass::sVersion);
-        digest.add(TexelMean::sVersion);
-        digest.add(AlphaSpan::sVersion);
-        digest.add(ChainPass::sVersion);
-        digest.add(SpecularKind::sVersion);
-        digest.add(ConversionPass::sVersion);
+        digest.add(std::span<const std::uint32_t>(sContentPassVersions));
+        digest.add(sFileKeyVersion);
         digest.add(setup.mMask);
         digest.add(setup.mAutoMaps.mNormalMaps);
         digest.add(std::span<const char>(setup.mAutoMaps.mNormalMapPattern));
@@ -256,7 +249,6 @@ namespace Rtx
                 {
                     lock.unlock();
                     hand.mContent.mPreprocessor.letGoChainScratch();
-                    hand.mChain.mBytes = Misc::ByteBuffer();
                     hand.mModel.letGoBuffers();
                     // glibc keeps what a thread's arena freed below its mapping threshold until a trim, so
                     // the room reaches the system only through it.
@@ -291,22 +283,22 @@ namespace Rtx
                 case Dispatch::Kind::Chain:
                 {
                     // **Alone past the budget, and not at all past what the system has left**: the chain
-                    // is the file's own, as play keeps it (`PreparedImages::admits`).
+                    // is the file's own, as play keeps it (`TextureHands`).
                     // Outside the lock, the log and the ask of the system's memory both: the chain is this
                     // hand's alone, and the other hands queue and take beside it.
                     const QueuedChain& queuedChain = mChains[dispatch.mJob];
                     lock.unlock();
-                    bool makes = true;
+                    std::optional<ChainAdmission::Ticket> admitted = ChainAdmission::Ticket{};
                     if (dispatch.mAlone)
                     {
                         Log(Debug::Info) << "The content's preparation makes the chain of \""
                                          << SceneUtil::EmbeddedImage::nameOf(*queuedChain.mImage)
                                          << "\" alone: it needs more than the whole budget of memory";
-                        makes = admitsChain(
+                        admitted = mAdmission.admit(
                             needOf(*queuedChain.mImage, queuedChain.mPartner.get(), queuedChain.mEncoding).mScratch,
                             *queuedChain.mImage);
                     }
-                    if (makes)
+                    if (admitted.has_value())
                         makeChain(hand, queuedChain);
                     else
                         hand.mKeys.clear();
@@ -323,8 +315,7 @@ namespace Rtx
                 }
             }
 
-            ChainScratch kept = hand.mContent.mPreprocessor.chainScratch();
-            kept[ChainBuffer::Made] = hand.mChain.mBytes.capacity();
+            const ChainScratch kept = hand.mContent.mPreprocessor.chainScratch();
             mDispatcher.ended(hand.mIndex, kept, hand.mModel.getRoomBytes(), hand.mMetBytes);
             mDone = std::chrono::steady_clock::now();
             mToHands.notify_all();
@@ -358,8 +349,7 @@ namespace Rtx
         hand.mFiles.clear();
         hand.mMet.clear();
         hand.mMetBytes = 0;
-        if (const std::optional<std::uint64_t> stood
-            = mManifest.standingDigest(nameOf(at), mStamps, mStore, hand.mStood))
+        if (const std::optional<std::uint64_t> stood = mManifest.standingDigest(nameOf(at), mStamps, mStore))
         {
             mStood[at] = stood;
             return;
@@ -394,17 +384,14 @@ namespace Rtx
         hand.mContent.mPreprocessor.collectKeys(&hand.mKeys);
         // The header a model holds, whose texels a run reads for the make alone: a chain the store holds reads none.
         if (queued.mPartner != nullptr)
-            hand.mContent.mPreprocessor.convert(ConversionPass::Input{ .mImage = *queued.mImage,
-                                                    .mPartner = *queued.mPartner,
-                                                    .mEncoding = queued.mEncoding,
-                                                    .mWhy = TexelRead::Preparation,
-                                                    .mPartnerWhy = TexelRead::Preparation },
-                hand.mChain, ContentAsk::Stored);
+            std::ignore = hand.mContent.mPreprocessor.prepareConversion(ConversionPass::Input{ .mImage = *queued.mImage,
+                .mPartner = *queued.mPartner,
+                .mEncoding = queued.mEncoding,
+                .mWhy = TexelRead::Preparation,
+                .mPartnerWhy = TexelRead::Preparation });
         else
-            hand.mContent.mPreprocessor.chain(
-                ChainPass::Input{
-                    .mImage = *queued.mImage, .mEncoding = queued.mEncoding, .mWhy = TexelRead::Preparation },
-                hand.mChain, ContentAsk::Stored);
+            std::ignore = hand.mContent.mPreprocessor.prepareChain(ChainPass::Input{
+                .mImage = *queued.mImage, .mEncoding = queued.mEncoding, .mWhy = TexelRead::Preparation });
         hand.mContent.mPreprocessor.collectKeys(nullptr);
     }
 
@@ -429,7 +416,7 @@ namespace Rtx
                 const osg::Image* const specular = described.getTexture(SurfaceMap::Specular);
                 const SpecularLayout layout
                     = specular != nullptr && !SceneUtil::EmbeddedImage::nameOf(*specular).empty()
-                    ? hand.mContent.specularLayoutOf(hand.mContent.factsOf(*specular), *specular)
+                    ? hand.mContent.factsOf(*specular).mSpecularLayout
                     : SpecularLayout::MetalRoughness;
                 for (std::size_t map = 0; map < sSurfaceMapCount; ++map)
                 {
@@ -485,13 +472,11 @@ namespace Rtx
             return;
         meet(hand, *normal.value());
         chain(hand, ChainPass::Input{ .mImage = *normal.value(), .mEncoding = TextureEncoding::Normal });
-        if (layer.mParallax && carriesHeight(*normal.value()))
-            hand.mContent.alphaRangeOf(hand.mContent.factsOf(*normal.value()), *normal.value());
     }
 
     void ContentPreparation::chain(Hand& hand, const ChainPass::Input& input)
     {
-        if (!PreparedImages::prepares(input.mImage, input.mEncoding))
+        if (!isChainMade(input.mImage, input.mEncoding))
             return;
 
         // Claimed by its name and its encoding: what the store keys it by.

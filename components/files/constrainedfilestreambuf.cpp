@@ -5,11 +5,30 @@
 #include <filesystem>
 #include <ios>
 #include <memory>
+#include <string>
+#include <system_error>
 #include <utility>
+
+#include <components/misc/result.hpp>
 
 namespace Files
 {
     namespace File = Platform::File;
+
+    namespace
+    {
+        /// `File::readAt`, its failure thrown: a stream's reader is a parser layers away, which hears of a read that
+        /// failed as it hears of any other, by the exception the stream turns into its bad bit.
+        std::size_t readOrThrow(
+            const File::Handle file, const std::size_t offset, char* const into, const std::size_t size)
+        {
+            const Result<std::size_t, std::error_code> got = File::readAt(file, offset, into, size);
+            if (!got.isOk())
+                throw std::system_error(got.error(),
+                    "An attempt to read " + std::to_string(size) + " bytes at " + std::to_string(offset) + " failed");
+            return got.value();
+        }
+    }
 
     SharedFile openSharedFile(const std::filesystem::path& path)
     {
@@ -31,7 +50,7 @@ namespace Files
         {
             const std::size_t toRead = std::min(mSize - mPosition, mBuffer.size());
             // A file cut short since the entry was indexed reads as the entry's end.
-            const std::size_t got = toRead == 0 ? 0 : File::readAt(*mFile, mOrigin + mPosition, mBuffer.data(), toRead);
+            const std::size_t got = toRead == 0 ? 0 : readOrThrow(*mFile, mOrigin + mPosition, mBuffer.data(), toRead);
             mPosition += got;
             setg(mBuffer.data(), mBuffer.data(), mBuffer.data() + got);
         }
@@ -55,7 +74,7 @@ namespace Files
             return buffered + std::streambuf::xsgetn(into + buffered, rest);
 
         const std::size_t wanted = std::min(static_cast<std::size_t>(rest), mSize - mPosition);
-        const std::size_t got = wanted == 0 ? 0 : File::readAt(*mFile, mOrigin + mPosition, into + buffered, wanted);
+        const std::size_t got = wanted == 0 ? 0 : readOrThrow(*mFile, mOrigin + mPosition, into + buffered, wanted);
         mPosition += got;
         // Nothing buffered past the read: the next read fetches from where this one ended.
         setg(nullptr, nullptr, nullptr);

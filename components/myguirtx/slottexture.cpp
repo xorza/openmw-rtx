@@ -90,7 +90,7 @@ namespace MyGUIRtx
         if (!mSlot.isNone())
             mRenderer.dropGuiTexture(mSlot);
 
-        mSlot = Rtx::GuiSlot::none();
+        mSlot = Rtx::GuiSlot();
         mWidth = 0;
         mHeight = 0;
     }

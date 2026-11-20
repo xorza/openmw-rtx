@@ -14,7 +14,7 @@ namespace Rtx
         /// there is a copy of its own, so a `find` in one copy never met the other copy's end and every timing
         /// read as no stretch.
         constexpr std::array sNotStretches{ Timing::Frame, Timing::Wait, Timing::Preprocess, Timing::Bake,
-            Timing::Textures, Timing::Upload, Timing::Sleep };
+            Timing::Upload, Timing::Sleep };
 
         constexpr std::size_t sShown = 3;
 

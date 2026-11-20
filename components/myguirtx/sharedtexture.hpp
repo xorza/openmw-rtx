@@ -27,7 +27,8 @@ namespace MyGUIRtx
     class SharedTexture final : public MirrorTexture
     {
     public:
-        /// `source` belongs to the caller and outlives this.
+        /// Holds `source`, which may have no other owner: a picture decoded for the interface is held by this alone
+        /// (`MyGUIPlatform::shareTexture`).
         SharedTexture(Rtx::GuiRenderer& renderer, osg::Texture2D& source);
 
         /// Out of line, so a holder of one needs no more of OpenSceneGraph than a name.

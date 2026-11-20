@@ -30,6 +30,8 @@
 #include <osg/Vec2i>
 #include <osg/Vec3f>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
 #include <apps/openmw/mwrender/ground.hpp>
 #include <apps/openmw/mwrender/mapoverlay.hpp>
 #include <apps/openmw/mwrender/offscreenview.hpp>
@@ -45,7 +47,6 @@
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/dlss/dlss.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/misc/frameclock.hpp>
@@ -54,18 +55,19 @@
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/platform/process.hpp>
 #include <components/resource/imagemanager.hpp>
+#include <components/resource/memoryarbiter.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/clock.hpp>
-#include <components/rtx/common/error.hpp>
-#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/mirror/modelderivation.hpp>
 #include <components/rtx/mirror/poseupdate.hpp>
+#include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/imagederivation.hpp>
-#include <components/rtx/preprocess/preparedimages.hpp>
+#include <components/rtx/preprocess/texturehands.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
@@ -85,8 +87,10 @@
 
 #include "classmasks.hpp"
 #include "contentmodels.hpp"
+#include "headersources.hpp"
 #include "rtxsettings.hpp"
 #include "rtxsupport.hpp"
+#include "screenwait.hpp"
 #include "tracedground.hpp"
 #include "tracedoverlay.hpp"
 #include "tracedview.hpp"
@@ -110,34 +114,6 @@ namespace MWRender
             }
             Crash::fatal("a vertical sync mode past the three");
         }
-
-        /// Waits out `await` under the loading screen, its label `label` and its note `note`, empty for none.
-        /// **Under a frame of the loading screen's**, so the screen paces it and not this wait: every report
-        /// draws, the count moved or not, as the draw pumps the window's events and beats the crash catcher's
-        /// heart, and one kernel alone takes seconds cold.
-        template <class Await>
-        void awaitOnScreen(
-            Loading::Listener& listener, const std::string_view label, const std::string_view note, Await&& await)
-        {
-            Rtx::JobProgress progress = await(std::chrono::milliseconds::zero());
-            if (progress.isDone())
-                return;
-
-            listener.setLabel(std::string(label));
-            if (!note.empty())
-                listener.setNote(note);
-            listener.setProgressRange(progress.mCount);
-
-            constexpr std::chrono::milliseconds patience{ 8 };
-            listener.setProgress(progress.mMade);
-            while (!progress.isDone())
-            {
-                progress = await(patience);
-                listener.setProgress(progress.mMade);
-            }
-            if (!note.empty())
-                listener.setNote({});
-        }
     }
 
     RtxRenderer::RtxRenderer(const RendererSpec& spec, const RtxSetup* const run)
@@ -158,9 +134,9 @@ namespace MWRender
                   : nullptr)
         , mDerivation(std::make_unique<Rtx::ImageDerivation>(
               mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
-        , mPrepared(std::make_unique<Rtx::PreparedImages>(
+        , mModelDerivation(std::make_unique<Rtx::ModelDerivation>(
               mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
-        , mMirror(setup.mMirror, mContentStore.get(), mPrepared.get(), mSceneIdentities)
+        , mMirror(setup.mMirror, mContentStore.get(), mSceneIdentities)
     {
         mSettled = setup.mSettled;
         mCacheBudget = setup.mCacheBudget;
@@ -188,7 +164,7 @@ namespace MWRender
         // The player keeps the fork's cache: a game is not compared with itself.
         if (run == nullptr)
             options.mCacheDirectory = spec.mCachePath;
-        options.mDlss = DlssLibrary::foldersIn(spec.mUserLocalData, spec.mGameFiles);
+        options.mHostFolders = Rtx::HostFolders{ .mUserLocalData = spec.mUserLocalData, .mGame = spec.mGameFiles };
         // None whose traced extent truncates to nought, and none past the side every device chosen
         // makes an image at.
         constexpr auto smallest = static_cast<std::int32_t>(Rtx::sSmallestFrameSide);
@@ -226,6 +202,8 @@ namespace MWRender
                 Log(Debug::Warning) << "[" << setting.first << "] " << setting.second << " is on: " << declined;
 
         mRenderer = createBackend(setup.mBackend, options);
+        mResidency.emplace(*mRenderer, Rtx::SlotLayout{});
+        mMirror.getWalkContext().mResidency = &*mResidency;
         mUpscale = setup.mRun.mProfile.mUpscale;
 
         Log(Debug::Info) << "Ray tracing device\n" << mRenderer->describeDevice();
@@ -262,10 +240,6 @@ namespace MWRender
     // Out of line because the members it destroys are only forward declared in the header.
     RtxRenderer::~RtxRenderer()
     {
-        // **The derivation taken back from the image manager, which outlives this**: the world, the engine's work
-        // queue and the loading screen, whatever loads a model, have ended by now, so no loader is inside it.
-        getResources().getImageManager()->setModelImages(Resource::ModelImages::Texels, {});
-
         // `Engine` has stopped the screenshot writer by now, so no write on the queue still holds
         // an image of a frame this owns the memory for. The members go in the order they are
         // declared for: the frozen texture, the backend, the window.
@@ -275,7 +249,13 @@ namespace MWRender
         Log(Debug::Info) << "Frame times of the session: " << Rtx::describe(mSessionTimes.summarise());
 
         // What the session came to, where the log otherwise holds the scene only as the first world built it.
-        Log(Debug::Info) << "Scene at the session's end: " << Rtx::describeSceneHeld(mRenderer->getSceneStats());
+        const Rtx::SceneStats scene = mRenderer->getSceneStats();
+        Log(Debug::Info) << "Scene at the session's end: " << Rtx::describeSceneHeld(scene);
+        if (std::string tight = Rtx::describe(scene.mTightness); !tight.empty())
+        {
+            tight.pop_back();
+            Log(Debug::Info) << "Structures made tight over the session, by their meshes' triangles\n" << tight;
+        }
         std::string memory = Rtx::describeMemory(mRenderer->getMemoryReport());
         if (memory.ends_with('\n'))
             memory.pop_back();
@@ -287,8 +267,8 @@ namespace MWRender
             Log(Debug::Info) << "Rtx: the content store found " << store.mFound << " entries and missed "
                              << store.mMissed << ", held " << store.mHeld << " of " << store.mHeld + store.mUnheld
                              << " asked whether it held them; wrote " << store.mWritten << ", dropped "
-                             << store.mDropped << ", refused " << store.mRefused << ", stamped " << store.mStamped
-                             << " and swept " << store.mStale << " temporaries";
+                             << store.mDropped << ", refused " << store.mRefused << ", and swept " << store.mStale
+                             << " temporaries and " << store.mOutdated << " outdated entries";
         }
     }
 
@@ -333,14 +313,39 @@ namespace MWRender
 
         resources.getCacheBudget().limit(mCacheBudget);
 
+        // **The hands are made once the resource system is handed over**, whose arbiter their makings are admitted
+        // against, and once: what residency asked of them stands across a manager handed again.
+        if (mHands == nullptr)
+        {
+            mHands = std::make_unique<Rtx::TextureHands>(mContentStore.get(), mTexelPool,
+                std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2), &resources.getMemoryArbiter());
+            mMirror.getWalkContext().mFeed = mHands.get();
+        }
+
         Resource::SceneManager& scene = *resources.getSceneManager();
         scene.setModelPrograms(Resource::ModelPrograms::Omitted);
         // The device keeps a texture's copy, and the host its texels only until the device has it: what the renderer
         // asks of a file is derived where a loader first reads it.
-        resources.getImageManager()->setModelImages(Resource::ModelImages::Headers,
-            [derivation = mDerivation.get()](
-                const osg::Image& texels, const Resource::ImageHeader& header) { derivation->derive(texels, header); });
+        // Held first, so a manager handed again is taken back from before it is handed the derivation, not after.
+        mDerivesHeaders.reset();
+        mDerivesModels.reset();
+        mHeaderSources = std::make_unique<HeaderSources>(*resources.getVFS(), *mDerivation,
+            mContentStore != nullptr ? std::optional(mContentStore->getDirectory() / "sources.index") : std::nullopt);
+        mDerivesHeaders.reset(resources.getImageManager());
+        resources.getImageManager()->setModelImages(Resource::ModelImages::Headers, mHeaderSources.get());
+        mDerivesModels.reset(&scene);
+        scene.setModelDeriver(mModelDerivation.get());
         setAutoMaps(scene);
+    }
+
+    void RtxRenderer::TakesDerivationBack::operator()(Resource::ImageManager* const images) const noexcept
+    {
+        images->setModelImages(Resource::ModelImages::Texels, nullptr);
+    }
+
+    void RtxRenderer::TakesDerivationBack::operator()(Resource::SceneManager* const scene) const noexcept
+    {
+        scene->setModelDeriver(nullptr);
     }
 
     void RtxRenderer::setAutoMaps(Resource::SceneManager& scene)
@@ -519,7 +524,7 @@ namespace MWRender
 
     double RtxRenderer::drawViews()
     {
-        mPhase.expect(Phase::Views, Phase::Run);
+        mPhase.expect(Phase::Views);
         assert(!mViews.isDrawing() && "drawViews inside drawViews");
 
         // A cell asks for its map tile as it loads, the frame before the one that first mirrors it; the
@@ -533,12 +538,36 @@ namespace MWRender
         return Rtx::since(began, std::chrono::steady_clock::now());
     }
 
+    void RtxRenderer::drawViewsAtStop()
+    {
+        mPhase.expect(Phase::Run);
+        assert(!mViews.isDrawing() && "drawViewsAtStop inside drawViews");
+
+        // **A frame of residency's own each draw**, so what a picture's hand-over asked of the feed and the device
+        // arrives and stands before the redraw that reads it, as a frame would bring it.
+        for (std::uint32_t drawn = 0; drawn < sStopDrawsMost && mViews.hasDeferred(); ++drawn)
+        {
+            mHands->flush();
+            mRenderer->awaitBlocks();
+            mResidency->openFrame(*mRenderer, *mHands);
+            mViews.draw(sWorldViewsPerFrame, getFrameStamp(), mMirror.getRing(), mPictureReleases);
+            mMirror.release(mPictureReleases);
+            mResidency->closeFrame(*mRenderer);
+        }
+    }
+
     void RtxRenderer::renderGui() noexcept
     {
         // From between two frames alone, which is a loading screen presenting: a frame presents
         // through its own exits, and a hook that presented from inside one presented it twice.
         mPhase.step(Phase::Gui, Phase::Between);
+        fitWindow();
         present(PresentOf::Interface);
+    }
+
+    void RtxRenderer::fitWindow()
+    {
+        mWindow.fit(*mRenderer, getCamera(), getPresentation(), getLoopClock().getNow());
     }
 
     /// The frame the trace made, on the screen before the call that made it returns: no composite or
@@ -589,19 +618,146 @@ namespace MWRender
         mMirror.startPreparing(getResources(), std::move(models), std::move(layers),
             std::max<std::size_t>(1, Platform::Process::usableCpuCount() - 1));
 
-        awaitOnScreen(listener, "#{OMWEngine:CompilingShaders}", {},
-            [&](const std::chrono::milliseconds patience) { return mRenderer->awaitKernels(mKernels, patience); });
+        // **A quit asked under either wait leaves both**: the preparation is stopped where it stands, what it
+        // read kept, and the engine's loop ends before a frame; a trace on the way there waits for its own kernels.
+        const auto quits = [] { return MWBase::Environment::get().getStateManager()->hasQuitRequest(); };
+        ScreenWait waited = awaitOnScreen(listener,
+            ScreenWaitAsk{ .mLabel = "#{OMWEngine:CompilingShaders}",
+                .mNote = {},
+                .mAwait
+                = [&](const std::chrono::milliseconds patience) { return mRenderer->awaitKernels(mKernels, patience); },
+                .mQuits = quits });
 
         // A cold start waits here up to minutes, 364 s on a large mod list, and a player told nothing takes it for
         // a hang (`docs/research/2026-11-09-content-preparation-cost.md`). Each file is let go of by the loader's
         // caches as the last job reading it ends (`Rtx::ContentPreparation`, `Resource::SceneManager::letGo`):
         // cleared once a second the caches held 7.3 GiB at the peak of a PBR start, and aged by their expiry, 14.7 GB.
-        awaitOnScreen(listener, "#{OMWEngine:PreparingContent}", "#{OMWEngine:PreparingContentNote}",
-            [&](const std::chrono::milliseconds patience) { return mMirror.awaitPreparing(patience); });
+        if (waited == ScreenWait::Done)
+            waited = awaitOnScreen(listener,
+                ScreenWaitAsk{ .mLabel = "#{OMWEngine:PreparingContent}",
+                    .mNote = "#{OMWEngine:PreparingContentNote}",
+                    .mAwait
+                    = [&](const std::chrono::milliseconds patience) { return mMirror.awaitPreparing(patience); },
+                    .mQuits = quits });
+        if (waited != ScreenWait::Done)
+        {
+            mMirror.abandonPreparing();
+            return;
+        }
         mWalked.mSession.mLoading += mMirror.finishPreparing();
+
+        // **And the store's own tail under the same screen** (`WorldMirror::awaitStored`): a quit asked here
+        // leaves the store writing, which its going finishes.
+        awaitOnScreen(listener,
+            ScreenWaitAsk{ .mLabel = "#{OMWEngine:PreparingContent}",
+                .mNote = "#{OMWEngine:PreparingContentNote}",
+                .mAwait = [&](const std::chrono::milliseconds patience) { return mMirror.awaitStored(patience); },
+                .mQuits = quits });
 
         // Drops what a job's files did not name, so the models a run keeps do not hang on the threads' timing.
         getResources().clearCache();
+    }
+
+    void RtxRenderer::standWhole(const SceneFrame& frame, const WorldChanged& changed, Loading::Listener& listener)
+    {
+        mPhase.expect(Phase::Between);
+        const Crash::NoteScope noted("standing the world whole around where the cells changed");
+
+        // The eye where the change stands it, turned as the camera is: the player is moved there only after.
+        osg::Matrixd eye = osg::Matrixd::inverse(getCamera().getViewMatrix());
+        eye.setTrans(changed.mPosition);
+        const osg::Matrixd view = osg::Matrixd::inverse(eye);
+
+        // What is left to stand, nought once whole: the cells, the demanded residents standing nothing, and a hand-over
+        // that did more than place.
+        FrameReport report;
+        const auto cover = [&] {
+            advance(getFrameStamp().getSimulationTime());
+            report = FrameReport{};
+            coverFrame(frame, view, report);
+            const std::uint32_t lacking = report.mCellsToShow + report.mResidency.mMissingDemanded.total();
+            if (lacking == 0 && report.mUpload.mKind == Rtx::SceneUpload::Kind::Placed)
+                return 0u;
+            return std::max(1u, lacking);
+        };
+
+        // **A crossing whose band stands returns with no frame shown**, and a cut that stands at once with none either.
+        std::uint32_t left = cover();
+        if (left == 0)
+            return;
+        const std::chrono::steady_clock::time_point began = std::chrono::steady_clock::now();
+
+        // **A wait that brings it no nearer ends**, said, rather than holding the game on a screen for good: what
+        // stands short of whole then is the harness's finding to name.
+        const std::uint32_t count = left;
+        std::uint32_t least = left;
+        std::chrono::steady_clock::time_point nearer = std::chrono::steady_clock::now();
+        bool gaveUp = false;
+        const Loading::ScopedLoad load(&listener);
+        awaitOnScreen(listener,
+            ScreenWaitAsk{ .mLabel = "#{OMWEngine:LoadingExterior}",
+                .mNote = {},
+                .mAwait =
+                    [&](const std::chrono::milliseconds patience) {
+                        const std::chrono::steady_clock::time_point until = std::chrono::steady_clock::now() + patience;
+                        do
+                        {
+                            left = cover();
+                            const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+                            if (left < least)
+                            {
+                                least = left;
+                                nearer = now;
+                            }
+                            gaveUp = left > 0 && now - nearer > sStandWholePatience;
+                        } while (left > 0 && !gaveUp && std::chrono::steady_clock::now() < until);
+                        return Rtx::JobProgress::of(count - std::min(left, count), count, left == 0 || gaveUp);
+                    },
+                .mQuits = [] { return MWBase::Environment::get().getStateManager()->hasQuitRequest(); } });
+        if (changed.mChange == WorldChange::Crossing)
+            mHeldAtCrossingMs = Rtx::since(began, std::chrono::steady_clock::now());
+        if (gaveUp)
+        {
+            const Rtx::MissingDemanded& missing = report.mResidency.mMissingDemanded;
+            Log(Debug::Warning) << std::format(
+                "Ray tracing showed the world with {} cells to show, {} textures standing nothing ({} asked, {} come "
+                "and waiting for room, {} files, {} bakes and {} composites not asked, {} made with no room) and {} "
+                "meshes ({} with no room) and a {} hand-over: {} s brought it no nearer",
+                report.mCellsToShow, missing.textures(), missing.mAsked, missing.mArrived, missing.mUnaskedFiles,
+                missing.mUnaskedBakes, missing.mUnaskedComposites, missing.mUnaskedForRoom, missing.mMeshes,
+                missing.mMeshesForRoom, report.mUpload.mKind == Rtx::SceneUpload::Kind::Placed ? "placing" : "building",
+                std::chrono::duration_cast<std::chrono::seconds>(sStandWholePatience).count());
+        }
+    }
+
+    void RtxRenderer::coverFrame(const SceneFrame& frame, const osg::Matrixd& view, FrameReport& report)
+    {
+        mPhase.step(Phase::Walking, Phase::Between);
+
+        // As a frame opens residency's: a settled run waits for every texel and block asked.
+        if (mMirror.getRing().isSettled())
+        {
+            mHands->flush();
+            mRenderer->awaitBlocks();
+        }
+        mResidency->openFrame(*mRenderer, *mHands);
+        mWalked.mFound = mMirror.mirror(frame, view);
+
+        mPhase.step(Phase::Placing, Phase::Walking);
+        if (mMirror.getScene().placements().getCounts().mPlaced > 0)
+            handOver(frame, report);
+        else
+        {
+            report.mCellsToStand = mMirror.getRing().getCellsToStand();
+            report.mResidency = mResidency->getReport();
+        }
+
+        report.mCellsToShow = mMirror.getRing().getCellsToShow();
+
+        mPhase.step(Phase::Tracing, Phase::Placing);
+        mRenderer->skipFrame();
+        mResidency->closeFrame(*mRenderer);
+        mPhase.step(Phase::Between, Phase::Tracing);
     }
 
     void RtxRenderer::capture(osg::Image& image, std::int32_t width, std::int32_t height) noexcept
@@ -691,37 +847,28 @@ namespace MWRender
             return;
         const Crash::NoteScope noted("applying the settings the menu changed");
 
-        // What asks is somebody choosing from a menu, so a value the derivation refuses is reported
-        // and everything is left where it was.
-        std::optional<RtxSettings> settings;
-        try
-        {
-            settings = RtxSettings::derive(RtxSettingValues::fromRegistry());
-        }
-        catch (const Rtx::InputError& refused)
-        {
-            Log(Debug::Warning) << "Ray tracing kept the settings it had: " << refused.what();
-            return;
-        }
+        // **The registry's sanitizers hold every value the derivation refuses**, a harness's line's to break
+        // (`RtxSettingsTest`), so a refusal here is a broken contract and ends the process through `noexcept`.
+        const RtxSettings settings = RtxSettings::derive(RtxSettingValues::fromRegistry());
 
         // **A mode moves under the upscaler the renderer was made with**, and waits under none: the upscaler
         // the menu now names is the next start's.
         if (upscale && mRenderer->getProfile().mUpscaler != Rtx::UpscalerChoice::Off)
-            mUpscale = settings->mUpscale;
+            mUpscale = settings.mUpscale;
 
         // The ring, the air and the map follow the reach while the game runs. Handed over here and never
         // read by a frame, so every part of a frame stands in one world.
         if (reach)
-            mMirror.setReach(settings->mMirror.mReach);
+            mMirror.setReach(settings.mMirror.mReach);
 
         if (anisotropy)
-            mPending.mAnisotropy = settings->mAnisotropy;
+            mPending.mAnisotropy = settings.mAnisotropy;
         if (gamma)
-            mPending.mGamma = settings->mGamma;
+            mPending.mGamma = settings.mGamma;
         if (indirect)
-            mPending.mIndirectLighting = settings->mIndirectLighting;
+            mPending.mIndirectLighting = settings.mIndirectLighting;
         if (bounceRays)
-            mPending.mBounceRays = settings->mBounceRays;
+            mPending.mBounceRays = settings.mBounceRays;
     }
 
     MyGUI::ITexture& RtxRenderer::freezeFrame() noexcept
@@ -747,8 +894,13 @@ namespace MWRender
 
     void RtxRenderer::closeStretch()
     {
-        // How the stretch the cut ends ran, which a player's report reads beside where it went.
-        Log(Debug::Info) << "Frame times since the last cut: " << Rtx::describe(mStretchTimes.summarise());
+        // How the stretch the cut ends ran, which a player's report reads beside where it went. **A cut with no
+        // frame since the last says nothing**: a rest is told as the clock's skip and again as the hour's jump, and a
+        // door into another worldspace as the change and again as the teleport, all before one frame.
+        const Rtx::FrameTimeHistogram::Summary stretch = mStretchTimes.summarise();
+        if (stretch.mFrames == 0)
+            return;
+        Log(Debug::Info) << "Frame times since the last cut: " << Rtx::describe(stretch);
         mStretchTimes.clear();
     }
 
@@ -816,7 +968,7 @@ namespace MWRender
         }
 
         // Ahead of the trace, so the frame drawn is the one the window's extent asked for and not the one behind.
-        mWindow.fit(*mRenderer, getCamera(), getPresentation(), getLoopClock().getNow());
+        fitWindow();
 
         // The stop's upscaling, else the run's: beside the fit because both rebuild the targets, and the
         // camera below is built for the extent they leave.
@@ -840,6 +992,16 @@ namespace MWRender
         // would otherwise take the world. `tws` is no cover: it is the world's view mask, read by the walk and
         // the trace. The emitter clock stops too, so a plume resumes where it left off. A picture of a subject
         // is drawn all the same, on a scene no walk of the world feeds.
+        // **Residency opens the frame before any scene is handed over and closes it after the last**: what the device
+        // finished and found, the cap and what the feed made in, blocks asked and given back out. A settled run waits
+        // for every texel and block asked, so two processes stand one image on one frame.
+        if (mMirror.getRing().isSettled())
+        {
+            mHands->flush();
+            mRenderer->awaitBlocks();
+        }
+        mResidency->openFrame(*mRenderer, *mHands);
+
         if (!isWorldShown())
         {
             mRipples.dropStrikes();
@@ -847,6 +1009,7 @@ namespace MWRender
             mViews.draw(0, getFrameStamp(), mMirror.getRing(), mPictureReleases);
             mMirror.release(mPictureReleases);
             mPhase.step(Phase::Gui, Phase::Views);
+            mResidency->closeFrame(*mRenderer);
             present(PresentOf::World);
             mBehind = report.mSpend;
             return;
@@ -878,8 +1041,9 @@ namespace MWRender
             mWalked.mSession += mWalked.mFound.mPreprocessed;
             if (mWalked.mAgain.has_value())
                 mWalked.mSession += mWalked.mAgain->mPreprocessed;
-            mWalked.mSession.mPrepared += mPrepared->takeStats();
+            mWalked.mSession.mPrepared += mHands->takeStats();
             mWalked.mSession.mDerived += mDerivation->takeStats();
+            mWalked.mSession.mDerived += mModelDerivation->takeStats();
             if (mContentStore != nullptr)
                 mWalked.mStore = mContentStore->getStats();
         }
@@ -888,6 +1052,7 @@ namespace MWRender
         mMirror.addRipples(mRipples.getImpulses());
 
         traceWorld(frame, view, report, since);
+        mResidency->closeFrame(*mRenderer);
 
         // The one exit that stamps the frame as left, reached from a walk that placed nothing, a refused eye
         // or the run's hook after the trace.
@@ -959,14 +1124,17 @@ namespace MWRender
     {
         // Placed, appended or rebuilt: the decision is the harness's too, written once (`Rtx::SceneUploader`).
         const std::chrono::steady_clock::time_point handing = std::chrono::steady_clock::now();
-        const Rtx::SceneUpload handed = mMirror.hand(*mRenderer, report.mSpend);
+        const Rtx::SceneUpload handed = mMirror.hand(*mRenderer, *mResidency, *mHands, report.mSpend);
         report.mSpend.at(Rtx::Timing::Place) = Rtx::since(handing, std::chrono::steady_clock::now());
         report.mUpload = handed;
         report.mCellsToStand = mMirror.getRing().getCellsToStand();
-        report.mImagesPending = static_cast<std::uint32_t>(mMirror.getImagesPending());
+        report.mResidency = mResidency->getReport();
 
-        // What the device gave back lately stays its own to take again, not the caches' next second.
-        getResources().getCacheBudget().yieldTo(mRenderer->getSystemClaim());
+        // **The device's figure posted and its bound taken back**, so the arbiter's tick derives both from one reading
+        // of the system: what the device gave back lately stays its own to take again, not the caches' next second.
+        Resource::MemoryArbiter& arbiter = getResources().getMemoryArbiter();
+        arbiter.postDeviceHeld(mRenderer->getSystemHeld());
+        mRenderer->setSystemBound(arbiter.getDeviceBound());
 
         if (handed.mKind == Rtx::SceneUpload::Kind::Rebuilt)
             Log(Debug::Info) << "Ray tracing built " << mMirror.getScene().meshes().getRows().size() << " meshes into "
@@ -1092,6 +1260,7 @@ namespace MWRender
         report.mSpend.at(Rtx::Timing::Present) = mTimer.takePresent();
 
         report.mWalked = mWalked;
+        report.mHeldAtCrossingMs = std::exchange(mHeldAtCrossingMs, std::nullopt);
 
         // Every traced frame, whether or not the device has answered for one yet, and the first
         // too, which a save or a skipped menu traces: the run counts the frames it traced, and

@@ -652,7 +652,6 @@ target_sources(
         mwrender/glwindow.cpp
         mwrender/glworld.cpp
         mwrender/groundcover.cpp
-        mwrender/groundcovershapes.cpp
         mwrender/landmanager.cpp
         mwrender/localmap.cpp
         mwrender/luminancecalculator.cpp
@@ -679,6 +678,7 @@ target_sources(
         mwrender/rtx/contentmodels.cpp
         mwrender/rtx/debugwalk.cpp
         mwrender/rtx/framereader.cpp
+        mwrender/rtx/headersources.cpp
         mwrender/rtx/frametimer.cpp
         mwrender/rtx/rippleemitters.cpp
         mwrender/rtx/rtxbackend.cpp
@@ -688,6 +688,7 @@ target_sources(
         mwrender/rtx/rtxstart.cpp
         mwrender/rtx/rtxsupport.cpp
         mwrender/rtx/rtxwindow.cpp
+        mwrender/rtx/screenwait.cpp
         mwrender/rtx/skyreader.cpp
         mwrender/rtx/tracedground.cpp
         mwrender/rtx/tracedgroundcover.cpp
@@ -695,6 +696,7 @@ target_sources(
         mwrender/rtx/tracedterrain.cpp
         mwrender/rtx/traceclocks.cpp
         mwrender/rtx/tracedview.cpp
+        mwrender/rtx/vfsstamps.cpp
         mwrender/rtx/viewqueue.cpp
         mwrender/rtx/worldmirror.cpp
         mwrender/sceneframe.cpp
@@ -741,7 +743,6 @@ target_sources(
                 mwrender/ground.hpp
                 mwrender/groundcover.hpp
                 mwrender/groundcoverdensity.hpp
-                mwrender/groundcovershapes.hpp
                 mwrender/landmanager.hpp
                 mwrender/localmap.hpp
                 mwrender/luminancecalculator.hpp
@@ -776,6 +777,7 @@ target_sources(
                 mwrender/rtx/framereader.hpp
                 mwrender/rtx/framereport.hpp
                 mwrender/rtx/frametimer.hpp
+                mwrender/rtx/headersources.hpp
                 mwrender/rtx/mirrorknobs.hpp
                 mwrender/rtx/pendingpaints.hpp
                 mwrender/rtx/rippleemitters.hpp
@@ -786,6 +788,7 @@ target_sources(
                 mwrender/rtx/rtxstart.hpp
                 mwrender/rtx/rtxsupport.hpp
                 mwrender/rtx/rtxwindow.hpp
+                mwrender/rtx/screenwait.hpp
                 mwrender/rtx/skyreader.hpp
                 mwrender/rtx/tracedground.hpp
                 mwrender/rtx/tracedgroundcover.hpp
@@ -793,6 +796,7 @@ target_sources(
                 mwrender/rtx/tracedterrain.hpp
                 mwrender/rtx/traceclocks.hpp
                 mwrender/rtx/tracedview.hpp
+                mwrender/rtx/vfsstamps.hpp
                 mwrender/rtx/viewqueue.hpp
                 mwrender/rtx/viewschedule.hpp
                 mwrender/rtx/worldmirror.hpp
@@ -810,6 +814,7 @@ target_sources(
                 mwrender/water.hpp
                 mwrender/waterawaretransparentbin.hpp
                 mwrender/weaponanimation.hpp
+                mwrender/worldchange.hpp
 )
 
 target_sources(

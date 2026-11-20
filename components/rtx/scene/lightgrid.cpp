@@ -11,6 +11,8 @@
 #include <osg/BoundingBox>
 #include <osg/Vec3d>
 
+#include <components/rtx/common/scratch.hpp>
+
 namespace
 {
     /// How many cells what the lamps reach may span, and how many lamp entries the grid may hold
@@ -178,7 +180,7 @@ namespace Rtx
     void LightGrid::build(std::span<const Light> lights)
     {
         mBinnedOn.clear();
-        mBinnedOn.reserve(lights.size());
+        reserveGrowing(mBinnedOn, lights.size());
         for (const Light& light : lights)
             mBinnedOn.push_back(binnedOn(light));
 
@@ -206,8 +208,8 @@ namespace Rtx
         // single cell: past that, a lamp is in two cells an axis at most. An axis is capped one past
         // the cell budget before it is cast, because a far lamp gives it more cells than a
         // `uint32_t` holds, and one past fails the test whatever the others hold.
-        mBoxes.reserve(lights.size());
-        mMoved.reserve(lights.size());
+        reserveGrowing(mBoxes, lights.size());
+        reserveGrowing(mMoved, lights.size());
         for (double cell = sFirstCell;; cell *= 2.0)
         {
             mInverseCell = static_cast<float>(1.0 / cell);
@@ -296,7 +298,8 @@ namespace Rtx
         const auto end = run + held.mCount[static_cast<std::int32_t>(key)];
 
         const auto at = std::lower_bound(run, end, index);
-        assert(at != end && *at == index && "a lamp left a cell it was never binned into");
+        assert(at != end && "a lamp left a cell it was never binned into");
+        assert(*at == index && "a lamp left a cell it was never binned into");
         std::copy(at + 1, end, at);
         --held.mCount[static_cast<std::int32_t>(key)];
         mRewritten.add(cell);

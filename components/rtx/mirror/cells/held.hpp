@@ -90,7 +90,7 @@ namespace Rtx
         NightDayModes mModes;
 
         /// The template's drawable the part was read from, which a game's ray meets in the part's
-        /// place where no loaded cell holds it — `CellRing::placementsIn`. Held by the cell's model,
+        /// place where no loaded cell holds it — `CellStreamer::placementsIn`. Held by the cell's model,
         /// `HeldCell::mModels`, for as long as the cell is.
         const osg::Drawable* mDrawable = nullptr;
 
@@ -108,6 +108,13 @@ namespace Rtx
     struct ReferenceSpot
     {
         ESM::RefNum mRefNum;
+        std::uint32_t mAt = 0;
+    };
+
+    /// Where a gated placement or lamp stands in its cell, as `ReferenceSpot` names one by its reference.
+    struct GateSpot
+    {
+        std::uint32_t mGate = 0;
         std::uint32_t mAt = 0;
     };
 
@@ -202,6 +209,11 @@ namespace Rtx
         /// and not every row of every cell held.
         std::vector<ReferenceSpot> mByReference;
 
+        /// Every gated placement and lamp by its gate, sorted by the gate and then by where it is met, so a gate's word
+        /// reaches the few rows behind it: a story's step tells a thousand gates on one frame, which each walked every
+        /// placement of every cell held.
+        std::vector<GateSpot> mByGate;
+
         /// Empties it for the next cell, keeping the room every list grew.
         void reuse()
         {
@@ -214,7 +226,7 @@ namespace Rtx
             assert(std::none_of(mAsks.begin(), mAsks.end(), [](const RingAsk& ask) { return ask.mStep.has_value(); })
                 && "a cell reused with its asks still standing");
             reuseKeeping(*this, &HeldCell::mPlacements, &HeldCell::mPlaces, &HeldCell::mModels, &HeldCell::mLights,
-                &HeldCell::mByReference, &HeldCell::mGround, &HeldCell::mAsks);
+                &HeldCell::mByReference, &HeldCell::mByGate, &HeldCell::mGround, &HeldCell::mAsks);
         }
     };
 

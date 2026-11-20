@@ -102,24 +102,19 @@ namespace Rtx
         std::size_t getGeometryBytes() const { return mArrivals.getBytes(); }
 
         /// Settles what a drop took out of the posed and the arrived meshes, so they can be read, and files the
-        /// meshes that came to rest since the last at `clock`, the scene's.
-        void compact(std::uint64_t clock);
+        /// meshes that came to rest since the last.
+        void compact();
 
         /// The static mesh filed under `key`, taken back where it rests, or `sNoRow`: nothing described and nothing
         /// uploaded. A mesh that stands is answered too, so two drawables of one geometry are one mesh. The caller
         /// holds it before anything can drop it.
         MeshIndex find(const MeshKey& key);
 
-        /// What the device stands of `mesh`'s bottom-level structure, `structureBytes`, the device's answer: what lets
-        /// a static mesh rest, and what its rest holds (`MeshRange::mStoodBytes`).
-        void stand(MeshIndex mesh, std::uint64_t structureBytes);
+        /// Says whether the device stands `mesh`'s structure, residency's word after a hand-over: what lets a static
+        /// mesh rest once nothing names it.
+        void setStanding(MeshIndex mesh, bool stands);
 
-        /// What `mesh`'s structure gives back of the storage its tight copy stands in, `bytes`, the device's answer
-        /// (`DeviceAnswer::mMeshFits`): the hole its eviction leaves for a structure the device waits on. Nought from
-        /// each build until its copy lands.
-        void fit(MeshIndex mesh, std::uint64_t bytes, std::uint64_t alignment);
-
-        /// The meshes that rest, oldest first (`RestQueue`): what the scene frees across its tables.
+        /// The meshes that rest, oldest first (`RestQueue`).
         const RestQueue<MeshIndex>& getResting() const { return mResting; }
 
         /// What the meshes that rest hold of the vertex and the index runs: what stands in the runs and no frame draws.
@@ -151,26 +146,19 @@ namespace Rtx
         /// frame, once.
         void notePosed(MeshIndex mesh, const osg::BoundingBoxf& bounds);
 
-        void hold(MeshIndex mesh) { holdRow(mesh); }
+        void hold(MeshIndex mesh, HoldTier tier) { holdRow(mesh, tier); }
 
-        /// Gives one hold on `mesh` back, and where that was the last, rests a static mesh the device stands whole
-        /// and frees anything else: its geometry goes back to the allocators and a deforming mesh's runs to
+        /// Gives one hold on `mesh` back, and where that was the last, rests a static mesh the device stands and
+        /// frees anything else: its geometry goes back to the allocators and a deforming mesh's runs to
         /// `deformers`, which it stood on. The slot stays where it is, because every index above it names a
         /// bottom-level acceleration structure that would otherwise be built again.
-        void drop(DeformerTable& deformers, MeshIndex mesh);
+        void drop(DeformerTable& deformers, MeshIndex mesh, HoldTier tier);
 
         /// Frees `mesh`, which nothing holds, as `drop` frees it.
         void release(DeformerTable& deformers, MeshIndex mesh);
 
-        /// Frees the mesh that has rested longest, which the scene asks for across its tables.
-        void releaseOldest(DeformerTable& deformers);
-
-        /// Frees the mesh that has rested longest of those whose eviction gives back at least `hole` where a structure
-        /// the device waits on can take it, and answers whether one did (`RestQueue::firstFitting`).
-        bool releaseFitting(DeformerTable& deformers, std::uint64_t hole, std::uint64_t alignment);
-
-        /// Files the meshes that came to rest since the last, by their slots, at the clock `compact` was last given.
-        void settleResting() { mResting.settle(mClock, placeOf()); }
+        /// Files the meshes that came to rest since the last, by their slots.
+        void settleResting() { mResting.settle(placeOf()); }
 
         /// `mesh` laid to rest and woken, in the queue and in `mRestingGeometry` together.
         void rest(MeshIndex mesh);
@@ -184,8 +172,7 @@ namespace Rtx
         /// Records `slot` as having arrived or gone, and grows the list to reach it.
         void note(MeshIndex slot, SlotNews what);
 
-        /// The static meshes by their key, one slot a key, which leaves with its slot; the meshes that rest; and the
-        /// scene's clock at the last `compact`.
+        /// The static meshes by their key, one slot a key, which leaves with its slot; and the meshes that rest.
         boost::unordered_flat_map<MeshKey, MeshIndex, MeshKeyHash> mKeyIndex;
 
         /// The runs of indices meshes share (`MeshArrays::mSharedIndices`), by their digest, with how many meshes
@@ -198,7 +185,6 @@ namespace Rtx
         boost::unordered_flat_map<MeshKey, SharedIndices, MeshKeyHash> mSharedIndices;
         RestQueue<MeshIndex> mResting;
         RestingGeometry mRestingGeometry;
-        std::uint64_t mClock = 0;
 
         /// Where a mesh's vertices and its indices live on the device — runs and not slots, because the geometry
         /// behind a row is as long as the model. One vertex run names the same elements of the five vertex streams;

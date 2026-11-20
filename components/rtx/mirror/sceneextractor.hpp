@@ -63,7 +63,7 @@ namespace SceneUtil
 
 namespace Rtx
 {
-    class CellRing;
+    class CellStreamer;
 
     /// What an extractor's identity maps are made with room for (`SceneExtractor`'s constructor).
     struct ExtractorRoom
@@ -86,7 +86,8 @@ namespace Rtx
     };
 
     /// The world's: past what every view of the suites reaches at the default ten cells of land, on
-    /// vanilla content and under the Fullrest Repack with Tamriel Rebuilt, which `rooms-held` holds.
+    /// vanilla content and under the Fullrest Repack with Tamriel Rebuilt, which `rooms-held` holds. The frozen
+    /// roots past the Repack tour's: its leg 29, east over the Tamriel Rebuilt mainland, held 13,918 at its most.
     inline constexpr ExtractorRoom sWorldExtractorRoom{ .mPlacements = 65536,
         .mMeshes = 16384,
         .mDeformers = 2048,
@@ -94,7 +95,7 @@ namespace Rtx
         .mTextures = 8192,
         .mAnimated = 4096,
         .mEmitters = 2048,
-        .mFrozen = 8192,
+        .mFrozen = 16384,
         .mEffects = 256 };
 
     /// A picture's subject: a doll dressed in every slot with a weapon drawn and a spell held, with
@@ -118,7 +119,8 @@ namespace Rtx
         /// @param context what every walk on this thread shares — `WalkContext`. The game hands the
         ///        frame thread's to the world's walk and to every traced view's.
         /// @param room what the identity maps are reserved at, once, so no frame rehashes one.
-        SceneExtractor(SceneDesc& scene, WalkContext& context, const ExtractorRoom& room);
+        /// @param placed what the walk's placements hold their rows at: the world's are shown, a picture's forced.
+        SceneExtractor(SceneDesc& scene, WalkContext& context, const ExtractorRoom& room, HoldTier placed);
 
         /// Gives back every hold the maps took on the scene — every placement, every row, every
         /// texture — so a scene that outlives this holds nothing of it. The scene outlives it by
@@ -213,7 +215,7 @@ namespace Rtx
         /// (`FrozenRoots`), and a root that moved would leave every frozen run where it stood.
         ///
         /// @param ring one made on this extractor, which is what it adopts through; asserted.
-        ExtractionStats extractWorld(const osg::Node& root, std::size_t anchor, std::size_t frame, CellRing& ring);
+        ExtractionStats extractWorld(const osg::Node& root, std::size_t anchor, std::size_t frame, CellStreamer& ring);
 
         /// `extract`, for what the weather drops: every emitter met under `fall` is placed as one whose sprites a roof
         /// keeps off (`MirrorPass::mFalls`). The precipitation's walk and nothing else, because a hearth's smoke under
@@ -239,7 +241,7 @@ namespace Rtx
         /// given back (the two releases read nothing of a walk) and then a retire at a fresh epoch, which keeps nothing
         /// but what is held, because a walk that will not happen has met nothing. What is left of the world in the
         /// scene is nothing, which `SceneDesc::isEmpty` says. Between walks, and the ring already told of no world.
-        Retirement detach(CellRing& ring);
+        Retirement detach(CellStreamer& ring);
 
         /// Drops everything the walks since the last call did not find, placements included, and with it the holds
         /// those entries took on the scene's rows, which a row goes with the last of. Only sound where the walks were
@@ -277,13 +279,21 @@ namespace Rtx
             Walking,
         };
 
+        /// Whether what a walk places stands or falls, as the precipitation's does (`MirrorPass::mFalls`).
+        enum class Placed : std::uint8_t
+        {
+            Standing,
+            Falling,
+        };
+
         /// The pass opened for one walk and closed however the walk ends: the counts pointer back to null, the falls
         /// flag cleared, no reference's record left open and the phase back to `Between`, on the ordinary return and on
         /// a throw alike. A resolver reached after a walk that threw would otherwise count into an unwound local.
         class WalkGuard
         {
         public:
-            WalkGuard(MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, bool falls, FrozenRoots& frozen);
+            WalkGuard(
+                MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, Placed placed, FrozenRoots& frozen);
             ~WalkGuard();
 
             WalkGuard(const WalkGuard&) = delete;
@@ -385,7 +395,7 @@ namespace Rtx
         /// What the three walks are, differing only in whether the ring's geometry is asked for
         /// and whether what is placed falls.
         ExtractionStats walk(const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor,
-            std::size_t frame, CellRing* ring, bool falls);
+            std::size_t frame, CellStreamer* ring, Placed placed);
 
         /// The maps a frozen root's keys are held in, handed to `mFrozen` at each call.
         FrozenRoots::Holders frozenHolders() { return { mPlacements, mMeshes, mMaterials, mReleased }; }
@@ -403,6 +413,9 @@ namespace Rtx
 
         /// What this thread's walks share, the owner's.
         WalkContext& mContext;
+
+        /// What the walk's placements hold their rows at.
+        HoldTier mPlaced;
 
         /// Every node until the owner states a mask (`setTraversalMask`).
         osg::Node::NodeMask mTraversalMask;

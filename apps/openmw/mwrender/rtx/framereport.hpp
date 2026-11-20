@@ -12,6 +12,7 @@
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/renderer/residency.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
@@ -66,12 +67,20 @@ namespace MWRender
         /// appended what arrived, or placed what was there — and what it built and described.
         Rtx::SceneUpload mUpload{};
 
-        /// How many cells the walk left to stand, `Rtx::CellRing::getCellsToStand`.
+        /// How many cells the walk left to stand, `Rtx::CellStreamer::getCellsToStand`.
         std::uint32_t mCellsToStand = 0;
 
-        /// How many of the world's textures stand their files as they are while their images with
-        /// their chains made again are made (`WorldMirror::getImagesPending`).
-        std::uint32_t mImagesPending = 0;
+        /// How many cells of the drawn reach the walk left to stand, `Rtx::CellStreamer::getCellsToShow`: set by a
+        /// covered frame alone, whose wait it is.
+        std::uint32_t mCellsToShow = 0;
+
+        /// How long a crossing since the frame before held the game on the loading screen for its band
+        /// (`RtxRenderer::standWhole`), nothing where none did.
+        std::optional<double> mHeldAtCrossingMs{};
+
+        /// What residency planned, issued and held as the world was handed over (`Rtx::Residency::getReport`): its
+        /// demanded residents that stand nothing yet among it.
+        Rtx::ResidencyReport mResidency{};
 
         /// Whether the world stood paused for this frame: the game's own flag, as the frame was
         /// described with it, and not the one the game will have set by the time anybody asks.
@@ -102,7 +111,8 @@ namespace MWRender
         /// frame after it draws what this one drew.
         bool isWhole() const
         {
-            return mCellsToStand == 0 && mImagesPending == 0 && mUpload.mKind == Rtx::SceneUpload::Kind::Placed;
+            return mCellsToStand == 0 && mResidency.mMissingDemanded.total() == 0
+                && mUpload.mKind == Rtx::SceneUpload::Kind::Placed;
         }
     };
 

@@ -213,12 +213,12 @@ namespace Resource
         return image;
     }
 
-    void ImageManager::setModelImages(const ModelImages images, HeaderDeriver deriver)
+    void ImageManager::setModelImages(const ModelImages images, HeaderDeriver* const deriver)
     {
-        assert((images == ModelImages::Headers) == static_cast<bool>(deriver)
+        assert((images == ModelImages::Headers) == (deriver != nullptr)
             && "headers come with what derives them, and texels with nothing");
         mModelImages = images;
-        mDeriver = std::move(deriver);
+        mDeriver = deriver;
     }
 
     osg::ref_ptr<osg::Image> ImageManager::getModelImage(VFS::Path::NormalizedView path)
@@ -226,28 +226,25 @@ namespace Resource
         if (mModelImages == ModelImages::Texels)
             return getImage(path);
 
-        {
-            const std::scoped_lock lock(mHeadersMutex);
-            if (const auto known = mHeaders.find(path); known != mHeaders.end())
-                return known->second;
-        }
-
-        // Read outside the lock, once however many loaders ask at once (`getOrLoad`). The warning image is no file's,
-        // and nothing reads it again.
-        osg::ref_ptr<osg::Image> pixels = getImage(path);
-        if (pixels == mWarningImage)
-            return pixels;
-
-        // **Derived here, where the file was read, outside the lock**: two loaders that meet a file at once both
-        // derive it, and the first header filed stands.
-        const osg::ref_ptr<ImageHeader> made = new ImageHeader(*pixels, *this);
-        mDeriver(*pixels, *made);
-
-        const std::scoped_lock lock(mHeadersMutex);
-        osg::ref_ptr<osg::Image>& header = mHeaders[VFS::Path::Normalized(path)];
-        if (header == nullptr)
-            header = made;
-        return header;
+        // **Known with no read where the deriver knows the file as it stands; else derived here, where the file was
+        // read, once however many loaders meet it**: the first reads and derives, and the rest wait for its header.
+        // The warning image is no file's, and stands for the path as it would.
+        return mHeaders.getOrLoad(path, [&] {
+            const HeaderLookup lookup = mDeriver->find(path);
+            if (lookup.mFound.has_value())
+                return Loaded<osg::ref_ptr<osg::Image>>{ .mValue
+                    = new ImageHeader(lookup.mFound->mShape, std::string(path.value()), *this, lookup.mFound->mDerived),
+                    .mBytes = 0 };
+            const osg::ref_ptr<osg::Image> pixels = getImage(path);
+            if (pixels == mWarningImage)
+                return Loaded<osg::ref_ptr<osg::Image>>{ .mValue = pixels, .mBytes = 0 };
+            const HeaderShape shape = shapeOf(*pixels);
+            osg::ref_ptr<const osg::Referenced> derived = mDeriver->derive(
+                HeaderDeriver::Read{ .mPath = path, .mStamp = lookup.mStamp, .mShape = shape, .mTexels = *pixels });
+            return Loaded<osg::ref_ptr<osg::Image>>{
+                .mValue = new ImageHeader(shape, std::string(path.value()), *this, std::move(derived)), .mBytes = 0
+            };
+        });
     }
 
     osg::Image* ImageManager::getWarningImage()

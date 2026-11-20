@@ -15,7 +15,7 @@ namespace osg
 
 namespace Rtx
 {
-    class CellRing;
+    class CellStreamer;
     class Released;
 }
 
@@ -53,7 +53,7 @@ namespace MWRender
         /// never held back. A picture of the world whose ground `ring` has not stood yet waits for
         /// it — `TracedView::waitsForGround`. A subject is posed at `posing`, and what its sweep lets
         /// go of goes into `releasing` — `TracedView::draw`.
-        void draw(std::uint32_t worldViews, const osg::FrameStamp& posing, const Rtx::CellRing& ring,
+        void draw(std::uint32_t worldViews, const osg::FrameStamp& posing, const Rtx::CellStreamer& ring,
             Rtx::Released& releasing);
 
         /// Whether a flush is in progress, which a flush inside a flush must not be.

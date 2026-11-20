@@ -44,7 +44,8 @@ namespace Rtx
         {
             const SunGlare fader = look != nullptr ? look->mGlare : SunGlare{};
 
-            assert(sprites.mTileList != 0 && sprites.mPresence != 0 && "a curve told no tiles to test the puffs by");
+            assert(sprites.mTileList != 0 && "a curve told no tiles to test the puffs by");
+            assert(sprites.mPresence != 0 && "a curve told no tiles to test the puffs by");
             assert(textureTexels != 0 && "a curve told no texel counts to test the star sheet by");
 
             return Shaders::ToneConstants{

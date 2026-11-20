@@ -180,7 +180,7 @@ namespace Rtx
 
         /// Waits for every frame in flight. What a rebuild, a resize and a wait on the pictures
         /// inside the interface do first. Not an arrival, which is written behind the frames in
-        /// flight (`VulkanRenderer::extendScene`).
+        /// flight (`VulkanRenderer::handOver`).
         void finishAll();
 
         /// Drops what nothing has collected, for a caller whose world has gone. Their stores that

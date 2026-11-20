@@ -17,7 +17,6 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "deformertable.hpp"
-#include "deviceanswer.hpp"
 #include "foldedshape.hpp"
 #include "light.hpp"
 #include "material.hpp"
@@ -163,9 +162,11 @@ namespace Rtx
         /// sheets. A texture hold of nothing — `sNoRow`, or the neutral texel a layer names where
         /// the table had no room — is empty or costs nothing, and a drop of an empty hold changes no
         /// count; a mesh and a material are held by a row that is one.
-        MeshHold holdMesh(MeshIndex mesh);
-        MaterialHold holdMaterial(MaterialIndex material);
-        TextureHold holdTexture(TextureIndex texture);
+        ///
+        /// Each hold states its tier (`HoldTier`), which the row is counted at while it stands.
+        MeshHold holdMesh(MeshIndex mesh, HoldTier tier);
+        MaterialHold holdMaterial(MaterialIndex material, HoldTier tier);
+        TextureHold holdTexture(TextureIndex texture, HoldTier tier);
         void drop(MeshHold&& hold);
         void drop(MaterialHold&& hold);
         void drop(TextureHold&& hold);
@@ -174,7 +175,8 @@ namespace Rtx
         void drop(std::vector<ReadingHold>& holds);
 
         /// `takeTexture` and `holdTexture` for a holder that reads the texture itself, and its drop (`ReadingHold`):
-        /// the hold asks its finest level until it is given back.
+        /// the hold asks its finest level until it is given back, and is `Forced`, since what reads it is drawn
+        /// whatever stands around it.
         ReadingHold takeReading(
             VFS::Path::NormalizedView path, const osg::Image& image, TextureWrap wrap = TextureWrap::Repeat);
         ReadingHold holdReading(TextureIndex texture);
@@ -188,7 +190,7 @@ namespace Rtx
         /// The slot `image`, read from `path`, stands in under `wrap` and `encoding`, held for the
         /// caller: what a surface, a sprite, a sky layer and a moon turn their image into —
         /// `TextureTable::take`. Empty where the table refuses it.
-        TextureHold takeTexture(VFS::Path::NormalizedView path, const osg::Image& image,
+        TextureHold takeTexture(HoldTier tier, VFS::Path::NormalizedView path, const osg::Image& image,
             TextureWrap wrap = TextureWrap::Repeat, TextureEncoding encoding = TextureEncoding::Colour,
             const osg::Image* partner = nullptr);
 
@@ -284,39 +286,21 @@ namespace Rtx
 
         /// Settles every list the tables took a slot out of, once in a hand-over and before anything
         /// reads them: a sweep gives back thousands of slots, and a pass over a list for each was
-        /// what settling at every drop cost. Files what came to rest at the scene's clock, one tick a
-        /// hand-over, which orders the rests of every table as one.
+        /// what settling at every drop cost. Files what came to rest since the last.
         void compact();
 
-        /// What everything that rests may stand, set by the uploader from the device's budget at each hand-over.
-        void setRestLimit(const RestLimit& limit) { mRestLimit = limit; }
+        /// **Says whether the device stands something of `texture`**, residency's word after a hand-over: a file that
+        /// stands rests once nothing names it, and one that rests and stands nothing any more, its image let go of by
+        /// residency, is freed.
+        void standTexture(TextureIndex texture, bool stands);
 
-        /// Frees what rests, the oldest to rest first across the tables, until `room` is given back and then while it
-        /// stands past the limit, a step more at most and a row at least; answers the bytes given back: each slot
-        /// reported freed by its table, its device image the backend's to drop.
-        std::uint64_t evictResting(std::uint64_t room = 0);
+        /// The same of `mesh`'s structure: a static mesh that stands rests once nothing names it, and one that rests
+        /// and stands nothing any more is freed.
+        void standMesh(MeshIndex mesh, bool stands);
 
-        /// **Frees, for each of `wants`, what surely leaves it room** (`docs/architecture.md`, "What waits is given the
-        /// resting row that surely leaves it room"): the row
-        /// that has rested longest of its kind's that gives back at least its hole where it can take it, or, with
-        /// none, what rested longest until its hole is given back, holes that may join — across the tables for a
-        /// texture, of the meshes alone for a structure, which takes no texture's room; answers the bytes given back,
-        /// each slot reported freed by its table.
-        std::uint64_t evictFor(std::span<const RoomWant> wants);
-
-        /// Frees `slot`, a texture that rests, out of its turn: what one the device moved down for room comes to, as a
-        /// rest holds the file whole (`TextureTable::stand`), and a slot reported freed is the backend's to drop.
-        void evictRestingTexture(TextureIndex slot);
-
-        /// The bytes everything that rests stands on the device.
-        std::uint64_t getRestingBytes() const;
-
-        /// What the device stands of `mesh`'s bottom-level structure, the device's answer (`DeviceAnswer`): what lets a
-        /// static mesh rest, and what its rest holds.
-        void standMesh(MeshIndex mesh, std::uint64_t structureBytes);
-
-        /// What the device's tight copy of `mesh`'s structure gives back once it rests (`MeshTable::fit`).
-        void fitMesh(MeshIndex mesh, std::uint64_t bytes, std::uint64_t alignment);
+        /// Frees every row that rests, of every table: what a slot built anew calls, which holds nothing residency
+        /// stood of the scene before.
+        void releaseResting();
 
         /// Forgets what arrived and what was freed, which a hand-over does once it has read both.
         void clearArrivals();
@@ -336,10 +320,6 @@ namespace Rtx
         void noteSwept();
 
     private:
-        /// Frees the row that has rested longest across the tables, a texture first where both were filed at one tick,
-        /// and answers the bytes it stood; something rests, filed.
-        std::uint64_t releaseOldestResting();
-
         /// Where the frame stands: open to the walks that fill its lists, walked and owing the
         /// sweep after it, or handed to a backend that has read them.
         ///
@@ -398,8 +378,6 @@ namespace Rtx
 
         /// The scene's clock, one tick a `compact`, which the tables file their rests at; and the limit on what
         /// rests.
-        std::uint64_t mRestClock = 0;
-        RestLimit mRestLimit;
         DeformerTable mDeformers;
 
         /// Every mesh, its runs, and the geometry that arrived since the last hand-over.

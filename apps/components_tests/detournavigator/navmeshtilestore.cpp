@@ -5,7 +5,6 @@
 #include <functional>
 #include <ios>
 #include <memory>
-#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -262,13 +261,12 @@ namespace DetourNavigator
             // write one: the store's own file, under the key and the version.
             const std::filesystem::path spoilt = TestingOpenMW::currentTestDirPath() / "spoilt";
             {
-                ContentStore::Store raw(spoilt, ContentStore::Policy{ .mKindCount = 1, .mHolding = std::nullopt });
+                ContentStore::Store raw(spoilt, ContentStore::Policy{ .mKindCount = 1 });
                 raw.write(ContentStore::Filed{ .mKey = key,
-                              .mKind = 0,
-                              .mVersion = NavMeshTileStore::sTileVersion,
-                              .mPayload = Misc::ByteBuffer(64, std::byte{ 7 }),
-                              .mSegmentEnds = {} },
-                    ContentStore::Reach::Disk);
+                    .mKind = 0,
+                    .mVersion = NavMeshTileStore::sTileVersion,
+                    .mPayload = Misc::ByteBuffer(64, std::byte{ 7 }),
+                    .mSegmentEnds = {} });
             }
             NavMeshTileStore refusing(spoilt);
             ASSERT_TRUE(refusing.holds(key));

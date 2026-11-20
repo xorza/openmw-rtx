@@ -10,6 +10,7 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/components_tests/rtx/support/bound.hpp>
 #include <components/platform/thread.hpp>
 
 namespace Platform
@@ -106,10 +107,9 @@ namespace Platform
                     while (!stop.stop_requested())
                         std::this_thread::yield();
                     ++stopped;
-                    const auto due = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-                    while (stopped.load() < 3)
+                    for (const Rtx::Testing::WaitBound bound(std::chrono::seconds(10)); stopped.load() < 3;)
                     {
-                        if (std::chrono::steady_clock::now() > due)
+                        if (bound.passed())
                         {
                             ++waitedOut;
                             return;

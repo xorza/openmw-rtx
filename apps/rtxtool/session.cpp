@@ -19,7 +19,6 @@
 #include <apps/openmw/mwworld/datetimemanager.hpp>
 #include <apps/openmw/mwworld/globals.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
-#include <apps/rtxtool/instruments/reportfile.hpp>
 #include <apps/rtxtool/instruments/resourcecaches.hpp>
 #include <apps/rtxtool/model/finding.hpp>
 #include <apps/rtxtool/model/heapdescription.hpp>
@@ -32,6 +31,7 @@
 #include <components/platform/heap.hpp>
 #include <components/platform/process.hpp>
 #include <components/resource/cachebudget.hpp>
+#include <components/resource/memoryarbiter.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/rtx/common/mebibytes.hpp>
 
@@ -130,12 +130,11 @@ namespace RtxTool
     {
         const SessionRequest::Watching& watching = *mRequest.mWatching;
         mWatch->drainLog();
-        std::string text = describeFindings(mWatch->getTable()) + mWatch->getRestReuse().describe()
-            + mWatch->getLongest().describe();
+        std::string text = describeFindings(mWatch->getTable()) + mWatch->getLongest().describe();
         text
             += std::format("\nflown through {}, stop {} of {}\n", currentStop().mName, mAt + 1, mRequest.mStops.size());
-        if (const Result<void, std::string> written = writeReport(watching.mFindings, text); !written.isOk())
-            Log(Debug::Warning) << "Ray tracing session: " << written.error();
+        mRecord.writeBeside(watching.mFindings, std::move(text));
+        mRecord.count(countFindings(mWatch->getTable()));
         mRecord.save(mRequest);
     }
 
@@ -145,7 +144,8 @@ namespace RtxTool
             return;
         mWatch->drainLog();
         const FindingTable& table = mWatch->getTable();
-        mRecord.note(describeFindings(table) + mWatch->getRestReuse().describe());
+        mRecord.note(describeFindings(table));
+        mRecord.count(countFindings(table));
         if (table.statusUnder(mRequest.mWatching->mFailOn) != ExitStatus::Passed)
             mRecord.fail();
     }
@@ -418,7 +418,7 @@ namespace RtxTool
             const bool asked = mHome.wantsPicture();
             mHome.listen();
             if (!asked && mHome.wantsPicture())
-                mWatch->mark(mNote);
+                mWatch->mark(mWorldWatch);
         }
         if (mRequest.mPlayed && !MWBase::Environment::get().getWindowManager()->isGuiMode())
         {
@@ -477,7 +477,7 @@ namespace RtxTool
         // The watch after the measurer, which closes the span the frame before worked in: a hitch is read there.
         const Measurer::Verdict verdict = mMeasurer.frame(currentStop(), context, report, mCamera.hasArrived());
         if (mWatch.has_value())
-            mWatch->frame(context, report, mNote, mMeasurer.getMeasuredSpan());
+            mWatch->frame(mWorldWatch.frameOf(context, report, mMeasurer.getMeasuredSpan()), mWorldWatch);
 
         switch (verdict)
         {
@@ -504,7 +504,7 @@ namespace RtxTool
             mMeasurer.finish(stop, context, report, route.has_value() ? mCamera.getTravelled(*route) : 1.0f, mWriter));
         if (mWatch.has_value())
         {
-            mWatch->endLeg(stop, mRecord.getPlaces().back(), mRecord.takeFailedChecks(), mNote);
+            mWatch->endLeg(stop, mRecord.getPlaces().back(), mRecord.takeFailedChecks(), mWorldWatch);
             writeSoFar();
         }
 
@@ -537,7 +537,7 @@ namespace RtxTool
                          << " failed, and the run goes on: " << why;
         if (mWatch.has_value())
         {
-            mWatch->failLeg(currentStop(), why, mNote);
+            mWatch->failLeg(currentStop(), why, mWorldWatch);
             writeSoFar();
         }
         mRecord.fail(currentStop(), why);
@@ -561,10 +561,13 @@ namespace RtxTool
             anonymous.has_value())
         {
             const std::optional<Platform::HeapHeld> heap = Platform::heapHeld();
+            const std::chrono::nanoseconds slowest = resources.getMemoryArbiter().takeSlowestRead();
             Log(Debug::Info) << std::format(
-                "Host memory after stop {}: {:.1f} MiB anonymous resident, {:.1f} MiB not resident{}", (mAt + 1),
-                Rtx::mebibytes(anonymous->mResident), Rtx::mebibytes(anonymous->mNotResident),
-                heap.has_value() ? "; " + describeHeap(*heap) : std::string());
+                "Host memory after stop {}: {:.1f} MiB anonymous resident, {:.1f} MiB not resident{}; the system read "
+                "in {:.2f} ms at the most since the stop before",
+                (mAt + 1), Rtx::mebibytes(anonymous->mResident), Rtx::mebibytes(anonymous->mNotResident),
+                heap.has_value() ? "; " + describeHeap(*heap) : std::string(),
+                std::chrono::duration<double, std::milli>(slowest).count());
             mRecord.noteHostMemory(currentStop().mName, *anonymous, heap);
         }
 

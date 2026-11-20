@@ -29,6 +29,7 @@ namespace Rtx
         bool mMaterial = false;
         bool mAlphaFunc = false;
         bool mBlend = false;
+        bool mBlendFunction = false;
         bool mCull = false;
         bool mAlpha = false;
         bool mTextureMatrix = false;
@@ -56,10 +57,10 @@ namespace Rtx
     /// `SceneUtil::TextureType` at its unit or the sampler uniform naming it, and a unit nothing names is not the
     /// surface's; the colours, opacity, glossiness and vertex-colour mode come off the `SceneUtil::Material`, the
     /// opacity again off an `alpha` uniform unless an `actorFade` stands beside it; the alpha test off the
-    /// `osg::AlphaFunc` or the `alphaRef` uniform the visitor moved it into; blending and compositing off `BlendFunc`
-    /// or `GL_BLEND`; two-sidedness off `GL_CULL_FACE`; the texture transform off the `texMat<unit>` uniform on the
-    /// diffuse unit; the environment map's tint off `envMapColor`; the bump map's matrix and luma off `bumpMapMatrix`
-    /// and `envMapLumaBias`; and the ambient the game overrides off `sun.ambient`.
+    /// `osg::AlphaFunc` or the `alphaRef` uniform the visitor moved it into; blending off `GL_BLEND` and how it
+    /// composites off `BlendFunc`; two-sidedness off `GL_CULL_FACE`; the texture transform off the `texMat<unit>`
+    /// uniform on the diffuse unit; the environment map's tint off `envMapColor`; the bump map's matrix and luma off
+    /// `bumpMapMatrix` and `envMapLumaBias`; and the ambient the game overrides off `sun.ambient`.
     ///
     /// A parent's `OVERRIDE` is honoured through `locks`, which a caller folding a chain carries from the root down and
     /// a caller reading one state set leaves at its default.

@@ -29,13 +29,14 @@ namespace Rtx
             return block;
         }
 
+        assert(mBlocks.size() < sBlocksMost && "staging blocks past their bound: what no submit gave back");
         mBlocks.push_back(std::move(made));
         return mBlocks.size() - 1;
     }
 
-    void StagingRing::releaseThrough(const std::uint64_t finished)
+    void StagingRing::releaseThrough(const std::uint64_t through, const std::uint64_t finished)
     {
-        mRetiring.releaseThrough(finished, [&](const std::size_t block) {
+        mRetiring.releaseThrough(through, [&](const std::size_t block) {
             mSpare.push_back(block);
             if (block >= mFreedAt.size())
                 mFreedAt.resize(mBlocks.size(), 0);

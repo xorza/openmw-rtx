@@ -17,8 +17,7 @@ conflict here resolves by keeping the seam:
   is told to the player.
 - `CharacterPreview`, `LocalMap` and `GlobalMap` stand on the renderer's `OffscreenView` and `MapOverlay`; the
   post-processor's exterior flag comes from `GlWorld`.
-- `Renderer::support`, asked where the console, Lua and F2 would toggle what does nothing under the renderer, and
-  `ToggleBorders` under the ray tracer; a script's post-processing shader under a renderer that declines the chain loads
+- `Renderer::support`, asked where the console, Lua and F2 would toggle what does nothing under the renderer; a script's post-processing shader under a renderer that declines the chain loads
   by name and draws nothing, where it stopped at the null post-processor, and the chain lists empty
   (`RenderSupport::declinedSetting`; `load` and `getChain` in `postprocessingbindings.cpp`).
 - MyGUI's backend behind `MyGUIPlatform::GuiRenderManager` (`components/myguiplatform`), which `myguirtx` implements
@@ -28,7 +27,6 @@ conflict here resolves by keeping the seam:
 
 - the optimizer merges in child order, not address order;
 - an exterior map tile keeps its land where the quad tree did not build the chunk yet;
-- a groundcover plant stands under its model's own transforms, not inside them (`GroundcoverShapes`);
 - both renderers draw at `[Video] resolution x/y`, shown scaled into the window (`Misc::Presentation`), so the GUI, the
   projection, the pointer and Lua read one size; an upstream settings file's window size moves to the window on the
   first start.
@@ -70,7 +68,17 @@ conflict here resolves by keeping the seam:
 - One step the histories must hear: a reference moved with its physics placed outright is a jump (`World::moveObject`,
   `notifyJumped`), and the clock moved past the frame's step is a cut (`MWWorld::HourWatch`, once a frame where the
   weather updates). A rest or a wait is a cut (`RenderingManager::notifyTimeJumped`) where `World::advanceTime` told it
-  as a change of worldspace.
+  as a change of worldspace, and a teleport is one beside the weather's (`World::updateWeather`, `notifyCut`).
+- `OMW::Engine::go`'s loop paced by `Renderer::openFrame`, which holds the frame to the limit and answers the step the
+  wall measured, where the viewer and the engine's own limiter paced it.
+- `MWWorld::WeatherManager` settles a `MWRender::SkyState` (`getSkyState`) that both renderers read, where it set each
+  value on the rasterizer's sky.
+- `MWGui::LoadingScreen` draws through `Renderer::renderLoadingFrame`, without the viewer's event, update and rendering
+  traversals or the incremental compile's per-frame limits it saved and restored.
+- `SceneUtil::LightSource`'s copy constructor copies the source radius and takes the copy's own controller out of its
+  cloned callback chain.
+- `components/CMakeLists.txt` builds the platform's files for Windows and POSIX alone: upstream's
+  `components/platform/filestdio.cpp`, for any other system, stays in the tree unbuilt.
 - The loading screen's preparation (`Rtx::ContentPreparation` in `Renderer::prepareContent`):
   `ESMTerrain::Storage::getLayerInfo` public and `Store<ESM::LandTexture>`'s `begin` and `end`
   (`MWRender::contentLayers`), the `PreparingContent` label in six languages, and a note above it
@@ -79,11 +87,20 @@ conflict here resolves by keeping the seam:
   models without programs; `SceneManager::letGo` and `GenericResourceManager::removeFromCache`, so the preparation lets
   go of a model, its NIF, its images and their shared state as the last job reading them ends.
 - `components/settings` naming the core's `Upscale` and `MAX_BOUNCE_RAYS`, which `[RTX]` stores and sanitizes.
+- The world's wholeness, asked where the cells change (the user's yes, 2026-11-20): `Scene::update` after the grid
+  change a walk requested (`WorldChange::Crossing`), `Scene::changeToExteriorCell` after its grid change and
+  `Scene::changeToInteriorCell` before it fades in (`WorldChange::Cut`), each through
+  `RenderingManager::standWhole` to `Renderer::standWhole`, empty for the rasterizer: the ray tracer stands its world
+  apart from the graph, and nothing pops in after a change only where it waits for it there.
 
 **How content is loaded** (`docs/architecture.md`, "Loading"), kept in the fork rather than offered upstream; a merge
 that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves against it:
 
-- One load a key in flight (`GenericObjectCache::getOrLoad`), which `SceneManager::getTemplate`, `NifFileManager::get`,
+- The caches of what is read from files are a class of the fork's own (`Resource::BudgetedObjectCache`, the user's yes,
+  2026-11-20), beside upstream's `GenericObjectCache`, upstream's text again but for what the lints ask (`#pragma once`, two notes, the scoped lock, an `auto`) and the formatter's;
+  `GenericResourceManager` and `ResourceManager` take the cache's type, `BudgetedResourceManager` and
+  `BudgetedNodeResourceManager` naming the budgeted ones. Cost: a conflict with an edit to the managers' bases.
+- One load a key in flight (`BudgetedObjectCache::getOrLoad`), which `SceneManager::getTemplate`, `NifFileManager::get`,
   `ImageManager::getImage`, `KeyframeManager::get` and `BulletShapeManager::getShape` load through, each load a private
   function; `CacheStats` counts loads, waits and reloads. Two threads that missed one model both loaded it. Its test of
   a throwing load holds the loader's catch until the waiter is joined, since the exception both share is freed through
@@ -94,36 +111,61 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
 - An archive opened once and read by position (`Platform::File::readAt`): `Bsa::BSAFile` holds a `Files::SharedFile`,
   and each entry's `ConstrainedFileStreamBuf` keeps its own position, where each entry opened the archive again (18,082
   opens of `Morrowind.bsa` in 75 s); POSIX `pread`, Windows `ReadFile` at an `OVERLAPPED`'s offset, the file shared for
-  writing and deletion. Cost: a conflict with an edit to the stream buffer, `BSAFile::open` and `close`, or where the
-  four archive kinds open an entry's stream.
+  writing and deletion; read on from a short count, and a failure answered as a `Result`, which the stream throws.
+  Cost: a conflict with an edit to the stream buffer, `BSAFile::open` and `close`, or where the four archive kinds open
+  an entry's stream.
 - The caches kept by a byte budget in one least-recently-used order (`Resource::CacheBudget`, owned by `ResourceSystem`)
   in place of `cache expiry delay`; each load states its bytes (`Resource::Loaded`), and `navmeshtool` and
-  `bulletobjecttool` hand a budget of nought. A run may hold it under a limit (`CacheBudget::limit`, the harness's
+  `bulletobjecttool` hand a budget with no bound, as upstream's delay there was never applied. A run may hold it under a limit (`CacheBudget::limit`, the harness's
   `--cache-budget`), so the desk loads as a machine short of memory does. Cost: also a conflict with an edit to the
-  managers' constructors, `ResourceSystem`'s, or the physics system's shape manager. The budget counts the heap's free memory, which the
-  system counts as the process's (`ResourceSystem::updateCache` reads `Platform::heapHeld` with the system's figure);
-  an eviction keeps its value until the deriving worker destroys it (`BudgetedCache::destroyEvicted`), so an inserting
-  thread, the frame's among them, destroys nothing; and `GenericObjectCache::update` stamps a budgeted cache in runs of
+  managers' constructors, `ResourceSystem`'s, or the physics system's shape manager. The budget is derived once a
+  second by `Resource::MemoryArbiter`, which `ResourceSystem` owns and ticks on a thread of its own, from one reading of
+  the system and the heap, whose free memory the system counts as the process's; `ResourceSystem::updateCache` and the
+  preloader's `UpdateCacheItem` are upstream's text again (the user's yes, 2026-11-20), the tick off the preloader's
+  queue. On a unified device the caches leave the device the room it claims (`CacheBudget::yieldTo`), told by the
+  arbiter's tick. An eviction keeps its value until the arbiter's tick destroys it (`BudgetedCache::destroyEvicted`), so an
+  inserting thread, the frame's among them, destroys nothing; and `BudgetedObjectCache::update` stamps the cache in runs of
   256 entries, the lock let go between them. Approved with item 10 of the tree and content memory plan (2026-11-17).
 - `CellPreloader::preload` skips a cell while the caches stand past their budget with everything in use, counted as
-  `CellPreloader Skipped`: a preload is a guess, and past the budget it holds memory the frame needs. `Scene::preloadTeleportDoorDestinations` asks
-  the same (`CellPreloader::admitsPreload`) before `findCell` loads a door's destination, which a skipped preload had
-  loaded all the same. Cost: a conflict with an edit to that loop. Approved with item 10 of the tree and content
+  `CellPreloader Skipped`: a preload is a guess, and past the budget it holds memory the frame needs. `Scene::preloadTeleportDoorDestinations` stamps
+  a destination preloaded already (`CellPreloader::refreshPreloaded`, found with no load) and only then asks the same
+  (`CellPreloader::admitsPreload`) before `findCell` loads a door's destination, which a skipped preload had loaded all
+  the same, and where a refusal ahead of the stamp let a preloaded destination expire. Cost: a conflict with an edit to that loop. Approved with item 10 of the tree and content
   memory plan (2026-11-17).
+- `CellPreloader::isTerrainLoaded` reads the delay the resource system was made with and last set
+  (`ResourceSystem::getExpiryDelay`), where it read the scene manager's: a budgeted manager is made with none, so
+  the terrain read as never loaded and every exterior crossing of a played session preloaded it again. Cost: a
+  conflict with an edit to that line or to `ResourceSystem`'s constructor and `setExpiryDelay`. Approved with the
+  renderer review's plan (2026-11-20).
 - A model's texture holds the file's header and not its texels where the renderer reads texels itself
   (`ImageManager::getModelImage` in place of `getImage` in the NIF loader's `getTextureImage`, `attachAutoMaps` and the
   scene manager's image reader; `Resource::ModelImages::Headers`, `Resource::ImageHeader`, `Resource::texelsOf`,
   `releaseTexels`): cached models held 7.6 GiB of texels under the PBR replacers while the device held 2.2.
-  `ImageManager::setModelImages` takes a `Resource::HeaderDeriver` with the `Headers` mode, and `getModelImage` hands
-  it a file's texels and its new header before the header is filed, so the renderer keys a file and learns its facts
-  where it reads it, and never reads it again for either. Cost: the fork's own lines in upstream's file. Approved with
-  item 12 of the tree and content memory plan (2026-11-17).
+  `ImageManager::setModelImages` takes a `Resource::HeaderDeriver` with the `Headers` mode, which `getModelImage` asks
+  first for a header it knows of the file unread, and otherwise hands the texels it read, the header made carrying
+  what the deriver made of them, so the renderer keys a file and learns its facts where it reads it, never reads it
+  again for either, and reads none of a file whose record stands; the headers are a `BudgetedObjectCache` under a
+  budget of their own nothing passes, so loaders that meet a file at once derive it once (`getOrLoad`). Cost: the fork's own lines in upstream's
+  file. Approved with item 12 of the tree and content memory plan (2026-11-17).
+- A model is handed to the renderer where it is loaded (`SceneManager::setModelDeriver`, `Resource::ModelDeriver`),
+  once a template on its loader's thread before any other thread sees it, as the image manager hands each image
+  read, so the renderer keeps each geometry's fold on it and no reader asks the store for one; what a deriver keeps
+  among a geometry's user objects is counted in the template's bytes (`Resource::DerivedBytes`, `geometryBytes`).
+  Cost: some thirty lines in `scenemanager.{hpp,cpp}`, a conflict with an edit to `loadTemplate`'s end or to the bytes'
+  walk. Approved with the renderer review's plan (2026-11-20).
 - The navigator's tile cache under the caches' byte budget (`DetourNavigator::NavMeshTilesCache` a
   `Resource::BudgetedCache`, the budget handed down from `makeNavigator`), and `[Navigator] max nav mesh tiles cache
   size` gone with its default: a fixed 256 MiB, full on every tour, outside the budget every other cache yields to. Its
   tests hold the budget's semantics: a tile past the budget is handed over and kept while used. Cost: a conflict with
   an edit to `navmeshtilescache.{hpp,cpp}`, the navigator's constructors, or the setting. Approved with item 10 of the
   tree and content memory plan (2026-11-17).
+- `GenericResourceManager::mExpiryDelay` an atomic (the user's yes, 2026-11-20): `Scene::testExteriorCells` and
+  `testInteriorCells` set it on the main thread while the cell preloader's worker reads it in `updateCache`, a race
+  ThreadSanitizer met and upstream's master still has.
+- `NavMeshTilesCache::releaseItem` lowers a tile's use count under the cache's lock, where it lowered it before taking
+  it: a `get` between the two found the tile at nought among the busy and raised it, and the release then filed a tile
+  in use among the free, where upstream's size limit and the fork's budget both evict. A fix upstream could take.
+  Approved with the renderer review's plan (2026-11-20).
 - The navigator's tiles in the content store (`DetourNavigator::NavMeshTileStore`) in place of its SQLite database,
   which leaves the build: one store for what the fork derives from the content, shared across profiles, its key
   versioned (`DetourNavigatorTileVersionTest`). A tile is keyed on its recast mesh's triangles, so `MeshSource` and
@@ -190,7 +232,8 @@ and upstream's two Lua storage tests writing there.
   held (`MyGUIPlatform::DataManager::hold`); every text sub-widget and list is the fork's (`Gui::FontUsers`,
   `Gui::TrackedText`, `Gui::ListBox`) in MyGUI's factories; a book page drops its book on a refit and its owner typesets
   it again (`BookPage::adviseRetypeset`); `Gui::InterfaceFonts` owns fonts and registries and refits them at every
-  layout (`WindowManager::fitFonts`). The cursor, the windows, the local map and the inventory follow the scale, and
+  layout (`WindowManager::fitFonts`). The cursor, the windows, the local map and the inventory follow the scale, the
+  map's tiles drawn again once no loading screen is up (`WindowManager::redrawMaps`, from `updateVisible`), and
   `[GUI] scaling factor` applies live from a settling slider (`Gui::SettlingScrollBar`).
 - `[GUI] font size` read from the fonts' owner alone (`FontFit::mFontSize`, `MWBase::WindowManager::getFontSize`, held
   by a source scan): `FontWrapper` goes, a book is typeset at a stated size (`BookTypesetter::create`), a window with

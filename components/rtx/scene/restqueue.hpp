@@ -1,12 +1,9 @@
 #pragma once
 
 #include <algorithm>
-#include <array>
-#include <bit>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
 #include <vector>
 
 #include <components/rtx/common/index.hpp>
@@ -22,52 +19,20 @@ namespace Rtx
         /// Where a row that waits is in no batch.
         static constexpr std::uint32_t sNotWaiting = ~std::uint32_t{ 0 };
 
-        /// Whether nothing names the row and it stands on the device until its room is needed; where it waits among
-        /// the rows that came to rest since the queue was last settled, `sNotWaiting` once it is filed; and its
-        /// neighbours once filed, in the order the rows came to rest.
+        /// Whether nothing names the row and residency still stands it on the device; where it waits among the rows
+        /// that came to rest since the queue was last settled, `sNotWaiting` once it is filed; and its neighbours once
+        /// filed, in the order the rows came to rest.
         bool mResting = false;
         std::uint32_t mWaitingAt = sNotWaiting;
         I mBefore = sNoRow;
         I mAfter = sNoRow;
-
-        /// When it was filed, on the scene's clock, which orders the rests of every table as one (`SceneDesc`); and
-        /// its place among the rows its queue filed, which its lists follow, as one clock tick may file twice.
-        std::uint64_t mFiledAt = 0;
-        std::uint64_t mOrder = 0;
-
-        /// What its eviction gives back where content the device waits on can take it (`RoomWant`, `FitBytes`), resting
-        /// or not, nought until the device has said; and its neighbours once filed among the rows that give back as
-        /// much within a power of two, in the order they came to rest: what finds the oldest row whose eviction surely
-        /// makes a want its room.
-        std::uint64_t mFit = 0;
-
-        /// The coarsest power of two that range starts at (`FitBytes::mAlignment`).
-        std::uint64_t mFitAlignment = 1;
-
-        I mClassBefore = sNoRow;
-        I mClassAfter = sNoRow;
     };
 
-    /// **What everything that rests may stand on the device, and how fast it comes down to it**
-    /// (`docs/architecture.md`, "One residency policy for the content"): the bytes, and the most freed past the limit
-    /// in one eviction beside the room an arrival needs, a row at least, so a limit that drops is followed over several
-    /// hand-overs and not in one frame. Unbounded and unpaced by default, for a scene no backend bounds.
-    struct RestLimit
-    {
-        std::uint64_t mBytes = std::numeric_limits<std::uint64_t>::max();
-        std::uint64_t mStep = std::numeric_limits<std::uint64_t>::max();
-    };
-
-    /// **What rests of one table, oldest first**: the rows nothing names that still stand on the device, a list through
-    /// the rows' own `RestPlace`, and the bytes they stand. Those that came to rest since the queue was last settled
-    /// wait apart and are filed by their slots, on the scene's clock: a sweep drops them in the order of a hash map,
-    /// and two processes that walked one place file them alike. One queue a table, and the scene frees the oldest
-    /// across its tables by when each was filed, so there is one order and one limit for everything that rests.
-    ///
-    /// **And filed again by what each gives back where a want can take it**, a list a power of two, each in the order
-    /// the rows came to rest: the oldest row that gives back at least a hole is the oldest head among the classes past
-    /// the hole's, or a row of the hole's own class older than that head, so finding it reads a class at most and never
-    /// the whole rest.
+    /// **What rests of one table, oldest first**: the rows nothing names that residency still stands, a list through
+    /// the rows' own `RestPlace`, which a lookup by key takes back and a full table frees from the oldest. Those that
+    /// came to rest since the queue was last settled wait apart and are filed by their slots: a sweep drops them in
+    /// the order of a hash map, and two processes that walked one place file them alike. What rests on the device and
+    /// for how long is residency's (`Residency`'s cache); a row leaves this as residency stops standing it.
     ///
     /// `placeOf` hands the queue a row's place at each call, and the queue keeps no reference to the table.
     ///
@@ -81,9 +46,9 @@ namespace Rtx
         /// Room for `slots` waiting at once, so no hand-over's rest allocates.
         void reserve(std::size_t slots) { mWaiting.reserve(slots); }
 
-        /// Lays `slot`, standing `bytes` on the device, to rest, into the batch the next `settle` files.
+        /// Lays `slot` to rest, into the batch the next `settle` files.
         template <class PlaceOf>
-        void rest(const I slot, const std::uint64_t bytes, PlaceOf&& placeOf)
+        void rest(const I slot, PlaceOf&& placeOf)
         {
             RestPlace<I>& place = placeOf(slot);
             assert(!place.mResting && "a row laid to rest twice");
@@ -91,12 +56,11 @@ namespace Rtx
             place.mWaitingAt = static_cast<std::uint32_t>(mWaiting.size());
             mWaiting.push_back(slot);
             ++mCount;
-            mBytes += bytes;
         }
 
-        /// Takes `slot`, which stood `bytes`, out of its rest, from the batch or the list.
+        /// Takes `slot` out of its rest, from the batch or the list.
         template <class PlaceOf>
-        void wake(const I slot, const std::uint64_t bytes, PlaceOf&& placeOf)
+        void wake(const I slot, PlaceOf&& placeOf)
         {
             RestPlace<I>& place = placeOf(slot);
             assert(place.mResting && "a row woken that does not rest");
@@ -118,27 +82,15 @@ namespace Rtx
                     placeOf(place.mAfter).mBefore = place.mBefore;
                 else
                     mLast = place.mBefore;
-                unclass(slot, placeOf);
             }
-            // What it gives back stays: the device stands what it stood.
-            place = RestPlace<I>{ .mFit = place.mFit, .mFitAlignment = place.mFitAlignment };
+            place = RestPlace<I>{};
             assert(mCount > 0 && "a wake where nothing rests");
-            assert(mBytes >= bytes && "a wake past the bytes that rest");
             --mCount;
-            mBytes -= bytes;
         }
 
-        /// A row that rests now stands `after` bytes where it stood `before`, moved down on the device in its rest; its
-        /// place in the order is its own still.
-        void restand(const std::uint64_t before, const std::uint64_t after)
-        {
-            assert(mBytes >= before && "a row restood past the bytes that rest");
-            mBytes = mBytes - before + after;
-        }
-
-        /// Files the batch at the end of the list, by slot, each stamped `clock`.
+        /// Files the batch at the end of the list, by slot.
         template <class PlaceOf>
-        void settle(const std::uint64_t clock, PlaceOf&& placeOf)
+        void settle(PlaceOf&& placeOf)
         {
             std::ranges::sort(mWaiting);
             for (const I slot : mWaiting)
@@ -147,136 +99,24 @@ namespace Rtx
                 place.mWaitingAt = sNotWaiting;
                 place.mBefore = mLast;
                 place.mAfter = sNoRow;
-                place.mFiledAt = clock;
-                place.mOrder = ++mFiled;
                 if (mLast != sNoRow)
                     placeOf(mLast).mAfter = slot;
                 else
                     mFirst = slot;
                 mLast = slot;
-
-                // Last of its class, as of the queue: filed in one order, the two lists agree on it.
-                ClassEnds& ends = mClasses[classOf(place.mFit)];
-                place.mClassBefore = ends.mLast;
-                place.mClassAfter = sNoRow;
-                if (ends.mLast != sNoRow)
-                    placeOf(ends.mLast).mClassAfter = slot;
-                else
-                    ends.mFirst = slot;
-                ends.mLast = slot;
             }
             mWaiting.clear();
-        }
-
-        /// Says `slot` gives back `fit` where a want can take it now, a filed row keeping its place in the order the
-        /// rows came to rest: a mesh's copy made tight lands whenever the device answers, a rest or none before.
-        template <class PlaceOf>
-        void fit(const I slot, const std::uint64_t fit, const std::uint64_t alignment, PlaceOf&& placeOf)
-        {
-            assert(alignment > 0 && (alignment & (alignment - 1)) == 0 && "an alignment is a power of two");
-            RestPlace<I>& place = placeOf(slot);
-            place.mFitAlignment = alignment;
-            if (!place.mResting || place.mWaitingAt != sNotWaiting)
-            {
-                place.mFit = fit;
-                return;
-            }
-
-            unclass(slot, placeOf);
-            place.mFit = fit;
-
-            // Back among its new class by when it was filed, from the newest: a copy lands a hand-over or two after
-            // its mesh came to rest, which is among the newest of any class.
-            ClassEnds& ends = mClasses[classOf(fit)];
-            I after = ends.mLast;
-            while (after != sNoRow && placeOf(after).mOrder > place.mOrder)
-                after = placeOf(after).mClassBefore;
-            const I before = after != sNoRow ? placeOf(after).mClassAfter : ends.mFirst;
-            place.mClassBefore = after;
-            place.mClassAfter = before;
-            if (after != sNoRow)
-                placeOf(after).mClassAfter = slot;
-            else
-                ends.mFirst = slot;
-            if (before != sNoRow)
-                placeOf(before).mClassBefore = slot;
-            else
-                ends.mLast = slot;
         }
 
         /// The filed row that has rested longest, or `sNoRow`; the batch is filed first by `settle`.
         I first() const { return mFirst; }
 
-        /// The filed row that has rested longest of those that give back at least `hole` at an alignment at least
-        /// `alignment`, or `sNoRow`: the oldest aligned row of the classes past the hole's, which all give back more,
-        /// or a row of the hole's own class that gives back as much and was filed before it. Each class is walked from
-        /// its oldest to its first aligned row, or to a row filed after what was found.
-        template <class PlaceOf>
-        I firstFitting(const std::uint64_t hole, const std::uint64_t alignment, PlaceOf&& placeOf) const
-        {
-            assert(hole > 0 && "a hole of nought, which any row fits");
-            const auto aligned = [&](const I row) { return placeOf(row).mFitAlignment >= alignment; };
-            const std::size_t own = classOf(hole);
-            I found = sNoRow;
-            for (std::size_t past = own + 1; past < mClasses.size(); ++past)
-                for (I row = mClasses[past].mFirst; row != sNoRow; row = placeOf(row).mClassAfter)
-                {
-                    if (found != sNoRow && placeOf(row).mOrder > placeOf(found).mOrder)
-                        break;
-                    if (aligned(row))
-                    {
-                        found = row;
-                        break;
-                    }
-                }
-            for (I row = mClasses[own].mFirst; row != sNoRow; row = placeOf(row).mClassAfter)
-            {
-                if (found != sNoRow && placeOf(row).mOrder > placeOf(found).mOrder)
-                    break;
-                if (placeOf(row).mFit >= hole && aligned(row))
-                    return row;
-            }
-            return found;
-        }
-
         std::size_t getCount() const { return mCount; }
-        std::uint64_t getBytes() const { return mBytes; }
 
     private:
-        /// The first and last filed row of one class.
-        struct ClassEnds
-        {
-            I mFirst = sNoRow;
-            I mLast = sNoRow;
-        };
-
-        /// The class of what gives back `fit`: its bit width, so a class holds `[2^(c-1), 2^c)` and the first nought.
-        static std::size_t classOf(const std::uint64_t fit) { return static_cast<std::size_t>(std::bit_width(fit)); }
-
-        /// Takes the filed `slot` out of its class's list.
-        template <class PlaceOf>
-        void unclass(const I slot, PlaceOf&& placeOf)
-        {
-            RestPlace<I>& place = placeOf(slot);
-            ClassEnds& ends = mClasses[classOf(place.mFit)];
-            if (place.mClassBefore != sNoRow)
-                placeOf(place.mClassBefore).mClassAfter = place.mClassAfter;
-            else
-                ends.mFirst = place.mClassAfter;
-            if (place.mClassAfter != sNoRow)
-                placeOf(place.mClassAfter).mClassBefore = place.mClassBefore;
-            else
-                ends.mLast = place.mClassBefore;
-            place.mClassBefore = sNoRow;
-            place.mClassAfter = sNoRow;
-        }
-
-        std::array<ClassEnds, 65> mClasses{};
-        std::uint64_t mFiled = 0;
         I mFirst = sNoRow;
         I mLast = sNoRow;
         std::vector<I> mWaiting;
         std::size_t mCount = 0;
-        std::uint64_t mBytes = 0;
     };
 }

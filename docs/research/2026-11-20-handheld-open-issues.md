@@ -112,3 +112,26 @@ tables and 64 for the structure storages on both.
   were read for (`2026-11-18-handheld-rooms-and-device-memory.md`), and the baseline's record holds no driver residency.
 - **Which pass refuses before evicting**: the refusals name the resting content beside them, not whether eviction was
   asked first or how far behind it ran.
+
+## The rooms after the land legs, with the land resting — later the same day
+
+At `6217c4224f`, after the cell table and with a room's land held `Kept` and the reader's wants withdrawn indoors:
+`--legs=1-26,rooms --every=4`, every fourth of the first 26 land legs and then every fourth room.
+
+| room legs | p99 median, ms |
+|---|---|
+| 56–68, after the land legs | 32.5 (28.6, 36.6, 31.5, 33.6) |
+| every room flown, 25 legs | 27.0, from 17.3 to 40.7 |
+
+The first rooms after the land stand 9 ms nearer the baseline's 22.5 than master's 41.9, and the rooms' whole median
+at 27.0 against master's 28.6 and the baseline's 22.8: what the resting land took back is most of the first rooms'
+gap and little of the rest. The land legs' game update rose by the crossings the world now waits on under the loading
+screen (`Renderer::standWhole`): its p99 on the first leg 47 ms with no wait, 118 waiting out the band, 63 waiting out
+the drawn reach.
+
+## What a read of the system and the heap takes on the handheld
+
+At `631b42ce02` the arbiter read the system's figure and glibc's heap report (`malloc_info`, every arena walked under
+its locks) once a second, and the harness said the slowest read since each stop: on the first stops of a sampled
+Repack tour, 9.0, 9.8 and 11.0 ms at the most, where the desk's vanilla shot read in 1.6. The heap is read every 30 s
+since (`MemoryArbiter::sHeapPeriod`), the system's figure every second.

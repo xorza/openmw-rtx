@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
+#include <optional>
 #include <span>
 #include <string_view>
 
@@ -57,6 +59,20 @@ namespace Rtx
         /// outgrown `sMostBytes`. Nothing where the spec keeps no cache. Called once the start's
         /// pipelines are made as well as at destruction, so a crash does not lose the whole compile.
         void save();
+
+        /// `vkGetPipelineCacheData` on one cache: the size where `into` is null, and the bytes into `into`, `bytes`
+        /// of them at most, with `bytes` set to what was written.
+        using BlobRead = std::function<VkResult(std::size_t& bytes, void* into)>;
+
+        /// How many times `readBlob` asks for a blob the cache outgrew meanwhile.
+        static constexpr std::uint32_t sReadTries = 4;
+
+        /// The driver's blob through `read`, or nothing where the driver refuses or holds none. **A cache other
+        /// threads compile into grows between the size and the bytes**, and the driver then answers
+        /// `VK_INCOMPLETE` with as much as fits, which the specification makes a valid cache of the pipelines it
+        /// holds: asked again `sReadTries` times for the whole, and the last short one kept where none came whole,
+        /// since the start's save runs while the tuples still compile and once dropped it there. Public for its test.
+        static std::optional<Misc::ByteBuffer> readBlob(const BlobRead& read);
 
         /// The most a blob may hold before a run throws it away — a backstop, not the eviction. Well
         /// clear of the largest live set, since a cap that trips on a working cache drops it every run.

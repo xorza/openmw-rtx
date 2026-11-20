@@ -28,9 +28,9 @@ namespace Rtx
     namespace
     {
         /// Waits for what `poll` answers for — `VK_SUCCESS` once done, `VK_NOT_READY` while it runs, an
-        /// error where the asking failed — and logs how long `what` ran to its end or failure, and at every
-        /// doubling past a quarter of a second while it runs, with what `where` says of the queue. **No
-        /// longer than any wait on the device**, `sPatience`, past which it ends as one that never answered.
+        /// error where the asking failed, which ends as a device that failed — and logs how long `what` ran to its
+        /// end, and at every doubling past a quarter of a second while it runs, with what `where` says of the queue.
+        /// **No longer than any wait on the device**, `sPatience`, past which it ends as one that never answered.
         template <class Poll, class Where>
         void watchToItsEnd(const std::string& what, Poll poll, Where where)
         {
@@ -46,11 +46,11 @@ namespace Rtx
                     Log(Debug::Info) << what << " ran in " << ran.count() << " ms";
                     return;
                 }
+                // **A watch that failed is a device that failed**, as every other wait on it is: a batch counted as run
+                // here would be given back while the queue may still read it.
                 if (status != VK_NOT_READY)
-                {
-                    Log(Debug::Error) << what << ": " << resultName(status) << " after " << ran.count() << " ms";
-                    return;
-                }
+                    deviceFailed(what + ": " + std::string(resultName(status)) + " after " + std::to_string(ran.count())
+                        + " ms" + where());
                 if (ran >= std::chrono::nanoseconds(sPatience))
                     deviceFailed(timedOut(what.c_str(), sPatience) + where());
                 if (ran >= reportAt)
@@ -81,6 +81,7 @@ namespace Rtx
         mThread.check();
         close(commands);
         checkVk(mDevice, vkEndCommandBuffer(commands), "vkEndCommandBuffer");
+        assert(mDeferred.size() < sDeferredMost && "recordings deferred past their bound: no submit carried them");
         mDeferred.push_back(commands);
         if (mDevice.watchesSubmits())
             mDeferredNotes.emplace_back(Crash::ownNote());
@@ -185,6 +186,14 @@ namespace Rtx
         [[maybe_unused]] const std::uint64_t taken = timeline.next();
         assert(taken == value && "a timeline value taken off the device's thread between the signal and the submit");
 
+        // **Retired here, the moment they are on the queue, and under the value this submit signals**: they run
+        // ahead of `commands` and are finished when it is. Moved after the caller's wait instead, a wait that threw
+        // left submitted buffers deferred, for the pool's last submit to hand the queue a second time.
+        for (const VkCommandBuffer deferred : mDeferred)
+            mRetiring.hold(value, deferred);
+        mDeferred.clear();
+        mDeferredNotes.clear();
+
         if (watched)
             watch(value);
         return value;
@@ -218,16 +227,7 @@ namespace Rtx
         close(commands);
         checkVk(mDevice, vkEndCommandBuffer(commands), "vkEndCommandBuffer");
 
-        const std::uint64_t value = submitWithDeferred(commands, waits, signals);
-
-        // Under the value this submit signals: the deferred batches run ahead of `commands` and
-        // are finished when it is.
-        for (VkCommandBuffer deferred : mDeferred)
-            mRetiring.hold(value, deferred);
-        mDeferred.clear();
-        mDeferredNotes.clear();
-
-        return value;
+        return submitWithDeferred(commands, waits, signals);
     }
 
     void CommandPool::collect()
@@ -247,7 +247,7 @@ namespace Rtx
     void CommandPool::releaseRetired(const std::uint64_t finished)
     {
         mRetiring.releaseThrough(finished, [&](const VkCommandBuffer commands) { mSpare.push_back(commands); });
-        mStaging.releaseThrough(finished);
+        mStaging.releaseThrough(finished, mDevice.getTimeline().getKnownFinished());
     }
 
     void CommandPool::discard(VkCommandBuffer commands)
@@ -467,14 +467,10 @@ namespace Rtx
     {
         checkVk(mDevice, vkEndCommandBuffer(commands), "vkEndCommandBuffer");
 
-        mDevice.waitFor(submitWithDeferred(commands, {}, {}), "a one-off submit");
-
-        // The copies have run, so every buffer that carried a deferred batch can go back; what
-        // the batches read was buried when they were handed over, and the wait above collected
-        // it.
-        recycle(mDeferred);
-        recycle(std::span<const VkCommandBuffer>(&commands, 1));
-        mDeferred.clear();
-        mDeferredNotes.clear();
+        // Retired under its own submit as the deferred batches are, so the wait's collect gives every one of them
+        // back, and a wait that throws leaves them the queue's until a later collect.
+        const std::uint64_t value = submitWithDeferred(commands, {}, {});
+        mRetiring.hold(value, commands);
+        mDevice.waitFor(value, "a one-off submit");
     }
 }

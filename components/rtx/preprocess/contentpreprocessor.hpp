@@ -1,5 +1,8 @@
 #pragma once
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <stop_token>
 #include <vector>
@@ -11,10 +14,11 @@
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
+#include <components/rtx/preprocess/texture/chainadmission.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/chainscratch.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
-#include <components/rtx/preprocess/texture/texturepass.hpp>
+#include <components/rtx/preprocess/texture/filefactspass.hpp>
 
 #include "contentcache.hpp"
 #include "contentpass.hpp"
@@ -29,22 +33,38 @@ namespace osg
 
 namespace Rtx
 {
-    /// What an ask of a stored pass wants: the output, from the store or a run, or only that the
-    /// store holds it — a preparation's ask, which reads no entry the store holds, and hands the store
-    /// what a run made, the output left emptied where its codec takes it whole.
-    enum class ContentAsk
+    /// Each of `Pass`'s versions at its id, nought at an id none of them has.
+    template <ContentPass... Pass>
+    constexpr std::array<std::uint32_t, sContentPassCount> contentPassVersionsOf()
     {
-        Output,
-        Stored,
-    };
+        std::array<std::uint32_t, sContentPassCount> versions{};
+        ((versions[static_cast<std::size_t>(Pass::sPass)] = Pass::sVersion), ...);
+        return versions;
+    }
 
-    /// Which runs of the chain and conversion passes a preprocessor makes where the store holds no output: every one,
-    /// or those the system has the memory for (`admitsChain`), asked only past the store's miss, so a chain the store
-    /// holds is read whatever its making would cost.
-    enum class ChainRuns : std::uint8_t
-    {
-        Always,
-        WithinMemory,
+    /// **Every pass's version, by its id**: what stands for the passes as a whole wherever all of them decide an
+    /// answer, as a preparation's signature does (`ContentPreparation::signatureOf`). A pass with no entry here does
+    /// not compile, where a list written out at its reader left one out.
+    inline constexpr std::array<std::uint32_t, sContentPassCount> sContentPassVersions
+        = contentPassVersionsOf<ShapePass, FileFactsPass, ChainPass, ConversionPass>();
+
+    static_assert(std::ranges::none_of(sContentPassVersions, [](const std::uint32_t version) { return version == 0; }),
+        "a pass whose version nothing states: every `ContentPassId` is in `sContentPassVersions`");
+
+    /// Each store kind's version (`ContentStore::Policy::mVersions`): its pass's, and nought for a kind retired,
+    /// which no entry was written at.
+    inline constexpr std::array<std::uint32_t, sStoreKindCount> sStoreKindVersions = [] {
+        std::array<std::uint32_t, sStoreKindCount> versions{};
+        for (std::size_t pass = 0; pass < sContentPassCount; ++pass)
+            versions[sStoreKinds[pass]] = sContentPassVersions[pass];
+        return versions;
+    }();
+
+    /// The ray tracer's store: a kind a pass, each at its version, and nothing held in memory: a geometry carries its
+    /// fold (`ModelFold`) and a header its facts, so the frame asks the store for nothing.
+    inline constexpr ContentStore::Policy sContentStorePolicy{
+        .mKindCount = sStoreKindCount,
+        .mVersions = sStoreKindVersions,
     };
 
     /// A made chain as the device is handed it: its form, and its bytes in a buffer of a `BufferPool`, empty where it
@@ -53,6 +73,9 @@ namespace Rtx
     {
         ChainForm mForm = ChainForm::Stands;
         PooledBuffer mBytes;
+
+        /// The first level `mBytes` holds, the finer ones left out (`MadeLayout::mFirst`).
+        std::uint8_t mFirst = 0;
     };
 
     /// The one way the renderer computes anything from what the content files hold. Every pass is
@@ -70,9 +93,9 @@ namespace Rtx
         /// @param store the process's store, or null for none (`ContentCache`): a test's, which
         ///        computes every ask.
         /// @param reach where this thread's asks may reach in it.
-        /// @param runs which chains and conversions it makes where the store holds none.
-        explicit ContentPreprocessor(ContentStore::Store* store = nullptr,
-            ContentStore::Reach reach = ContentStore::Reach::Memory, ChainRuns runs = ChainRuns::Always);
+        /// @param admission what admits each chain and conversion it makes where the store holds none, shared by every
+        ///        hand that makes them at once, or null to make every one.
+        explicit ContentPreprocessor(ContentStore::Store* store = nullptr, ChainAdmission* admission = nullptr);
 
         ContentPreprocessor(const ContentPreprocessor&) = delete;
         ContentPreprocessor& operator=(const ContentPreprocessor&) = delete;
@@ -81,40 +104,34 @@ namespace Rtx
         /// `ShapePass`: what a drawable's triangles come to, and its normals where they split.
         void shape(const ShapePass::Input& input, ShapePass::Output& output);
 
-        /// `SolidReach`: whether `image`'s alpha ever reaches solid.
-        bool reachesSolid(const osg::Image& image);
+        /// `FileFactsPass`: every fact a material asks of `image`, which holds its own texels (`FileKeys::of`).
+        ImageFacts facts(const osg::Image& image);
 
-        /// `TexelMean`: what a texel of `image` is worth on average.
-        MeanTexel meanTexel(const osg::Image& image);
-
-        /// `AlphaSpan`: the lowest and the highest alpha `image` holds.
-        AlphaRange alphaRange(const osg::Image& image);
-
-        /// `SpecularKind`: what `image`'s channels mean as a `_spec` map.
-        SpecularLayout specularLayout(const osg::Image& image);
-
-        /// **What is derived of a file where its texels are first read**: its key (`hashFile`), hashed once, and every
-        /// fact above keyed from it, so a header carries what any later ask would read its file again for
+        /// **What is derived of a file where its texels are first read**: its key (`hashFile`), hashed once, and its
+        /// facts keyed from it, so a header carries what any later ask would read its file again for
         /// (`ImageDerivation`).
         FileFacts derive(const osg::Image& texels);
 
-        /// `ChainPass`: an image's chain made again, or made where it carried none, read as its input says. False
-        /// where the store held none and its run was not admitted (`ChainRuns`): `made` is then untouched.
-        bool chain(const ChainPass::Input& input, MadeChain& made, ContentAsk ask = ContentAsk::Output);
+        /// **`ChainPass`, held by the store and read by nothing**: a preparation's ask, which reads no entry the store
+        /// holds and hands the store what a run made. False where the store held none and its run was not admitted
+        /// (`ChainAdmission`).
+        bool prepareChain(const ChainPass::Input& input);
 
-        /// `ConversionPass`: a classic pair's base colour or metal-roughness map, as `chain` answers.
-        bool convert(const ConversionPass::Input& input, MadeChain& made, ContentAsk ask = ContentAsk::Output);
+        /// `ConversionPass`, as `prepareChain` answers: a classic pair's base colour or metal-roughness map.
+        bool prepareConversion(const ConversionPass::Input& input);
 
-        /// **`chain` as the device is handed it, into a buffer of `pool`**: read from the store's entry a segment at a
-        /// time where it holds one that fits `input`, every level's digest checked, and made and copied in otherwise,
-        /// so a hand-over allocates nothing once the pool is warm (`docs/architecture.md`, "A texture's levels are read
-        /// by position, into a buffer the reader owns"). False where its run is not admitted, or `stop` asked while the
+        /// **A chain as the device is handed it, from level `first` down, into a buffer of `pool`**: read from the
+        /// store's entry a segment a level, from the first asked, where it holds one that fits `input`, every level's
+        /// digest checked, and made and copied in otherwise, so a hand-over allocates nothing once the pool is warm
+        /// and reads none of a level finer than its plan (`docs/architecture.md`, "A texture's levels are read by
+        /// position, into a buffer the reader owns"). False where its run is not admitted, or `stop` asked while the
         /// pool held its most in use.
-        bool chain(const ChainPass::Input& input, BufferPool& pool, const std::stop_token& stop, PooledChain& made);
+        bool chain(const ChainPass::Input& input, std::uint8_t first, BufferPool& pool, const std::stop_token& stop,
+            PooledChain& made);
 
-        /// `convert` as the device is handed it, as `chain` into a pool answers.
-        bool convert(
-            const ConversionPass::Input& input, BufferPool& pool, const std::stop_token& stop, PooledChain& made);
+        /// `ConversionPass` as the device is handed it, as `chain` answers.
+        bool convert(const ConversionPass::Input& input, std::uint8_t first, BufferPool& pool,
+            const std::stop_token& stop, PooledChain& made);
 
         /// What every pass cost since the last take, and nothing counted from here on.
         ContentStats takeStats();
@@ -127,8 +144,8 @@ namespace Rtx
         /// each (`PreparationManifest`). Null, as made, for none.
         void collectKeys(std::vector<StoredKey>* into) { mKeysInto = into; }
 
-        /// What its chain and conversion buffers keep, the shared build's among them: every buffer of a
-        /// `ChainScratch` but the made chain, which the caller holds, and the payload, which the store frees.
+        /// What its chain and conversion buffers keep, the shared build's and the made chain's among them: every buffer
+        /// of a `ChainScratch` but the payload, which the store frees.
         ChainScratch chainScratch() const;
 
         /// Gives back the room its chain and conversion buffers keep, the build's among them.
@@ -138,44 +155,54 @@ namespace Rtx
         void letGoTexelScratch();
 
     private:
-        /// Asks `pass` through the cache, and answers whether `output` holds what was asked: false only where its run
-        /// was not admitted (`admits`).
-        template <ContentPass Pass>
-        bool run(Pass& pass, const typename Pass::Input& input, typename Pass::Output& output,
-            ContentAsk ask = ContentAsk::Output);
+        /// **The one ask of a pass through the cache**: `input` keyed, `found` asked of the key, and where it answers
+        /// nothing and the run is admitted (`admits`), `make` run with the key, where there is a store, to make, keep
+        /// and hand out what was asked. Answers whether what was asked stands: false only where its run was not
+        /// admitted, or `make` could not hand it out. Each step timed into the pass's stats.
+        template <ContentPass Pass, class Found, class Make>
+        bool runCached(Pass& pass, const typename Pass::Input& input, Found&& found, Make&& make);
 
-        /// `run` of a chain or a conversion into a buffer of `pool` (`chain`'s pooled form).
+        /// A fact's or a shape's ask: `output` from the store's entry, or the pass run and offered to the store.
         template <ContentPass Pass>
-        bool runPooled(Pass& pass, const typename Pass::Input& input, BufferPool& pool, const std::stop_token& stop,
-            PooledChain& made);
+        bool run(Pass& pass, const typename Pass::Input& input, typename Pass::Output& output);
+
+        /// A chain's or a conversion's ask held by the store and read by nothing (`prepareChain`).
+        template <ContentPass Pass>
+        bool runStored(Pass& pass, const typename Pass::Input& input);
+
+        /// A chain's or a conversion's ask into a buffer of `pool` (`chain`'s pooled form).
+        template <ContentPass Pass>
+        bool runPooled(Pass& pass, const typename Pass::Input& input, std::uint8_t first, BufferPool& pool,
+            const std::stop_token& stop, PooledChain& made);
 
         /// The stored entry under `key` read into a buffer of `pool`, where it stands and fits `input`: its last
         /// segment the form's byte, the rest its levels. False where none stands, a segment does not read, or what
         /// reads does not fit, which is discarded.
         template <ContentPass Pass>
-        bool readPooled(const ContentStore::Key& key, const typename Pass::Input& input, BufferPool& pool,
-            const std::stop_token& stop, PooledChain& made);
+        bool readPooled(const ContentStore::Key& key, const typename Pass::Input& input, std::uint8_t first,
+            BufferPool& pool, const std::stop_token& stop, PooledChain& made);
 
-        /// Whether `pass`'s run of `input` is made: a chain or a conversion as `mChainRuns` says, every other pass.
+        /// The file key of `texels` a fact's ask is keyed by (`FileKeys::of`), timed as the facts' key.
+        ContentStore::Key keyOf(const osg::Image& texels);
+
+        /// Whether `pass`'s run of `input` is made, and what it holds while it is: a chain or a conversion as
+        /// `mAdmission` admits it, every other pass holding nothing.
         template <ContentPass Pass>
-        bool admits(const Pass& pass, const typename Pass::Input& input) const;
+        std::optional<ChainAdmission::Ticket> admits(const Pass& pass, const typename Pass::Input& input);
 
         ContentStats mStats;
         ShapePass mShape;
         TexelScratch mTexels;
-        FileKeys mKeys{ mTexels };
-        SolidReach mSolid{ mTexels, mKeys };
-        TexelMean mMean{ mTexels, mKeys };
-        AlphaSpan mSpan{ mTexels, mKeys };
-        SpecularKind mKind{ mTexels, mKeys };
+        FileKeys mKeys{ mTexels, mStats.mFileKeys };
+        FileFactsPass mFacts{ mTexels };
         ChainBuild mBuild;
         ChainPass mChain{ mBuild, mKeys, mStats.mTexelReads };
         ConversionPass mConversion{ mBuild, mKeys, mStats.mTexelReads };
 
         ContentCache mCache;
-        ChainRuns mChainRuns = ChainRuns::Always;
+        ChainAdmission* mAdmission = nullptr;
 
-        /// What a pooled run makes before it is copied into its buffer, the build's chain kept for the next.
+        /// What a chain's run makes before it is copied into its buffer or moved into the store, kept for the next.
         MadeChain mMade;
         std::vector<StoredKey>* mKeysInto = nullptr;
     };

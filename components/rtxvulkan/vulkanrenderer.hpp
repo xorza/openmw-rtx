@@ -77,15 +77,23 @@ namespace Rtx
         CardAddress getCardAddress() const override;
         bool isValidating() const override;
 
-        void setScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> textures) override;
-        void extendScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> arrived) override;
+        ArenaIndex arenaOf(SlotKind kind) const override;
+        std::optional<ContentPrice> priceImage(const ImageShape& shape) const override;
+        ContentPrice priceStructure(const StructureShape& shape) const override;
+        bool standsStructures() const override { return true; }
+        ContentBudget openFrame(DeviceEvents& events) override;
+        DeviceEpoch handOver(SceneSlot slot, const SceneDesc& scene, std::span<const ResidencyOp> ops) override;
+        void acquireBlock(BlockIndex block, ArenaIndex arena, std::uint64_t bytes) override;
+        void releaseBlock(BlockIndex block) override;
+        void awaitBlocks() override;
+        void standScene(SceneSlot slot, const SceneDesc& scene) override;
         SceneHeld describeHeld(SceneSlot slot) const override;
-        void takeAnswer(SceneSlot slot, DeviceAnswer& into) override;
-        std::optional<ArrivalRoom> getArrivalRoom(SceneSlot slot) const override;
-        void placeScene(SceneSlot slot, const SceneDesc& scene) override;
         const SceneStats& getSceneStats() const override { return mStats; }
         MemoryReport getMemoryReport() const override;
-        std::uint64_t getSystemClaim() const override;
+        MemoryPrices priceMemory() const override;
+        std::vector<CopyRate> measureCopies() override;
+        std::optional<std::uint64_t> getSystemHeld() const override;
+        void setSystemBound(std::optional<std::uint64_t> bound) override;
         void resize(std::uint32_t width, std::uint32_t height) override;
         void showIn(std::uint32_t width, std::uint32_t height) override;
         void setUpscale(Upscale upscale) override;
@@ -142,21 +150,13 @@ namespace Rtx
         bool tracePicture(GuiSlot texture, SceneSlot scene, const Shaders::VisibilityConstants& camera,
             const GuiTraceOptions& options);
 
-        /// Whether the world's content follows a reserve that moved (`createTargets`): textures moving down, what was
-        /// refused waiting again.
-        enum class ContentFollows : std::uint8_t
-        {
-            /// A size or a mode the player chose: the world stands its content against the room that leaves.
-            TheReserve,
-
-            /// A picture's room (`reservePicture`), asked once a view is first shown: what stands keeps standing,
-            /// and content that arrives after is held to the new room.
-            Never,
-        };
-
         /// @param width, height what the frame is presented at. What it is traced at is the
         ///        upscaler's answer for the mode, `Upscaler::extentsFor`.
-        void createTargets(std::uint32_t width, std::uint32_t height, ContentFollows follows);
+        void createTargets(std::uint32_t width, std::uint32_t height);
+
+        /// The same scene with its instances and lights somewhere else and its actors in a new pose: rebuilds only what
+        /// says where things are, plus the structure of each mesh `getDeformed` names. The last part of a hand-over.
+        void place(SceneSlot slot, const SceneDesc& scene);
 
         /// The one way the queue is emptied: everything given to it and everything waiting finished,
         /// everything buried let go. The order is load-bearing — the interface's batch and the deferred
@@ -284,9 +284,6 @@ namespace Rtx
 
         /// `RunProfile::mReservedUpscales`, which `createTargets` reserves the frame's room for.
         std::vector<Upscale> mReservedUpscales;
-
-        /// How many refused content takes the log has said how the heap stood for (`takeAnswer`).
-        std::uint64_t mRefusedTakesSaid = 0;
 
         /// Null where nothing asked for a window. After `mTarget`, so it is destroyed before it:
         /// its command buffers blit out of the image, and its destructor waits for the device to

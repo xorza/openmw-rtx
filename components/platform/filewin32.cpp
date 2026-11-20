@@ -9,6 +9,7 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 
 #include <fcntl.h>
 #include <io.h>
@@ -91,24 +92,35 @@ namespace Platform::File
         return static_cast<std::size_t>(li.QuadPart);
     }
 
-    std::size_t readAt(Handle handle, std::size_t offset, void* data, std::size_t size)
+    Result<std::size_t, std::error_code> readAt(
+        Handle handle, std::uint64_t offset, void* data, std::size_t size) noexcept
     {
         const auto nativeHandle = getNativeHandle(handle);
 
-        // A handle opened without `FILE_FLAG_OVERLAPPED` reads at the structure's offset and returns once it has.
-        OVERLAPPED at{};
-        at.Offset = static_cast<DWORD>(offset & 0xFFFFFFFFu);
-        at.OffsetHigh = static_cast<DWORD>(static_cast<std::uint64_t>(offset) >> 32);
-        DWORD bytesRead{};
-        size = std::min<std::size_t>(size, std::numeric_limits<DWORD>::max());
-        if (!ReadFile(nativeHandle, data, static_cast<DWORD>(size), &bytesRead, &at))
+        std::size_t done = 0;
+        while (done < size)
         {
-            const DWORD error = GetLastError();
-            if (error == ERROR_HANDLE_EOF)
-                return 0;
-            throw std::runtime_error(std::format("A read at {} on a file failed: {}", offset, error));
+            // A handle opened without `FILE_FLAG_OVERLAPPED` reads at the structure's offset and returns once it has.
+            // One call takes a `DWORD` of bytes at most, so a larger read is several.
+            const std::uint64_t from = offset + done;
+            OVERLAPPED at{};
+            at.Offset = static_cast<DWORD>(from & 0xFFFFFFFFu);
+            at.OffsetHigh = static_cast<DWORD>(from >> 32);
+            const auto asked
+                = static_cast<DWORD>(std::min<std::size_t>(size - done, std::numeric_limits<DWORD>::max()));
+            DWORD bytesRead{};
+            if (!ReadFile(nativeHandle, static_cast<char*>(data) + done, asked, &bytesRead, &at))
+            {
+                const DWORD error = GetLastError();
+                if (error == ERROR_HANDLE_EOF)
+                    break;
+                return Err{ std::error_code(static_cast<std::int32_t>(error), std::system_category()) };
+            }
+            if (bytesRead == 0)
+                break;
+            done += bytesRead;
         }
-        return bytesRead;
+        return done;
     }
 
     std::size_t read(Handle handle, void* data, std::size_t size)

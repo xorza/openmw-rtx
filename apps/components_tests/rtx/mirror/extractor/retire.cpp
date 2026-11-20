@@ -337,19 +337,18 @@ namespace Rtx::Testing
             EXPECT_TRUE(mScene.isConsistent());
             const TextureIndex orphan = mScene.textures().add(VFS::Path::NormalizedView("textures/forgotten.dds"));
             EXPECT_FALSE(mScene.isConsistent()) << "a live texture with no hold was not reported";
-            TextureHold held = mScene.holdTexture(orphan);
+            TextureHold held = mScene.holdTexture(orphan, HoldTier::Shown);
             EXPECT_TRUE(mScene.isConsistent());
 
-            // **A texture that rests is neither**: stood whole and let go of, it stands unheld until its room
-            // is wanted, and the scene is still consistent and empty.
-            mScene.textures().stand(orphan, 64, false, 0);
+            // **A texture that rests is neither**: standing and let go of, it keeps its slot unheld until a full table
+            // wants it or residency lets its image go, and the scene is still consistent and empty.
+            mScene.textures().setStanding(orphan, true);
             mScene.drop(std::move(held));
             EXPECT_TRUE(mScene.textures().isLive(orphan));
             EXPECT_TRUE(mScene.isConsistent()) << "a texture that rests was taken for a row nothing can free";
             EXPECT_TRUE(mScene.isEmpty()) << "a texture that rests was taken for a row standing";
-            EXPECT_EQ(mScene.evictResting(1), 64u);
-            EXPECT_FALSE(mScene.textures().isLive(orphan));
-            EXPECT_TRUE(mScene.isEmpty());
+            mScene.standTexture(orphan, false);
+            EXPECT_FALSE(mScene.textures().isLive(orphan)) << "a rest residency let go of was kept";
 
             // A mesh and a material the same, which a walk's identity holds from the moment it
             // files them.
@@ -649,7 +648,7 @@ namespace Rtx::Testing
             // And a caller that names no class — the harness — places the same graph as static
             // five times.
             Rtx::SceneDesc unnamed(identities);
-            SceneExtractor silent(unnamed, mContext, sSubjectExtractorRoom);
+            SceneExtractor silent(unnamed, mContext, sSubjectExtractorRoom, HoldTier::Shown);
             silent.extract(*root, osg::Matrixf::identity(), 0);
             Rtx::makeInstanceRecords(unnamed, records);
             ASSERT_EQ(records.size(), 5u);

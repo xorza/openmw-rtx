@@ -248,6 +248,15 @@ namespace MWWorld
         return false;
     }
 
+    bool CellPreloader::refreshPreloaded(const CellStore& cell, double timestamp)
+    {
+        const auto found = mPreloadCells.find(&cell);
+        if (found == mPreloadCells.end())
+            return false;
+        found->second.mTimeStamp = timestamp;
+        return true;
+    }
+
     void CellPreloader::preload(CellStore& cell, double timestamp)
     {
         if (!mWorkQueue)
@@ -261,13 +270,9 @@ namespace MWWorld
             return;
         }
 
-        auto found = mPreloadCells.find(&cell);
-        if (found != mPreloadCells.end())
-        {
-            // already preloaded, nothing to do other than updating the timestamp
-            found->second.mTimeStamp = timestamp;
+        // already preloaded, nothing to do other than updating the timestamp
+        if (refreshPreloaded(cell, timestamp))
             return;
-        }
 
         // The cell loads when the player arrives if the guess never fits.
         if (!admitsPreload())
@@ -445,7 +450,8 @@ namespace MWWorld
 
     bool CellPreloader::isTerrainLoaded(const PositionCellGrid& position, double referenceTime) const
     {
-        return mLoadedTerrainTimestamp + mResourceSystem->getSceneManager()->getExpiryDelay() > referenceTime
+        // The terrain's own delay, a cache that keeps the timer: the scene manager's is a budget's, and holds none.
+        return mLoadedTerrainTimestamp + mResourceSystem->getExpiryDelay() > referenceTime
             && contains(mLoadedTerrainPositions, position, Constants::CellSizeInUnits);
     }
 

@@ -57,6 +57,9 @@ namespace Rtx
         /// apart — a resize and shutdown — which have no next submit to give a deferred batch.
         void finishDeferred();
 
+        /// Whether a batch waits to go ahead of the next submit.
+        bool hasDeferred() const { return !mDeferred.empty(); }
+
         const Device& getDevice() const { return mDevice; }
 
         /// The device's staging, which a batch writes its uploads into.
@@ -139,6 +142,8 @@ namespace Rtx
         /// read idle once this one ran, though the recording runs after it. A batch is not counted: the
         /// interface keeps one open across frames by design (`GuiTextures`) and names what it reads only
         /// when it is handed over.
+        ///
+        /// The deferred batches are retired under the value returned, here and nowhere else.
         std::uint64_t submitWithDeferred(VkCommandBuffer commands, std::span<const VkSemaphoreSubmitInfo> waits,
             std::span<const VkSemaphoreSubmitInfo> signals);
 
@@ -157,8 +162,10 @@ namespace Rtx
         Owned<VkCommandPool, vkDestroyCommandPool> mHandle;
         OwnedBy mThread;
 
-        /// Recorded and ended, waiting for the next submit to carry them first.
+        /// Recorded and ended, waiting for the next submit to carry them first: a frame's uploads and builds, a
+        /// handful, `sDeferredMost` at the most.
         std::vector<VkCommandBuffer> mDeferred;
+        static constexpr std::size_t sDeferredMost = 256;
 
         /// What the recording thread was doing as each of `mDeferred` was deferred, where submits
         /// are watched and empty otherwise.

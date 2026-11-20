@@ -19,7 +19,7 @@ namespace Rtx
         assert(mDevice == nullptr && "a blocked buffer opened twice");
 
         mDevice = &device;
-        mOwed = OwedGrowth(device.getMemory(), MemoryUse::Essential);
+        mOwed = OwedGrowth(device.getMemory());
         mOwed.set(getBlockBytes());
 
         // A shader reaches a block through a pointer out of the table, and a buffer only has an

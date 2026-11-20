@@ -9,23 +9,28 @@
 namespace Rtx::Testing
 {
     /// A test's image manager handing models headers, each derived as the renderer derives it (`ImageDerivation`),
-    /// with no store. Declared after the manager, so the derivation is taken back before the manager goes.
-    class DerivedHeaders
+    /// with no store and no record of a file. Declared after the manager, so the derivation is taken back before the
+    /// manager goes.
+    class DerivedHeaders final : public Resource::HeaderDeriver
     {
     public:
         explicit DerivedHeaders(Resource::ImageManager& images)
             : mImages(images)
         {
-            images.setModelImages(
-                Resource::ModelImages::Headers, [this](const osg::Image& texels, const Resource::ImageHeader& header) {
-                    mDerivation.derive(texels, header);
-                });
+            images.setModelImages(Resource::ModelImages::Headers, this);
         }
 
         DerivedHeaders(const DerivedHeaders&) = delete;
         DerivedHeaders& operator=(const DerivedHeaders&) = delete;
 
-        ~DerivedHeaders() { mImages.setModelImages(Resource::ModelImages::Texels, {}); }
+        ~DerivedHeaders() override { mImages.setModelImages(Resource::ModelImages::Texels, nullptr); }
+
+        Resource::HeaderLookup find(VFS::Path::NormalizedView) override { return Resource::HeaderLookup{}; }
+
+        osg::ref_ptr<const osg::Referenced> derive(const Read& read) override
+        {
+            return mDerivation.derive(read.mTexels);
+        }
 
     private:
         Resource::ImageManager& mImages;

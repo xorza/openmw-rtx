@@ -1,6 +1,9 @@
 #include "measurewindow.hpp"
 
 #include <cassert>
+#include <format>
+#include <string>
+#include <string_view>
 
 namespace RtxTool
 {
@@ -58,13 +61,21 @@ namespace RtxTool
             return taken;
         }
 
-        if (mWaited++ == 0 || frame.mCellsToStand < mLeastToStand)
+        // **Nearer by either count that a whole frame asks to reach nought**: counted in cells alone, a world whose
+        // cells all stood and whose images were still being made, steadily, stalled. A cell nearer brings its own
+        // images, so the fewest images are counted from there again.
+        const bool cellNearer = mWaited++ == 0 || frame.mCellsToStand < mUnstood.mCells;
+        const bool imageNearer = frame.mMissing.total() < mUnstood.mMissing.total();
+        if (cellNearer)
+            mUnstood.mCells = frame.mCellsToStand;
+        if (cellNearer || imageNearer)
         {
-            mLeastToStand = frame.mCellsToStand;
+            mUnstood.mMissing = frame.mMissing;
             mStalledMs = 0.0;
         }
         else
             mStalledMs += frame.mSpend.at(Rtx::Timing::Frame);
+        mUnstood.mArriving = frame.mArriving;
         mWhole = frame.mWhole;
         if (mWhole)
             mStoodAt = mSeen;
@@ -75,6 +86,30 @@ namespace RtxTool
             taken.mOutcome = Outcome::Stalled;
 
         return taken;
+    }
+
+    std::string describeUnstood(const MeasureWindow::Unstood& unstood)
+    {
+        std::string text;
+        const auto add = [&](const bool held, const std::string_view part) {
+            if (!held)
+                return;
+            if (!text.empty())
+                text += ", ";
+            text += part;
+        };
+        add(unstood.mCells > 0, std::format("{} cells short", unstood.mCells));
+        const Rtx::MissingDemanded& missing = unstood.mMissing;
+        add(missing.textures() > 0,
+            std::format("{} images still being made ({} on their way, {} come and waiting for room, not yet asked {} "
+                        "files, {} bakes and {} composites, and {} made with no room)",
+                missing.textures(), missing.mAsked, missing.mArrived, missing.mUnaskedFiles, missing.mUnaskedBakes,
+                missing.mUnaskedComposites, missing.mUnaskedForRoom));
+        add(missing.mMeshes > 0,
+            std::format("{} meshes still being built ({} with no room, {} of them of a large class)", missing.mMeshes,
+                missing.mMeshesForRoom, missing.mMeshesForRoomLarge));
+        add(unstood.mArriving, "content still arriving");
+        return text;
     }
 
     std::optional<std::uint32_t> MeasureWindow::getMeasuredIndex() const

@@ -14,7 +14,8 @@ namespace Rtx
         if (was > 0)
         {
             const auto owed = std::ranges::lower_bound(mOwed, was);
-            assert(owed != mOwed.end() && *owed == was && "growth forgiven that was never owed");
+            assert(owed != mOwed.end() && "growth forgiven that was never owed");
+            assert(*owed == was && "growth forgiven that was never owed");
             mOwed.erase(owed);
         }
         if (bytes > 0)

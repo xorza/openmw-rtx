@@ -36,9 +36,7 @@ namespace Rtx
                 std::vector<Texture> textures(count);
                 std::vector<VkBufferImageCopy> regions;
                 for (Texture& texture : textures)
-                    EXPECT_TRUE(texture
-                            .standFile(device, upload, arrival, file, 0, "arrival test", regions, MemoryUse::Essential)
-                            .isOk());
+                    texture.standFile(device, upload, arrival, file, 0, "arrival test", regions, TexturePlace{});
 
                 arrival.record(upload, passes, nullptr);
                 upload.flush();

@@ -31,6 +31,7 @@
 #include "ground.hpp"
 #include "rendermode.hpp"
 #include "rendersupport.hpp"
+#include "worldchange.hpp"
 
 namespace osg
 {
@@ -186,7 +187,7 @@ namespace MWRender
 
         /// The ground of one worldspace and the distance over it, as this renderer draws them. A
         /// renderer that stands the ground itself hands back a `Terrain::World` that builds nothing,
-        /// because chunks beside `Rtx::CellRing` would be built for nobody, inside
+        /// because chunks beside `Rtx::CellStreamer` would be built for nobody, inside
         /// `Scene::changeCellGrid`'s synchronous wait. Once per worldspace; everything the game says
         /// about the distance from then on is said to what this hands back.
         virtual std::unique_ptr<Ground> createGround(const GroundSpec& spec) = 0;
@@ -215,12 +216,6 @@ namespace MWRender
         /// How far from the eye ground is built, straight ahead: what the local map is a map of.
         /// Nought where the ground reaches no further than the cells the simulation has loaded.
         virtual float getGroundReach() const = 0;
-
-        /// Whether the grounds this makes hear what a visibility gate says (`Ground::setGate`),
-        /// which is whether the game builds the gates and keeps them up to date at all: the scripts
-        /// they are compiled from and the values they watch cost a frame nothing a renderer reads
-        /// where no ground listens.
-        virtual bool groundReadsGates() const { return false; }
 
         /// The node the game hangs the world under: the rasterizer's light manager, with the
         /// lighting method it draws with, or a plain group for a renderer that gathers lights on its
@@ -416,6 +411,12 @@ namespace MWRender
         /// rasterizer compiles as it draws and has nothing to wait for.
         virtual void prepareContent(const MWWorld::ESMStore& store, Loading::Listener& listener) {}
 
+        /// **Holds the game until the world around `changed.mPosition` stands whole**, where the cells changed: what a
+        /// frame would show of it stands, so nothing pops in after the change. `frame` is the world as it stands,
+        /// still. It waits under `listener`'s screen only where it has to wait at all, and a crossing whose band
+        /// already stands returns with no frame. The rasterizer draws what the graph holds and waits on nothing.
+        virtual void standWhole(const SceneFrame& frame, const WorldChanged& changed, Loading::Listener& listener) {}
+
         /// One frame of the loading screen, at the rate the screen is drawn at, opened as
         /// `openNestedFrame` opens one.
         void renderLoadingFrame(double targetFrameRate);
@@ -431,8 +432,9 @@ namespace MWRender
         /// writer `Engine` handed over.
         virtual void saveScreenshot() = 0;
 
-        /// The writer both renderers hand a captured frame to: `Engine`'s, alive for as long as the
-        /// renderer is. Handed over after construction, where upstream built it.
+        /// The writer both renderers hand a captured frame to: `Engine`'s, which stops it and lets it go before the
+        /// renderer, so nothing of the renderer's teardown may write. Handed over after construction, where upstream
+        /// built it.
         void setScreenshotWriter(SceneUtil::AsyncScreenCaptureOperation& writer);
 
         /// Between these two nothing is reading the scene graph, so it can be mutated. A renderer
@@ -567,7 +569,9 @@ namespace MWRender
         /// What `awaitFrame` sleeps in, made anew by `setFrameRateLimit`.
         Misc::FrameRateLimiter mLimiter{ std::chrono::steady_clock::duration::zero() };
         std::chrono::steady_clock::duration mLastHold{};
-        osg::ref_ptr<SceneUtil::AsyncScreenCaptureOperation> mScreenshotWriter;
+        /// Borrowed from `Engine`, which stops it and lets it go before the renderer: held here, it was the work
+        /// queue's last holder, and its threads joined after the ray tracer's members were gone.
+        SceneUtil::AsyncScreenCaptureOperation* mScreenshotWriter = nullptr;
         osg::ref_ptr<osg::Camera> mCamera;
         osg::ref_ptr<osg::FrameStamp> mFrameStamp;
         osg::ref_ptr<osg::Stats> mStats;

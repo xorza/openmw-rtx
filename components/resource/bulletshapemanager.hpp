@@ -22,7 +22,7 @@ namespace Resource
     /// Handles loading, caching and "instancing" of bullet shapes.
     /// A shape 'instance' is a clone of another shape, with the goal of setting a different scale on this instance.
     /// @note May be used from any thread.
-    class BulletShapeManager : public ResourceManager<std::shared_ptr<const BulletShape>>
+    class BulletShapeManager : public BudgetedResourceManager<std::shared_ptr<const BulletShape>>
     {
     public:
         BulletShapeManager(

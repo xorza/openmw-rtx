@@ -54,7 +54,7 @@ namespace Rtx
 
         // What the video heap's `live` is made of, and why content stops where it does.
         const MemoryUses& uses = report.mUses;
-        if (uses.mFrame + uses.mFrameReserve + uses.mEssential + uses.mStructures + uses.mTextures > 0)
+        if (uses.mFrame + uses.mFrameReserve + uses.mEssential + uses.mContent > 0)
             out += "  uses  " + describeUses(uses) + "\n";
 
         return out;
@@ -62,12 +62,9 @@ namespace Rtx
 
     std::string describeUses(const MemoryUses& uses)
     {
-        return std::format(
-            "frame {:.1f} of {:.1f} kept   essential {:.1f}, growth {:.1f}   structures {:.1f}, growth {:.1f}, "
-            "room {:.1f}   textures {:.1f}, room {:.1f}",
+        return std::format("frame {:.1f} of {:.1f} kept   essential {:.1f}, growth {:.1f}   content {:.1f}",
             mebibytes(uses.mFrame), mebibytes(uses.mFrameReserve), mebibytes(uses.mEssential),
-            mebibytes(uses.mEssentialGrowth), mebibytes(uses.mStructures), mebibytes(uses.mStructureGrowth),
-            mebibytes(uses.mStructureRoom), mebibytes(uses.mTextures), mebibytes(uses.mTextureRoom));
+            mebibytes(uses.mEssentialGrowth), mebibytes(uses.mContent));
     }
 
     std::string describeSceneHeld(const SceneStats& scene)

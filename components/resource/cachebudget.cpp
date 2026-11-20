@@ -16,9 +16,15 @@ namespace Resource
     }
 
     CacheBudget::CacheBudget(std::uint64_t bytes)
-        : mBytes(bytes)
-        , mDerived(bytes)
+        : mDerived(bytes)
     {
+    }
+
+    std::uint64_t CacheBudget::getBytes() const
+    {
+        const std::uint64_t derived = mDerived.load(std::memory_order_relaxed);
+        const std::uint64_t left = derived - std::min(derived, mClaim.load(std::memory_order_relaxed));
+        return std::min(left, mLimit.load(std::memory_order_relaxed));
     }
 
     CacheBudget::~CacheBudget()
@@ -41,18 +47,22 @@ namespace Resource
         mCaches.erase(found);
     }
 
-    void CacheBudget::makeRoomForInsertion()
+    void CacheBudget::makeRoomForInsertion(const std::uint64_t bytes)
     {
         if (getHeld() > getBytes() && !mStarved.load(std::memory_order_relaxed))
-            evictToBudget();
+            evictToBudget(bytes);
     }
 
     void CacheBudget::makeRoom()
     {
         mStarved.store(false, std::memory_order_relaxed);
         if (getHeld() > getBytes())
-            evictToBudget();
+            evictToBudget(sUnbounded);
+        destroyEvicted();
+    }
 
+    void CacheBudget::destroyEvicted()
+    {
         const std::scoped_lock lock(mMutex);
         for (BudgetedCache* const cache : mCaches)
             cache->destroyEvicted();
@@ -67,41 +77,37 @@ namespace Resource
     void CacheBudget::setBytes(std::uint64_t bytes)
     {
         mDerived.store(bytes, std::memory_order_relaxed);
-        refresh();
         makeRoom();
     }
 
     void CacheBudget::limit(std::optional<std::uint64_t> bytes)
     {
         mLimit.store(bytes.value_or(sUnbounded), std::memory_order_relaxed);
-        refresh();
         makeRoom();
     }
 
     void CacheBudget::yieldTo(std::uint64_t claim)
     {
         mClaim.store(claim, std::memory_order_relaxed);
-        refresh();
     }
 
-    void CacheBudget::refresh()
-    {
-        // Three figures set from two threads, each a relaxed store: a reading between two of them is a second's or a
-        // frame's old, and the next of either sets it again.
-        const std::uint64_t derived = mDerived.load(std::memory_order_relaxed);
-        const std::uint64_t left = derived - std::min(derived, mClaim.load(std::memory_order_relaxed));
-        mBytes.store(std::min(left, mLimit.load(std::memory_order_relaxed)), std::memory_order_relaxed);
-    }
-
-    void CacheBudget::evictToBudget()
+    void CacheBudget::evictToBudget(const std::uint64_t most)
     {
         const std::scoped_lock lock(mMutex);
+
+        // What went is read off what the caches hold, which another thread's insertion may raise meanwhile: then this
+        // evicts less than `most`, and the next look the rest.
+        const std::uint64_t before = getHeld();
+        const auto evicted = [&] {
+            const std::uint64_t now = getHeld();
+            return before > now ? before - now : 0;
+        };
 
         // An eviction fails where its entry was used between the two asks, which moved it to the front: a race,
         // and more than four a cache in a row end the look rather than spin on it.
         const std::size_t failuresMax = 4 * mCaches.size();
         std::size_t failures = 0;
-        while (getHeld() > getBytes() && failures <= failuresMax)
+        while (getHeld() > getBytes() && evicted() < most && failures <= failuresMax)
         {
             BudgetedCache* oldest = nullptr;
             std::uint64_t oldestUsed = std::numeric_limits<std::uint64_t>::max();

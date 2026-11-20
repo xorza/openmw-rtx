@@ -18,6 +18,7 @@
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/renderer/nullrenderer.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/renderer/residencyop.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -30,10 +31,9 @@ namespace Rtx::Testing
     /// A renderer that records what it was given, over `NullRenderer`, which keeps every promise it does
     /// not record.
     ///
-    /// **The decision is what is under test, so nothing here draws.** What `extendScene` and
-    /// `setScene` do with the descriptions has its own tests against a real device
-    /// (`apps/components_tests/rtxvulkan/trace/visibility/`); what nothing else covers is which of
-    /// them a frame picks, and that answer is the same one on every machine.
+    /// **The decision is what is under test, so nothing here draws.** What a backend stands of residency's
+    /// operations has its own tests against a real device (`apps/components_tests/rtxvulkan/`); what nothing else
+    /// covers is what a frame hands over, and that answer is the same one on every machine.
     class CountingRenderer final : public Rtx::NullRenderer
     {
     public:
@@ -44,42 +44,32 @@ namespace Rtx::Testing
 
         const Rtx::RenderProfile& getProfile() const override { return mProfile; }
 
-        void setScene(
-            Rtx::SceneSlot slot, const Rtx::SceneDesc& scene, std::span<const Rtx::TextureData> textures) override
+        void standScene(Rtx::SceneSlot slot, const Rtx::SceneDesc& scene) override
         {
             ++mRebuilt;
-            recordSlots(textures);
             mDroppedThrough = scene.textures().getFreedCount();
+            NullRenderer::standScene(slot, scene);
 
-            // What the backend does: the array is made again and ends where the scene's table
-            // does, whatever it held before.
+            // What the backend does: the array is made again and ends where the scene's table does, whatever it held
+            // before.
             countAt(slot) = static_cast<std::uint32_t>(scene.textures().getRows().size());
             heldAt(slot) = { scene.getIdentity(), scene.getStructureRevision() };
         }
 
-        void extendScene(
-            Rtx::SceneSlot slot, const Rtx::SceneDesc& scene, std::span<const Rtx::TextureData> arrived) override
-        {
-            ++mExtended;
-            recordSlots(arrived);
-            recordDropped(scene);
-
-            // **The array reaches the highest slot written, and is not a count of what arrived.**
-            // A slot the table freed is handed out again, so an arrival can land below the end and
-            // lengthen nothing at all.
-            for (const Rtx::TextureData& one : arrived)
-                countAt(slot) = std::max(countAt(slot), one.mSlot.at() + 1);
-
-            // The contract `extendScene` is given rather than one it checks: appending only the
-            // arrivals has to leave the array exactly as long as the scene's table.
-            mAppendedToWrongEnd |= countAt(slot) != scene.textures().getRows().size();
-            heldAt(slot).mRevision = scene.getStructureRevision();
-        }
-
-        void placeScene(Rtx::SceneSlot, const Rtx::SceneDesc& scene) override
+        Rtx::DeviceEpoch handOver(
+            Rtx::SceneSlot slot, const Rtx::SceneDesc& scene, std::span<const Rtx::ResidencyOp> ops) override
         {
             ++mPlaced;
+            if (heldAt(slot).mRevision != scene.getStructureRevision())
+                ++mExtended;
+            recordStood(ops);
             recordDropped(scene);
+
+            // **The array reaches the end of the scene's table**: a slot the table freed is handed out again, so an
+            // arrival can land below the end and lengthen nothing at all.
+            countAt(slot) = std::max(countAt(slot), static_cast<std::uint32_t>(scene.textures().getRows().size()));
+            heldAt(slot).mRevision = scene.getStructureRevision();
+            return NullRenderer::handOver(slot, scene, ops);
         }
 
         Rtx::SceneHeld describeHeld(Rtx::SceneSlot slot) const override
@@ -88,28 +78,8 @@ namespace Rtx::Testing
             return Rtx::SceneHeld{ .mIdentity = built.mIdentity, .mStructureRevision = built.mRevision };
         }
 
-        /// How long `slot`'s texture array stands: the highest slot written, plus one.
+        /// How long `slot`'s texture array stands: its scene's table.
         std::uint32_t textureCountOf(Rtx::SceneSlot slot) const { return countAt(slot); }
-
-        /// What the device refused, which a test fills to be what the next take answers, and empties.
-        void takeAnswer(Rtx::SceneSlot, Rtx::DeviceAnswer& into) override
-        {
-            into.mRefused.insert(into.mRefused.end(), mRefusing.begin(), mRefusing.end());
-            mRefusing.clear();
-            into.mMeshes.insert(into.mMeshes.end(), mStanding.begin(), mStanding.end());
-            mStanding.clear();
-            into.mShort.insert(into.mShort.end(), mShort.begin(), mShort.end());
-            mShort.clear();
-            into.mWants.insert(into.mWants.end(), mWants.begin(), mWants.end());
-            mWants.clear();
-            into.mTextureFits.insert(into.mTextureFits.end(), mTextureFits.begin(), mTextureFits.end());
-            mTextureFits.clear();
-            into.mMeshFits.insert(into.mMeshFits.end(), mMeshFits.begin(), mMeshFits.end());
-            mMeshFits.clear();
-        }
-
-        /// What the device has room for, which a test sets to be what the next hand-over reads.
-        std::optional<Rtx::ArrivalRoom> getArrivalRoom(Rtx::SceneSlot) const override { return mArrivalRoom; }
 
         void setUpscale(Upscale upscale) override { mProfile.mUpscale = upscale; }
         Rtx::FrameExtents getExtents() const override { return mExtents; }
@@ -127,8 +97,8 @@ namespace Rtx::Testing
         {
             ++mGuiAsked;
             if (width > mGuiSide || height > mGuiSide)
-                return Rtx::GuiSlot::none();
-            return Rtx::GuiSlot::at(mGuiTextures++);
+                return Rtx::GuiSlot();
+            return Rtx::GuiSlot(mGuiTextures++);
         }
         std::span<std::uint8_t> lendGuiTexture(Rtx::GuiSlot, const Rtx::GuiRegion& region) override
         {
@@ -156,9 +126,18 @@ namespace Rtx::Testing
         }
         Rtx::SceneSlot addViewScene() override
         {
-            mViewTextures.push_back(0);
-            mViewBuilt.emplace_back();
-            return Rtx::SceneSlot::view(mViewScenes++);
+            // The base's slot, which a hand-over of it reaches.
+            const Rtx::SceneSlot slot = NullRenderer::addViewScene();
+            ++mViewScenes;
+            const std::size_t at = slot.getViewIndex();
+            if (at >= mViewTextures.size())
+            {
+                mViewTextures.resize(at + 1, 0);
+                mViewBuilt.resize(at + 1);
+            }
+            mViewTextures[at] = 0;
+            mViewBuilt[at] = Built{};
+            return slot;
         }
 
         /// What a slot was built from, which is what says whether an uploader may append.
@@ -204,29 +183,38 @@ namespace Rtx::Testing
             mDroppedThrough = scene.textures().getFreedCount();
         }
 
-        void recordSlots(std::span<const Rtx::TextureData> described)
+        /// What a hand-over stood, from the operations residency issued: each texture stood, with what it was made of.
+        void recordStood(std::span<const Rtx::ResidencyOp> ops)
         {
             mDescribedSlots.clear();
             mDescribedSecondTexels.clear();
             mDescribedBytes.clear();
-            for (const Rtx::TextureData& texture : described)
+            for (const Rtx::ResidencyOp& op : ops)
             {
-                mDescribedSlots.push_back(texture.mSlot);
+                const auto* stand = std::get_if<Rtx::StandImage>(&op);
+                if (stand == nullptr || stand->mTexels == nullptr)
+                    continue;
+                const Rtx::TextureData& texture = *stand->mTexels;
+                mDescribedSlots.push_back(stand->mTexture);
                 mDescribedBytes.push_back(texture.mBytes.size());
-                mDescribedSources.growTo(texture.mSlot, Rtx::TextureSource::StandIn);
-                mDescribedSources[texture.mSlot] = texture.mSource;
+                mDescribedSources.growTo(stand->mTexture, Rtx::TextureSource::StandIn);
+                mDescribedSources[stand->mTexture] = texture.mSource;
                 mDescribedSecondTexels.push_back(
                     texture.mLevels.size() > 1 ? firstTexelOf(texture.mFormat, texture.bytesOf(1)) : Texel{});
             }
         }
 
-        void dropViewScene(Rtx::SceneSlot slot) override { mViewDropped.push_back(slot.getViewIndex()); }
+        void dropViewScene(Rtx::SceneSlot slot) override
+        {
+            mViewDropped.push_back(slot.getViewIndex());
+            NullRenderer::dropViewScene(slot);
+        }
         bool takeGuiCopy(Rtx::GuiSlot, std::span<std::uint8_t>) override { return false; }
         void readPixels(std::vector<std::uint8_t>&) override {}
         void readDeepPixels(std::vector<std::uint16_t>&) override {}
 
-        /// The first texel of each described texture's second level, beside `mDescribedSlots`, or
-        /// nought for one of one level: what says which chain a slot was described with.
+        /// The first texel of each stood texture's second level, beside `mDescribedSlots`, or nought for one of one
+        /// level: what says which chain a slot was stood with.
         std::vector<Texel> mDescribedSecondTexels;
 
         /// The bytes each described texture hands the device, beside `mDescribedSlots`.
@@ -235,11 +223,7 @@ namespace Rtx::Testing
         /// What each slot was last described as, by slot, across every hand-over.
         Rtx::RowVector<Rtx::TextureSource, Rtx::TextureIndex> mDescribedSources;
 
-        /// Which slots the last hand-over described, in the order it described them.
-        ///
-        /// **What says the loader answered about this scene and not the last one.** `SceneTextures`
-        /// is held by the uploader and cleared per arrival, so a buffer left unclear would show up
-        /// here as a slot belonging to a scene that has gone.
+        /// Which slots the last hand-over stood from texels, in the order it stood them.
         std::vector<Rtx::TextureIndex> mDescribedSlots;
 
         std::vector<std::uint32_t> mViewTextures;
@@ -256,7 +240,6 @@ namespace Rtx::Testing
         std::uint32_t mRebuilt = 0;
 
         std::uint32_t mTextures = 0;
-        bool mAppendedToWrongEnd = false;
 
         /// Every texture slot given back, across every call, in the order it was named, and the scene's count of
         /// freed slots as it last read them.
@@ -264,19 +247,6 @@ namespace Rtx::Testing
         std::uint64_t mDroppedThrough = 0;
         std::uint64_t mFrames = 0;
         std::uint64_t mSkipped = 0;
-
-        /// What `takeAnswer` answers, as a device would after a hand-over: what it refused, what each mesh's structure
-        /// takes, what it stood short, what waits on room, and what each texture and tight copy gives back once it
-        /// rests.
-        std::vector<Rtx::Refusal> mRefusing;
-        std::vector<Rtx::StoodMesh> mStanding;
-        std::vector<Rtx::ShortTexture> mShort;
-        std::vector<Rtx::RoomWant> mWants;
-        std::vector<Rtx::FitBytes<Rtx::TextureIndex>> mTextureFits;
-        std::vector<Rtx::FitBytes<Rtx::MeshIndex>> mMeshFits;
-
-        /// What `getArrivalRoom` answers: unbounded unless a test bounds it.
-        std::optional<Rtx::ArrivalRoom> mArrivalRoom;
 
         /// What `getProfile` answers, which a test sets to say what the run decided.
         Rtx::RenderProfile mProfile;

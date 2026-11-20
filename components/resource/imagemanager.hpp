@@ -2,8 +2,6 @@
 
 #include <cstdint>
 #include <functional>
-#include <mutex>
-#include <unordered_map>
 
 #include <osg/Image>
 #include <osg/Texture2D>
@@ -12,6 +10,7 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "imageheader.hpp"
+#include "objectcache.hpp"
 #include "resourcemanager.hpp"
 
 namespace osgDB
@@ -34,7 +33,7 @@ namespace Resource
 
     /// @brief Handles loading/caching of Images.
     /// @note May be used from any thread.
-    class ImageManager : public ResourceManager<osg::ref_ptr<osg::Image>>
+    class ImageManager : public BudgetedResourceManager<osg::ref_ptr<osg::Image>>
     {
     public:
         ImageManager(const ImageManager&) = delete;
@@ -50,7 +49,7 @@ namespace Resource
 
         /// Before any model is loaded, which every loader thread reads it for: headers with what derives each where
         /// its file is read, and no deriver for texels, which the rasterizer reads from the graph.
-        void setModelImages(ModelImages images, HeaderDeriver deriver);
+        void setModelImages(ModelImages images, HeaderDeriver* deriver);
 
         /// What a model's texture at `path` holds, as `setModelImages` says: the image `getImage` hands out, or its
         /// header, the file read the first time a model names it and never again for a model. What every loader of
@@ -67,12 +66,14 @@ namespace Resource
         osg::ref_ptr<osgDB::Options> mOptions;
 
         ModelImages mModelImages = ModelImages::Texels;
-        HeaderDeriver mDeriver;
+        HeaderDeriver* mDeriver = nullptr;
 
         /// Every header made, by its file: tiny, and bounded by the files the content names, one each, so that
-        /// every texture of one file names one header, as it named one image.
-        std::mutex mHeadersMutex;
-        std::unordered_map<VFS::Path::Normalized, osg::ref_ptr<osg::Image>, VFS::Path::Hash, std::equal_to<>> mHeaders;
+        /// every texture of one file names one header, as it named one image. **Made once however many loaders meet
+        /// the file at once** (`BudgetedObjectCache::getOrLoad`), so a file is derived once; kept whole under a budget
+        /// of its own nothing passes.
+        CacheBudget mHeaderBudget{ CacheBudget::sUnbounded };
+        BudgetedObjectCache<VFS::Path::Normalized, osg::ref_ptr<osg::Image>> mHeaders{ mHeaderBudget };
     };
 
 }

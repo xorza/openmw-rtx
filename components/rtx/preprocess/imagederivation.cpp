@@ -1,13 +1,11 @@
 #include "imagederivation.hpp"
 
 #include <cassert>
-#include <optional>
 #include <utility>
 
 #include <osg/Image>
 
 #include <components/contentstore/store.hpp>
-#include <components/resource/imageheader.hpp>
 
 #include "headerderived.hpp"
 
@@ -26,7 +24,7 @@ namespace Rtx
         assert(mFree.size() == mMade && "a derivation outlived by one still deriving");
     }
 
-    void ImageDerivation::derive(const osg::Image& texels, const Resource::ImageHeader& header)
+    osg::ref_ptr<const HeaderDerived> ImageDerivation::derive(const osg::Image& texels)
     {
         std::unique_ptr<ContentPreprocessor> preprocessor;
         {
@@ -41,12 +39,10 @@ namespace Rtx
                 ++mMade;
         }
         if (preprocessor == nullptr)
-            preprocessor = std::make_unique<ContentPreprocessor>(mStore, ContentStore::Reach::Disk);
+            preprocessor = std::make_unique<ContentPreprocessor>(mStore);
 
-        // From the texels in hand, before the manager hands the header to a second thread: the read is this one.
-        std::optional<FileFacts>& filed = header.derived<HeaderDerived>().mFacts;
-        assert(!filed.has_value() && "a header derived twice");
-        filed = preprocessor->derive(texels);
+        // From the texels in hand, before the manager makes the header: the read is this one.
+        const osg::ref_ptr<const HeaderDerived> derived = new HeaderDerived(preprocessor->derive(texels));
         // **The scratch given back after each**, which a pool of idle preprocessors would otherwise hold for the
         // session at the largest file each met.
         preprocessor->letGoTexelScratch();
@@ -58,6 +54,7 @@ namespace Rtx
             mFree.push_back(std::move(preprocessor));
         }
         mFreed.notify_one();
+        return derived;
     }
 
     ContentStats ImageDerivation::takeStats()

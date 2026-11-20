@@ -36,7 +36,8 @@ namespace Rtx
     void SpriteBinPass::record(VkCommandBuffer commands, const Shaders::SpriteBinConstants& bin, const Buffer& list,
         const Buffer& presence, GpuTimer* const timer) const
     {
-        assert(bin.mCamera.mWidth > 0 && bin.mCamera.mHeight > 0 && "a bin over a frame with no pixels");
+        assert(bin.mCamera.mWidth > 0 && "a bin over a frame with no pixels");
+        assert(bin.mCamera.mHeight > 0 && "a bin over a frame with no pixels");
         assert(bin.mSprites != 0 && bin.mEmitters != 0 && bin.mRects != 0 && bin.mList != 0 && bin.mReport != 0
             && bin.mPresences != 0 && bin.mPresence != 0 && "a bin over a table addressed as nothing");
 

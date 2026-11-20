@@ -26,6 +26,8 @@
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
+#include "residencymost.hpp"
+
 namespace RtxTool
 {
     /// How many cell boundaries a route crossed, and what the frames that crossed them cost: a count and totals,
@@ -213,6 +215,9 @@ namespace RtxTool
         /// What every thread asked of the files' headers for their texels since the renderer started, by why.
         Rtx::TexelReads mTexelReads;
 
+        /// The most every frame of the place, its wait among them, came to in residency.
+        ResidencyMost mResidency;
+
         GameHeld mGame;
     };
 
@@ -302,6 +307,9 @@ namespace RtxTool
     /// The asks for the files' headers' texels by why, with their bytes, as one line, or nothing where none was asked.
     std::string describeTexelReads(const Rtx::TexelReads& reads);
 
+    /// A place's residency at its most, one line; nothing for a place that took no frame.
+    std::string describeResidency(const ResidencyMost& most);
+
     /// The header as the lines the report opens with.
     std::string describeHeader(const BenchHeader& header);
 
@@ -319,11 +327,12 @@ namespace RtxTool
     /// said everything this would.
     std::string describeTotal(std::span<const BenchPlace> places);
 
-    /// Writes the run as one record, for comparing against the same run on another commit, or says
-    /// which path it could not write.
+    /// **The record a run writes for comparing against the same run on another commit, a line each** (JSON lines):
+    /// `{"header": …}` first, then `{"place": …}` as each place was measured, so a long run adds a line a stop and
+    /// one that dies has said how far it came (`RunRecord::save`). Each ends in its line break and holds no other.
     ///
     /// Hand-written rather than through a library: this is numbers and the names of places, and the
     /// alternative is a dependency for the sake of a page.
-    Result<void, std::string> writeJson(
-        const std::filesystem::path& path, const BenchHeader& header, std::span<const BenchPlace> places);
+    std::string recordHeaderLine(const BenchHeader& header);
+    std::string recordPlaceLine(const BenchPlace& place);
 }

@@ -14,7 +14,6 @@
 
 #include <components/contentstore/key.hpp>
 #include <components/platform/wholefile.hpp>
-#include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "filestamps.hpp"
@@ -82,7 +81,7 @@ namespace Rtx
             for (const std::string& name : names)
             {
                 digest.add(std::span<const char>(name));
-                digest.add(stamps.stampOf(VFS::Path::NormalizedView(name.c_str())));
+                digest.add(stamps.stampOf(VFS::Path::NormalizedView(name.c_str())).mStamp);
             }
             return digest.getKey().mHash[0];
         }
@@ -238,7 +237,7 @@ namespace Rtx
     }
 
     std::optional<std::uint64_t> PreparationManifest::standingDigest(
-        const std::string_view model, FileStamps& stamps, ContentStore::Store& store, Misc::ByteBuffer& scratch) const
+        const std::string_view model, FileStamps& stamps, ContentStore::Store& store) const
     {
         const std::optional<std::uint32_t> index = indexOf(model);
         if (!index.has_value())
@@ -253,10 +252,7 @@ namespace Rtx
             const std::span<const std::uint32_t> keys = std::span(mKeyRuns).subspan(filed.mKeysFirst, filed.mKeysCount);
             const bool held = std::ranges::all_of(keys, [&](const std::uint32_t at) {
                 const StoredKey& key = mKeys[at];
-                if (key.mPass == ContentPassId::Shape)
-                    return store.read(key.mKey, storeKindOf(ContentPassId::Shape), ShapePass::sVersion,
-                        ContentStore::Reach::Disk, scratch);
-                return store.holds(key.mKey, storeKindOf(key.mPass), ContentStore::Reach::Disk);
+                return store.holds(key.mKey, storeKindOf(key.mPass));
             });
             if (held)
                 return filed.mDigest;

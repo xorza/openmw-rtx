@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include <apps/rtxtool/instruments/filewriter.hpp>
 #include <apps/rtxtool/instruments/framehashes.hpp>
 #include <components/misc/result.hpp>
 #include <components/platform/heap.hpp>
@@ -17,6 +18,7 @@
 #include "benchrecord.hpp"
 #include "benchrun.hpp"
 #include "exitstatus.hpp"
+#include "finding.hpp"
 
 namespace RtxTool
 {
@@ -70,9 +72,18 @@ namespace RtxTool
         /// (`FindingKind::CheckFailed`), where the content may be known to meet it (`Expectations`).
         void checked(Check check, bool held);
 
-        /// Writes the record as it stands where the request names one (`SessionRequest::mJson`), as a long run does
-        /// after every stop so one that dies says how far it came; says why where it could not be written.
+        /// Adds what the record gained since the last save to the file the request names (`SessionRequest::mJson`),
+        /// where it names one: the header before the first place, a line a place, and the findings' counts where
+        /// they moved (`count`). A long run saves after every stop, so one that dies has said how far it came. **On
+        /// the writer's thread**, a place's worth a save: the whole record written again after every leg, on the
+        /// frame's thread, was the first frame of the leg after. Why a write failed is said at the run's end.
         void save(const SessionRequest& request);
+
+        /// What a run's findings come to now, for the record's next save (`recordFindingsLine`).
+        void count(const FindingCounts& counts) { mFindingCounts = counts; }
+
+        /// Writes `text` as the whole of `path` beside the record, on the writer's thread: a tour's findings.
+        void writeBeside(const std::filesystem::path& path, std::string text);
 
         /// The places recorded so far, the last the stop that just ended.
         const std::vector<BenchPlace>& getPlaces() const { return mPlaces; }
@@ -163,5 +174,15 @@ namespace RtxTool
 
         FrameHashes mHashes;
         FrameHashes mReference;
+
+        /// What `save` has written of the record: whether its header, how many of its places, and which counts.
+        bool mHeaderSaved = false;
+        std::size_t mPlacesSaved = 0;
+        std::optional<FindingCounts> mFindingCounts;
+        std::optional<FindingCounts> mCountsSaved;
+
+        /// What writes the record and the files beside it. Last, so it has written everything before the record
+        /// it writes goes.
+        FileWriter mFiles;
     };
 }

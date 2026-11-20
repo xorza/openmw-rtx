@@ -226,7 +226,7 @@ namespace MWRender
         Terrain::World& mTerrain;
 
         /// What the content files say stands where: the ground's statics and the lights of the
-        /// cells the paging leaves dark, which `Rtx::CellRing` reads out of here because the paging
+        /// cells the paging leaves dark, which `Rtx::CellStreamer` reads out of here because the paging
         /// stands no `LIGH`.
         const Terrain::ObjectStorage& mObjectStorage;
 

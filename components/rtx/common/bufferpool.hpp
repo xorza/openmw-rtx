@@ -38,12 +38,11 @@ namespace Rtx
 
     private:
         friend class BufferPool;
-        PooledBuffer(std::shared_ptr<BufferPool> pool, std::unique_ptr<std::byte[]> data, std::size_t capacity,
-            std::size_t size);
+        PooledBuffer(BufferPool& pool, std::unique_ptr<std::byte[]> data, std::size_t capacity, std::size_t size);
 
-        /// Shared, since a buffer goes back to its pool from whatever holds it last, a texture slot's made image
-        /// among them, which may outlive the pool's owner.
-        std::shared_ptr<BufferPool> mPool;
+        /// The pool it goes back to, which outlives every buffer it hands out by its owner's order: the renderer holds
+        /// it ahead of everything that holds a buffer.
+        BufferPool* mPool = nullptr;
         std::unique_ptr<std::byte[]> mData;
         std::size_t mCapacity = 0;
         std::size_t mSize = 0;
@@ -63,8 +62,10 @@ namespace Rtx
     /// asks are warm, as DirectStorage reads into a bounded staging buffer. What it holds, in use and free, stays
     /// under its most: a take past it drops free buffers of other classes, and waits for one given back where every
     /// byte is in use, a worker's wait and never the frame's thread. One buffer larger than the most is made where
-    /// nothing else is in use, so no take waits for ever. Shared by every thread that takes and gives.
-    class BufferPool : public std::enable_shared_from_this<BufferPool>
+    /// nothing else is in use, so no take waits for ever. Used by every thread that takes and gives. **A buffer given
+    /// back is kept and never freed on the giving thread**, the frame's among them: what is past the most is dropped
+    /// by the next take, on the taker's thread and past the lock.
+    class BufferPool
     {
     public:
         /// The smallest class, 64 KiB, under which a buffer is not worth a class of its own, and the largest, 1 GiB, a
@@ -73,8 +74,9 @@ namespace Rtx
         static constexpr std::size_t sClassMost = std::size_t{ 1 } << 30;
         static constexpr std::size_t sClassCount = std::bit_width(sClassMost) - std::bit_width(sClassLeast) + 1;
 
-        /// Made shared, as each buffer it hands out holds it (`PooledBuffer`).
-        static std::shared_ptr<BufferPool> make(std::size_t mostBytes);
+        explicit BufferPool(std::size_t mostBytes);
+
+        /// Asserts that every buffer it handed out came back.
         ~BufferPool();
 
         BufferPool(const BufferPool&) = delete;
@@ -86,7 +88,7 @@ namespace Rtx
 
         /// **Every take past the most while it stands**, for a waiter that holds whatever it waits for until it has
         /// it all and gives back nothing meanwhile: a settled hand-over, which stands an arrival's every chain at once
-        /// (`PreparedImages::flush`). Under the most, its workers would wait for buffers only the waiter gives back,
+        /// (`TextureHands::flush`). Under the most, its workers would wait for buffers only the waiter gives back,
         /// and the waiter for them. What it lets past is what that waiter asked, bounded by what it holds.
         class [[nodiscard]] Overdraft
         {
@@ -112,9 +114,11 @@ namespace Rtx
         /// Takes back what a buffer of `capacity` held, keeping it free for its class.
         void give(std::unique_ptr<std::byte[]> data, std::size_t capacity) noexcept;
 
-        static std::size_t classOf(std::size_t capacity);
+        /// Moves into `into` the free buffers that stand past the most, the largest first, for the caller to free past
+        /// the lock. Under the lock.
+        void dropExcess(std::vector<std::unique_ptr<std::byte[]>>& into);
 
-        explicit BufferPool(std::size_t mostBytes);
+        static std::size_t classOf(std::size_t capacity);
 
         const std::size_t mMostBytes;
         mutable std::mutex mMutex;

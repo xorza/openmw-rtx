@@ -8,8 +8,9 @@ from typing import cast
 
 from omw.build import Build
 from omw.exitstatus import ExitStatus
+from omw.record import read_record
 from omw.system import Refusal
-from omw.tour import FINDINGS, Content, Outcome, plan, read_counts, run, table, wants_each, worst
+from omw.tour import RECORD, Content, Outcome, plan, read_counts, run, table, wants_each, worst
 
 
 class PlanTest(unittest.TestCase):
@@ -31,9 +32,12 @@ class PlanTest(unittest.TestCase):
 
 
 class ReportTest(unittest.TestCase):
-    def test_the_counts_are_read_off_the_findings(self):
-        self.assertEqual(read_counts("\ntour findings: 2 faults, 7 costs and marks\n..."), (2, 7))
-        self.assertIsNone(read_counts("nothing here"))
+    def test_the_counts_are_the_last_the_record_states(self):
+        stated = ('{"header": {}}\n'
+                  '{"place": {"view": "leg-1"}}\n{"findings": {"faults": 0, "costs": 3, "expected": 1}}\n'
+                  '{"place": {"view": "leg-2"}}\n{"findings": {"faults": 2, "costs": 7, "expected": 1}}\n')
+        self.assertEqual(read_counts(read_record(stated)), (2, 7))
+        self.assertIsNone(read_counts(read_record('{"header": {}}\n')))
 
     def test_the_worst_status_is_a_refusal_then_a_failure_then_a_difference(self):
         self.assertEqual(worst([0, 3, 1]), ExitStatus.FAILED)
@@ -64,7 +68,8 @@ class _Harness:
         folder = Path(next(arg.removeprefix("--out=") for arg in args if arg.startswith("--out=")))
         folder.mkdir(parents=True)
         bad = "bad" in folder.name
-        (folder / FINDINGS).write_text(f"\ntour findings: {1 if bad else 0} faults, 4 costs and marks\n")
+        (folder / RECORD).write_text(
+            f'{{"header": {{}}}}\n{{"findings": {{"faults": {1 if bad else 0}, "costs": 4, "expected": 0}}}}\n')
         return subprocess.CompletedProcess([verb, *args], 1 if bad else 0)
 
 

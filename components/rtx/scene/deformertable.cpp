@@ -15,6 +15,13 @@ namespace Rtx
 {
     namespace
     {
+        /// What a mesh's hold on its deformer states: a deformer is a table's rows and not resident content, so its
+        /// tier is read by nobody, and it stands as long as any mesh on it does.
+        constexpr HoldTier sDeformerTier = HoldTier::Shown;
+    }
+
+    namespace
+    {
         // Word by word rather than one copy of the bytes: `osg::Vec4f` is not trivially copyable
         // as the compiler counts it, and a row is four floats either way.
         void layBone(const Shaders::GpuBone& bone, const std::span<PoseWord> into)
@@ -163,7 +170,7 @@ namespace Rtx
         // an empty one is nothing to release. Nothing downstream is told: what a backend holds of
         // a deformer is data at an offset, read by no frame once no mesh names it, and the next
         // one to land in the run is what names it again.
-        if (dropRow(range.mDeformer))
+        if (dropRow(range.mDeformer, sDeformerTier))
         {
             mRuns.release(deformer.mRuns);
             mInfluences.release(deformer.mInfluences);
@@ -188,7 +195,7 @@ namespace Rtx
 
         // And a run of words, zeroed. A first pose may equal them, and `MeshRange::mPosed` is what
         // says it names the mesh regardless.
-        holdRow(range.mDeformer);
+        holdRow(range.mDeformer, sDeformerTier);
         range.mPoseOffset = mPoses.allocateZeroed(rowAt(range.mDeformer).getPoseWords()).mOffset;
     }
 

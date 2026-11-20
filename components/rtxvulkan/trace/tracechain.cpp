@@ -72,7 +72,8 @@ namespace Rtx
         , mRadiance(radiance)
         , mPast(past)
     {
-        assert(bins >= 1 && bins <= sFrameSlots && "a sprite bin past the frames in flight");
+        assert(bins >= 1 && "a sprite bin past the frames in flight");
+        assert(bins <= sFrameSlots && "a sprite bin past the frames in flight");
         mBins.reserve(bins);
         for (std::uint32_t at = 0; at < bins; ++at)
             mBins.emplace_back(device, passes.mSpriteShade, passes.mSpriteBin);

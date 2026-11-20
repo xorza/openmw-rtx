@@ -6,7 +6,6 @@ medians: a difference the spread does not exceed is no difference. Every leg kee
 `--out` or a folder of its own."""
 
 import contextlib
-import json
 import statistics
 import sys
 from dataclasses import dataclass
@@ -14,6 +13,7 @@ from pathlib import Path
 
 from omw.build import Build
 from omw.noise import Side, sides_of
+from omw.record import Record, read_record
 from omw.system import Refusal, Switches, read_text, temporary_folder
 
 # How many legs a side runs where the line names none: enough that the median of their medians is not one
@@ -53,12 +53,12 @@ def plan(args: list[str]) -> Plan:
     return Plan(sides_of(asked.ab), asked.legs, out, tuple(rest))
 
 
-def read_rows(record: dict) -> dict[str, dict[str, tuple[float, float]]]:
-    """Each place's zones and host rows in one leg's record (`RtxTool::writeJson`): by place, then by row, the
+def read_rows(record: Record) -> dict[str, dict[str, tuple[float, float]]]:
+    """Each place's zones and host rows in one leg's record (`omw.record`): by place, then by row, the
     median and the p99. A zone is named as the report names it, a host row with its `Ms` dropped and `cpu `
     before it."""
     places: dict[str, dict[str, tuple[float, float]]] = {}
-    for place in record.get("places", []):
+    for place in record.places:
         rows: dict[str, tuple[float, float]] = {}
         for key, value in place.items():
             if key.endswith("Ms") and isinstance(value, dict) and "median" in value:
@@ -132,10 +132,10 @@ def ab(build: Build, args: list[str]) -> int:
         read: tuple[list, list] = ([], [])
         for index in range(1, asked.legs + 1):
             for at, side in enumerate(asked.sides):
-                record = out / f"{side.label}-{index}.json"
+                record = out / f"{side.label}-{index}.jsonl"
                 if not leg(side, f"{side.label}-{index}", record):
                     return 1
-                read[at].append(read_rows(json.loads(read_text(record))))
+                read[at].append(read_rows(read_record(read_text(record))))
 
         print(table(asked.sides, gather(read[0]), gather(read[1])))
         print(f"\nthe legs are in {out}")

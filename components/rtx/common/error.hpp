@@ -49,7 +49,10 @@ namespace Rtx
     class Unsupported : public std::runtime_error
     {
     public:
-        using std::runtime_error::runtime_error;
+        explicit Unsupported(std::string_view what)
+            : std::runtime_error(withNote(what))
+        {
+        }
     };
 
     /// The upscaler the player chose by name cannot run on this machine: its runtime, its driver or

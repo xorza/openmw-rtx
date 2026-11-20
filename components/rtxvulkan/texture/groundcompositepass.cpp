@@ -84,12 +84,11 @@ namespace Rtx
         mMips.record(commands, std::span<const Image* const>(written.data(), count));
     }
 
-    Result<Image, MemoryRefusal> GroundCompositePass::makeCanvas(
-        const Device& device, const bool gloss, std::string_view name)
+    Image GroundCompositePass::makeCanvas(const Device& device, const bool gloss, std::string_view name)
     {
         constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
         constexpr VkFormat stored = toVulkanFormat(TEXTURE_WRITTEN_FORMAT);
-        return Image::tryMake(MemoryUse::Texture, device,
+        return Image(MemoryUse::Essential, device,
             ImageDescription{ .mWidth = extent,
                 .mHeight = extent,
                 .mFormat = gloss ? stored : withCurve(stored),
@@ -99,10 +98,10 @@ namespace Rtx
             name);
     }
 
-    Result<Buffer, MemoryRefusal> GroundCompositePass::makeBlocks(const Device& device, std::string_view name)
+    Buffer GroundCompositePass::makeBlocks(const Device& device, std::string_view name)
     {
         constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
-        return Buffer::tryMake(MemoryUse::Texture, device, BufferKind::DeviceLocal,
+        return Buffer::make(MemoryUse::Essential, device, BufferKind::DeviceLocal,
             BlockChain::of(extent, extent, levelsTo1x1(extent, extent), Shaders::BC7_BLOCK_BYTES).mBytes,
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, name);
     }

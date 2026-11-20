@@ -200,6 +200,7 @@ namespace RtxTool
             EXPECT_EQ(table.getUnmet()[0]->mName, "a blend no trace makes");
 
             const std::string known = describeFindings(table);
+            EXPECT_EQ(countFindings(table), (FindingCounts{ .mFaults = 0, .mCosts = 0, .mExpected = 1 }));
             EXPECT_NE(known.find("tour findings: 0 faults, 0 costs and marks, 1 expected\n"), std::string::npos)
                 << known;
             EXPECT_NE(known.find("UNMET [a blend no trace makes] refused: a surface's state \"textures/well.dds\"\n"),
@@ -247,6 +248,11 @@ namespace RtxTool
             ASSERT_NE(better, std::string::npos) << text;
             EXPECT_LT(fault, worse);
             EXPECT_LT(worse, better);
+            // **The counts as the record states them**, a line a tour's driver reads in place of the report's
+            // wording: what stands in the table, the dropped left to the report.
+            EXPECT_EQ(countFindings(table), (FindingCounts{ .mFaults = 1, .mCosts = 2048, .mExpected = 0 }));
+            EXPECT_EQ(recordFindingsLine(countFindings(table)),
+                "{\"findings\": {\"faults\": 1, \"costs\": 2048, \"expected\": 0}}\n");
             EXPECT_NE(text.find("tour findings: 1 faults, 2048 costs and marks, 0 expected, past the table's bound: 3 "
                                 "log-warning\n"),
                 std::string::npos)

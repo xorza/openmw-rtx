@@ -7,18 +7,25 @@
 
 namespace Rtx
 {
-    std::size_t MadeLayout::bytes() const
+    std::size_t MadeLayout::offsetOf(const std::uint32_t level) const
     {
+        assert(level <= mCount && "an offset past the chain's end");
         const TexelLayout laid = layoutOf(mFormat);
         std::size_t bytes = 0;
-        for (std::uint32_t level = 0; level < mCount; ++level)
-            bytes += laid.levelBytes(std::max(mWidth >> level, 1u), std::max(mHeight >> level, 1u));
+        for (std::uint32_t at = 0; at < level; ++at)
+            bytes += laid.levelBytes(std::max(mWidth >> at, 1u), std::max(mHeight >> at, 1u));
         return bytes;
+    }
+
+    std::size_t MadeLayout::bytes() const
+    {
+        return offsetOf(mCount) - offsetOf(mFirst);
     }
 
     osg::ref_ptr<const MadeImage> MadeImage::make(const MadeLayout& layout, PooledBuffer bytes)
     {
         assert(layout.mCount > 0 && "a made chain of no level");
+        assert(layout.mFirst < layout.mCount && "a chain held from past its last level");
         assert(layout.mCount <= levelsTo1x1(layout.mWidth, layout.mHeight) && "a level under a texel");
         assert(bytes.bytes().size() == layout.bytes() && "a chain of another length than its levels");
         assert(bytes.bytes().size() <= std::numeric_limits<std::uint32_t>::max() && "a level past a 32-bit offset");
@@ -31,11 +38,13 @@ namespace Rtx
         std::size_t offset = 0;
         for (std::uint32_t level = 0; level < layout.mCount; ++level)
         {
-            const MipLevel at{ .mOffset = static_cast<std::uint32_t>(offset),
+            const bool held = level >= layout.mFirst;
+            const MipLevel at{ .mOffset = static_cast<std::uint32_t>(held ? offset : 0),
                 .mWidth = std::max(layout.mWidth >> level, 1u),
                 .mHeight = std::max(layout.mHeight >> level, 1u) };
             made->mLevels.push_back(at);
-            offset += made->mLaid.levelBytes(at.mWidth, at.mHeight);
+            if (held)
+                offset += made->mLaid.levelBytes(at.mWidth, at.mHeight);
         }
         return made;
     }

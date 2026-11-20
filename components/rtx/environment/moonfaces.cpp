@@ -74,7 +74,7 @@ namespace Rtx
                 continue;
 
             holds.push_back(std::move(held));
-            face.mMean = thread.meanOf(*image.value()).opaque();
+            face.mMean = thread.factsOf(*image.value()).mMean.opaque();
         }
         return faces;
     }

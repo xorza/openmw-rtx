@@ -60,19 +60,11 @@ namespace Rtx
         SceneAcceleration& operator=(const SceneAcceleration&) = delete;
         ~SceneAcceleration() = default;
 
-        /// Builds every mesh's structure, writes every row, and builds the top level, in one submit
-        /// with each stage ending in the barrier the next one needs. Once, after the constructor.
-        /// `scene` must place at least one instance: a top-level structure over nothing has no
-        /// instance buffer to be built from. A mesh the device has no room for is left out and
-        /// appended to `refused` — `BottomLevelStore::build`. `pack` packs the rows the top level
-        /// is built over, as on every placement. `positions` are the scene's static vertices, which
-        /// `SceneBuffers` staged into the batch ahead of this and a static structure is built over.
-        /// `compaction` says when the bottom levels are copied tight (`BuildCompaction`), and the
-        /// rows are written after, so they name where the structures stand, through `uploads`,
-        /// which writes into `batch`.
-        void build(Batch& batch, Uploads& uploads, const SceneDesc& scene, std::span<const MeshIndex> everyMesh,
-            RowSpan<const InstanceRecord, PlacementIndex> records, const BlockedBuffer& positions,
-            const TopLevelPackPass& pack, BuildCompaction compaction, std::vector<Refusal>& refused);
+        /// Writes every row and builds the top level, in one submit. Once, after the constructor, before residency
+        /// has stood any structure, so every row names none until one stands. `pack` packs the rows the top level is
+        /// built over, as on every placement, through `uploads`, which writes into `batch`.
+        void build(Batch& batch, Uploads& uploads, const SceneDesc& scene,
+            RowSpan<const InstanceRecord, PlacementIndex> records, const TopLevelPackPass& pack);
 
         /// Rebuilds what a moved world changed: every deformed mesh's structure, then the top level,
         /// in one command buffer with a barrier between. A deforming mesh's structure is refitted
@@ -91,34 +83,26 @@ namespace Rtx
         /// placement that writes it.
         void finishReads(FrameSlot slot) const { mRowTable.finishReads(slot); }
 
-        /// Takes in the geometry of the meshes the scene says arrived and lets go of the ones it says
-        /// went. `buildArrived` builds their structures, once the pass has posed them. Every
-        /// structure already built stays where it is. Safe with frames in flight, because nothing it
-        /// writes is room one of them holds; `check` under synchronization validation says so.
+        /// Takes in the geometry of the meshes the scene says arrived. Every structure already built stays where it
+        /// is. Safe with frames in flight, because nothing it writes is room one of them holds; `check` under
+        /// synchronization validation says so.
         void extend(Batch& batch, const SceneDesc& scene);
 
-        /// Builds the structures of the meshes that arrived: a body's over the first copy of the poses
-        /// as `extend` and the pass left it, a static mesh's over `positions`, as `build` takes them.
-        /// A mesh the device has no room for waits for it, or is left out and appended to `refused`, as `build` says.
+        /// **Does residency's operations on structures** (`BottomLevelStore::execute`): a body's built over the first
+        /// copy of the poses as `extend` and the skin pass left it, a static mesh's over `positions`. A structure
+        /// built is a top level to build, and the rows of every mesh whose structure changed are written again at
+        /// the next placement.
         ///
-        /// @param timer the frame the arrival lands in, so its builds are one zone of that frame's
-        ///        report rather than device time nothing accounts for. Null for a picture inside the
-        ///        interface, which is not timed — `VulkanRenderer::placeScene` says why.
-        void buildArrived(Batch& batch, const SceneDesc& scene, const BlockedBuffer& positions, GpuTimer* timer,
-            std::vector<Refusal>& refused);
+        /// @param timer the frame the builds land in, so they are one zone of that frame's report rather than device
+        ///        time nothing accounts for. Null for a picture inside the interface, which is not timed.
+        void standStructures(Batch& batch, const ContentArena& arena, const SceneDesc& scene,
+            const BlockedBuffer& positions, GpuTimer* timer, std::span<const ResidencyOp> ops);
 
-        /// Destroys the structures of `meshes` and gives their storage back.
+        /// Destroys the structures of `meshes`, which the scene freed.
         void release(std::span<const MeshIndex> meshes) { mBottomLevel.release(meshes); }
 
-        /// Builds again, into `batch`, the structures that waited for room (`BottomLevelStore::buildWaiting`), each
-        /// that deforms over `slot`'s pose, which the slot's last frame wrote and nothing in flight still writes. A
-        /// structure built is a top level to build.
-        void buildWaiting(Batch& batch, const SceneDesc& scene, const BlockedBuffer& positions, FrameSlot slot,
-            std::vector<Refusal>& refused);
-
-        /// Appends what each structure built since the last take took at its build, what each copy made tight gives
-        /// back and what waits on a resting mesh's room (`BottomLevelStore::takeAnswer`).
-        void takeAnswer(DeviceAnswer& into) { mBottomLevel.takeAnswer(into); }
+        /// `BottomLevelStore::readAnswers`.
+        void readAnswers(const SceneSlot scene, std::vector<TightSize>& into) { mBottomLevel.readAnswers(scene, into); }
 
         VkAccelerationStructureKHR getTopLevel() const { return mTopLevel.getHandle(); }
 
@@ -143,11 +127,9 @@ namespace Rtx
             return mPoses.at(slot.next()).getTableAddress();
         }
 
-        /// The room the structures were given, and what they occupy in it — a pair, because a
-        /// structure copied tight gives its loose room back and a block is returned to the device
-        /// only when nothing is left in it. Neither counts the geometry they were built from.
-        VkDeviceSize getStructureBytes() const { return mBottomLevel.getBytes() + mTopLevelBytes; }
-        VkDeviceSize getStructureLiveBytes() const { return mBottomLevel.getLiveBytes() + mTopLevelBytes; }
+        /// What the structures occupy, the bottom levels as built or copied and the top level's storage, not the
+        /// geometry they were built from.
+        VkDeviceSize getStructureBytes() const { return mBottomLevel.getLiveBytes() + mTopLevelBytes; }
 
         /// What the index blocks the structures were built from take, which a hit reads its
         /// triangle's corners through: a table of the scene's as the vertex attributes are.
@@ -157,11 +139,9 @@ namespace Rtx
         /// packed rows, the blocks' first places, the poses, and every build's and refit's scratch.
         VkDeviceSize getWorkBytes() const;
 
-        /// `BottomLevelStore::waitAgain`.
-        void waitAgain() { mBottomLevel.waitAgain(); }
-
         VkDeviceSize getCompactableBytes() const { return mBottomLevel.getCompactableBytes(); }
         VkDeviceSize getCompactableNowBytes() const { return mBottomLevel.getCompactableNowBytes(); }
+        const StructureTightness& getTightness() const { return mBottomLevel.getTightness(); }
         VkDeviceSize getMovedOutBytes() const { return mBottomLevel.getMovedOutBytes(); }
 
         /// How many structures the rota has built whole again since the scene was made, for the
@@ -230,9 +210,10 @@ namespace Rtx
         /// Packs the rows `prepareTopLevel` paid and builds the top level over them.
         void recordTopLevel(VkCommandBuffer commands, const TopLevelPackPass& pack, GpuTimer* timer);
 
-        /// Writes again every row placing a mesh whose structure the compaction moved. True where
-        /// anything moved, which is also when there is a copy to record.
-        bool placeCompacted(const SceneDesc& scene, RowSpan<const InstanceRecord, PlacementIndex> records);
+        /// Writes again the row of every placement of `meshes`, whose structures stand somewhere they did not when
+        /// the rows were last written: built, copied, or dropped.
+        void placeMeshes(const SceneDesc& scene, RowSpan<const InstanceRecord, PlacementIndex> records,
+            std::span<const MeshIndex> meshes);
 
         const Device& mDevice;
         const std::uint32_t mPlacementRoom;

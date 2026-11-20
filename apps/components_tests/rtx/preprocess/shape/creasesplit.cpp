@@ -147,7 +147,7 @@ namespace Rtx
                 EXPECT_EQ(Shaders::unpackNormal(Shaders::packNormal(normal)), normal) << "a normal no word holds";
 
             ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
-            ContentPreprocessor stored(&store, ContentStore::Reach::Disk);
+            ContentPreprocessor stored(&store);
             const Shaped run = shape(stored, cube.mPositions, cube.mNormals, cube.mTriangles);
             store.flush();
             const Shaped found = shape(stored, cube.mPositions, cube.mNormals, cube.mTriangles);

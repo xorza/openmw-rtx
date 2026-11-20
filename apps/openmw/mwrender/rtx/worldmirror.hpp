@@ -21,7 +21,7 @@
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/cells/cellplacer.hpp>
-#include <components/rtx/mirror/cells/cellring.hpp>
+#include <components/rtx/mirror/cells/cellstreamer.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
@@ -31,9 +31,9 @@
 #include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/prepare/contentpreparation.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
-#include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/residency.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/ripple.hpp>
@@ -72,11 +72,8 @@ namespace MWRender
     public:
         /// @param store the process's content store, or null for none: the frame's walks reach its
         ///        memory alone, and the cell reader its files too.
-        /// @param prepared where the world's normal and data maps find their chains made again, or
-        ///        null for none (`Rtx::PreparedImages`).
         /// @param identities the renderer's, which the world's scene takes its identity from, and which outlives it.
-        WorldMirror(const MirrorKnobs& knobs, ContentStore::Store* store, Rtx::PreparedImages* prepared,
-            Rtx::SceneIdentities& identities);
+        WorldMirror(const MirrorKnobs& knobs, ContentStore::Store* store, Rtx::SceneIdentities& identities);
 
         /// Asserts the scene empty, so a row a detached world did not give back is named here. Not while an
         /// exception unwinds, where the frame's own message is the one to read.
@@ -102,8 +99,20 @@ namespace MWRender
         Rtx::JobProgress awaitPreparing(std::chrono::milliseconds patience);
 
         /// Once `awaitPreparing` says it is done: the manifest written, the threads ended, the sea's shape
-        /// read into the store's memory, and what they computed, nothing where none ran.
+        /// handed to the store, and what they computed, nothing where none ran. The store is still writing
+        /// (`awaitStored`).
         Rtx::ContentStats finishPreparing();
+
+        /// How far the store came with what the preparation handed it, its writes and its stamps, once it is done or
+        /// `patience` passed: done where there is no store. **Before the first frame, which asks the store's memory
+        /// alone**: an entry still on its way from the disk was computed again. Waited out under the loading screen
+        /// and not inside `finishPreparing`, where a day's first start stood undrawn for as long as its disk took to
+        /// stamp every entry, 27 s on the handheld.
+        Rtx::JobProgress awaitStored(std::chrono::milliseconds patience);
+
+        /// Stops a preparation where it stands, for a player who asked to quit under it: its threads ended, what
+        /// they wrote kept in the store, and no manifest written, so the next start walks what this one left.
+        void abandonPreparing();
 
         /// The world is going: every thread that reads it stops and every row it stood is swept, so a
         /// detached world is an empty scene. `SkyReader::detach` gives the sky's own back before this.
@@ -135,11 +144,10 @@ namespace MWRender
         /// A cell the scene added, which the sea is centred on as `Water::changeCell` centres it
         /// (`seaCentre`): the middle of the cell outdoors, the origin indoors, the last one added winning.
         void standSea(const MWWorld::CellStore& cell);
-
-        /// Hands the scene to `scenes`, building only what has to be built, and then ends the placement:
-        /// where everything stands is what the next frame measures its motion against, and the change lists
-        /// start again.
-        Rtx::SceneUpload hand(Rtx::SceneHolder& scenes, Rtx::FrameSpend& spend);
+        /// Hands the world to `scenes` through `residency`, which decides what stands of it, its texels from `feed`
+        /// (`Rtx::SceneUploader`).
+        Rtx::SceneUpload hand(
+            Rtx::SceneHolder& scenes, Rtx::Residency& residency, Rtx::TextureFeed& feed, Rtx::FrameSpend& spend);
 
         /// How much world this renderer builds, in units: the ground, the air and the distant lights are all
         /// measured over it. The settings' count of cells in the cells of the worldspace the last walk stood
@@ -151,8 +159,8 @@ namespace MWRender
 
         /// The distant cells: the one route to them, for the ground, the frame, a picture asking whether its
         /// ground stands yet, and the harness's checks.
-        Rtx::CellRing& getRing() { return mRing; }
-        const Rtx::CellRing& getRing() const { return mRing; }
+        Rtx::CellStreamer& getRing() { return mRing; }
+        const Rtx::CellStreamer& getRing() const { return mRing; }
 
         /// The menu moved the reach, or the view distance it falls back to. Told rather than read
         /// per frame, so the ring, the air and the map follow one number a frame was handed.
@@ -177,10 +185,6 @@ namespace MWRender
         /// What every walk on the frame thread shares: the world's, the sky's and every traced view's
         /// (`Rtx::WalkContext`).
         Rtx::WalkContext& getWalkContext() { return mWalk; }
-
-        /// How many of the world's slots stand their files as they are while their images are made
-        /// (`Rtx::SceneUploader::getPendingCount`).
-        std::size_t getImagesPending() const { return mUploader.getPendingCount(); }
 
         /// What the world's walk may see. Read by the tests and by nothing else.
         osg::Node::NodeMask getTraversalMask() const { return mTraversal; }
@@ -211,6 +215,9 @@ namespace MWRender
         struct Preparing;
         std::unique_ptr<Preparing> mPreparing;
 
+        /// The most the store ever had left to do under `awaitStored`, which its progress is counted of.
+        std::uint32_t mStoringMost = 0;
+
         /// The world's groundcover, or null where it has none. Before the ring, as the content is.
         std::unique_ptr<TracedGroundcover> mGroundcover;
 
@@ -232,7 +239,7 @@ namespace MWRender
 
         /// The cells themselves: their ground off the land records, their statics as instances
         /// of their templates, and their lamps. After the scene, which it adopts into.
-        Rtx::CellRing mRing{ mExtractor };
+        Rtx::CellStreamer mRing{ mExtractor };
 
         Rtx::SceneUploader mUploader;
 

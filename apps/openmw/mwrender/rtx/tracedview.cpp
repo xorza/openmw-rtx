@@ -17,7 +17,7 @@
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/myguirtx/texture.hpp>
 #include <components/rtx/frame/frameextents.hpp>
-#include <components/rtx/mirror/cells/cellring.hpp>
+#include <components/rtx/mirror/cells/cellstreamer.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/sceneutil/offscreenframing.hpp>
 
@@ -109,7 +109,7 @@ namespace MWRender
             && footprint->mLow.y() <= over.y() && over.y() <= footprint->mHigh.y();
     }
 
-    bool TracedView::waitsForGround(const Rtx::CellRing& ring) const
+    bool TracedView::waitsForGround(const Rtx::CellStreamer& ring) const
     {
         const std::optional<Footprint> footprint = footprintFromAbove();
         return footprint.has_value() && ring.waitsUnder(footprint->mLow, footprint->mHigh);
@@ -149,18 +149,20 @@ namespace MWRender
         mAbandoned = true;
     }
 
-    void TracedView::draw(const Rtx::CellRing& ring, const osg::FrameStamp& posing, Rtx::Released& releasing)
+    void TracedView::draw(const Rtx::CellStreamer& ring, const osg::FrameStamp& posing, Rtx::Released& releasing)
     {
         if (!mTrace.isOfWorld())
         {
-            if (!mTrace.rebuildSubject(posing, releasing, ring.isSettled()))
+            if (!mTrace.rebuildSubject(posing, releasing))
                 return;
         }
 
         // A copy is recorded only with a picture: one refused leaves the copy queued, which is null,
         // where the backend's copy is still the redraw's before.
         const bool keepCopy = mCopyState != CopyState::NotWanted;
-        if (mTrace.traceInto(mTexture->getSlot(), keepCopy) && keepCopy)
+        if (mTrace.traceInto(
+                mTexture->getSlot(), keepCopy ? Rtx::OffscreenTrace::Copy::Kept : Rtx::OffscreenTrace::Copy::None)
+            && keepCopy)
             mCopyState = CopyState::Recorded;
 
         // Into the next flush, the schedule's list being swapped out: a copy wanted waits for it.

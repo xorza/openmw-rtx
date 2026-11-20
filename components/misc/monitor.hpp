@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <condition_variable>
 #include <cstdint>
 #include <mutex>
@@ -19,6 +20,18 @@ namespace Misc
     {
     public:
         Monitor() = default;
+
+        /// How a wait with a patience ended (`awaitFor`).
+        enum class Awaited : std::uint8_t
+        {
+            Ready,
+
+            /// No worker can make it ready, as `await` answers false.
+            Hopeless,
+
+            /// The patience passed with a worker still at it.
+            StillWaiting,
+        };
 
         /// Runs `write` under the lock and wakes nobody, answering with whatever it answered — by
         /// value, so a caller cannot hand back a reference into state the lock guarded.
@@ -69,6 +82,16 @@ namespace Misc
             std::unique_lock<std::mutex> lock(mMutex);
             mToFrame.wait(lock, [&] { return ready() || (mIdle && mBusy == 0); });
             return ready();
+        }
+
+        /// `await` for `patience` at most: for a frame that waits on its workers under a screen it must keep drawing.
+        template <class Ready>
+        Awaited awaitFor(const std::chrono::milliseconds patience, Ready ready)
+        {
+            std::unique_lock<std::mutex> lock(mMutex);
+            if (!mToFrame.wait_for(lock, patience, [&] { return ready() || (mIdle && mBusy == 0); }))
+                return Awaited::StillWaiting;
+            return ready() ? Awaited::Ready : Awaited::Hopeless;
         }
 
         /// A worker's whole loop: wait for work, pick it up, do it, and again until stopped. `ready` and

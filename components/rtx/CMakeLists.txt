@@ -64,13 +64,17 @@ openmw_rtx_layer(
     SOURCES
         common/bufferpool.cpp
         common/runs.cpp
+        common/slotledger.cpp
     HEADERS
         common/asserts.hpp
         common/bufferpool.hpp
         common/cardaddress.hpp
+        common/classanswers.hpp
         common/clock.hpp
+        common/deviceepoch.hpp
         common/error.hpp
         common/finite.hpp
+        common/holdtier.hpp
         common/index.hpp
         common/job.hpp
         common/jobprogress.hpp
@@ -86,6 +90,7 @@ openmw_rtx_layer(
         common/rowvector.hpp
         common/runs.hpp
         common/scratch.hpp
+        common/slotledger.hpp
         common/slots.hpp
         common/stepped.hpp
 )
@@ -113,6 +118,8 @@ openmw_rtx_layer(
         image/colourblock.hpp
         image/formatcensus.hpp
         image/imagedescription.hpp
+        image/imagefacts.hpp
+        image/imageshape.hpp
         image/madeimage.hpp
         image/specularlayout.hpp
         image/texels.hpp
@@ -144,7 +151,6 @@ openmw_rtx_layer(
     HEADERS
         scene/compositequeue.hpp
         scene/deformertable.hpp
-        scene/deviceanswer.hpp
         scene/foldedshape.hpp
         scene/instancerecord.hpp
         scene/levelasks.hpp
@@ -182,16 +188,17 @@ openmw_rtx_layer(
         preprocess/filekeys.cpp
         preprocess/imagederivation.cpp
         preprocess/imagefactcache.cpp
-        preprocess/preparedimages.cpp
+        preprocess/texturehands.cpp
         preprocess/shape/creasesplit.cpp
         preprocess/shape/pockettree.cpp
         preprocess/shape/shapefold.cpp
         preprocess/shape/shapepass.cpp
+        preprocess/sourceindex.cpp
         preprocess/texelreads.cpp
         preprocess/texture/chainadmission.cpp
         preprocess/texture/chainpass.cpp
         preprocess/texture/conversionpass.cpp
-        preprocess/texture/texturepass.cpp
+        preprocess/texture/filefactspass.cpp
     HEADERS
         preprocess/contentcache.hpp
         preprocess/contentcodec.hpp
@@ -202,20 +209,21 @@ openmw_rtx_layer(
         preprocess/headerderived.hpp
         preprocess/imagederivation.hpp
         preprocess/imagefactcache.hpp
-        preprocess/preparedheld.hpp
-        preprocess/preparedimages.hpp
+        preprocess/texturefeed.hpp
+        preprocess/texturehands.hpp
         preprocess/shape/creasesplit.hpp
         preprocess/shape/facecross.hpp
         preprocess/shape/pockettree.hpp
         preprocess/shape/probetable.hpp
         preprocess/shape/shapefold.hpp
         preprocess/shape/shapepass.hpp
+        preprocess/sourceindex.hpp
         preprocess/texelreads.hpp
         preprocess/texture/chainadmission.hpp
         preprocess/texture/chainpass.hpp
         preprocess/texture/chainscratch.hpp
         preprocess/texture/conversionpass.hpp
-        preprocess/texture/texturepass.hpp
+        preprocess/texture/filefactspass.hpp
         preprocess/threadcontent.hpp
 )
 
@@ -276,12 +284,14 @@ openmw_rtx_layer(
         renderer/frameimage.cpp
         renderer/framespend.cpp
         renderer/frametimehistogram.cpp
+        renderer/memoryprices.cpp
         renderer/memoryreport.cpp
+        renderer/nulldevice.cpp
+        renderer/residency.cpp
+        renderer/structuretightness.cpp
         renderer/nullrenderer.cpp
-        renderer/scenetextures.cpp
         renderer/sceneuploader.cpp
     HEADERS
-        renderer/arrivalwindow.hpp
         renderer/channel.hpp
         renderer/denoiserimage.hpp
         renderer/framedescriber.hpp
@@ -292,13 +302,18 @@ openmw_rtx_layer(
         renderer/frametimehistogram.hpp
         renderer/framezone.hpp
         renderer/guirenderer.hpp
+        renderer/memoryprices.hpp
         renderer/memoryreport.hpp
+        renderer/nulldevice.hpp
+        renderer/missingdemanded.hpp
+        renderer/residency.hpp
+        renderer/residencydevice.hpp
+        renderer/residencyop.hpp
+        renderer/structuretightness.hpp
         renderer/nullrenderer.hpp
         renderer/picturerenderer.hpp
         renderer/renderer.hpp
-        renderer/roomwaits.hpp
         renderer/sceneholder.hpp
-        renderer/scenetextures.hpp
         renderer/sceneuploader.hpp
         renderer/shaderset.hpp
         renderer/slot.hpp
@@ -312,10 +327,13 @@ openmw_rtx_layer(
         mirror/cells/cellgrid.cpp
         mirror/cells/cellplacer.cpp
         mirror/cells/cellreader.cpp
-        mirror/cells/cellring.cpp
+        mirror/cells/cellstreamer.cpp
         mirror/cells/cellsupply.cpp
+        mirror/cells/celltable.cpp
+        mirror/cells/cellworld.cpp
         mirror/cells/groundreader.cpp
         mirror/cells/held.cpp
+        mirror/cells/predictedbands.cpp
         mirror/cells/templatewalk.cpp
         mirror/chainkeys.cpp
         mirror/drawableposer.cpp
@@ -326,6 +344,8 @@ openmw_rtx_layer(
         mirror/materialresolver.cpp
         mirror/meshreader.cpp
         mirror/meshresolver.cpp
+        mirror/modelderivation.cpp
+        mirror/modelfold.cpp
         mirror/nodekind.cpp
         mirror/posecull.cpp
         mirror/sceneextractor.cpp
@@ -336,13 +356,15 @@ openmw_rtx_layer(
         mirror/cells/cellgrid.hpp
         mirror/cells/cellplacer.hpp
         mirror/cells/cellreader.hpp
-        mirror/cells/cellring.hpp
+        mirror/cells/cellstreamer.hpp
         mirror/cells/cellsupply.hpp
+        mirror/cells/celltable.hpp
         mirror/cells/cellworld.hpp
         mirror/cells/groundcoversource.hpp
         mirror/cells/groundreader.hpp
         mirror/cells/held.hpp
         mirror/cells/nightday.hpp
+        mirror/cells/predictedbands.hpp
         mirror/cells/prepared.hpp
         mirror/cells/readermemory.hpp
         mirror/cells/ringstanding.hpp
@@ -359,6 +381,8 @@ openmw_rtx_layer(
         mirror/meshresolver.hpp
         mirror/mirroridentity.hpp
         mirror/mirrorpass.hpp
+        mirror/modelderivation.hpp
+        mirror/modelfold.hpp
         mirror/nodekind.hpp
         mirror/posecull.hpp
         mirror/poseupdate.hpp

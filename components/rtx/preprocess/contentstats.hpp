@@ -36,6 +36,10 @@ namespace Rtx
         std::array<PassStats, sContentPassCount> mPasses{};
         TexelReads mTexelReads{};
 
+        /// Every file keyed by its texels (`hashFile`): how many, in `mAsked`, and their bytes; the time is in the key
+        /// figure of the pass that asked. A header's key, derived where its file was first read, is no ask.
+        PassStats mFileKeys{};
+
         PassStats& at(ContentPassId pass) { return mPasses[static_cast<std::size_t>(pass)]; }
         const PassStats& at(ContentPassId pass) const { return mPasses[static_cast<std::size_t>(pass)]; }
 
@@ -47,7 +51,7 @@ namespace Rtx
 
     /// What was preprocessed, by the thread that did it: the frame's — what its walks met the first
     /// time, and what the host read between them — the cell ring's reader, whose models the walk
-    /// adopted, the threads that make chains again (`PreparedImages`), the loading screen's
+    /// adopted, the threads that make chains again (`TextureHands`), the loading screen's
     /// (`ContentPreparation`), and the loaders that first read a file (`ImageDerivation`). Apart, because only the
     /// first is a frame's time.
     struct Preprocessed

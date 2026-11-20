@@ -9,6 +9,7 @@
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/scenestander.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sceneidentities.hpp>
@@ -81,7 +82,7 @@ namespace Rtx::Testing
                 const PlacementIndex bar = addQuad(scene, roofOver(-100.0f, -100.0f + width, height));
 
                 mRenderer.resize(sSize, sSize);
-                mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+                Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, {});
 
                 std::vector<std::uint8_t> pixels;
                 std::vector<float> column(sSize);
@@ -92,7 +93,7 @@ namespace Rtx::Testing
                         {
                             scene.placements().move(
                                 bar, osg::Matrixf::translate(step * static_cast<float>(at + 1 - still), 0.0f, 0.0f));
-                            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                            Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
                             scene.placements().advance();
                         }
                         Shaders::VisibilityConstants sampled = camera;
@@ -126,7 +127,7 @@ namespace Rtx::Testing
                 };
 
                 scene.placements().move(bar, osg::Matrixf::translate(step * static_cast<float>(moving), 0.0f, 0.0f));
-                mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
                 scene.placements().advance();
                 const std::vector<float> standing = profile(48, 5000, false);
 
@@ -146,7 +147,7 @@ namespace Rtx::Testing
                 for (std::uint32_t draw = 0; draw < draws; ++draw)
                 {
                     scene.placements().move(bar, osg::Matrixf::identity());
-                    mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                    Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
                     scene.placements().advance();
                     const std::vector<float>& moved = profile(still + moving, 100 + 1000 * draw, true);
                     trail.mLag += (standingEdge - edgeOf(moved)) / static_cast<float>(draws);
@@ -233,7 +234,7 @@ namespace Rtx::Testing
                 addQuad(scene, sheetAt(4000.0f, 0.0f));
                 addQuad(scene, roofOver(-20.0f, 20.0f, 20.0f));
                 mRenderer.resize(sFloorSize, sFloorSize);
-                mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+                Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), scene, {});
             }
         };
 

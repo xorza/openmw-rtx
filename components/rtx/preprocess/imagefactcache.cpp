@@ -9,7 +9,7 @@
 
 namespace Rtx
 {
-    ImageFacts& ImageFactCache::of(const osg::Image& image)
+    const ImageFacts* ImageFactCache::find(const osg::Image& image)
     {
         const std::string_view name = SceneUtil::EmbeddedImage::nameOf(image);
         assert(!name.empty() && "the facts of an image the texture table would have refused");
@@ -18,9 +18,7 @@ namespace Rtx
         // entry.
         mName.assign(name);
         VFS::Path::normalizeFilenameInPlace(mName);
-        if (const auto known = mByFile.find(std::string_view(mName)); known != mByFile.end())
-            return known->second;
-
-        return mByFile.emplace(VFS::Path::Normalized(mName), ImageFacts{}).first->second;
+        const auto known = mByFile.find(std::string_view(mName));
+        return known != mByFile.end() ? &known->second : nullptr;
     }
 }

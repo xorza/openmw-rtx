@@ -1,12 +1,13 @@
 #include "file.hpp"
 
 #include <cassert>
-#include <cerrno>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <stdexcept>
 #include <string>
+
+#include <errno.h>
+#include <string.h>
 
 #include <components/files/conversion.hpp>
 
@@ -74,7 +75,6 @@ namespace Platform::File
     {
         auto nativeHandle = getNativeHandle(handle);
 
-        // NOLINTNEXTLINE(google-runtime-int): ftell's type
         long position = ftell(nativeHandle);
         if (position == -1)
         {

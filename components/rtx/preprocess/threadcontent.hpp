@@ -1,16 +1,12 @@
 #pragma once
 
-#include <cassert>
-#include <optional>
 #include <string>
 
 #include <osg/Image>
-#include <osg/Referenced>
-#include <osg/ref_ptr>
 
 #include <components/contentstore/store.hpp>
 #include <components/resource/imageheader.hpp>
-#include <components/rtx/image/alpharange.hpp>
+#include <components/rtx/image/imagefacts.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -32,72 +28,23 @@ namespace Rtx
     {
         /// @param store the process's store, or null for none (`ContentCache`).
         /// @param reach where this thread's asks may reach in it: memory alone on the frame's.
-        explicit ThreadContent(
-            ContentStore::Store* store = nullptr, ContentStore::Reach reach = ContentStore::Reach::Memory)
-            : mPreprocessor(store, reach)
+        explicit ThreadContent(ContentStore::Store* store = nullptr)
+            : mPreprocessor(store)
         {
         }
 
         ContentPreprocessor mPreprocessor;
         ImageFactCache mFacts;
 
-        /// `ImageFactCache::of`.
-        ImageFacts& factsOf(const osg::Image& image) { return mFacts.of(image); }
-
-        /// Whether `image`'s alpha ever reaches solid, read into `facts` — `image`'s entry — at
-        /// the first ask.
-        bool reachesSolid(ImageFacts& facts, const osg::Image& image)
+        /// **Every fact of `image`'s texels**: a header's as derived where its file was first read (`ImageDerivation`),
+        /// which reads nothing; an image that holds its own texels, as a model embeds one, read through the
+        /// preprocessor the first time its file is asked and kept (`ImageFactCache`). The reference stands for the
+        /// life of the header, or of this.
+        const ImageFacts& factsOf(const osg::Image& image)
         {
-            if (!facts.mReachesSolid.has_value())
-                facts.mReachesSolid = factOf(image, &ImageFacts::mReachesSolid,
-                    [&](const osg::Image& texels) { return mPreprocessor.reachesSolid(texels); });
-            return *facts.mReachesSolid;
-        }
-
-        /// The lowest and the highest alpha `image` holds, read into `facts` at the first ask.
-        AlphaRange alphaRangeOf(ImageFacts& facts, const osg::Image& image)
-        {
-            if (!facts.mAlphaRange.has_value())
-                facts.mAlphaRange = factOf(image, &ImageFacts::mAlphaRange,
-                    [&](const osg::Image& texels) { return mPreprocessor.alphaRange(texels); });
-            return *facts.mAlphaRange;
-        }
-
-        /// What `image`'s channels mean as a `_spec` map, read into `facts` at the first ask.
-        SpecularLayout specularLayoutOf(ImageFacts& facts, const osg::Image& image)
-        {
-            if (!facts.mSpecularLayout.has_value())
-                facts.mSpecularLayout = factOf(image, &ImageFacts::mSpecularLayout,
-                    [&](const osg::Image& texels) { return mPreprocessor.specularLayout(texels); });
-            return *facts.mSpecularLayout;
-        }
-
-        /// What a texel of `image` is worth on average, read into `facts` at the first ask.
-        const MeanTexel& meanOf(ImageFacts& facts, const osg::Image& image)
-        {
-            if (!facts.mMean.has_value())
-                facts.mMean = factOf(image, &ImageFacts::mMean,
-                    [&](const osg::Image& texels) { return mPreprocessor.meanTexel(texels); });
-            return *facts.mMean;
-        }
-
-        /// The same, for a caller that keeps no entry.
-        const MeanTexel& meanOf(const osg::Image& image) { return meanOf(factsOf(image), image); }
-
-        /// The fact `member` of `image`: where it is a header, as derived where its file was first read
-        /// (`ImageDerivation`), which reads nothing; read off `image` itself where it holds its texels.
-        template <class Fact, class Read>
-        Fact factOf(const osg::Image& image, std::optional<Fact> ImageFacts::* member, Read read)
-        {
-            const auto* const header = dynamic_cast<const Resource::ImageHeader*>(&image);
-            if (header == nullptr)
-                return read(image);
-
-            const std::optional<FileFacts>& derived = header->derived<HeaderDerived>().mFacts;
-            assert(derived.has_value() && "a header its manager handed out underived");
-            const std::optional<Fact>& fact = derived->mFacts.*member;
-            assert(fact.has_value() && "a derivation short of a fact");
-            return *fact;
+            if (const auto* const header = dynamic_cast<const Resource::ImageHeader*>(&image))
+                return header->derived<HeaderDerived>().getFacts().mFacts;
+            return mFacts.of(image, [&] { return mPreprocessor.facts(image); });
         }
 
         /// `image`'s name (`SceneUtil::EmbeddedImage::nameOf`) normalised as the texture table

@@ -119,33 +119,6 @@ namespace Rtx
         return requirements.memoryRequirements;
     }
 
-    Result<Image, MemoryRefusal> Image::tryMake(
-        const MemoryUse use, const Device& device, const ImageDescription& description, const std::string_view name)
-    {
-        Image made(Unbound{}, device, description, name);
-        Result<DeviceMemory, MemoryRefusal> memory
-            = device.getMemory().tryTake(made.mHandle.get(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use, name);
-        if (!memory.isOk())
-            return Err{ memory.error() };
-
-        made.mMemory = std::move(memory.value());
-        made.bind(made.mMemory.getHandle(), made.mMemory.getOffset(), name);
-        return made;
-    }
-
-    Result<Image, MemoryRefusal> Image::tryMakeOutside(const Device& device, const ImageDescription& description,
-        const VkDeviceMemory block, const std::string_view name)
-    {
-        Image made(Unbound{}, device, description, name);
-        Result<DeviceMemory, MemoryRefusal> memory = device.getMemory().tryTakeOutside(made.mHandle.get(), block, name);
-        if (!memory.isOk())
-            return Err{ memory.error() };
-
-        made.mMemory = std::move(memory.value());
-        made.bind(made.mMemory.getHandle(), made.mMemory.getOffset(), name);
-        return made;
-    }
-
     Image::Image(Unbound, const Device& device, const ImageDescription& description, std::string_view name)
         : mDevice(&device)
         , mWidth(description.mWidth)
@@ -211,7 +184,6 @@ namespace Rtx
 
     Image::Image(Image&& other) noexcept
         : mDevice(std::exchange(other.mDevice, nullptr))
-        , mRead(std::exchange(other.mRead, ReadStamp{}))
         , mMemory(std::move(other.mMemory))
         , mHandle(std::move(other.mHandle))
         , mView(std::move(other.mView))
@@ -239,7 +211,6 @@ namespace Rtx
             mHandle = std::move(other.mHandle);
             mMemory = std::move(other.mMemory);
             mDevice = std::exchange(other.mDevice, nullptr);
-            mRead = std::exchange(other.mRead, ReadStamp{});
             mWidth = std::exchange(other.mWidth, 0);
             mHeight = std::exchange(other.mHeight, 0);
             mDepth = std::exchange(other.mDepth, 1);
@@ -250,18 +221,6 @@ namespace Rtx
         }
 
         return *this;
-    }
-
-    void Image::waitIdle(const char* const what) const
-    {
-        if (mDevice != nullptr)
-            mRead.waitIdle(*mDevice, what);
-    }
-
-    void Image::nameForNext() const
-    {
-        assert(!isEmpty() && "a submit named on an image nobody made");
-        mRead.nameFor(mDevice->getTimeline().getNext());
     }
 
     void Image::transition(VkCommandBuffer commands, const ImageUse& from, const ImageUse& to) const
@@ -290,7 +249,6 @@ namespace Rtx
 
         // Named as `describeLevels` names it, because the barrier is this image's use whatever
         // form it takes.
-        nameForNext();
         barriers.add(memoryBarrier(BufferUse{ from.mStage, from.mAccess }, BufferUse{ to.mStage, to.mAccess }));
     }
 
@@ -313,8 +271,6 @@ namespace Rtx
     {
         assert(!isEmpty() && "a clear of an image nobody made");
         assert((mUsage & VK_IMAGE_USAGE_TRANSFER_DST_BIT) != 0 && "a clear of an image not made to be written");
-
-        nameForNext();
         const VkImageSubresourceRange whole{ VK_IMAGE_ASPECT_COLOR_BIT, 0, mMipLevels, 0, 1 };
         vkCmdClearColorImage(commands, mHandle.get(), VK_IMAGE_LAYOUT_GENERAL, &colour, 1, &whole);
     }
@@ -324,13 +280,10 @@ namespace Rtx
     {
         assert(!isEmpty() && "a copy out of an image nobody made");
 
-        assert(extent.width <= mWidth && extent.height <= mHeight && "a copy of more than this image holds");
+        assert(extent.width <= mWidth && "a copy of more than this image holds");
+        assert(extent.height <= mHeight && "a copy of more than this image holds");
         assert(extent.width <= into.getWidth() && extent.height <= into.getHeight()
             && "a copy of more than the target holds");
-
-        // Both ends, because a copy takes handles and names nothing on its own.
-        nameForNext();
-        into.nameForNext();
 
         const VkImageCopy region{
             .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
@@ -349,7 +302,6 @@ namespace Rtx
 
         // A barrier is the one thing every use in a command buffer records around itself, so
         // a description of one is where a use of the handle names the image.
-        nameForNext();
         return imageBarrier(mHandle.get(), base, count, from, to);
     }
 

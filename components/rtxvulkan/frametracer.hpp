@@ -53,6 +53,13 @@ namespace Rtx
             bool mTrace = false;
             bool mUpscaler = false;
             bool mArena = false;
+
+            /// Whether the frame after has no frame before it to reproject against: an extent moved, or the chain
+            /// is made again, whose histories and whose air's volume start empty. **The chain too, at extents that
+            /// stand**: where the upscaler filters the light, Native against Off changes who filters and so makes
+            /// the chain again, and the air blended a volume cleared to nought as its past, dark for some twenty
+            /// frames.
+            constexpr bool losesPast() const { return mRenderExtent || mOutputExtent || mTrace; }
         };
         Moves movesTo(VkExtent2D render, VkExtent2D output, Upscale upscale, const std::vector<ArenaImage>& declared,
             const Upscaler& upscaler) const;

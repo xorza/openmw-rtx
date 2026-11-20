@@ -31,7 +31,6 @@
 #include <apps/openmw/mwworld/cell.hpp>
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/weather.hpp>
-#include <components/contentstore/key.hpp>
 #include <components/contentstore/store.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/refid.hpp>
@@ -39,7 +38,7 @@
 #include <components/misc/result.hpp>
 #include <components/nifosg/nifloader.hpp>
 #include <components/platform/heap.hpp>
-#include <components/platform/memory.hpp>
+#include <components/resource/memoryarbiter.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/jobprogress.hpp>
@@ -52,16 +51,15 @@
 #include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
-#include <components/rtx/mirror/nodekind.hpp>
 #include <components/rtx/mirror/released.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/prepare/contentpreparation.hpp>
-#include <components/rtx/prepare/filestamps.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
-#include <components/rtx/preprocess/preparedimages.hpp>
+#include <components/rtx/preprocess/texturefeed.hpp>
 #include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/residency.hpp>
 #include <components/rtx/renderer/sceneholder.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/slot.hpp>
@@ -79,6 +77,7 @@
 #include "classmasks.hpp"
 #include "mirrorknobs.hpp"
 #include "tracedgroundcover.hpp"
+#include "vfsstamps.hpp"
 
 namespace MWRender
 {
@@ -109,33 +108,6 @@ namespace MWRender
 
         private:
             Resource::SceneManager& mScenes;
-        };
-
-        /// A file's stamp as the virtual file system holds it: the archive or folder that holds it and
-        /// its time, so a file a later folder shadows, an archive rebuilt and a loose file written each
-        /// move it (`Rtx::FileStamps`).
-        class VfsStamps final : public Rtx::FileStamps
-        {
-        public:
-            explicit VfsStamps(const VFS::Manager& vfs)
-                : mVfs(vfs)
-            {
-            }
-
-            std::uint64_t stampOf(VFS::Path::NormalizedView path) override
-            {
-                if (!mVfs.exists(path))
-                    return 0;
-                const std::string archive = mVfs.getArchive(VFS::Path::Normalized(path));
-                const auto time = mVfs.getLastModified(path).time_since_epoch().count();
-                ContentStore::Digest digest("stamp", 1);
-                digest.add(std::span<const char>(archive));
-                digest.add(time);
-                return digest.getKey().mHash[0];
-            }
-
-        private:
-            const VFS::Manager& mVfs;
         };
 
         /// Which child the ring's day-night switches show: the game's mode, whose value is the
@@ -190,13 +162,13 @@ namespace MWRender
         }
     }
 
-    WorldMirror::WorldMirror(const MirrorKnobs& knobs, ContentStore::Store* const store,
-        Rtx::PreparedImages* const prepared, Rtx::SceneIdentities& identities)
+    WorldMirror::WorldMirror(
+        const MirrorKnobs& knobs, ContentStore::Store* const store, Rtx::SceneIdentities& identities)
         : mStore(store)
-        , mWalk{ .mContent{ store, ContentStore::Reach::Memory }, .mPrepared = prepared }
+        , mWalk{ .mContent{} }
         , mScene(identities, Rtx::sWorldRoom)
         , mKnobs(knobs)
-        , mExtractor(mScene, mWalk, Rtx::sWorldExtractorRoom)
+        , mExtractor(mScene, mWalk, Rtx::sWorldExtractorRoom, Rtx::HoldTier::Shown)
         , mTraversal(worldTraversal(~0u))
     {
         mRing.setMinSize(knobs.mMinSize);
@@ -232,35 +204,21 @@ namespace MWRender
 
     namespace
     {
-        /// What the loading screen keeps beside the preparation, out of `Platform::availableMemory`: the
+        /// What the loading screen keeps beside the preparation, out of what the system leaves the process: the
         /// store's queue of writes (64 MiB at most), the screen's own growth (51 MB on the Fullrest Repack),
         /// and the rest for a compile still running (`docs/research/2026-11-09-content-preparation-cost.md`,
         /// "The reserve"). Nothing after the preparation is reserved: it lets go of everything before the
         /// world loads.
         constexpr std::uint64_t sPreparationReserve = std::uint64_t{ 1 } << 30;
 
-        /// The bytes the preparation's jobs may hold together, read once at its start, or nothing where
-        /// the system states no memory.
-        std::optional<std::uint64_t> preparationBudget()
+        /// The bytes the preparation's jobs may hold together, read once at its start off the arbiter's last
+        /// figure, or nothing where the system states no memory.
+        std::optional<std::uint64_t> preparationBudget(const Resource::MemoryArbiter& memory)
         {
-            const std::optional<std::uint64_t> available = Platform::availableMemory();
+            const std::optional<std::uint64_t> available = memory.getAvailable();
             if (!available.has_value())
                 return std::nullopt;
             return *available - std::min(*available, sPreparationReserve);
-        }
-
-        /// What reading `sea` through the disk cost: its shape found in `store` or folded and filed there,
-        /// and held in the store's memory either way. As the frame's walk reads it, standing in no model.
-        Rtx::ContentStats prepareSea(ContentStore::Store& store, const osg::Geometry& sea)
-        {
-            Rtx::ContentPreprocessor content(&store, ContentStore::Reach::Disk);
-            Rtx::MeshReader reader;
-            Rtx::MeshReading reading;
-            [[maybe_unused]] const Result<Rtx::MeshRead, std::string> read
-                = reader.read(content, Rtx::readDrawable(sea, Rtx::NodeKind::Other, {}), nullptr, reading);
-            assert(read.isOk() && "the sea's own plane does not read");
-            assert(read.value() == Rtx::MeshRead::Triangles && "the sea's own plane holds no triangle");
-            return content.takeStats();
         }
     }
 
@@ -282,7 +240,8 @@ namespace MWRender
                        .mMask = sWorldTraversal,
                        .mAutoMaps = resources.getSceneManager()->getAutoMaps(),
                        .mHands = hands,
-                       .mBudget = preparationBudget(),
+                       .mBudget = preparationBudget(resources.getMemoryArbiter()),
+                       .mMemory = &resources.getMemoryArbiter(),
                        .mDay = static_cast<std::uint32_t>(
                            std::chrono::floor<std::chrono::days>(std::chrono::system_clock::now())
                                .time_since_epoch()
@@ -317,14 +276,7 @@ namespace MWRender
         if (!mPreparing->mRun.finish())
             Log(Debug::Warning) << "The content's preparation could not write its manifest";
 
-        // The sea as well: no file holds it so no model's walk reads it, and the frame's thread, whose asks
-        // reach the store's memory alone, folded it again every session.
-        Rtx::ContentStats stats = mPreparing->mRun.getStats();
-        stats += prepareSea(*mStore, *mSea->getChild(0)->asGeometry());
-
-        // Swept and loaded before the first frame asks the store's memory, which the frame reaches alone: an
-        // entry still on its way from the disk was computed again.
-        mStore->flush();
+        const Rtx::ContentStats stats = mPreparing->mRun.getStats();
 
         // The wall against the threads' CPU says whether they waited, and the passes say on what the CPU went.
         const Rtx::PreparationTimes times = mPreparing->mRun.getTimes();
@@ -349,11 +301,31 @@ namespace MWRender
                     "{:>10.1f} ms running",
                     name, counted.mAsked, counted.mHits, counted.mKeyMs, counted.mFoundMs, counted.mRunMs);
         }
+        if (stats.mFileKeys.mAsked > 0)
+            Log(Debug::Info) << std::format("  {:<12} {:>7} keyed by their texels, {:.1f} MiB read", "files",
+                stats.mFileKeys.mAsked, Rtx::mebibytes(stats.mFileKeys.mKeyBytes));
         mPreparing.reset();
 
         // glibc keeps what a thread's arena freed until a trim (`Platform::trimHeap`).
         Platform::trimHeap();
         return stats;
+    }
+
+    Rtx::JobProgress WorldMirror::awaitStored(const std::chrono::milliseconds patience)
+    {
+        if (mStore == nullptr)
+            return Rtx::JobProgress{};
+
+        // The count is the most that was ever left, so the bar fills as the store works them off.
+        const auto left = static_cast<std::uint32_t>(
+            std::min<std::size_t>(mStore->flushFor(patience), std::numeric_limits<std::uint32_t>::max() - 1));
+        mStoringMost = std::max(mStoringMost, left);
+        return Rtx::JobProgress::of(mStoringMost - left, mStoringMost, left == 0);
+    }
+
+    void WorldMirror::abandonPreparing()
+    {
+        mPreparing.reset();
     }
 
     void WorldMirror::attach(Resource::ResourceSystem& resources, SceneUtil::UnrefQueue& released)
@@ -428,6 +400,8 @@ namespace MWRender
             .mIndicesUsed = meshes.getIndexRuns().getUsed(),
             .mRestingVertices = meshes.getRestingGeometry().mVertices,
             .mRestingIndices = meshes.getRestingGeometry().mIndices,
+            .mVertexHoles = static_cast<std::uint32_t>(meshes.getVertexRuns().getHoleCount()),
+            .mIndexHoles = static_cast<std::uint32_t>(meshes.getIndexRuns().getHoleCount()),
             .mGeometryBytes = meshes.getGeometryBytes(),
             .mLayerEnd = count(mScene.materials().getLayers()),
             .mMaskEnd = mScene.materials().getMaskRuns().getEnd(),
@@ -437,10 +411,7 @@ namespace MWRender
             .mPoseEnd = count(deformers.getPoses()),
             .mBindVertexEnd = deformers.getBindVertexCount(),
             .mRestingTextures = static_cast<std::uint32_t>(mScene.textures().getResting().getCount()),
-            .mRestingTextureBytes = mScene.textures().getResting().getBytes(),
-            .mAboveWant = mScene.textures().measureAboveWant(),
             .mReader = mRing.getReaderMemory(),
-            .mPrepared = mWalk.mPrepared != nullptr ? mWalk.mPrepared->getHeld() : Rtx::PreparedHeld{},
             .mRing = mRing.countStanding(),
         };
     }
@@ -510,7 +481,7 @@ namespace MWRender
                 .mGroundcover = worldspace == ESM::Cell::sDefaultWorldspaceId ? mGroundcover.get() : nullptr,
                 .mWorldspace = worldspace,
                 .mGrid = mGrid,
-                // The world's mask and never the walk's own: a moving mask makes `Rtx::CellRing::forget`
+                // The world's mask and never the walk's own: a moving mask makes `Rtx::CellStreamer::forget`
                 // read the ring from nothing, and the player bit moves while the camera settles.
                 .mMask = sWorldTraversal,
                 // What `extractWorld` walks every reference root under, below.
@@ -557,15 +528,17 @@ namespace MWRender
             mScene.addRipple(impulse);
     }
 
-    Rtx::SceneUpload WorldMirror::hand(Rtx::SceneHolder& scenes, Rtx::FrameSpend& spend)
+    Rtx::SceneUpload WorldMirror::hand(
+        Rtx::SceneHolder& scenes, Rtx::Residency& residency, Rtx::TextureFeed& feed, Rtx::FrameSpend& spend)
     {
         return mUploader.hand(scenes,
             Rtx::SceneUploader::Handing{ .mSlot = Rtx::SceneSlot::world(),
                 .mScene = mScene,
+                .mResidency = residency,
+                .mFeed = feed,
                 .mComposites = &mComposites,
                 .mSpend = &spend,
-                .mPrepared = mWalk.mPrepared,
-                .mSettled = mRing.isSettled() });
+                .mShares = mRing.isSettled() ? Rtx::Residency::Shares::whole() : Rtx::Residency::Shares{} });
     }
 
 }

@@ -74,6 +74,7 @@ target_sources(
         nifosg/testnifloader.cpp
         nifosg/testparticle.cpp
         platform/appendfile.cpp
+        platform/file.cpp
         platform/folder.cpp
         platform/glibctext.cpp
         platform/heap.cpp
@@ -83,6 +84,10 @@ target_sources(
         platform/uniquehold.cpp
         platform/userhome.cpp
         platform/wholefile.cpp
+        resource/cachebudget.cpp
+        resource/memoryarbiter.cpp
+        resource/testbudgetedobjectcache.cpp
+        resource/systemshare.cpp
         resource/testcolladastream.cpp
         resource/testmultiobjectcache.cpp
         resource/testobjectcache.cpp

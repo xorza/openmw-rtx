@@ -46,7 +46,7 @@ namespace Rtx
         {
             Log(Debug::Warning) << "An interface texture of " << width << "x" << height
                                 << " is not made: this device's textures are 1 to " << side << " pixels a side";
-            return GuiSlot::none();
+            return GuiSlot();
         }
 
         Image image(MemoryUse::Essential, mDevice,
@@ -66,24 +66,23 @@ namespace Rtx
         {
             mImages[taken.at()] = std::move(image);
             mForms[taken.at()] = AlphaForm::Straight;
-            return GuiSlot::at(taken.at());
+            return GuiSlot(taken.at());
         }
 
         mImages.push_back(std::move(image));
         mForms.push_back(AlphaForm::Straight);
         mCopies.push_back(Copy{ .mBuffer
             = GrowableBuffer(mDevice, BufferKind::ReadBack, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "gui read back") });
-        return GuiSlot::at(static_cast<std::uint32_t>(mImages.size() - 1));
+        return GuiSlot(static_cast<std::uint32_t>(mImages.size() - 1));
     }
 
     std::span<std::uint8_t> GuiTextures::lend(const GuiSlot slot, const GuiRegion& region)
     {
         assert(mLentSlot.isNone() && "a second lend before the first was sent");
         assert(holds(slot) && "a write to a slot nothing holds");
-        assert(mForms[slot.get()] == AlphaForm::Straight && "host bytes into a slot a trace fills");
-        assert(region.mX + region.mWidth <= mImages[slot.get()].getWidth()
-            && region.mY + region.mHeight <= mImages[slot.get()].getHeight()
-            && "a region past the edge of the texture");
+        assert(mForms[slot.at()] == AlphaForm::Straight && "host bytes into a slot a trace fills");
+        assert(region.mX + region.mWidth <= mImages[slot.at()].getWidth()
+            && region.mY + region.mHeight <= mImages[slot.at()].getHeight() && "a region past the edge of the texture");
 
         const VkDeviceSize bytes = VkDeviceSize{ region.mWidth } * region.mHeight * 4;
         const StagingLend lent = mBatch.reserve(bytes);
@@ -100,7 +99,7 @@ namespace Rtx
         assert(mLentSlot == slot && "a send of a slot nothing was lent for");
 
         const GuiRegion region = mLentRegion;
-        mLentSlot = GuiSlot::none();
+        mLentSlot = GuiSlot();
 
         if (region.mWidth == 0 || region.mHeight == 0)
             return;
@@ -108,7 +107,7 @@ namespace Rtx
         // The two transitions are what order this against the write before it: copies into one
         // image are otherwise unordered within a submit, and a picture written twice in a frame
         // would land in whichever order the device chose.
-        const Image& image = mImages[slot.get()];
+        const Image& image = mImages[slot.at()];
         const VkCommandBuffer commands = mBatch.getCommands();
 
         image.transition(commands, Use::sFragmentSample, Use::sCopyWrite);
@@ -152,23 +151,26 @@ namespace Rtx
         // may not have run, and the batch is what knows which submit it rides; and not flushed,
         // because that would put a round trip on every window that closes. The draw two frames
         // back that sampled it is before that submit either way.
-        mBatch.keep(std::move(mImages[slot.get()]));
-        mFree.free(RowIndex<struct GuiTextureRows>(slot.get()));
+        mBatch.keep(std::move(mImages[slot.at()]));
+        mFree.free(RowIndex<struct GuiTextureRows>(slot.at()));
 
-        // The buffer stays for whatever takes the slot next; what was in it is nobody's now.
-        mCopies[slot.get()].mRides = Copy::sNever;
+        // **The read-back buffer goes with the texture**, on the batch as the image does, which a copy recorded against
+        // it may still ride: a slot nothing takes again held its last picture's bytes for the session.
+        Copy& copy = mCopies[slot.at()];
+        copy.mBuffer.letGo(mBatch);
+        copy.mRides = Copy::sNever;
     }
 
     void GuiTextures::readBackWith(const GuiSlot slot, const VkCommandBuffer commands)
     {
         assert(holds(slot) && "a read back of a slot nothing holds");
 
-        const Image& image = mImages[slot.get()];
+        const Image& image = mImages[slot.at()];
         const VkDeviceSize bytes = image.getReadBytes();
 
         // Buried and not destroyed where it has to grow: a batch recorded against it may not have
         // run.
-        Copy& copy = mCopies[slot.get()];
+        Copy& copy = mCopies[slot.at()];
         copy.mBuffer.growTo(bytes);
 
         image.recordRead(commands, Use::sFragmentSample, Use::sFragmentSample, copy.mBuffer.get());
@@ -180,7 +182,7 @@ namespace Rtx
     {
         assert(holds(slot) && "a copy of a slot nothing holds");
 
-        const Copy& copy = mCopies[slot.get()];
+        const Copy& copy = mCopies[slot.at()];
         if (copy.mRides == Copy::sNever || !mDevice.getTimeline().hasFinished(copy.mRides))
             return false;
 
@@ -197,7 +199,7 @@ namespace Rtx
         // its own copy — so the bytes it takes off the device are the ones just written.
         handOver();
 
-        mImages[slot.get()].read(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, pixels);
+        mImages[slot.at()].read(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, pixels);
     }
 
     VkImageView GuiTextures::getView(const GuiSlot slot)
@@ -207,6 +209,6 @@ namespace Rtx
         if (!holds(slot))
             return VK_NULL_HANDLE;
 
-        return mImages[slot.get()].getView();
+        return mImages[slot.at()].getView();
     }
 }

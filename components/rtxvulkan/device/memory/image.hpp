@@ -13,7 +13,6 @@
 
 #include <components/misc/result.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
-#include <components/rtxvulkan/device/readstamp.hpp>
 
 #include "imageuse.hpp"
 #include "memory.hpp"
@@ -79,17 +78,6 @@ namespace Rtx
         /// asks, which an arena places it by.
         static VkMemoryRequirements requirementsFor(const Device& device, const ImageDescription& description);
 
-        /// The same, for an image something stands in for: why there is none where the device has
-        /// no room for it as `use` — `MemoryAllocator::tryTake`.
-        static Result<Image, MemoryRefusal> tryMake(
-            MemoryUse use, const Device& device, const ImageDescription& description, std::string_view name);
-
-        /// An image `description` describes, as a texture, in a block content's pools hold already other than
-        /// `block`, or no room where none has it (`MemoryAllocator::tryTakeOutside`): what a texture moved to give
-        /// `block` back stands in.
-        static Result<Image, MemoryRefusal> tryMakeOutside(
-            const Device& device, const ImageDescription& description, VkDeviceMemory block, std::string_view name);
-
         /// What the image was made as, which an image made again to stand in its place is made of.
         ImageDescription getDescription() const
         {
@@ -103,7 +91,7 @@ namespace Rtx
         }
 
         /// Movable, because the channels of a g-buffer are built by a loop over a table rather than a
-        /// member list. The husk is a default-made image, as a buffer's is: its size, format and stamp go
+        /// member list. The husk is a default-made image, as a buffer's is: its size and format go
         /// with the move. The assignment buries what this held in the order the destruction does.
         Image(Image&& other) noexcept;
         Image& operator=(Image&& other) noexcept;
@@ -113,27 +101,17 @@ namespace Rtx
 
         bool isEmpty() const { return mHandle.get() == VK_NULL_HANDLE; }
 
-        /// The view a sampler reads, which covers every level. A hand-out: names the image for
-        /// the next submit, as every way a submit can reach it does.
-        VkImageView getView() const
-        {
-            nameForNext();
-            return mView.get();
-        }
+        /// The view a sampler reads, which covers every level.
+        VkImageView getView() const { return mView.get(); }
 
         /// The view a storage descriptor takes for `level`: one level alone, because Vulkan will
         /// not let a storage image name a chain. An image without a chain hands back the only view
-        /// it has, and `level` must be one it holds. A hand-out, as `getView` is.
+        /// it has, and `level` must be one it holds.
         VkImageView getStorageView(std::uint32_t level = 0) const
         {
-            nameForNext();
             assert(level < mMipLevels);
             return mLevelViewCount == 0 ? mView.get() : mLevelViews[level].get();
         }
-
-        /// Blocks until every submit naming this image has run — `ReadStamp::waitIdle`. `what`
-        /// names the wait in the error a device that stops answering produces.
-        void waitIdle(const char* what) const;
 
         /// This image as a storage descriptor takes it: `level`'s storage view, in `GENERAL`.
         /// Every storage image this renderer binds rests in `GENERAL`, and the view is the one a
@@ -233,8 +211,7 @@ namespace Rtx
         }
 
     private:
-        /// The handle alone, with no memory bound and no view: what the constructor and `tryMake`
-        /// both begin with, before either knows whether there is room.
+        /// The handle alone, with no memory bound and no view: what the constructor begins with.
         struct Unbound
         {
         };
@@ -244,12 +221,7 @@ namespace Rtx
         /// a constructor does.
         void bind(VkDeviceMemory memory, VkDeviceSize offset, std::string_view name);
 
-        /// Names this image for the next submit — every hand-out to a command or a descriptor
-        /// funnels through here, which is what makes `waitIdle` exact.
-        void nameForNext() const;
-
         const Device* mDevice = nullptr;
-        ReadStamp mRead;
 
         /// Declared before the handle and the handle before the views, so the views are buried
         /// first and the memory last as the image goes.

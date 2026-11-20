@@ -315,13 +315,6 @@ namespace Rtx::Dlss::Ngx
 
         capabilities.Get(sOutWidth, &into.mOptimal.width);
         capabilities.Get(sOutHeight, &into.mOptimal.height);
-        // An older library names no range: the optimal extent is both ends, as the helper reads it.
-        into.mMax = into.mOptimal;
-        into.mMin = into.mOptimal;
-        capabilities.Get(sDynamicMaxWidth, &into.mMax.width);
-        capabilities.Get(sDynamicMaxHeight, &into.mMax.height);
-        capabilities.Get(sDynamicMinWidth, &into.mMin.width);
-        capabilities.Get(sDynamicMinHeight, &into.mMin.height);
         return asked;
     }
 

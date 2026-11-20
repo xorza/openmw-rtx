@@ -160,8 +160,10 @@ namespace Rtx
         /// `(1 + 1) / 4`, which is what a sheet that adds whole is worth.
         TEST(RtxMeanTexelTest, aTexelIsWorthItsColourInLightTimesHowMuchOfItIsThere)
         {
-            const MeanTexel mean = ContentPreprocessor().meanTexel(
-                *makeSheetImage({ 255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 255, 0, 255, 255, 255, 255 }));
+            const MeanTexel mean
+                = ContentPreprocessor()
+                      .facts(*makeSheetImage({ 255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 255, 0, 255, 255, 255, 255 }))
+                      .mMean;
 
             EXPECT_NEAR(mean.mColour.x(), 0.5f, 1e-5f);
             EXPECT_NEAR(mean.mColour.y(), 0.37549f, 1e-5f);
@@ -180,13 +182,17 @@ namespace Rtx
         /// that averaged the stored bytes would say alternating black and white is worth 0.216, not a half.
         TEST(RtxMeanTexelTest, theCurveIsUndoneBeforeTheMeanRatherThanAfterIt)
         {
-            const MeanTexel chequer = ContentPreprocessor().meanTexel(
-                *makeSheetImage({ 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255 }));
+            const MeanTexel chequer
+                = ContentPreprocessor()
+                      .facts(*makeSheetImage({ 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255 }))
+                      .mMean;
 
             EXPECT_NEAR(chequer.mColour.x(), 0.5f, 1e-5f);
 
-            const MeanTexel flat = ContentPreprocessor().meanTexel(
-                *makeSheetImage({ 128, 128, 128, 255, 128, 128, 128, 255, 128, 128, 128, 255, 128, 128, 128, 255 }));
+            const MeanTexel flat = ContentPreprocessor()
+                                       .facts(*makeSheetImage({ 128, 128, 128, 255, 128, 128, 128, 255, 128, 128, 128,
+                                           255, 128, 128, 128, 255 }))
+                                       .mMean;
 
             EXPECT_NEAR(flat.mColour.x(), 0.21586f, 1e-5f);
         }
@@ -200,8 +206,8 @@ namespace Rtx
         {
             osg::ref_ptr<osg::Image> odd = Testing::makeImage("odd.dds", 2, 2, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
 
-            EXPECT_EQ(ContentPreprocessor().meanTexel(*odd).mColour, osg::Vec3f());
-            EXPECT_EQ(ContentPreprocessor().meanTexel(*odd).mAlpha, 0.0f);
+            EXPECT_EQ(ContentPreprocessor().facts(*odd).mMean.mColour, osg::Vec3f());
+            EXPECT_EQ(ContentPreprocessor().facts(*odd).mMean.mAlpha, 0.0f);
         }
 
         /// A sheet's paint is what its own alpha calls solid, and not what it adds to the sky behind it, which is
@@ -210,8 +216,10 @@ namespace Rtx
         /// which: the wisps come back white. Morrowind's own clear sheet is this shape, a quarter covered by cirrus.
         TEST(RtxMeanTexelTest, aSheetsPaintIsWhatItsOwnAlphaCallsSolid)
         {
-            const MeanTexel wisps = ContentPreprocessor().meanTexel(
-                *makeSheetImage({ 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0 }));
+            const MeanTexel wisps
+                = ContentPreprocessor()
+                      .facts(*makeSheetImage({ 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0 }))
+                      .mMean;
 
             EXPECT_NEAR(wisps.mColour.x(), 0.5f, 1e-5f);
             EXPECT_NEAR(wisps.mAlpha, 0.5f, 1e-5f);
@@ -219,8 +227,10 @@ namespace Rtx
 
             // And a sheet with nothing painted on it has no paint to average, rather than a division by
             // the nothing that covers it.
-            const MeanTexel empty = ContentPreprocessor().meanTexel(
-                *makeSheetImage({ 255, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 0 }));
+            const MeanTexel empty = ContentPreprocessor()
+                                        .facts(*makeSheetImage(
+                                            { 255, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 0 }))
+                                        .mMean;
 
             EXPECT_EQ(empty.mAlpha, 0.0f);
             EXPECT_EQ(empty.opaque(), osg::Vec3f());
@@ -242,36 +252,41 @@ namespace Rtx
             ContentPreprocessor direct;
             TexelScratch scratch;
             ContentStore::Key key;
-            bool solid = false;
-            MeanTexel mean;
+            ImageFacts facts;
             {
                 const osg::ref_ptr<const osg::Image> texels = Resource::texelsOf(*header);
                 key = hashFile(*texels, scratch);
-                solid = direct.reachesSolid(*texels);
-                mean = direct.meanTexel(*texels);
+                facts = direct.facts(*texels);
             }
             Resource::releaseTexels(*header);
             ASSERT_EQ(budget.getHeld(), 0u);
 
-            FileKeys keys(scratch);
+            PassStats counted;
+            FileKeys keys(scratch, counted);
             EXPECT_EQ(keys.of(*header), key);
+            EXPECT_EQ(counted.mAsked, 0u) << "a header's key hashed";
             std::array<ThreadContent, 2> threads;
             for (ThreadContent& thread : threads)
             {
-                EXPECT_EQ(thread.reachesSolid(thread.factsOf(*header), *header), solid);
-                EXPECT_EQ(thread.meanOf(*header).mColour, mean.mColour);
+                const ImageFacts& found = thread.factsOf(*header);
+                EXPECT_EQ(found.mReachesSolid, facts.mReachesSolid);
+                EXPECT_EQ(found.mMean.mColour, facts.mMean.mColour);
+                EXPECT_EQ(found.mMean.mAlpha, facts.mMean.mAlpha);
+                EXPECT_EQ(found.mAlphaRange, facts.mAlphaRange);
+                EXPECT_EQ(found.mSpecularLayout, facts.mSpecularLayout);
                 const ContentStats stats = thread.mPreprocessor.takeStats();
-                EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 0u);
-                EXPECT_EQ(stats.at(ContentPassId::TexelMean).mAsked, 0u);
-                EXPECT_EQ(stats.mTexelReads.mCounts[static_cast<std::size_t>(TexelRead::Fact)], 0u);
+                EXPECT_EQ(stats.at(ContentPassId::FileFacts).mAsked, 0u);
+                EXPECT_EQ(stats.mFileKeys.mAsked, 0u);
+                for (const std::uint32_t reads : stats.mTexelReads.mCounts)
+                    EXPECT_EQ(reads, 0u) << "a header's texels read for a fact";
                 EXPECT_EQ(budget.getHeld(), 0u) << "the texels read again for a fact";
             }
         }
 
-        /// A file is read once for the process and found by its name after: two images of one
-        /// file, in two spellings of it, are one entry and one reference, and a second ask reads
-        /// nothing and allocates nothing — the entry stands where it stood. **Each fact is read at its own first ask**,
-        /// because the two are different walks: an entry asked its mean has read no solid reach.
+        /// **A file that holds its own texels is read once for the process and found by its name after**: two images of
+        /// one file, in two spellings of it, are one entry and one reference, every fact read at the first ask, and a
+        /// second ask reads nothing and allocates nothing — the entry stands where it stood. Solid red, 2 by 2: its
+        /// mean colour one in red, and its alpha reaching solid.
         TEST(RtxImageFactCacheTest, aFileIsReadOnceAndFoundByItsName)
         {
             ThreadContent thread;
@@ -279,39 +294,34 @@ namespace Rtx
             osg::ref_ptr<osg::Image> red
                 = makeSheetImage({ 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255 });
             red->setFileName("Textures\\VFX_Fire.dds");
-            const MeanTexel& first = thread.meanOf(*red);
-            EXPECT_NEAR(first.mColour.x(), 1.0f, 1e-5f);
+            const ImageFacts& first = thread.factsOf(*red);
+            EXPECT_NEAR(first.mMean.mColour.x(), 1.0f, 1e-5f);
+            EXPECT_TRUE(first.mReachesSolid);
             EXPECT_EQ(thread.mFacts.size(), 1u);
-            EXPECT_FALSE(thread.factsOf(*red).mReachesSolid.has_value()) << "a fact nobody asked for was read";
+            const ContentStats stats = thread.mPreprocessor.takeStats();
+            EXPECT_EQ(stats.at(ContentPassId::FileFacts).mAsked, 1u);
+            EXPECT_EQ(stats.mFileKeys.mAsked, 0u) << "a file keyed with no store to find its facts in";
 
-            // The same file spelt the way the texture table spells it, and painted differently:
-            // the cache answers for the name and never reads the second image.
+            // The same file spelt the way the texture table spells it, and painted differently, alpha nought
+            // throughout: the cache answers for the name and never reads the second image.
             osg::ref_ptr<osg::Image> again = makeSheetImage({ 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0 });
             again->setFileName("textures/vfx_fire.dds");
-            EXPECT_EQ(&thread.factsOf(*again), &thread.factsOf(*red))
-                << "a second spelling of one file made a second entry";
+            EXPECT_EQ(&thread.factsOf(*again), &first) << "a second spelling of one file made a second entry";
+            EXPECT_TRUE(thread.factsOf(*again).mReachesSolid) << "the second image was read";
+            EXPECT_EQ(thread.mPreprocessor.takeStats().at(ContentPassId::FileFacts).mAsked, 0u) << "a file read twice";
 
             // Found without an allocation, because the ring's reader asks for every material it
             // reads.
-            EXPECT_EQ(Testing::allocationsIn([&] { thread.factsOf(*again); }), 0u)
+            EXPECT_EQ(Testing::allocationsIn([&] { std::ignore = thread.factsOf(*again); }), 0u)
                 << "a file already met was found through a new string";
-            EXPECT_EQ(&thread.meanOf(*again), &first);
-            EXPECT_NEAR(thread.meanOf(*again).mColour.x(), 1.0f, 1e-5f) << "the second image was read";
             EXPECT_EQ(thread.mFacts.size(), 1u);
-
-            // Asked once and kept: the solid reach read off solid red, and found again under the
-            // second spelling without reading the second image, whose alpha is nought throughout.
-            EXPECT_TRUE(thread.reachesSolid(thread.factsOf(*red), *red));
-            EXPECT_EQ(thread.mPreprocessor.takeStats().at(ContentPassId::SolidReach).mAsked, 1u);
-            EXPECT_TRUE(thread.reachesSolid(thread.factsOf(*again), *again)) << "the second image was read";
-            EXPECT_EQ(thread.mPreprocessor.takeStats().at(ContentPassId::SolidReach).mAsked, 0u) << "a fact read twice";
 
             // An image with no name is one the texture table refuses, so nothing asks its facts.
             osg::ref_ptr<osg::Image> unnamed
                 = makeSheetImage({ 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255 });
             unnamed->setFileName("");
-            Testing::expectAssertDies(
-                [&] { thread.factsOf(*unnamed); }, "the facts of an image the texture table would have refused");
+            Testing::expectAssertDies([&] { std::ignore = thread.factsOf(*unnamed); },
+                "the facts of an image the texture table would have refused");
         }
     }
 

@@ -246,6 +246,9 @@ namespace MWRender
         void describeFrame();
         void renderFrame();
 
+        /// `Renderer::standWhole`, over the world as it stands, still, under the window manager's loading screen.
+        void standWhole(WorldChange change, const osg::Vec3f& position);
+
         Animation* getAnimation(const MWWorld::Ptr& ptr);
         const Animation* getAnimation(const MWWorld::ConstPtr& ptr) const;
 
@@ -327,6 +330,9 @@ namespace MWRender
     private:
         /// See EyeState in sceneframe.hpp
         EyeState describeEye() const;
+
+        /// What a frame is described from, as the scene stands now.
+        FrameSources frameSources();
 
         void updateTextureFiltering();
         void updateAmbient();

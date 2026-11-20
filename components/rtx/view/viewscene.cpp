@@ -3,12 +3,15 @@
 #include <cassert>
 #include <utility>
 
+#include <components/rtx/renderer/residency.hpp>
 #include <components/rtx/renderer/sceneholder.hpp>
 
 namespace Rtx
 {
-    ViewScene::ViewScene(SceneHolder& scenes)
+    ViewScene::ViewScene(SceneHolder& scenes, Residency& residency, TextureFeed& feed)
         : mScenes(&scenes)
+        , mResidency(&residency)
+        , mFeed(&feed)
         , mSlot(scenes.addViewScene())
     {
     }
@@ -20,6 +23,8 @@ namespace Rtx
 
     ViewScene::ViewScene(ViewScene&& other) noexcept
         : mScenes(std::exchange(other.mScenes, nullptr))
+        , mResidency(other.mResidency)
+        , mFeed(other.mFeed)
         , mSlot(other.mSlot)
     {
     }
@@ -30,6 +35,8 @@ namespace Rtx
         {
             drop();
             mScenes = std::exchange(other.mScenes, nullptr);
+            mResidency = other.mResidency;
+            mFeed = other.mFeed;
             mSlot = other.mSlot;
         }
 
@@ -44,8 +51,11 @@ namespace Rtx
 
     void ViewScene::drop()
     {
-        if (mScenes != nullptr)
-            mScenes->dropViewScene(mSlot);
+        if (mScenes == nullptr)
+            return;
+        if (mResidency->holds(mSlot))
+            mResidency->forgetScene(mSlot, *mFeed);
+        mScenes->dropViewScene(mSlot);
         mScenes = nullptr;
     }
 }

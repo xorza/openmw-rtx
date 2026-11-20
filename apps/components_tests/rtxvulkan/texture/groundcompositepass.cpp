@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <optional>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -16,11 +15,10 @@
 #include <apps/components_tests/rtx/support/layers.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
-#include <components/misc/result.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/scenestander.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texturedata.hpp>
-#include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sceneidentities.hpp>
@@ -31,9 +29,11 @@
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/batch.hpp>
+#include <components/rtxvulkan/device/memory/contentarena.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/uploads.hpp>
+#include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/shaders/shared/ground.h>
 #include <components/rtxvulkan/texture/groundcompositepass.hpp>
@@ -101,17 +101,22 @@ namespace Rtx
                 const auto canvasFor = [&](std::uint32_t output, bool isGloss) -> std::optional<Image> {
                     if ((outputs & output) == 0)
                         return std::nullopt;
-                    Result<Image, MemoryRefusal> made
-                        = GroundCompositePass::makeCanvas(device, isGloss, "ground composite test");
-                    EXPECT_TRUE(made.isOk());
-                    return std::move(made.value());
+                    return GroundCompositePass::makeCanvas(device, isGloss, "ground composite test");
                 };
                 const std::optional<Image> albedo = canvasFor(Shaders::GROUND_COMPOSITE_ALBEDO, false);
                 const std::optional<Image> gloss = canvasFor(Shaders::GROUND_COMPOSITE_GLOSS, true);
+                Testing::ArenaDevice arena(device);
+                Testing::SceneStander stander(arena);
                 TextureArray array(device, setup, layout, passes, rooms, 2);
-                DeviceAnswer answer;
-                array.write(
-                    setup, passes, rooms, textures, TextureArray::noWants(), answer, WhenRoomless::Refuses, nullptr);
+                array.execute(
+                    TextureArray::Executing{
+                        .mBatch = setup, .mPasses = passes, .mArrival = rooms, .mArena = device.getContent() },
+                    stander.operationsFor(arena, SceneSlot::world(), textures));
+                stander.handedOver(DeviceEpoch{ .mValue = device.getTimeline().getNext() });
+                // A layer described as the stand-in draws it, as a slot that stands nothing does.
+                for (const TextureData& texture : textures)
+                    if (texture.mSource == TextureSource::StandIn)
+                        array.standIn(std::span(&texture.mSlot, 1));
                 Uploads uploads(setup);
                 array.sync(FrameSlot{}, uploads);
                 uploads.order();

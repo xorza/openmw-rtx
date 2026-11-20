@@ -6,7 +6,6 @@
 #include <string>
 #include <tuple>
 #include <utility>
-#include <variant>
 
 #include <osg/Image>
 #include <osg/Vec3f>
@@ -176,10 +175,10 @@ namespace Rtx
             ? Material::Traversed{}
             : mMaterials.getRows()[instance.mMaterial].getTraversed();
 
-        mMeshes.hold(instance.mMesh);
+        mMeshes.hold(instance.mMesh, instance.mTier);
         if (instance.mMaterial != sNoRow)
         {
-            mMaterials.hold(instance.mMaterial);
+            mMaterials.hold(mTextures, instance.mMaterial, instance.mTier);
 
             // **The walk's placements ask the finest footprint**: they are the active grid's, which stand whole
             // (`docs/architecture.md`, "A texture stands from the level its nearest user asks"). The ring asks by
@@ -196,49 +195,52 @@ namespace Rtx
         const MeshInstance stood = mPlacements.getRows()[slot].mInstance;
         mPlacements.drop(slot, by);
 
-        mMeshes.drop(mDeformers, stood.mMesh);
+        mMeshes.drop(mDeformers, stood.mMesh, stood.mTier);
         if (stood.mMaterial != sNoRow)
         {
             if (stood.mStander == Stander::Walk)
                 mMaterials.unask(mTextures, stood.mMaterial, 0);
-            mMaterials.drop(mTextures, stood.mMaterial);
+            mMaterials.drop(mTextures, stood.mMaterial, stood.mTier);
         }
     }
 
-    MeshHold SceneDesc::holdMesh(const MeshIndex mesh)
+    MeshHold SceneDesc::holdMesh(const MeshIndex mesh, const HoldTier tier)
     {
-        mMeshes.hold(mesh);
-        return MeshHold(mesh);
+        mMeshes.hold(mesh, tier);
+        return MeshHold(mesh, tier);
     }
 
-    MaterialHold SceneDesc::holdMaterial(const MaterialIndex material)
+    MaterialHold SceneDesc::holdMaterial(const MaterialIndex material, const HoldTier tier)
     {
-        mMaterials.hold(material);
-        return MaterialHold(material);
+        mMaterials.hold(mTextures, material, tier);
+        return MaterialHold(material, tier);
     }
 
-    TextureHold SceneDesc::holdTexture(const TextureIndex texture)
+    TextureHold SceneDesc::holdTexture(const TextureIndex texture, const HoldTier tier)
     {
-        mTextures.hold(texture);
-        return TextureHold(texture);
+        mTextures.hold(texture, tier);
+        return TextureHold(texture, tier);
     }
 
     void SceneDesc::drop(MeshHold&& hold)
     {
+        const HoldTier tier = hold.getTier();
         if (!hold.empty())
-            mMeshes.drop(mDeformers, hold.release());
+            mMeshes.drop(mDeformers, hold.release(), tier);
     }
 
     void SceneDesc::drop(MaterialHold&& hold)
     {
+        const HoldTier tier = hold.getTier();
         if (!hold.empty())
-            mMaterials.drop(mTextures, hold.release());
+            mMaterials.drop(mTextures, hold.release(), tier);
     }
 
     void SceneDesc::drop(TextureHold&& hold)
     {
+        const HoldTier tier = hold.getTier();
         if (!hold.empty())
-            mTextures.drop(hold.release());
+            mTextures.drop(hold.release(), tier);
     }
 
     void SceneDesc::drop(std::vector<ReadingHold>& holds)
@@ -248,25 +250,26 @@ namespace Rtx
         holds.clear();
     }
 
-    TextureHold SceneDesc::takeTexture(const VFS::Path::NormalizedView path, const osg::Image& image,
-        const TextureWrap wrap, const TextureEncoding encoding, const osg::Image* const partner)
+    TextureHold SceneDesc::takeTexture(const HoldTier tier, const VFS::Path::NormalizedView path,
+        const osg::Image& image, const TextureWrap wrap, const TextureEncoding encoding,
+        const osg::Image* const partner)
     {
-        return TextureHold(mTextures.take(path, image, wrap, encoding, partner));
+        return TextureHold(mTextures.take(tier, path, image, wrap, encoding, partner), tier);
     }
 
     ReadingHold SceneDesc::takeReading(
         const VFS::Path::NormalizedView path, const osg::Image& image, const TextureWrap wrap)
     {
-        const TextureIndex slot = mTextures.take(path, image, wrap);
+        const TextureIndex slot = mTextures.take(HoldTier::Forced, path, image, wrap);
         mTextures.ask(slot, 0);
-        return ReadingHold(slot);
+        return ReadingHold(slot, HoldTier::Forced);
     }
 
     ReadingHold SceneDesc::holdReading(const TextureIndex texture)
     {
-        mTextures.hold(texture);
+        mTextures.hold(texture, HoldTier::Forced);
         mTextures.ask(texture, 0);
-        return ReadingHold(texture);
+        return ReadingHold(texture, HoldTier::Forced);
     }
 
     void SceneDesc::drop(ReadingHold&& hold)
@@ -274,9 +277,10 @@ namespace Rtx
         if (hold.empty())
             return;
 
+        const HoldTier tier = hold.getTier();
         const TextureIndex texture = hold.release();
         mTextures.unask(texture, 0);
-        mTextures.drop(texture);
+        mTextures.drop(texture, tier);
     }
 
     bool SceneDesc::isConsistent() const
@@ -353,94 +357,34 @@ namespace Rtx
 
     void SceneDesc::compact()
     {
-        ++mRestClock;
-        mMeshes.compact(mRestClock);
-        mTextures.compact(mRestClock);
+        mMeshes.compact();
+        mTextures.compact();
         mDeformers.compact();
         mPlacements.compact();
     }
 
-    std::uint64_t SceneDesc::evictResting(const std::uint64_t room)
+    void SceneDesc::standTexture(const TextureIndex texture, const bool stands)
     {
-        // **One order across the tables**: the older of the two oldest, by when each was filed on the scene's
-        // clock, a texture first where both were filed at one tick. Filed first, so nothing waits unordered.
-        mTextures.settleResting();
+        mTextures.setStanding(texture, stands);
+        if (!stands && mTextures.getRows()[texture].mRest.mResting)
+            mTextures.release(texture);
+    }
+
+    void SceneDesc::standMesh(const MeshIndex mesh, const bool stands)
+    {
+        mMeshes.setStanding(mesh, stands);
+        if (!stands && mMeshes.getRows()[mesh].mRest.mResting)
+            mMeshes.release(mDeformers, mesh);
+    }
+
+    void SceneDesc::releaseResting()
+    {
         mMeshes.settleResting();
-        std::uint64_t freed = 0;
-        // A row past the limit at least, so a step of nought still comes down to it.
-        const auto pastLimit = [&] {
-            const std::uint64_t beyondRoom = freed > room ? freed - room : 0;
-            return getRestingBytes() > mRestLimit.mBytes && (beyondRoom == 0 || beyondRoom < mRestLimit.mStep);
-        };
-        while (getRestingBytes() > 0 && (freed < room || pastLimit()))
-            freed += releaseOldestResting();
-        return freed;
-    }
-
-    std::uint64_t SceneDesc::releaseOldestResting()
-    {
-        const std::uint64_t before = getRestingBytes();
-        const TextureIndex texture = mTextures.getResting().first();
-        const MeshIndex mesh = mMeshes.getResting().first();
-        const bool textureFirst = mesh == sNoRow
-            || (texture != sNoRow
-                && mTextures.getRows()[texture].mRest.mFiledAt <= mMeshes.getRows()[mesh].mRest.mFiledAt);
-        if (textureFirst)
-            mTextures.releaseOldest();
-        else
-            mMeshes.releaseOldest(mDeformers);
-        return before - getRestingBytes();
-    }
-
-    std::uint64_t SceneDesc::evictFor(const std::span<const RoomWant> wants)
-    {
-        // Filed first, so nothing waits unordered; and nothing past the hole, the limit's pace being the arrivals'.
+        while (mMeshes.getResting().first() != sNoRow)
+            mMeshes.release(mDeformers, mMeshes.getResting().first());
         mTextures.settleResting();
-        mMeshes.settleResting();
-        const std::uint64_t before = getRestingBytes();
-        for (const RoomWant& want : wants)
-        {
-            const bool texture = std::holds_alternative<TextureIndex>(want.mWaiter);
-            const bool fitted = texture ? mTextures.releaseFitting(want.mHole, want.mAlignment)
-                                        : mMeshes.releaseFitting(mDeformers, want.mHole, want.mAlignment);
-            // **A structure's want frees meshes alone**: a texture's range gives back room in the pools, which no
-            // structure takes, its storages being blocks of their own. A texture's frees what rested longest across
-            // the tables, a mesh whose block empties giving the heap room a pool's block takes.
-            for (std::uint64_t freed = 0; !fitted && freed < want.mHole;)
-            {
-                const std::uint64_t resting = getRestingBytes();
-                if (!texture && mMeshes.getResting().first() != sNoRow)
-                    mMeshes.releaseOldest(mDeformers);
-                else if (texture && resting > 0)
-                    releaseOldestResting();
-                else
-                    break;
-                freed += resting - getRestingBytes();
-            }
-        }
-        return before - getRestingBytes();
-    }
-
-    void SceneDesc::evictRestingTexture(const TextureIndex slot)
-    {
-        assert(mTextures.isLive(slot) && "a texture evicted that the table holds no more");
-        assert(mTextures.getRows()[slot].mRest.mResting && "a texture evicted out of its turn that does not rest");
-        mTextures.release(slot);
-    }
-
-    std::uint64_t SceneDesc::getRestingBytes() const
-    {
-        return mTextures.getResting().getBytes() + mMeshes.getResting().getBytes();
-    }
-
-    void SceneDesc::fitMesh(const MeshIndex mesh, const std::uint64_t bytes, const std::uint64_t alignment)
-    {
-        mMeshes.fit(mesh, bytes, alignment);
-    }
-
-    void SceneDesc::standMesh(const MeshIndex mesh, const std::uint64_t structureBytes)
-    {
-        mMeshes.stand(mesh, structureBytes);
+        while (mTextures.getResting().first() != sNoRow)
+            mTextures.release(mTextures.getResting().first());
     }
 
     void SceneDesc::clearArrivals()

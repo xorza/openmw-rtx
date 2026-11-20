@@ -12,6 +12,7 @@
 #include <osg/Vec4f>
 
 #include <components/misc/digestwords.hpp>
+#include <components/rtx/common/holdtier.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/shaders/scene.h>
 
@@ -113,6 +114,9 @@ namespace Rtx
 
         MeshIndex mMesh = sNoRow;
         MaterialIndex mMaterial = sNoRow;
+
+        /// What the placement's holds on its mesh and its material state: the walk's are shown, a picture's forced.
+        HoldTier mTier = HoldTier::Shown;
 
         /// How much of this placement is there — the fade the game is applying to one actor, with
         /// Invisibility and Chameleon, which ride the same pair of uniforms. On the placement and
@@ -255,11 +259,9 @@ namespace Rtx
         /// found again by whatever reads the same geometry; nothing for a mesh that deforms, a copy per instance.
         std::optional<MeshKey> mKey;
 
-        /// What its eviction would give the device back, its bottom-level structure (`MeshTable::stand`), and nought
-        /// until the device has said: what a mesh that rests holds of the device's room, and whether it may. Not its
-        /// geometry, which stands in storage the device keeps whole and later meshes take its runs of
-        /// (`docs/architecture.md`, "One residency policy for the content").
-        std::uint64_t mStoodBytes = 0;
+        /// Whether the device stands its bottom-level structure, as residency last said (`MeshTable::setStanding`):
+        /// what lets a static mesh rest once nothing names it, its structure kept for the next take.
+        bool mStands = false;
 
         /// Its place among the meshes that rest (`MeshTable::drop`, `RestQueue`).
         RestPlace<MeshIndex> mRest{};

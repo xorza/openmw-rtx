@@ -1,10 +1,7 @@
+#include <algorithm>
 #include <array>
-#include <filesystem>
-#include <fstream>
 #include <limits>
 #include <optional>
-#include <span>
-#include <sstream>
 #include <string>
 #include <string_view>
 
@@ -17,7 +14,6 @@
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/scene/mesh.hpp>
-#include <components/testing/util.hpp>
 
 namespace RtxTool
 {
@@ -148,14 +144,12 @@ namespace RtxTool
                     .mFiledBytes = 1 * sMiB,
                     .mLentContentBytes = 3 * sMiB / 2,
                     .mFiledContentBytes = sMiB / 4 },
-                .mPrepared = Rtx::PreparedHeld{ .mEntries = 7, .mBytes = 3 * sMiB, .mLeftPending = 2 },
                 .mRing = {} };
             const std::string line = describeHostHeld(content);
             EXPECT_EQ(line.substr(0, line.find("   reader")),
                 "  host  vertices 1.20 M placed, 0.30 M resting, 0.10 M in holes of 1.60 M reached   indices 1.80 M, "
                 "0.60 M, 0.60 M of 3.00 M   geometry 52.0 MiB")
                 << line;
-            EXPECT_TRUE(line.ends_with("   prepared 7 unhanded, 3.0 MiB, 2 slots left pending\n")) << line;
             // The reader's room beside what its lent and filed models fill of it.
             EXPECT_NE(line.find("   reader 2.0 MiB lent in 3 models holding 1.5, 6.0 MiB spare in 4, 1.0 MiB filed "
                                 "unlent in 5 holding 0.2\n"),
@@ -169,13 +163,47 @@ namespace RtxTool
             constexpr std::uint64_t sMiB = std::uint64_t{ 1 } << 20;
             Rtx::TexelReads reads;
             EXPECT_EQ(describeTexelReads(reads), "") << "a renderer that asked no header";
-            reads.mCounts = { 3, 40, 2, 0 };
-            reads.mBytes = { 1 * sMiB, 120 * sMiB, 6 * sMiB, 0 };
+            reads.mCounts = { 40, 2, 0 };
+            reads.mBytes = { 120 * sMiB, 6 * sMiB, 0 };
             reads.mChainsFoundWhole = 17;
             reads.mCancelled = 5;
             EXPECT_EQ(describeTexelReads(reads),
-                "  texels asked   fact 3 (1.0 MiB)   file 40 (120.0 MiB)   partner 2 (6.0 MiB)   preparation 0 (0.0 "
-                "MiB)   chains found whole 17   cancelled 5\n");
+                "  texels asked   file 40 (120.0 MiB)   partner 2 (6.0 MiB)   preparation 0 (0.0 MiB)   chains found "
+                "whole 17   cancelled 5\n");
+        }
+
+        /// **The residency line says each figure at its most over a place's frames, and the cap at its least**: two
+        /// frames, the first issuing 30 operations and copying 4 MiB under a cap of 900 MiB with 5 stand-ins, 2 of them
+        /// come and waiting for room, the second issuing 12 and uploading 16 MiB under 800 with 1 mesh missing; and no
+        /// line for a place that took none.
+        TEST(RtxBenchRecordTest, theResidencyLineSaysEachFigureAtItsMost)
+        {
+            constexpr std::uint64_t sMiB = std::uint64_t{ 1 } << 20;
+            ResidencyMost most;
+            EXPECT_EQ(describeResidency(most), "");
+
+            Rtx::ResidencyReport first;
+            first.mOpsIssued = 30;
+            first.mBytesCopied = 4 * sMiB;
+            first.mCapBytes = 900 * sMiB;
+            first.mMissingDemanded = Rtx::MissingDemanded{ .mAsked = 3, .mArrived = 2 };
+            first.mSlots.mSlotsLive = 70;
+            first.mSlots.mBytesHeld = 512 * sMiB;
+            Rtx::ResidencyReport second;
+            second.mOpsIssued = 12;
+            second.mBytesUploaded = 16 * sMiB;
+            second.mCapBytes = 800 * sMiB;
+            second.mMissingDemanded = Rtx::MissingDemanded{ .mMeshes = 1 };
+            second.mStarvedTextures = 2;
+            second.mSlots.mSlotsRetiring = 6;
+            most.take(first);
+            most.take(second);
+            EXPECT_EQ(most.mFrames, 2u);
+            EXPECT_EQ(describeResidency(most),
+                "  residency at most   ops 30   uploaded 16.0 MiB   copied 4.0 MiB   below want 0   stand-ins 5   "
+                "meshes missing 1   starved 2 textures 0 meshes   slots 70 live 6 retiring   held 512.0 MiB under a "
+                "cap of "
+                "800.0 MiB at the least   blocks refused 0   drains given up 0, waiting on another scene 0 frames\n");
         }
 
         /// **The ring by distance, what stands of what it holds**, only the distances holding a placement, the last
@@ -218,12 +246,21 @@ namespace RtxTool
             place.mCard.mViewed = true;
             place.mCard.mHolders.push_back(CardHolder{ .mName = "tab\there", .mSamples = 1 });
 
-            const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "escaped-record.json";
-            ASSERT_TRUE(writeJson(path, BenchHeader{ .mSuite = "a\nb" }, std::span(&place, 1)).isOk());
-
-            std::ostringstream read;
-            read << std::ifstream(path).rdbuf();
-            const std::string json = read.str();
+            // **A line each, ending in its line break and holding no other**, a name's own written as its escape: what
+            // lets a run add a place to its record without writing the record again.
+            const std::string headerLine = recordHeaderLine(BenchHeader{ .mSuite = "a\nb" });
+            const std::string placeLine = recordPlaceLine(place);
+            constexpr std::string_view headerOpens = R"({"header": {"suite": "a\nb", "output": [0, 0], )";
+            constexpr std::string_view headerCloses = R"("cacheBudget": null}})"
+                                                      "\n";
+            constexpr std::string_view placeOpens = R"({"place": {"view": "say \"hi\"", )";
+            EXPECT_TRUE(headerLine.starts_with(headerOpens)) << headerLine;
+            EXPECT_TRUE(headerLine.ends_with(headerCloses)) << headerLine;
+            EXPECT_EQ(std::ranges::count(headerLine, '\n'), 1);
+            EXPECT_TRUE(placeLine.starts_with(placeOpens)) << placeLine;
+            EXPECT_TRUE(placeLine.ends_with("}}\n")) << placeLine;
+            EXPECT_EQ(std::ranges::count(placeLine, '\n'), 1);
+            const std::string json = headerLine + placeLine;
 
             // Named outside the assertions: MSVC's preprocessor reads a raw string's `\"` inside a
             // macro argument as the end of the literal.
@@ -262,12 +299,7 @@ namespace RtxTool
                 .mTwoKinds = true,
                 .mRead = true };
 
-            const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "clock-record.json";
-            ASSERT_TRUE(writeJson(path, BenchHeader{}, places).isOk());
-
-            std::ostringstream read;
-            read << std::ifstream(path).rdbuf();
-            const std::string json = read.str();
+            const std::string json = recordPlaceLine(places[0]) + recordPlaceLine(places[1]);
 
             constexpr std::string_view clock = R"("clock": {"core": {"meanMhz": 1945, "lowestMhz": 1785, )"
                                                R"("highestMhz": 2070, "readings": 3}, "memory": {"meanMhz": 8500, )"
@@ -294,11 +326,7 @@ namespace RtxTool
             BenchHeader header;
             header.mHugePageShare = std::numeric_limits<float>::quiet_NaN();
 
-            const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "not-finite.json";
-            ASSERT_TRUE(writeJson(path, header, places).isOk());
-            std::ostringstream read;
-            read << std::ifstream(path).rdbuf();
-            const std::string json = read.str();
+            const std::string json = recordHeaderLine(header) + recordPlaceLine(places[0]);
 
             EXPECT_NE(json.find(R"("wallSeconds": null, "hitPercent": null, )"), std::string::npos) << json;
             EXPECT_NE(json.find(R"("travelled": 0.5000, )"), std::string::npos) << json;
@@ -349,21 +377,17 @@ namespace RtxTool
                 .mSize = 1, .mBudget = 2, .mHeld = 3, .mReserved = 4, .mLive = 5, .mBlocks = 6, .mDeviceLocal = true
             };
             place.mMemory.mHeaps[1] = Rtx::HeapUse{ .mSize = 7 };
-            place.mMemory.mUses = Rtx::MemoryUses{ .mFrame = 10,
-                .mFrameReserve = 11,
-                .mEssential = 12,
-                .mEssentialGrowth = 17,
-                .mStructures = 13,
-                .mStructureGrowth = 18,
-                .mStructureRoom = 14,
-                .mTextures = 15,
-                .mTextureRoom = 16 };
+            place.mMemory.mUses = Rtx::MemoryUses{
+                .mFrame = 10, .mFrameReserve = 11, .mEssential = 12, .mEssentialGrowth = 17, .mContent = 13
+            };
             place.mContent = Rtx::ContentMemory{ .mVertexEnd = 21,
                 .mVerticesUsed = 22,
                 .mIndexEnd = 23,
                 .mIndicesUsed = 24,
                 .mRestingVertices = 40,
                 .mRestingIndices = 41,
+                .mVertexHoles = 43,
+                .mIndexHoles = 44,
                 .mGeometryBytes = 42,
                 .mLayerEnd = 25,
                 .mMaskEnd = 26,
@@ -373,12 +397,6 @@ namespace RtxTool
                 .mPoseEnd = 30,
                 .mBindVertexEnd = 31,
                 .mRestingTextures = 38,
-                .mRestingTextureBytes = 39,
-                .mAboveWant = Rtx::TexturesAboveWant{ .mStood = 63,
-                    .mAbove = 64,
-                    .mTextures = 65,
-                    .mRestingStood = 66,
-                    .mRestingAbove = 67 },
                 .mReader = Rtx::ReaderMemory{ .mLentModels = 32,
                     .mSpareModels = 33,
                     .mFiledModels = 34,
@@ -387,7 +405,6 @@ namespace RtxTool
                     .mFiledBytes = 37,
                     .mLentContentBytes = 61,
                     .mFiledContentBytes = 62 },
-                .mPrepared = Rtx::PreparedHeld{ .mEntries = 43, .mBytes = 44, .mLeftPending = 45 },
                 .mRing = {} };
             place.mContent.mRing.mByDistance[1] = Rtx::RingDistance{ .mPlacements = 55,
                 .mPlacementsStanding = 56,
@@ -396,17 +413,26 @@ namespace RtxTool
                 .mVertices = 59,
                 .mVerticesStanding = 60 };
 
-            place.mTexelReads.mCounts = { 46, 47, 48, 49 };
-            place.mTexelReads.mBytes = { 50, 51, 52, 53 };
+            place.mTexelReads.mCounts = { 47, 48, 49 };
+            place.mTexelReads.mBytes = { 51, 52, 53 };
             place.mTexelReads.mChainsFoundWhole = 54;
             place.mTexelReads.mCancelled = 66;
+            Rtx::ResidencyReport residency;
+            residency.mOpsIssued = 81;
+            residency.mBytesUploaded = 82;
+            residency.mBytesCopied = 83;
+            residency.mBelowWant = 84;
+            residency.mMissingDemanded = Rtx::MissingDemanded{ .mAsked = 85, .mMeshes = 86 };
+            residency.mStarvedTextures = 87;
+            residency.mStarvedStructures = 88;
+            residency.mSlots.mSlotsLive = 89;
+            residency.mSlots.mSlotsRetiring = 90;
+            residency.mSlots.mBytesHeld = 91;
+            residency.mCapBytes = 92;
+            place.mResidency.take(residency);
             place.mGame = GameHeld{ .mLoadedCells = 63, .mPreloadedCells = 64, .mStarvedLooks = 65 };
 
-            const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "memory-record.json";
-            ASSERT_TRUE(writeJson(path, BenchHeader{}, std::span(&place, 1)).isOk());
-            std::ostringstream read;
-            read << std::ifstream(path).rdbuf();
-            const std::string json = read.str();
+            const std::string json = recordPlaceLine(place);
 
             constexpr std::string_view scene
                 = R"("scene": {"instances": 41, "instanceSlots": 50, "cutoutInstances": 42, "waterInstances": 43, )"
@@ -422,18 +448,16 @@ namespace RtxTool
                 = R"("memory": {"heaps": [{"size": 1, "budget": 2, "held": 3, "reserved": 4, "live": 5, "blocks": 6, )"
                   R"("deviceLocal": true}, {"size": 7, "budget": 0, "held": 0, "reserved": 0, "live": 0, )"
                   R"("blocks": 0, "deviceLocal": false}], "uses": {"frame": 10, "frameReserve": 11, "essential": 12, )"
-                  R"("essentialGrowth": 17, "structures": 13, "structureGrowth": 18, "structureRoom": 14, "textures": 15, )"
-                  R"("textureRoom": 16}})";
+                  R"("essentialGrowth": 17, "content": 13}})";
             constexpr std::string_view content
                 = R"("content": {"vertexEnd": 21, "verticesUsed": 22, "indexEnd": 23, "indicesUsed": 24, )"
-                  R"("restingVertices": 40, "restingIndices": 41, "geometryBytes": 42, )"
+                  R"("restingVertices": 40, "restingIndices": 41, "vertexHoles": 43, "indexHoles": 44, )"
+                  R"("geometryBytes": 42, )"
                   R"("layerEnd": 25, "maskEnd": 26, "rigRunEnd": 27, "influenceEnd": 28, "offsetEnd": 29, )"
-                  R"("poseEnd": 30, "bindVertexEnd": 31, "restingTextures": 38, "restingTextureBytes": 39, )"
-                  R"("aboveWant": {"stood": 63, "above": 64, "textures": 65, "restingStood": 66, "restingAbove": 67}, )"
+                  R"("poseEnd": 30, "bindVertexEnd": 31, "restingTextures": 38, )"
                   R"("reader": {"lentModels": 32, "spareModels": 33, )"
                   R"("filedModels": 34, "lentBytes": 35, "spareBytes": 36, "filedBytes": 37, )"
-                  R"("lentContentBytes": 61, "filedContentBytes": 62}, )"
-                  R"("prepared": {"entries": 43, "bytes": 44, "leftPending": 45}, "ring": [{"placements": 0, )"
+                  R"("lentContentBytes": 61, "filedContentBytes": 62}, "ring": [{"placements": 0, )"
                   R"("placementsStanding": 0, "meshes": 0, "meshesStanding": 0, "vertices": 0, "verticesStanding": 0}, )"
                   R"({"placements": 55, "placementsStanding": 56, "meshes": 57, "meshesStanding": 58, "vertices": 59, )"
                   R"("verticesStanding": 60}, {"placements": 0,)";
@@ -445,11 +469,16 @@ namespace RtxTool
                 std::string::npos)
                 << json;
             EXPECT_NE(json.find(content), std::string::npos) << json;
-            EXPECT_NE(json.find(R"(, "texelReads": {"fact": 46, "factBytes": 50, "file": 47, "fileBytes": 51, )"
-                                R"("partner": 48, "partnerBytes": 52, "preparation": 49, "preparationBytes": 53, )"
-                                R"("chainsFoundWhole": 54, "cancelled": 66}, "game": {"loadedCells": 63, )"
-                                R"("preloadedCells": 64, )"
-                                R"("starvedLooks": 65})"),
+            EXPECT_NE(
+                json.find(
+                    R"(, "texelReads": {"file": 47, "fileBytes": 51, )"
+                    R"("partner": 48, "partnerBytes": 52, "preparation": 49, "preparationBytes": 53, )"
+                    R"("chainsFoundWhole": 54, "cancelled": 66}, "residency": {"frames": 1, "opsIssued": 81, )"
+                    R"("bytesUploaded": 82, "bytesCopied": 83, "belowWant": 84, "standIns": 85, )"
+                    R"("meshesMissing": 86, "starvedTextures": 87, "starvedStructures": 88, "slotsLive": 89, )"
+                    R"("slotsRetiring": 90, "bytesHeld": 91, "capBytesLeast": 92, "blocksRefused": 0, "drainsAbandoned": 0, "drainWaitFrames": 0}, "game": {"loadedCells": 63, )"
+                    R"("preloadedCells": 64, )"
+                    R"("starvedLooks": 65})"),
                 std::string::npos)
                 << json;
         }

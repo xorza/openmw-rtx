@@ -544,7 +544,7 @@ namespace Rtx
 
     MeshResolver::MeshEntry MeshResolver::file(const osg::Drawable& drawable, const MeshIndex mesh)
     {
-        return mMeshes.add(&drawable, KnownMesh{ .mRow = mScene.holdMesh(mesh) });
+        return mMeshes.add(&drawable, KnownMesh{ .mRow = mScene.holdMesh(mesh, HoldTier::Kept) });
     }
 
 }

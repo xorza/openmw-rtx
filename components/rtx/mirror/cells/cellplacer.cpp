@@ -63,8 +63,9 @@ namespace Rtx
         changeReference(refnum, [](ReferenceState& state) { state.mBlacklisted = true; });
     }
 
-    void CellPlacer::moveReference(const ESM::RefNum refnum, const ReferencePlace& place, const bool away)
+    void CellPlacer::moveReference(const ESM::RefNum refnum, const ReferencePlace& place, const ReferenceStands stands)
     {
+        const bool away = stands == ReferenceStands::Away;
         auto at = std::lower_bound(mMoved.begin(), mMoved.end(), refnum,
             [](const Moved& known, ESM::RefNum asked) { return known.mRefNum < asked; });
         const bool known = at != mMoved.end() && at->mRefNum == refnum;
@@ -100,8 +101,15 @@ namespace Rtx
             mGates.resize(gate + 1, Terrain::GateState::Unknown);
         mGates[gate] = state;
 
-        changeReferencesWhere(
-            [&](const ReferenceState& reference) { return reference.mGate == gate; }, [](ReferenceState&) {});
+        for (HeldCell& cell : mCells)
+        {
+            const auto [first, last] = std::ranges::equal_range(cell.mByGate, gate, std::less<>{}, &GateSpot::mGate);
+            for (const GateSpot& spot : std::ranges::subrange(first, last))
+                if (spot.mAt < cell.mPlacements.size())
+                    restand(cell.mPlacements[spot.mAt], spot.mAt < cell.mShown, mPlaced);
+            // Nothing to restand of a lamp: `place` builds every lamp's light again on every walk, and reads the gate
+            // then.
+        }
     }
 
     void CellPlacer::setNightDay(const NightDayMode mode)
@@ -312,7 +320,8 @@ namespace Rtx
     {
         const PreparedGround& ground = cell.mGround;
         HeldGround& stands = held.mGround;
-        assert(!stands.mStands && stands.mTextures.empty() && "a ground adopted over one still held");
+        assert(!stands.mStands && "a ground adopted over one still held");
+        assert(stands.mTextures.empty() && "a ground adopted over one still held");
         if (!ground.mStands)
             return;
 
@@ -391,8 +400,8 @@ namespace Rtx
 
         // Held on the scene, because no drawable and no state set will ever name them:
         // `dropGround` is what lets go.
-        stands.mMeshHold = mScene.holdMesh(stands.mStood.mMesh);
-        stands.mMaterialHold = mScene.holdMaterial(stands.mStood.mMaterial);
+        stands.mMeshHold = mScene.holdMesh(stands.mStood.mMesh, HoldTier::Kept);
+        stands.mMaterialHold = mScene.holdMaterial(stands.mStood.mMaterial, HoldTier::Kept);
 
         ++stats.mMeshesAdded;
         ++stats.mMaterialsAdded;
@@ -418,6 +427,33 @@ namespace Rtx
                 .mReference = reference,
                 .mState = state,
             });
+    }
+
+    void CellPlacer::retierGround(const osg::Vec2i& cell, const HoldTier tier)
+    {
+        const auto held = mCells.find(cell);
+        assert(held != mCells.end() && "a ground retiered whose cell is not held");
+        retierGround(held->mGround, tier);
+    }
+
+    HoldTier CellPlacer::getGroundTier(const osg::Vec2i& cell) const
+    {
+        const auto held = mCells.find(cell);
+        return held == mCells.end() || !held->mGround.mStands ? HoldTier::Unheld : held->mGround.mMeshHold.getTier();
+    }
+
+    void CellPlacer::retierGround(HeldGround& ground, const HoldTier tier)
+    {
+        if (!ground.mStands || ground.mMeshHold.getTier() == tier)
+            return;
+        assert(ground.mMaterialHold.getTier() == ground.mMeshHold.getTier() && "a ground held at two tiers");
+
+        MeshHold mesh = mScene.holdMesh(ground.mStood.mMesh, tier);
+        MaterialHold material = mScene.holdMaterial(ground.mStood.mMaterial, tier);
+        mScene.drop(std::move(ground.mMeshHold));
+        mScene.drop(std::move(ground.mMaterialHold));
+        ground.mMeshHold = std::move(mesh);
+        ground.mMaterialHold = std::move(material);
     }
 
     void CellPlacer::adoptPlacements(const PreparedCell& cell, HeldCell& held, CellHolds& holds)
@@ -464,6 +500,18 @@ namespace Rtx
             });
         std::ranges::sort(held.mByReference, [](const ReferenceSpot& left, const ReferenceSpot& right) {
             return left.mRefNum < right.mRefNum || (left.mRefNum == right.mRefNum && left.mAt < right.mAt);
+        });
+
+        held.mByGate.clear();
+        for (std::size_t at = 0; at < held.mPlacements.size(); ++at)
+            if (const std::uint32_t gate = held.mPlacements[at].mState.mGate; gate != Terrain::sNoGate)
+                held.mByGate.push_back(GateSpot{ .mGate = gate, .mAt = static_cast<std::uint32_t>(at) });
+        for (std::size_t at = 0; at < held.mLights.size(); ++at)
+            if (const std::uint32_t gate = held.mLights[at].mState.mGate; gate != Terrain::sNoGate)
+                held.mByGate.push_back(
+                    GateSpot{ .mGate = gate, .mAt = static_cast<std::uint32_t>(held.mPlacements.size() + at) });
+        std::ranges::sort(held.mByGate, [](const GateSpot& left, const GateSpot& right) {
+            return left.mGate < right.mGate || (left.mGate == right.mGate && left.mAt < right.mAt);
         });
 
         // Where the game moved one before this cell was held. Nothing stands yet, so this only
@@ -609,12 +657,15 @@ namespace Rtx
         held.mReachOut = held.mPlacements.empty() ? 0.0f : held.mPlacements.front().mRadius;
     }
 
-    void CellPlacer::askByDistance(HeldCell& cell, const WorldAround& around, const bool sightMoved)
+    void CellPlacer::askByDistance(
+        HeldCell& cell, const WorldAround& around, const std::span<const osg::Vec3f> predicted, const bool sightMoved)
     {
         const CellGrid& grid = around.mWorld.mGrid;
         const float size = grid.getCellSize();
-        const float distance
-            = std::max(0.0f, std::sqrt(grid.distanceSquaredTo(cell.mCell, around.mEye)) - cell.mReachOut);
+        float nearest = grid.distanceSquaredTo(cell.mCell, around.mEye);
+        for (const osg::Vec3f& centre : predicted)
+            nearest = std::min(nearest, grid.distanceSquaredTo(cell.mCell, centre));
+        const float distance = std::max(0.0f, std::sqrt(nearest) - cell.mReachOut);
         const float asked = distance < size ? 0.0f : size * std::exp2(std::floor(std::log2(distance / size)) - 1.0f);
         if (!sightMoved && cell.mAskedAt == asked)
             return;
@@ -810,7 +861,7 @@ namespace Rtx
         return standing == getPlaced() + getGroundPlaced() + getGrassPlaced();
     }
 
-    std::uint32_t CellPlacer::place(const WorldAround& around)
+    std::uint32_t CellPlacer::place(const WorldAround& around, const std::span<const osg::Vec3f> predicted)
     {
         const bool sightMoved = around.mSight != mSight;
         mSight = around.mSight;
@@ -818,7 +869,7 @@ namespace Rtx
         std::uint32_t lit = 0;
         for (HeldCell& cell : mCells)
         {
-            askByDistance(cell, around, sightMoved);
+            askByDistance(cell, around, predicted, sightMoved);
             lit += place(cell, around);
         }
 

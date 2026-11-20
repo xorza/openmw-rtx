@@ -6,17 +6,6 @@
 
 namespace Rtx
 {
-    struct TextureData;
-    enum class TextureFormat : std::uint8_t;
-
-    /// The extent and the level count of the image a texture stands as.
-    struct ImageShape
-    {
-        std::uint32_t mWidth = 0;
-        std::uint32_t mHeight = 0;
-        std::uint32_t mLevels = 0;
-    };
-
     /// What a texture takes of the device's room, in the parts its maker makes. The one answer
     /// both to which side an arrival is held to and to what a standing texture reports, so the two
     /// cannot disagree.
@@ -33,26 +22,6 @@ namespace Rtx
         /// What the texture keeps.
         VkDeviceSize standing() const { return mImage + mCompanion; }
     };
-
-    /// The image a file stands as, begun at level `first`: from that level down.
-    ImageShape shapeOf(const TextureData& texture, std::uint32_t first);
-
-    /// What a file costs, begun at level `first`, as `Texture::standFile` makes it.
-    TextureCost priceFile(const TextureData& texture, std::uint32_t first);
-
-    /// What an image of `format` and `shape` costs, its companion a spread where `spread` says: a file's at the shape
-    /// it stands as (`priceFile`), and one moved to a smaller side (`Texture::standMovedDown`).
-    TextureCost priceShape(TextureFormat format, const ImageShape& shape, bool spread);
-
-    /// The bytes of float means a file's spread is built through, begun at level `first`: every
-    /// level of the spread, and nought for a file with none.
-    VkDeviceSize spreadMeansBytes(const TextureData& texture, std::uint32_t first);
-
-    /// What a bake costs, made at the shape its source stands as.
-    TextureCost priceBake(const ImageShape& source);
-
-    /// What a ground composite costs, whose side is the renderer's own.
-    TextureCost priceComposite();
 
     /// What one canvas a scene's composites of a kind are baked on costs: a chain, four bytes a texel
     /// (`GroundCompositePass::makeCanvas`). Made once, with the scene's first composite of the kind.

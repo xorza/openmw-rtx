@@ -24,6 +24,7 @@
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
+#include <components/rtx/preprocess/texture/chainadmission.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/shader/automaps.hpp>
@@ -40,6 +41,11 @@ namespace osg
 namespace ContentStore
 {
     class Store;
+}
+
+namespace Resource
+{
+    class MemoryArbiter;
 }
 
 namespace Rtx
@@ -72,8 +78,12 @@ namespace Rtx
         std::size_t mHands = 1;
 
         /// The bytes the jobs may hold together (`PreparationDispatcher`), or nothing for no bound, where
-        /// the system states no memory (`Platform::availableMemory`).
+        /// the system states no memory (`Resource::MemoryArbiter::getAvailable`).
         std::optional<std::uint64_t> mBudget{};
+
+        /// The one sampler of the system's memory, which a chain's making is admitted against (`ChainAdmission`), or
+        /// null for none.
+        const Resource::MemoryArbiter* mMemory = nullptr;
 
         /// Today, in days since the epoch in UTC: the day the manifest notes a model was named on, so
         /// a content list no run named for a month leaves it (`PreparationManifest::sUnnamedDaysMost`).
@@ -89,10 +99,6 @@ namespace Rtx
 
         /// The normal map, or empty for none.
         std::string mNormal{};
-
-        /// Whether the normal map may carry a height in its alpha, which the ground reads
-        /// (`carriesHeight`).
-        bool mParallax = false;
     };
 
     /// What a preparation took, once `finish` returned.
@@ -256,6 +262,9 @@ namespace Rtx
 
         /// `PreparationSetup::mBudget`.
         const std::optional<std::uint64_t> mBudget;
+
+        /// What admits a chain the dispatcher hands a thread alone, past the whole budget, against the system's memory.
+        ChainAdmission mAdmission;
 
         /// Each job's entry where this run read it, the models first and the layers after them,
         /// written by the one thread that read it.

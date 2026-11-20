@@ -359,6 +359,12 @@ namespace RtxTool
             "`config <path>` and `data <path>`, and quit, before any device: the answer `Files` gives "
             "on this system, which the driver's `setup` and `game` read rather than restating");
 
+        option({ Verb::Info }, "prices", bpo::bool_switch(),
+            "after the device, print what it charges for what content stands in: each kind of memory, what a texture "
+            "of each format and side asks with its whole chain, what a mesh's structure asks by its triangles, and "
+            "how many allocations may stand; the figures content's memory is cut up by; and how fast it copies texture "
+            "chains on itself, which a frame's share of copies is set from");
+
         option(sFramed, "filter",
             bpo::value<bool>()
                 ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mDenoise)
@@ -659,8 +665,8 @@ namespace RtxTool
             "its times are quoted from. Where the driver offers none, nothing is read");
 
         option({ Verb::Bench }, "json", bpo::value<std::string>()->default_value(""),
-            "also write the run to this file as one record, for comparing against the "
-            "same run on another commit");
+            "also write the run to this file as a record, its header and then a line a place (JSON lines), "
+            "for comparing against the same run on another commit");
 
         option({ Verb::Bench, Verb::Tour }, "frame-times", bpo::value<std::string>()->default_value(""),
             "also write every measured frame's figures, a frame a line and a row of the report a "
@@ -685,7 +691,7 @@ namespace RtxTool
         option(sFramed, "distant-statics", bpo::value<bool>()->implicit_value(true),
             "stand on the distant ground what the content files put there — the buildings, trees "
             "and rocks — as instances of their templates, read ahead of the eye on a thread of the "
-            "renderer's own (`Rtx::CellRing`); it is the game's `object paging` setting, which "
+            "renderer's own (`Rtx::CellStreamer`); it is the game's `object paging` setting, which "
             "this renderer never pages by. **Off is the A/B that says what they cost**: the same "
             "ground with nothing on it. The ground itself always stands, read off the land records "
             "by the same ring. Not given, `settings-default.cfg`'s `[Terrain] object paging`, or "
@@ -745,7 +751,7 @@ namespace RtxTool
             "the device and a run under this or --against is no benchmark; and every picture, as "
             "<view>.png beside <view>-doll.png, "
             "<view>-map.png and <view>-textures.png, a film's frames/000000.png onwards and "
-            "<keys>.mp4, a tour's findings.txt and tour.json after every leg and the pictures its Home marks "
+            "<keys>.mp4, a tour's findings.txt and tour.jsonl after every leg and the pictures its Home marks "
             "under marks/, the picture of each Home press in a `view` as <view>-<n>.png, with the "
             "block Home prints inside it as the PNG's Description, or `noise`'s five pictures of a "
             "place as <view>.png beside <view>-mean.png, <view>-reference.png, <view>-averaged.png "
@@ -831,6 +837,9 @@ namespace RtxTool
         option({ Verb::Tour }, "pace", bpo::value<std::string>()->default_value("card"),
             "card flies a tour as fast as the card draws, the hardest the streaming is driven; real holds every frame "
             "to the step, so the world's second is the wall's and a slow frame is the limiter's and no finding");
+        option({ Verb::Tour }, "settled", bpo::value<bool>()->default_value(true)->implicit_value(true),
+            "whether each walk waits for the nearest cell and ground its band lacks, so two flights draw one picture; "
+            "--settled=no streams as the game does, waiting only where the cells change, so a pop is a finding");
         option({ Verb::Tour }, "fail-on", bpo::value<std::string>()->default_value(""),
             "the costs that fail a tour beside its faults, comma separated: hitch, slow-frames, log-warning, growth. "
             "A fault always fails it: a store not finite, a refusal, a failed check, an error in the log, an outrun "
@@ -938,6 +947,7 @@ namespace RtxTool
         ToolLine line;
         line.mShaderSource = on("shader-source");
         line.mFolders = on("folders");
+        line.mPrices = on("prices");
         line.mResources = variables["resources"].as<Files::MaybeQuotedPath>();
         if (named("out"))
             line.mOut = std::filesystem::path(text("out"));
@@ -1117,6 +1127,7 @@ namespace RtxTool
         if (!legs.isOk())
             throw std::runtime_error(legs.error());
         tour.mLegs = legs.value();
+        tour.mSettled = on("settled");
         if (const std::string& pace = text("pace"); pace == "real")
             tour.mPaced = true;
         else if (pace != "card")

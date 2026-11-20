@@ -13,10 +13,7 @@ namespace Rtx
     /// its cache or by reading the file again.
     enum class TexelRead : std::uint8_t
     {
-        /// A fact of the file no thread had read yet (`ThreadContent::factOf`).
-        Fact,
-
-        /// A slot's file, for its chain's key, its chain made again or its levels handed over (`PreparedImages`).
+        /// A slot's file, for its chain's key, its chain made again or its levels handed over (`TextureHands`).
         File,
 
         /// A converted slot's other file (`TextureRow::mPartner`).
@@ -26,7 +23,7 @@ namespace Rtx
         Preparation,
     };
 
-    inline constexpr std::size_t sTexelReadCount = 4;
+    inline constexpr std::size_t sTexelReadCount = static_cast<std::size_t>(TexelRead::Preparation) + 1;
 
     /// The asks for a header's texels by why, with the bytes of the texels each was answered, how many chains made
     /// again were found whole in the store, so nothing of their file is read for the upload, and how many reads were

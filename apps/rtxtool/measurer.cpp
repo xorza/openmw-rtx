@@ -131,12 +131,16 @@ namespace RtxTool
             // The stager's own hold is the wait, which the window counts as one; a pause is anything else.
             .mPaused = report.mPaused && Staging::pausedBeyondHold(),
             .mCellsToStand = report.mCellsToStand,
+            .mMissing = report.mResidency.mMissingDemanded,
+            .mArriving = report.mUpload.mKind != Rtx::SceneUpload::Kind::Placed,
             .mArrivedMeshes = report.mUpload.mArrivedMeshes,
             .mCell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell(),
             .mRebuilt = report.mUpload.mKind == Rtx::SceneUpload::Kind::Rebuilt,
             .mSpend = report.mSpend,
         });
         const MeasureWindow& window = mProgress.mWindow;
+        // Every frame of the stop, its wait among them, which is where a residency's most stands.
+        mProgress.mPlace.mResidency.take(report.mResidency);
 
         if (taken.mOpened)
         {
@@ -181,9 +185,10 @@ namespace RtxTool
                 return Verdict::Going;
             case MeasureWindow::Outcome::Stalled:
                 mFailure = std::format(
-                    "the world of {} did not stand whole through {} frames: {} cells short, "
-                    "and the last {:.1f} s brought none of them",
-                    stop.mName, window.getWaited(), window.getLeastToStand(), window.getStalledMs() / 1000.0);
+                    "the world of {} did not stand whole through {} frames: {}, and the last {:.1f} s brought it no "
+                    "nearer",
+                    stop.mName, window.getWaited(), describeUnstood(window.getUnstood()),
+                    window.getStalledMs() / 1000.0);
                 return Verdict::Failed;
             case MeasureWindow::Outcome::PausedTooLong:
                 mFailure = std::format("the world stood paused through {} frames ahead of {}, held by {}",

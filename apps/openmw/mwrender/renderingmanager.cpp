@@ -18,6 +18,7 @@
 #include <osgUtil/LineSegmentIntersector>
 
 #include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwmechanics/actorutil.hpp>
 #include <apps/openmw/mwworld/cellstore.hpp>
@@ -500,9 +501,9 @@ namespace MWRender
         };
     }
 
-    void RenderingManager::describeFrame()
+    FrameSources RenderingManager::frameSources()
     {
-        mRenderer.describeFrame(mFrame.describe(FrameSources{
+        return FrameSources{
             .mScene = *mSceneRoot,
             .mWhen = mRenderer.getFrameStamp(),
             .mSun = *mSunLight,
@@ -513,7 +514,19 @@ namespace MWRender
             .mTerrain = *mTerrain,
             .mObjectStorage = mObjectStorage,
             .mEye = describeEye(),
-        }));
+        };
+    }
+
+    void RenderingManager::describeFrame()
+    {
+        mRenderer.describeFrame(mFrame.describe(frameSources()));
+    }
+
+    void RenderingManager::standWhole(const WorldChange change, const osg::Vec3f& position)
+    {
+        mRenderer.standWhole(mFrame.describeStill(frameSources()),
+            WorldChanged{ .mChange = change, .mPosition = position },
+            *MWBase::Environment::get().getWindowManager()->getLoadingScreen());
     }
 
     void RenderingManager::renderFrame()

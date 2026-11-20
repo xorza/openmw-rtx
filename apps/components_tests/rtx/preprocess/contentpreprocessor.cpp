@@ -20,12 +20,16 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/image.hpp>
+#include <apps/components_tests/rtx/support/pooledchain.hpp>
 #include <components/contentstore/key.hpp>
 #include <components/contentstore/store.hpp>
 #include <components/misc/bytebuffer.hpp>
+#include <components/resource/cachebudget.hpp>
+#include <components/resource/memoryarbiter.hpp>
 #include <components/rtx/common/bufferpool.hpp>
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/chainbuild.hpp>
+#include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -37,10 +41,11 @@
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
+#include <components/rtx/preprocess/texture/chainadmission.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/chainscratch.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
-#include <components/rtx/preprocess/texture/texturepass.hpp>
+#include <components/rtx/preprocess/texture/filefactspass.hpp>
 #include <components/rtx/shaders/tangent.h>
 #include <components/testing/util.hpp>
 
@@ -117,11 +122,10 @@ namespace Rtx
         }
 
         /// What a preprocessor and the chain it made hold, as a dispatcher reads a thread's.
-        ChainScratch heldBy(const ContentPreprocessor& content, const MadeChain& made)
+        /// What `content`'s chain buffers hold, the made chain's among them.
+        ChainScratch heldBy(const ContentPreprocessor& content)
         {
-            ChainScratch held = content.chainScratch();
-            held[ChainBuffer::Made] = made.mBytes.capacity();
-            return held;
+            return content.chainScratch();
         }
 
         /// **A chain's scratch is predicted off its image's header, and its buffers grow to no more**: for each file
@@ -153,10 +157,9 @@ namespace Rtx
             {
                 const ChainPass::Input input{ .mImage = *tried.mImage, .mEncoding = tried.mEncoding };
                 ContentPreprocessor content(nullptr);
-                MadeChain made;
-                content.chain(input, made);
+                ASSERT_TRUE(Testing::chainOf(content, input).has_value());
                 const ChainScratch predicted = ChainPass::scratchOf(input);
-                const ChainScratch held = heldBy(content, made);
+                const ChainScratch held = heldBy(content);
                 const auto encoding = static_cast<std::int32_t>(tried.mEncoding);
                 EXPECT_TRUE(held.within(predicted)) << encoding;
                 EXPECT_EQ(predicted[ChainBuffer::Texels], tried.mTexels) << encoding;
@@ -179,23 +182,24 @@ namespace Rtx
                     .mPartner = colour ? *specular : *diffuse,
                     .mEncoding = encoding };
                 ContentPreprocessor content(nullptr);
-                MadeChain made;
-                content.convert(input, made);
-                ASSERT_NE(made.mForm, ChainForm::Stands) << static_cast<std::int32_t>(encoding);
-                EXPECT_TRUE(heldBy(content, made).within(ConversionPass::scratchOf(input)))
+                const std::optional<MadeChain> made = Testing::chainOf(content, input);
+                ASSERT_TRUE(made.has_value());
+                ASSERT_NE(made->mForm, ChainForm::Stands) << static_cast<std::int32_t>(encoding);
+                EXPECT_TRUE(heldBy(content).within(ConversionPass::scratchOf(input)))
                     << static_cast<std::int32_t>(encoding);
             }
 
             ContentPreprocessor content(nullptr);
-            MadeChain made;
-            content.chain(ChainPass::Input{ .mImage = *makeBc1(64, 64, 1), .mEncoding = TextureEncoding::Data }, made);
-            const ChainScratch afterLarge = heldBy(content, made);
+            ASSERT_TRUE(Testing::chainOf(
+                content, ChainPass::Input{ .mImage = *makeBc1(64, 64, 1), .mEncoding = TextureEncoding::Data })
+                    .has_value());
+            const ChainScratch afterLarge = heldBy(content);
             const osg::ref_ptr<osg::Image> smallImage = makeBc1(16, 16, 1);
             const ChainPass::Input small{ .mImage = *smallImage, .mEncoding = TextureEncoding::Data };
             const ChainScratch predicted = ChainPass::scratchOf(small);
             EXPECT_EQ(afterLarge.growthTo(predicted), predicted[ChainBuffer::Payload]) << "the payload alone";
-            content.chain(small, made);
-            EXPECT_EQ(heldBy(content, made).mBytes, afterLarge.mBytes) << "a smaller file grows nothing";
+            ASSERT_TRUE(Testing::chainOf(content, small).has_value());
+            EXPECT_EQ(heldBy(content).mBytes, afterLarge.mBytes) << "a smaller file grows nothing";
         }
 
         /// A shape asked through the preprocessor keeps the card's front and says it was a sheet,
@@ -215,7 +219,7 @@ namespace Rtx
             EXPECT_EQ(shaped.mAsked, 1u);
             EXPECT_EQ(shaped.mHits, 0u);
             EXPECT_EQ(shaped.mKeyBytes, 0u);
-            EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 0u) << "a pass not asked counts nothing";
+            EXPECT_EQ(stats.at(ContentPassId::FileFacts).mAsked, 0u) << "a pass not asked counts nothing";
         }
 
         /// **With no store, every ask runs.** The same shape asked twice is asked twice and found
@@ -243,9 +247,10 @@ namespace Rtx
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             {
                 ContentStore::Store store(folder, sContentStorePolicy);
-                ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+                ContentPreprocessor content(&store);
                 std::vector<std::uint32_t> kept;
                 foldCard(content, kept);
+                store.flush();
                 kept.clear();
                 EXPECT_TRUE(foldCard(content, kept).mSheet);
                 EXPECT_EQ(kept, (std::vector<std::uint32_t>{ 0, 1, 2, 0, 2, 3 }));
@@ -256,7 +261,7 @@ namespace Rtx
             }
 
             ContentStore::Store next(folder, sContentStorePolicy);
-            ContentPreprocessor reader(&next, ContentStore::Reach::Disk);
+            ContentPreprocessor reader(&next);
             std::vector<std::uint32_t> kept;
             EXPECT_TRUE(foldCard(reader, kept).mSheet);
             EXPECT_EQ(kept, (std::vector<std::uint32_t>{ 0, 1, 2, 0, 2, 3 }));
@@ -358,10 +363,11 @@ namespace Rtx
             EXPECT_FALSE(ContentCodec<MadeChain>::decode(empty, read));
         }
 
-        /// The texture passes through the preprocessor answer what the readings of the described
-        /// level do, for an image they read and for one they cannot: a file in RGB 3-3-2, which is
-        /// solid by the rule that changes nothing, and worth nothing.
-        TEST(RtxContentPreprocessorTest, theTexturePassesAnswerWhatTheDirectReadingsDo)
+        /// **The facts through the preprocessor answer what the readings of the described level do**, for an image they
+        /// read and for one they cannot: a file in RGB 3-3-2, which is solid by the rule that changes nothing, worth
+        /// nothing, spans the whole byte range and is read as metal-roughness. With no store, each ask runs, and keys
+        /// no file.
+        TEST(RtxContentPreprocessorTest, theFactsAnswerWhatTheDirectReadingsDo)
         {
             ContentPreprocessor content;
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
@@ -369,22 +375,26 @@ namespace Rtx
             TexelScratch scratch;
             const std::optional<TextureData> finest = describeFinest(*painted, scratch);
             ASSERT_TRUE(finest.has_value());
-            EXPECT_EQ(content.reachesSolid(*painted), reachesSolid(*finest));
-            EXPECT_TRUE(content.reachesSolid(*painted)) << "its last texel is solid";
+            const ImageFacts asked = content.facts(*painted);
+            EXPECT_EQ(asked.mReachesSolid, reachesSolid(*finest));
+            EXPECT_TRUE(asked.mReachesSolid) << "its last texel is solid";
+            EXPECT_EQ(asked.mAlphaRange, alphaRange(*finest));
 
             const MeanTexel direct = meanTexel(*finest, scratch);
-            const MeanTexel asked = content.meanTexel(*painted);
-            EXPECT_EQ(asked.mColour, direct.mColour);
-            EXPECT_EQ(asked.mWhole, direct.mWhole);
-            EXPECT_EQ(asked.mAlpha, direct.mAlpha);
+            EXPECT_EQ(asked.mMean.mColour, direct.mColour);
+            EXPECT_EQ(asked.mMean.mWhole, direct.mWhole);
+            EXPECT_EQ(asked.mMean.mAlpha, direct.mAlpha);
 
             osg::ref_ptr<osg::Image> odd = Testing::makeImage("odd.dds", 2, 2, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
-            EXPECT_TRUE(content.reachesSolid(*odd));
-            EXPECT_EQ(content.meanTexel(*odd).mColour, osg::Vec3f());
+            const ImageFacts unread = content.facts(*odd);
+            EXPECT_TRUE(unread.mReachesSolid);
+            EXPECT_EQ(unread.mMean.mColour, osg::Vec3f());
+            EXPECT_EQ(unread.mAlphaRange, AlphaRange{});
+            EXPECT_EQ(unread.mSpecularLayout, SpecularLayout::MetalRoughness);
 
             const ContentStats stats = content.takeStats();
-            EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 3u);
-            EXPECT_EQ(stats.at(ContentPassId::TexelMean).mAsked, 2u);
+            EXPECT_EQ(stats.at(ContentPassId::FileFacts).mAsked, 2u);
+            EXPECT_EQ(stats.mFileKeys.mAsked, 0u);
         }
 
         /// **A `_spec` map's layout is its channels' spread**: four texels of `(100, 100, 125)` spread
@@ -405,13 +415,13 @@ namespace Rtx
                 }
                 return bytes;
             };
-            EXPECT_EQ(content.specularLayout(*makeImage(texels(125), "under.dds")), SpecularLayout::Classic);
-            EXPECT_EQ(content.specularLayout(*makeImage(texels(126), "over.dds")), SpecularLayout::MetalRoughness);
-            EXPECT_EQ(content.specularLayout(*makeImage(sPaint, "painted.dds")), SpecularLayout::MetalRoughness);
+            EXPECT_EQ(content.facts(*makeImage(texels(125), "under.dds")).mSpecularLayout, SpecularLayout::Classic);
+            EXPECT_EQ(
+                content.facts(*makeImage(texels(126), "over.dds")).mSpecularLayout, SpecularLayout::MetalRoughness);
+            EXPECT_EQ(content.facts(*makeImage(sPaint, "painted.dds")).mSpecularLayout, SpecularLayout::MetalRoughness);
 
             osg::ref_ptr<osg::Image> odd = Testing::makeImage("odd.dds", 2, 2, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
-            EXPECT_EQ(content.specularLayout(*odd), SpecularLayout::MetalRoughness);
-            EXPECT_EQ(content.takeStats().at(ContentPassId::SpecularKind).mAsked, 4u);
+            EXPECT_EQ(content.facts(*odd).mSpecularLayout, SpecularLayout::MetalRoughness);
         }
 
         /// **Khronos' converter, texel by texel**, every colour in linear light:
@@ -440,13 +450,12 @@ namespace Rtx
             EXPECT_NEAR(between.mBase.z(), 0.5972f, 1e-4f);
         }
 
-        /// What a texture pass's key reads: its file's key (`hashFile`).
+        /// What the facts' key reads: its file's key (`hashFile`).
         constexpr std::uint64_t sFinestKeyBytes = sizeof(ContentStore::Key);
 
-        /// **A pass the store keeps is found again**: the texel mean asked twice through a store is
-        /// run once and found once, keyed both times on what it read, and answers the same; and a
-        /// later session's frame thread, whose reach is memory alone, finds it in a store made on
-        /// the same folder, which held it from its start.
+        /// **A pass the store keeps is found again**: the facts asked twice through a store are run once and found
+        /// once, keyed both times on what they read, and answer the same, one entry written; and a later session finds
+        /// them in a store made on the same folder.
         TEST(RtxContentPreprocessorTest, aStoredPassIsFoundAgainInThisSessionAndTheNext)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
@@ -455,27 +464,33 @@ namespace Rtx
             const MeanTexel direct = meanTexel(*describeFinest(*painted, scratch), scratch);
             {
                 ContentStore::Store store(folder, sContentStorePolicy);
-                ContentPreprocessor content(&store, ContentStore::Reach::Disk);
-                const MeanTexel run = content.meanTexel(*painted);
-                const MeanTexel found = content.meanTexel(*painted);
-                EXPECT_EQ(run.mColour, direct.mColour);
-                EXPECT_EQ(found.mColour, direct.mColour);
-                EXPECT_EQ(found.mWhole, direct.mWhole);
-                EXPECT_EQ(found.mAlpha, direct.mAlpha);
+                ContentPreprocessor content(&store);
+                const ImageFacts run = content.facts(*painted);
+                store.flush();
+                const ImageFacts found = content.facts(*painted);
+                EXPECT_EQ(run.mMean.mColour, direct.mColour);
+                EXPECT_EQ(found.mMean.mColour, direct.mColour);
+                EXPECT_EQ(found.mMean.mWhole, direct.mWhole);
+                EXPECT_EQ(found.mMean.mAlpha, direct.mAlpha);
+                EXPECT_EQ(found.mReachesSolid, run.mReachesSolid);
+                EXPECT_EQ(found.mAlphaRange, run.mAlphaRange);
+                EXPECT_EQ(found.mSpecularLayout, run.mSpecularLayout);
 
-                const PassStats stats = content.takeStats().at(ContentPassId::TexelMean);
+                const PassStats stats = content.takeStats().at(ContentPassId::FileFacts);
                 EXPECT_EQ(stats.mAsked, 2u);
                 EXPECT_EQ(stats.mHits, 1u);
                 EXPECT_EQ(stats.mKeyBytes, 2 * sFinestKeyBytes);
+                store.flush();
+                EXPECT_EQ(store.getStats().mWritten, 1u) << "one entry for every fact";
             }
 
             ContentStore::Store next(folder, sContentStorePolicy);
             next.flush();
-            ContentPreprocessor frame(&next, ContentStore::Reach::Memory);
-            const MeanTexel found = frame.meanTexel(*painted);
-            EXPECT_EQ(found.mColour, direct.mColour);
-            EXPECT_EQ(found.mAlpha, direct.mAlpha);
-            EXPECT_EQ(frame.takeStats().at(ContentPassId::TexelMean).mHits, 1u);
+            ContentPreprocessor frame(&next);
+            const ImageFacts found = frame.facts(*painted);
+            EXPECT_EQ(found.mMean.mColour, direct.mColour);
+            EXPECT_EQ(found.mMean.mAlpha, direct.mAlpha);
+            EXPECT_EQ(frame.takeStats().at(ContentPassId::FileFacts).mHits, 1u);
         }
 
         /// **A chain asked only to be stored is run where the store lacks it, and not read where it holds
@@ -488,60 +503,40 @@ namespace Rtx
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
             const ChainPass::Input input{ .mImage = *painted, .mEncoding = TextureEncoding::Normal };
-            MadeChain made;
-            ContentPreprocessor(nullptr, ContentStore::Reach::Disk).chain(input, made);
-            ASSERT_FALSE(made.mBytes.empty());
+            ContentPreprocessor alone(nullptr);
+            const std::optional<MadeChain> made = Testing::chainOf(alone, input);
+            ASSERT_TRUE(made.has_value());
+            ASSERT_FALSE(made->mBytes.empty());
             {
                 ContentStore::Store store(folder, sContentStorePolicy);
-                ContentPreprocessor content(&store, ContentStore::Reach::Disk);
-                MadeChain stored;
-                content.chain(input, stored, ContentAsk::Stored);
-                ASSERT_EQ(stored.mForm, ChainForm::Bc7) << "the store lacked it, so it ran";
-                EXPECT_TRUE(stored.mBytes.empty()) << "the chain was copied into the store's payload";
-                EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 0u);
+                ContentPreprocessor content(&store);
+                ASSERT_TRUE(content.prepareChain(input));
+                const PassStats stats = content.takeStats().at(ContentPassId::Chain);
+                EXPECT_EQ(stats.mHits, 0u) << "the store lacked it, so it ran";
+                EXPECT_EQ(stats.mAsked, 1u);
             }
 
             ContentStore::Store next(folder, sContentStorePolicy);
-            ContentPreprocessor content(&next, ContentStore::Reach::Disk);
-            MadeChain untouched{ .mForm = ChainForm::Own, .mBytes = Misc::ByteBuffer{ std::byte{ 9 } } };
-            content.chain(input, untouched, ContentAsk::Stored);
-            EXPECT_EQ(untouched.mForm, ChainForm::Own);
-            EXPECT_EQ(untouched.mBytes, Misc::ByteBuffer{ std::byte{ 9 } });
-            EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 1u);
+            ContentPreprocessor content(&next);
+            ASSERT_TRUE(content.prepareChain(input));
+            EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 1u) << "a stored ask read what it made";
 
-            MadeChain read;
-            content.chain(input, read);
-            EXPECT_EQ(read.mForm, ChainForm::Bc7);
-            EXPECT_EQ(read.mBytes, made.mBytes);
+            std::optional<MadeChain> read = Testing::chainOf(content, input);
+            ASSERT_TRUE(read.has_value());
+            EXPECT_EQ(read->mForm, ChainForm::Bc7);
+            EXPECT_EQ(read->mBytes, made->mBytes);
             EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 1u);
 
             // **And a hit lets go of the image its key was read from**, as a run does: a file the
             // scene let go of is not held by the thread that asked for its chain.
             osg::ref_ptr<osg::Image> again = makeImage(sPaint, "painted.dds");
             const osg::observer_ptr<osg::Image> watched(again);
-            content.chain(ChainPass::Input{ .mImage = *again, .mEncoding = TextureEncoding::Normal }, read);
+            read
+                = Testing::chainOf(content, ChainPass::Input{ .mImage = *again, .mEncoding = TextureEncoding::Normal });
             EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 1u);
             again = nullptr;
             osg::ref_ptr<osg::Image> standing;
             EXPECT_FALSE(watched.lock(standing)) << "the image the hit read its key from was held";
-        }
-
-        /// **The walk that stops at the first texel that answers is kept too**, its file's key costing nothing more
-        /// than the mean's: the solid reach, asked twice, runs once, is found once, and writes one entry.
-        TEST(RtxContentPreprocessorTest, theWalkThatStopsAtTheFirstTexelThatAnswersIsKept)
-        {
-            ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
-            ContentPreprocessor content(&store, ContentStore::Reach::Disk);
-            const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
-            for (std::int32_t ask = 0; ask < 2; ++ask)
-                EXPECT_TRUE(content.reachesSolid(*painted));
-
-            const ContentStats stats = content.takeStats();
-            EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 2u);
-            EXPECT_EQ(stats.at(ContentPassId::SolidReach).mHits, 1u);
-            EXPECT_EQ(stats.at(ContentPassId::SolidReach).mKeyBytes, 2 * sFinestKeyBytes);
-            store.flush();
-            EXPECT_EQ(store.getStats().mWritten, 1u);
         }
 
         /// A 2x2 RGBA8 image of `sPaint` carrying a 1x1 second level of `second`.
@@ -582,52 +577,52 @@ namespace Rtx
             otherOdd->data()[0] ^= 1;
             EXPECT_NE(hashFile(*odd, scratch), hashFile(*otherOdd, scratch)) << "two images no reader decodes";
 
-            FileKeys keys(scratch);
-            const osg::ref_ptr<osg::Image> named = makeImage(sPaint, "painted.dds");
-            const ContentStore::Key handed{ .mHash = { 1, 2 } };
-            keys.name(*named, handed);
-            EXPECT_EQ(keys.of(*named), handed);
+            // **Each file keyed by its texels counted**: two, and their bytes, 16 and 16.
+            PassStats counted;
+            FileKeys keys(scratch, counted);
             EXPECT_EQ(keys.of(*makeImage(sPaint, "painted.dds")), key) << "another image of the same texels";
-            keys.forget();
-            EXPECT_EQ(keys.of(*named), key);
+            EXPECT_EQ(keys.of(*makeImage(sPaint, "again.dds")), key);
+            EXPECT_EQ(counted.mAsked, 2u);
+            EXPECT_EQ(counted.mKeyBytes, 32u);
         }
 
         /// **A stored payload its codec cannot read is a miss, and the output run again is filed in its
-        /// place**: a texel mean filed as three bytes, against the 28 its codec reads, runs, and the
+        /// place**: a file's facts filed as three bytes, against the 32 their codec reads, run, and the
         /// run's output replaces the held payload, so the next ask finds it, and the file, so the next
-        /// session reads the 28.
+        /// session reads the 32.
         TEST(RtxContentPreprocessorTest, aPayloadItsCodecCannotReadIsRunAgainAndReplaced)
         {
             ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
 
             TexelScratch scratch;
-            ContentStore::Digest digest(sContentPasses.name(ContentPassId::TexelMean), TexelMean::sVersion);
+            ContentStore::Digest digest(sContentPasses.name(ContentPassId::FileFacts), FileFactsPass::sVersion);
             digest.add(hashFile(*painted, scratch));
             const Misc::ByteBuffer broken{ std::byte{ 1 }, std::byte{ 2 }, std::byte{ 3 } };
             store.write(ContentStore::Filed{ .mKey = digest.getKey(),
-                            .mKind = storeKindOf(ContentPassId::TexelMean),
-                            .mVersion = TexelMean::sVersion,
-                            .mPayload = broken,
-                            .mSegmentEnds = {} },
-                ContentStore::Reach::Disk);
+                .mKind = storeKindOf(ContentPassId::FileFacts),
+                .mVersion = FileFactsPass::sVersion,
+                .mPayload = broken,
+                .mSegmentEnds = {} });
+            store.flush();
 
-            ContentPreprocessor content(&store, ContentStore::Reach::Memory);
-            const MeanTexel first = content.meanTexel(*painted);
-            const MeanTexel second = content.meanTexel(*painted);
-            EXPECT_EQ(second.mColour, first.mColour);
-            EXPECT_EQ(second.mAlpha, first.mAlpha);
+            ContentPreprocessor content(&store);
+            const ImageFacts first = content.facts(*painted);
+            store.flush();
+            const ImageFacts second = content.facts(*painted);
+            EXPECT_EQ(second.mMean.mColour, first.mMean.mColour);
+            EXPECT_EQ(second.mMean.mAlpha, first.mMean.mAlpha);
 
-            const PassStats stats = content.takeStats().at(ContentPassId::TexelMean);
+            const PassStats stats = content.takeStats().at(ContentPassId::FileFacts);
             EXPECT_EQ(stats.mAsked, 2u);
             EXPECT_EQ(stats.mHits, 1u) << "the second, from the run's output";
 
             store.flush();
             Misc::ByteBuffer filed;
             ContentStore::Store next(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
-            ASSERT_TRUE(next.read(digest.getKey(), storeKindOf(ContentPassId::TexelMean), TexelMean::sVersion,
-                ContentStore::Reach::Disk, filed));
-            EXPECT_EQ(filed.size(), 28u) << "the broken file stood";
+            ASSERT_TRUE(
+                next.read(digest.getKey(), storeKindOf(ContentPassId::FileFacts), FileFactsPass::sVersion, filed));
+            EXPECT_EQ(filed.size(), 32u) << "the broken file stood";
         }
 
         /// **A stored shape that reads whole and does not fit its input is run again and replaced**: the digest says
@@ -670,15 +665,16 @@ namespace Rtx
                 ContentStore::Store store(
                     TestingOpenMW::currentTestDirPath() / ("store" + std::to_string(at)), sContentStorePolicy);
                 store.write(ContentStore::Filed{ .mKey = digest.getKey(),
-                                .mKind = storeKindOf(ContentPassId::Shape),
-                                .mVersion = ShapePass::sVersion,
-                                .mPayload = payload,
-                                .mSegmentEnds = {} },
-                    ContentStore::Reach::Disk);
-                ContentPreprocessor content(&store, ContentStore::Reach::Memory);
+                    .mKind = storeKindOf(ContentPassId::Shape),
+                    .mVersion = ShapePass::sVersion,
+                    .mPayload = payload,
+                    .mSegmentEnds = {} });
+                store.flush();
+                ContentPreprocessor content(&store);
                 std::vector<std::uint32_t> run;
                 foldCard(content, run);
                 EXPECT_EQ(run, (std::vector<std::uint32_t>{ 0, 1, 2, 0, 2, 3 })) << misfit.mName;
+                store.flush();
                 foldCard(content, run);
                 EXPECT_EQ(run, (std::vector<std::uint32_t>{ 0, 1, 2, 0, 2, 3 })) << misfit.mName;
                 const PassStats stats = content.takeStats().at(ContentPassId::Shape);
@@ -719,14 +715,14 @@ namespace Rtx
 
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             ContentStore::Store store(folder, sContentStorePolicy);
-            ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+            ContentPreprocessor content(&store);
             TexelScratch scratch;
             ContentStore::Digest digest(sContentPasses.name(ContentPassId::Chain), ChainPass::sVersion);
             digest.add(hashFile(*single, scratch));
             digest.add(TextureEncoding::Colour);
-            MadeChain made;
-            ASSERT_TRUE(content.chain(input, made));
-            ASSERT_EQ(made.mForm, ChainForm::Bc7);
+            const std::optional<MadeChain> made = Testing::chainOf(content, input);
+            ASSERT_TRUE(made.has_value());
+            ASSERT_EQ(made->mForm, ChainForm::Bc7);
             store.flush();
             const std::filesystem::path path = store.pathOf(digest.getKey(), storeKindOf(ContentPassId::Chain));
             ASSERT_TRUE(std::filesystem::exists(path)) << "filed under the key the pass makes";
@@ -742,36 +738,103 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> file = makeBc1(64, 64, 1);
             const ChainPass::Input input{ .mImage = *file, .mEncoding = TextureEncoding::Colour };
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
-            const std::shared_ptr<BufferPool> pool = BufferPool::make(std::size_t{ 1 } << 20);
+            BufferPool pool(std::size_t{ 1 } << 20);
 
             ContentStore::Store store(folder, sContentStorePolicy);
             Misc::ByteBuffer madeBytes;
             const std::byte* buffer = nullptr;
             {
-                ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+                ContentPreprocessor content(&store);
                 PooledChain made;
-                ASSERT_TRUE(content.chain(input, *pool, {}, made));
+                ASSERT_TRUE(content.chain(input, 0, pool, {}, made));
                 EXPECT_EQ(made.mForm, ChainForm::Bc7);
                 ASSERT_EQ(made.mBytes.bytes().size(), 5488u);
                 madeBytes.assign(made.mBytes.bytes().begin(), made.mBytes.bytes().end());
                 buffer = made.mBytes.bytes().data();
-                EXPECT_EQ(pool->getHeld().mInUse, std::size_t{ 64 } << 10);
+                EXPECT_EQ(pool.getHeld().mInUse, std::size_t{ 64 } << 10);
                 EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 0u);
             }
             store.flush();
-            EXPECT_EQ(pool->getHeld().mFree, std::size_t{ 64 } << 10) << "given back";
+            EXPECT_EQ(pool.getHeld().mFree, std::size_t{ 64 } << 10) << "given back";
 
             ContentStore::Store next(folder, sContentStorePolicy);
             next.flush();
-            ContentPreprocessor content(&next, ContentStore::Reach::Disk);
+            ContentPreprocessor content(&next);
             PooledChain found;
-            ASSERT_TRUE(content.chain(input, *pool, {}, found));
+            ASSERT_TRUE(content.chain(input, 0, pool, {}, found));
             EXPECT_EQ(found.mForm, ChainForm::Bc7);
+            EXPECT_EQ(found.mFirst, 0u);
             EXPECT_EQ(Misc::ByteBuffer(found.mBytes.bytes().begin(), found.mBytes.bytes().end()), madeBytes);
             EXPECT_EQ(found.mBytes.bytes().data(), buffer) << "the buffer given back";
             const PassStats stats = content.takeStats().at(ContentPassId::Chain);
             EXPECT_EQ(stats.mHits, 1u);
             EXPECT_EQ(stats.mRunMs, 0.0);
+
+            // **From the third level asked, the third level's segment on**: its 16 blocks of 16 bytes, then 4, 1, 1 and
+            // 1, 256 + 64 + 16 + 16 + 16 = 368 bytes, 4096 + 1024 = 5120 bytes in, read from the file and made alike.
+            constexpr MadeLayout sFromThird{
+                .mFormat = TextureFormat::Bc7Srgb, .mWidth = 64, .mHeight = 64, .mCount = 7, .mFirst = 2
+            };
+            EXPECT_EQ(sFromThird.offsetOf(2), 5120u);
+            EXPECT_EQ(sFromThird.bytes(), 5488u - 5120u);
+            PooledChain coarse;
+            ASSERT_TRUE(content.chain(input, 2, pool, {}, coarse));
+            EXPECT_EQ(coarse.mFirst, 2u);
+            EXPECT_EQ(Misc::ByteBuffer(coarse.mBytes.bytes().begin(), coarse.mBytes.bytes().end()),
+                Misc::ByteBuffer(madeBytes.begin() + 5120, madeBytes.end()))
+                << "the levels read from the file are the levels made";
+            coarse = PooledChain();
+            ContentPreprocessor alone(nullptr);
+            ASSERT_TRUE(alone.chain(input, 2, pool, {}, coarse));
+            EXPECT_EQ(coarse.mFirst, 2u);
+            EXPECT_EQ(Misc::ByteBuffer(coarse.mBytes.bytes().begin(), coarse.mBytes.bytes().end()),
+                Misc::ByteBuffer(madeBytes.begin() + 5120, madeBytes.end()))
+                << "a chain made hands over from the first level asked as one read does";
+            const osg::ref_ptr<const MadeImage> held = MadeImage::make(sFromThird, std::move(coarse.mBytes));
+            ASSERT_EQ(held->getLevels().size(), 7u);
+            EXPECT_EQ(held->getLevels()[2].mOffset, 0u) << "the first level held begins the bytes";
+            EXPECT_EQ(held->getLevels()[3].mOffset, 256u);
+            EXPECT_EQ(held->getLevels()[2].mWidth, 16u);
+        }
+
+        /// **An entry that fills no form's layout of its file is discarded before a buffer is taken for it**: an entry
+        /// is untrusted, and a pooled read once sized its take by what the entry said. One segment of 200 KiB and a
+        /// form's byte, filed under an 8 by 8 file's key, whose chain is 112 bytes: the chain is made and handed over
+        /// in the smallest buffer, 64 KiB, and the pool has made no other, where the misfit's took 256 KiB.
+        TEST(RtxContentPreprocessorTest, anEntryThatFillsNoLayoutOfItsFileIsDiscardedBeforeABufferIsTaken)
+        {
+            const osg::ref_ptr<osg::Image> single = makeBc1(8, 8, 1);
+            const ChainPass::Input input{ .mImage = *single, .mEncoding = TextureEncoding::Colour };
+            ContentStore::Digest digest(sContentPasses.name(ContentPassId::Chain), ChainPass::sVersion);
+            {
+                ChainBuild build;
+                TexelScratch scratch;
+                PassStats counted;
+                FileKeys keys(scratch, counted);
+                TexelReads reads;
+                ChainPass pass(build, keys, reads);
+                pass.digest(input, digest);
+            }
+
+            Misc::ByteBuffer payload;
+            ContentCodec<MadeChain>::encode(
+                MadeChain{ .mForm = ChainForm::Bc7, .mBytes = Misc::ByteBuffer(std::size_t{ 200 } << 10) }, payload);
+            ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
+            store.write(ContentStore::Filed{ .mKey = digest.getKey(),
+                .mKind = storeKindOf(ContentPassId::Chain),
+                .mVersion = ChainPass::sVersion,
+                .mPayload = payload,
+                .mSegmentEnds = {} });
+            store.flush();
+
+            BufferPool pool(std::size_t{ 1 } << 20);
+            ContentPreprocessor content(&store);
+            PooledChain made;
+            ASSERT_TRUE(content.chain(input, 0, pool, {}, made));
+            EXPECT_EQ(made.mForm, ChainForm::Bc7);
+            EXPECT_EQ(made.mBytes.bytes().size(), 112u);
+            EXPECT_EQ(pool.getHeld().mInUse, std::size_t{ 64 } << 10);
+            EXPECT_EQ(pool.getHeld().mFree, 0u) << "a buffer was taken for the entry before its layout was checked";
         }
 
         /// **A stored chain that reads whole and does not fit its file is run again and replaced**, as a
@@ -788,7 +851,8 @@ namespace Rtx
             {
                 ChainBuild build;
                 TexelScratch scratch;
-                FileKeys keys(scratch);
+                PassStats counted;
+                FileKeys keys(scratch, counted);
                 TexelReads reads;
                 ChainPass pass(build, keys, reads);
                 pass.digest(input, digest);
@@ -818,20 +882,20 @@ namespace Rtx
                 ContentStore::Store store(
                     TestingOpenMW::currentTestDirPath() / ("store" + std::to_string(at)), sContentStorePolicy);
                 store.write(ContentStore::Filed{ .mKey = digest.getKey(),
-                                .mKind = storeKindOf(ContentPassId::Chain),
-                                .mVersion = ChainPass::sVersion,
-                                .mPayload = payload,
-                                .mSegmentEnds = {} },
-                    ContentStore::Reach::Disk);
-                ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+                    .mKind = storeKindOf(ContentPassId::Chain),
+                    .mVersion = ChainPass::sVersion,
+                    .mPayload = payload,
+                    .mSegmentEnds = {} });
+                store.flush();
+                ContentPreprocessor content(&store);
                 for (std::int32_t ask = 0; ask < 2; ++ask)
                 {
-                    MadeChain made;
-                    content.chain(input, made);
-                    EXPECT_EQ(made.mForm, ChainForm::Bc7) << misfit.mName;
-                    EXPECT_EQ(made.mBytes.size(), 112u) << misfit.mName;
+                    const std::optional<MadeChain> made = Testing::chainOf(content, input);
+                    ASSERT_TRUE(made.has_value()) << misfit.mName;
+                    EXPECT_EQ(made->mForm, ChainForm::Bc7) << misfit.mName;
+                    EXPECT_EQ(made->mBytes.size(), 112u) << misfit.mName;
+                    store.flush();
                 }
-                store.flush();
                 const PassStats stats = content.takeStats().at(ContentPassId::Chain);
                 EXPECT_EQ(stats.mAsked, 2u) << misfit.mName;
                 EXPECT_EQ(stats.mHits, 1u) << misfit.mName << ": the second, from the run's output";
@@ -875,7 +939,7 @@ namespace Rtx
         TEST(RtxContentCacheTest, aKeptShapeIsHandedBackWhole)
         {
             ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
-            ContentCache cache(&store, ContentStore::Reach::Disk);
+            ContentCache cache(&store);
             const ShapePass::Input input{ .mPositions = sCard, .mTriangles = sDoubled, .mSplits = true };
             const ContentStore::Key key{ .mHash = { 1, 2 } };
 
@@ -886,6 +950,7 @@ namespace Rtx
             std::vector<std::uint32_t> sources;
             const ShapePass::Output output{ .mKept = kept, .mNormals = normals, .mSources = sources };
             cache.keep<ShapePass>(key, input, output);
+            store.flush();
 
             std::vector<std::uint32_t> foundKept;
             std::vector<osg::Vec3f> foundNormals;
@@ -894,6 +959,43 @@ namespace Rtx
             ASSERT_TRUE(cache.find<ShapePass>(key, input, found));
             EXPECT_EQ(foundNormals, normals);
             EXPECT_EQ(foundKept, kept);
+        }
+
+        /// **A chain's making is admitted against what the system had left at the arbiter's last tick less what the
+        /// makings admitted hold**: of 10 GiB left, two makings of six each pass alone, and the second beside the
+        /// first does not; its ticket moved holds what it held, and both gone hold nothing. With no arbiter, or one
+        /// that has not ticked, every making is admitted.
+        TEST(RtxChainAdmissionTest, aMakingIsAdmittedAgainstWhatTheOthersHold)
+        {
+            constexpr std::uint64_t gib = std::uint64_t{ 1 } << 30;
+            Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+            Resource::MemoryArbiter memory(budget);
+            ChainScratch scratch;
+            scratch[ChainBuffer::Made] = static_cast<std::size_t>(6 * gib);
+            const osg::ref_ptr<osg::Image> file = makeImage(sPaint, "painted.dds");
+
+            ChainAdmission unbounded(nullptr);
+            std::optional<ChainAdmission::Ticket> one = unbounded.admit(scratch, *file);
+            std::optional<ChainAdmission::Ticket> two = unbounded.admit(scratch, *file);
+            EXPECT_TRUE(one.has_value()) << "no figure, no bound";
+            EXPECT_TRUE(two.has_value()) << "no figure, no bound";
+            one.reset();
+            two.reset();
+
+            memory.take(Resource::SystemReading{ .mAvailable = 10 * gib, .mHeapFree = 0, .mAt = {} });
+            ChainAdmission admission(&memory);
+            std::optional<ChainAdmission::Ticket> first = admission.admit(scratch, *file);
+            ASSERT_TRUE(first.has_value());
+            EXPECT_EQ(admission.getHeld(), scratch.total());
+            EXPECT_FALSE(admission.admit(scratch, *file).has_value()) << "two makings past what the system has left";
+
+            ChainAdmission::Ticket moved = std::move(*first);
+            first.reset();
+            EXPECT_EQ(admission.getHeld(), scratch.total()) << "a ticket moved gave back what it held";
+            moved = ChainAdmission::Ticket{};
+            EXPECT_EQ(admission.getHeld(), 0u);
+            EXPECT_TRUE(admission.admit(scratch, *file).has_value()) << "alone once the first went";
+            EXPECT_EQ(admission.getHeld(), 0u) << "a ticket dropped at once";
         }
 
         /// A sum is pass by pass and figure by figure, and the whole is every key, every found output's
@@ -906,7 +1008,7 @@ namespace Rtx
 
             ContentStats second;
             second.at(ContentPassId::Shape) = PassStats{ .mAsked = 1, .mKeyMs = 3.0, .mFoundMs = 0.25, .mKeyBytes = 5 };
-            second.at(ContentPassId::TexelMean) = PassStats{ .mAsked = 4, .mRunMs = 4.0 };
+            second.at(ContentPassId::FileFacts) = PassStats{ .mAsked = 4, .mRunMs = 4.0 };
 
             Preprocessed both{ .mOnFrame = first };
             both += Preprocessed{ .mOnFrame = second, .mOffFrame = second, .mPrepared = first, .mLoading = second };
@@ -918,7 +1020,7 @@ namespace Rtx
             EXPECT_EQ(fold.mFoundMs, 0.75);
             EXPECT_EQ(fold.mRunMs, 2.0);
             EXPECT_EQ(fold.mKeyBytes, 15u);
-            EXPECT_EQ(both.mOnFrame.at(ContentPassId::TexelMean).mAsked, 4u);
+            EXPECT_EQ(both.mOnFrame.at(ContentPassId::FileFacts).mAsked, 4u);
             EXPECT_EQ(both.mOnFrame.getMs(), 10.75);
             EXPECT_EQ(both.mOffFrame.getMs(), 7.25);
             EXPECT_EQ(both.mPrepared.getMs(), 3.5) << "the chain threads' figures not summed";

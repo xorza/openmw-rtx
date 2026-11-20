@@ -36,23 +36,21 @@ namespace Rtx
         return slot.isWorld() ? mWorld : mViews.at(ViewRow(slot.getViewIndex()));
     }
 
-    void NullRenderer::setScene(const SceneSlot slot, const SceneDesc& scene, std::span<const TextureData>)
+    void NullRenderer::standScene(const SceneSlot slot, const SceneDesc& scene)
     {
+        mDevice.forgetScene(slot);
         heldAt(slot)
             = SceneHeld{ .mIdentity = scene.getIdentity(), .mStructureRevision = scene.getStructureRevision() };
         mOpen = mOpen || slot.isWorld();
     }
 
-    void NullRenderer::extendScene(const SceneSlot slot, const SceneDesc& scene, std::span<const TextureData>)
+    DeviceEpoch NullRenderer::handOver(
+        const SceneSlot slot, const SceneDesc& scene, const std::span<const ResidencyOp> ops)
     {
+        assert(heldAt(slot).mIdentity == scene.getIdentity() && "a scene handed over that the slot was not built from");
         heldAt(slot).mStructureRevision = scene.getStructureRevision();
         mOpen = mOpen || slot.isWorld();
-    }
-
-    void NullRenderer::placeScene(const SceneSlot slot, [[maybe_unused]] const SceneDesc& scene)
-    {
-        assert(heldAt(slot).mIdentity == scene.getIdentity() && "a scene placed that the slot was not built from");
-        mOpen = mOpen || slot.isWorld();
+        return mDevice.handOver(slot, scene, ops);
     }
 
     SceneHeld NullRenderer::describeHeld(const SceneSlot slot) const
@@ -67,15 +65,17 @@ namespace Rtx
 
     void NullRenderer::dropViewScene(const SceneSlot slot)
     {
-        assert(!slot.isWorld() && holds(slot) && "a view scene dropped that is not held");
+        assert(!slot.isWorld() && "a view scene dropped that is not held");
+        assert(holds(slot) && "a view scene dropped that is not held");
+        mDevice.forgetScene(slot);
         mViews.free(ViewRow(slot.getViewIndex()));
     }
 
     NullRenderer::GuiTexture& NullRenderer::textureAt(const GuiSlot slot)
     {
         assert(!slot.isNone() && "a gui texture nothing names");
-        assert(mGuiTextures.isLive(GuiTextureRow(slot.get())) && "a gui texture that was never made or was dropped");
-        return mGuiTextures.at(GuiTextureRow(slot.get()));
+        assert(mGuiTextures.isLive(GuiTextureRow(slot.at())) && "a gui texture that was never made or was dropped");
+        return mGuiTextures.at(GuiTextureRow(slot.at()));
     }
 
     bool NullRenderer::traceGuiTexture(const GuiSlot texture, [[maybe_unused]] const SceneSlot scene,
@@ -103,7 +103,10 @@ namespace Rtx
 
     GuiSlot NullRenderer::addGuiTexture(const std::uint32_t width, const std::uint32_t height)
     {
-        return GuiSlot::at(mGuiTextures.take(GuiTexture{ .mWidth = width, .mHeight = height, .mCopied = false }).at());
+        // As a device refuses a size no image takes: a widget made at nought fails that one texture.
+        if (width == 0 || height == 0)
+            return GuiSlot();
+        return GuiSlot(mGuiTextures.take(GuiTexture{ .mWidth = width, .mHeight = height, .mCopied = false }).at());
     }
 
     std::span<std::uint8_t> NullRenderer::lendGuiTexture(const GuiSlot texture, const GuiRegion& region)
@@ -129,7 +132,7 @@ namespace Rtx
     void NullRenderer::dropGuiTexture(const GuiSlot texture)
     {
         assert(!texture.isNone() && "a gui texture nothing names");
-        mGuiTextures.free(GuiTextureRow(texture.get()));
+        mGuiTextures.free(GuiTextureRow(texture.at()));
     }
 
     void NullRenderer::resize(const std::uint32_t width, const std::uint32_t height)
@@ -145,7 +148,8 @@ namespace Rtx
 
     void NullRenderer::setGamma(const float gamma)
     {
-        assert(gamma > 0.0f && std::isfinite(gamma) && "a gamma its reader should have refused");
+        assert(gamma > 0.0f && "a gamma its reader should have refused");
+        assert(std::isfinite(gamma) && "a gamma its reader should have refused");
         mProfile.mGamma = gamma;
     }
 
@@ -156,7 +160,8 @@ namespace Rtx
 
     void NullRenderer::setBounceRays(const std::uint32_t rays)
     {
-        assert(rays >= 1 && rays <= Shaders::MAX_BOUNCE_RAYS && "a count its reader should have refused");
+        assert(rays >= 1 && "a count its reader should have refused");
+        assert(rays <= Shaders::MAX_BOUNCE_RAYS && "a count its reader should have refused");
         mProfile.mReconstruction.mSampling.mBounceRays = rays;
     }
 
@@ -172,7 +177,8 @@ namespace Rtx
             .mReconstruction
             = mProfile.reconstructionFor(UpscalerInput::Filtered, request.mOptions.mReconstruction, mExtents) };
         mOpen = false;
-        return {};
+        WorldOptions described;
+        return mDescriber.describe(request, described);
     }
 
     void NullRenderer::skipFrame()
@@ -208,6 +214,26 @@ namespace Rtx
         if (mUnreportedCount < sFramesInFlight)
             return std::nullopt;
         return finishFrame();
+    }
+
+    MemoryPrices NullRenderer::priceMemory() const
+    {
+        // No device charges anything over the texels: each texture at its texels' bytes, up to a side of 4096, and
+        // no structure priced, as none is built.
+        MemoryPrices prices;
+        for (const TextureFormat format : sPricedFormats)
+            for (std::uint32_t side = 1; side <= 4096; side *= 2)
+            {
+                const std::uint64_t bytes = chainTexelBytes(format, side);
+                prices.mTextures.push_back(TexturePrice{ .mFormat = format,
+                    .mSide = side,
+                    .mLevels = chainLevels(side),
+                    .mTexelBytes = bytes,
+                    .mBytes = bytes,
+                    .mAlignment = 1,
+                    .mKinds = 0 });
+            }
+        return prices;
     }
 
     std::string NullRenderer::describeDevice() const

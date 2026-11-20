@@ -26,7 +26,7 @@
 #include <components/misc/result.hpp>
 #include <components/nifosg/autotransform.hpp>
 #include <components/rtx/common/finite.hpp>
-#include <components/rtx/mirror/cells/cellring.hpp>
+#include <components/rtx/mirror/cells/cellstreamer.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
@@ -601,10 +601,12 @@ namespace Rtx
 
     /// Every node, until the owner states a mask — `setTraversalMask`, which says why the default
     /// is not the narrower answer it looks like it should be.
-    SceneExtractor::SceneExtractor(SceneDesc& scene, WalkContext& context, const ExtractorRoom& room)
+    SceneExtractor::SceneExtractor(
+        SceneDesc& scene, WalkContext& context, const ExtractorRoom& room, const HoldTier placed)
         : mScene(scene)
         , mWalk(std::make_unique<Traversal>(*this, mKinds))
         , mContext(context)
+        , mPlaced(placed)
         , mTraversalMask(~0u)
     {
         // Reserved once, so no frame rehashes a map. A cell's drawables arriving grow every
@@ -638,15 +640,15 @@ namespace Rtx
     ExtractionStats SceneExtractor::extract(
         const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame)
     {
-        return walk(node, transform, anchor, frame, nullptr, false);
+        return walk(node, transform, anchor, frame, nullptr, Placed::Standing);
     }
 
     ExtractionStats SceneExtractor::extractWorld(
-        const osg::Node& root, std::size_t anchor, std::size_t frame, CellRing& ring)
+        const osg::Node& root, std::size_t anchor, std::size_t frame, CellStreamer& ring)
     {
         assert(ring.adoptsThrough(*this) && "a ring made on another extractor adopts into its scene");
 
-        return walk(root, osg::Matrixf::identity(), anchor, frame, &ring, false);
+        return walk(root, osg::Matrixf::identity(), anchor, frame, &ring, Placed::Standing);
     }
 
     ExtractionStats SceneExtractor::extractPrecipitation(
@@ -655,18 +657,18 @@ namespace Rtx
         if (fall == nullptr)
             return {};
 
-        return walk(*fall, osg::Matrixf::translate(eye), anchor, frame, nullptr, true);
+        return walk(*fall, osg::Matrixf::translate(eye), anchor, frame, nullptr, Placed::Falling);
     }
 
     SceneExtractor::WalkGuard::WalkGuard(
-        MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, const bool falls, FrozenRoots& frozen)
+        MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, const Placed placed, FrozenRoots& frozen)
         : mPass(pass)
         , mPhase(phase)
         , mFrozen(frozen)
     {
         mPhase.step(Phase::Walking, Phase::Between);
         mPass.mStats = &stats;
-        mPass.mFalls = falls;
+        mPass.mFalls = placed == Placed::Falling;
     }
 
     SceneExtractor::WalkGuard::~WalkGuard()
@@ -680,10 +682,10 @@ namespace Rtx
     }
 
     ExtractionStats SceneExtractor::walk(const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor,
-        std::size_t frame, CellRing* const ring, const bool falls)
+        std::size_t frame, CellStreamer* const ring, const Placed placed)
     {
         ExtractionStats stats;
-        const WalkGuard walking(mPass, mPhase, stats, falls, mFrozen);
+        const WalkGuard walking(mPass, mPhase, stats, placed, mFrozen);
 
         // Before anything is placed, so a walk that threw has still marked the scene: what it
         // stamped before the throw is standing, and the sweep is owed for the rest.
@@ -742,7 +744,7 @@ namespace Rtx
         return stats;
     }
 
-    Retirement SceneExtractor::detach(CellRing& ring)
+    Retirement SceneExtractor::detach(CellStreamer& ring)
     {
         mPhase.expect(Phase::Between);
 
@@ -938,6 +940,7 @@ namespace Rtx
             .mTransform = place,
             .mMesh = mesh,
             .mMaterial = material.mIndex,
+            .mTier = mPlaced,
             .mOpacity = fade,
             .mClass = what,
             .mClockwise = clockwiseThrough(shading),

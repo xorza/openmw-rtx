@@ -18,7 +18,7 @@ that owns each. Read this once and the headers read as the field's.
 | whole | no stale entry, sweep skippable | `Kept::whole` |
 | retire, sweep | dropping the identities a traversal did not mark, and the holds they took | `SceneExtractor::retire`, `Kept::retire` |
 | turn, phase, step | state machine, lifecycle assert | `Stepped`, `RtxRenderer::Phase` |
-| the ring | residency set, streaming window | `CellRing` |
+| the ring | residency set, streaming window | `CellStreamer` |
 | supply, reader | streaming thread and its queue | `CellSupply`, `CellReader` |
 | prepared | decoded off the content files, not yet uploaded | `PreparedCell`, `PreparedModel` |
 | slot | index into a fixed-row table | `SlotRows`, `SlotPool`, `SceneSlot` |

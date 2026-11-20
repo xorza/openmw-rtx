@@ -6,8 +6,11 @@
 #include <mutex>
 #include <vector>
 
+#include <osg/ref_ptr>
+
 #include "contentpreprocessor.hpp"
 #include "contentstats.hpp"
+#include "headerderived.hpp"
 
 namespace ContentStore
 {
@@ -17,11 +20,6 @@ namespace ContentStore
 namespace osg
 {
     class Image;
-}
-
-namespace Resource
-{
-    class ImageHeader;
 }
 
 namespace Rtx
@@ -42,8 +40,8 @@ namespace Rtx
         ImageDerivation& operator=(const ImageDerivation&) = delete;
         ~ImageDerivation();
 
-        /// Derives `texels`, `header`'s file's, and files it on `header`.
-        void derive(const osg::Image& texels, const Resource::ImageHeader& header);
+        /// What `texels`, a file's, come to: its key and its facts, which its header is made carrying.
+        osg::ref_ptr<const HeaderDerived> derive(const osg::Image& texels);
 
         /// What every derivation's passes cost since the last take.
         ContentStats takeStats();

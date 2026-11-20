@@ -41,6 +41,13 @@ namespace RtxTool
             { FindingKind::SlowFrames, "slow-frames", false, FindingPlaced::Worst },
             { FindingKind::LogWarning, "log-warning", false, FindingPlaced::First },
             { FindingKind::Growth, "growth", false, FindingPlaced::First },
+            { FindingKind::Starved, "starved", false, FindingPlaced::First },
+            { FindingKind::StandInDrawn, "stand-in", false, FindingPlaced::First },
+            { FindingKind::BelowWant, "below-want", false, FindingPlaced::First },
+            { FindingKind::Pop, "pop", true, FindingPlaced::First },
+            { FindingKind::LateStand, "late-stand", false, FindingPlaced::First },
+            { FindingKind::LevelStep, "level-step", false, FindingPlaced::First },
+            { FindingKind::HeldAtCrossing, "held-at-crossing", false, FindingPlaced::Worst },
             { FindingKind::Mark, "mark", false, FindingPlaced::First },
         } };
 
@@ -104,9 +111,9 @@ namespace RtxTool
 
     const Finding* FindingTable::find(const FindingKind kind, const std::string_view detail) const
     {
-        const auto found = std::ranges::find_if(
-            mFindings, [&](const Finding& finding) { return finding.mKind == kind && finding.mDetail == detail; });
-        return found == mFindings.end() ? nullptr : &*found;
+        const DetailIndex& index = mIndex[static_cast<std::size_t>(kind)];
+        const auto found = index.find(detail);
+        return found == index.end() ? nullptr : &mFindings[found->second];
     }
 
     Finding* FindingTable::find(const FindingKind kind, const std::string_view detail)
@@ -148,6 +155,7 @@ namespace RtxTool
             return;
         }
         mFaults += isFault(kind) ? 1 : 0;
+        mIndex[static_cast<std::size_t>(kind)].emplace(detail, static_cast<std::uint32_t>(mFindings.size()));
         mFindings.push_back(Finding{ .mKind = kind,
             .mDetail = std::string(detail),
             .mPlace = place,
@@ -237,14 +245,40 @@ namespace RtxTool
             again.mMedianMs, first.mMedianMs);
     }
 
-    std::string describeFindings(const FindingTable& table)
+    namespace
     {
-        // What a finding is to the report: a fault, a cost, or one the content is known to meet, in that order.
-        const auto rank = [](const Finding& finding) {
+        /// What a finding is to the report: a fault, a cost, or one the content is known to meet, in that order.
+        std::int32_t rankOf(const Finding& finding)
+        {
             if (finding.mExpected)
                 return 2;
             return isFault(finding.mKind) ? 0 : 1;
-        };
+        }
+    }
+
+    FindingCounts countFindings(const FindingTable& table)
+    {
+        FindingCounts counts;
+        for (const Finding& finding : table.getFindings())
+        {
+            const std::int32_t rank = rankOf(finding);
+            counts.mFaults += rank == 0 ? 1 : 0;
+            counts.mCosts += rank == 1 ? 1 : 0;
+            counts.mExpected += rank == 2 ? 1 : 0;
+        }
+        return counts;
+    }
+
+    std::string recordFindingsLine(const FindingCounts& counts)
+    {
+        return std::format(R"({{"findings": {{"faults": {}, "costs": {}, "expected": {}}}}})"
+                           "\n",
+            counts.mFaults, counts.mCosts, counts.mExpected);
+    }
+
+    std::string describeFindings(const FindingTable& table)
+    {
+        const auto rank = [](const Finding& finding) { return rankOf(finding); };
 
         std::vector<const Finding*> ordered;
         for (const Finding& finding : table.getFindings())
@@ -258,13 +292,7 @@ namespace RtxTool
             return a->mWorstMs > b->mWorstMs;
         });
 
-        std::size_t faults = 0;
-        std::size_t expected = 0;
-        for (const Finding* finding : ordered)
-        {
-            faults += rank(*finding) == 0 ? 1 : 0;
-            expected += rank(*finding) == 2 ? 1 : 0;
-        }
+        const FindingCounts counts = countFindings(table);
         const std::vector<const Expectation*> unmet = table.getUnmet();
 
         std::string dropped;
@@ -273,8 +301,8 @@ namespace RtxTool
                 dropped
                     += std::format("{} {} {}", dropped.empty() ? ", past the table's bound:" : ",", count, row.mName);
 
-        std::string text = std::format("\ntour findings: {} faults, {} costs and marks, {} expected{}\n", faults,
-            ordered.size() - faults - expected, expected, dropped);
+        std::string text = std::format("\ntour findings: {} faults, {} costs and marks, {} expected{}\n",
+            counts.mFaults, counts.mCosts, counts.mExpected, dropped);
         for (const Expectation* stale : unmet)
             text += std::format("\nUNMET [{}] {}: {}\n  expected and never met\n", stale->mName,
                 findingName(stale->mKind), stale->mDetail);

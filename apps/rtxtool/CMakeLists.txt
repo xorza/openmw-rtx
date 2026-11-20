@@ -12,6 +12,7 @@ target_sources(
         instruments/cardwatch.cpp
         instruments/digest.cpp
         instruments/drivercache.cpp
+        instruments/filewriter.cpp
         instruments/framehashes.cpp
         instruments/frametimes.cpp
         instruments/gpuclock.cpp
@@ -35,7 +36,6 @@ target_sources(
         model/expectations.cpp
         model/finding.cpp
         model/heapdescription.cpp
-        model/restreuse.cpp
         model/logtally.cpp
         model/legselection.cpp
         model/longestframes.cpp
@@ -45,6 +45,7 @@ target_sources(
         model/skycrossing.cpp
         model/stopdescription.cpp
         model/tour.cpp
+        model/tourwatch.cpp
         model/viewfile.cpp
         noise.cpp
         options.cpp
@@ -68,6 +69,7 @@ target_sources(
                 instruments/cardwatch.hpp
                 instruments/digest.hpp
                 instruments/drivercache.hpp
+                instruments/filewriter.hpp
                 instruments/framehashes.hpp
                 instruments/frametimes.hpp
                 instruments/gpuclock.hpp
@@ -81,6 +83,7 @@ target_sources(
                 instruments/threadcounters.hpp
                 instruments/wholenumber.hpp
                 model/benchrecord.hpp
+                model/residencymost.hpp
                 model/benchrun.hpp
                 model/benchspec.hpp
                 model/blockfile.hpp
@@ -92,7 +95,6 @@ target_sources(
                 model/expectations.hpp
                 model/finding.hpp
                 model/heapdescription.hpp
-                model/restreuse.hpp
                 model/findingkind.hpp
                 model/logtally.hpp
                 model/legselection.hpp
@@ -103,6 +105,7 @@ target_sources(
                 model/skycrossing.hpp
                 model/stopdescription.hpp
                 model/tour.hpp
+                model/tourwatch.hpp
                 model/viewfile.hpp
                 noise.hpp
                 numbervalue.hpp
@@ -191,8 +194,8 @@ target_sources(
         stager.cpp
         standingnote.cpp
         stopwriter.cpp
-        tourwatch.cpp
         worldmap.cpp
+        worldwatch.cpp
     PRIVATE
         FILE_SET HEADERS
             BASE_DIRS
@@ -207,8 +210,8 @@ target_sources(
                 stager.hpp
                 standingnote.hpp
                 stopwriter.hpp
-                tourwatch.hpp
                 worldmap.hpp
+                worldwatch.hpp
 )
 
 target_link_libraries(

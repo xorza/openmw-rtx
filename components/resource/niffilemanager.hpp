@@ -16,7 +16,7 @@ namespace Resource
 
     /// @brief Handles caching of NIFFiles.
     /// @note May be used from any thread.
-    class NifFileManager : public ResourceManager<Nif::NIFFilePtr>
+    class NifFileManager : public BudgetedResourceManager<Nif::NIFFilePtr>
     {
         const ToUTF8::StatelessUtf8Encoder* mEncoder;
 

@@ -1,6 +1,7 @@
 #include "cellsupply.hpp"
 
-#include <algorithm>
+#include <cstddef>
+#include <optional>
 #include <vector>
 
 #include <components/crashcatcher/crashnote.hpp>
@@ -10,16 +11,6 @@
 
 namespace Rtx
 {
-    void CellRequest::take(CellRequest& from)
-    {
-        // Swapped rather than copied: what this hands back is the room the last request grew, which
-        // the next one to reach the frame's side refills.
-        mCells.swap(from.mCells);
-        mGrass.swap(from.mGrass);
-
-        from.clear();
-    }
-
     void CellReturns::clear()
     {
         mCells.clear();
@@ -51,19 +42,12 @@ namespace Rtx
         // holds them goes. Nothing is given back: what the frame held dies with the reader.
         mWorker = std::jthread();
 
-        mWanted.clear();
-        mRequested.clear();
-        mReading.clear();
-        mDone.clear();
-        mDoneGrass.clear();
+        mTable.clear();
         mReturned.clear();
         mReturning.clear();
         mRecycling.clear();
+        mPicked.reset();
         mMeasured = ReaderMemory{};
-        mTakes = 0;
-        mWantedTakes = 0;
-        mReadingTakes = 0;
-        mOnTheWay.clear();
         mReader.reset();
 
         mWorld = world;
@@ -75,41 +59,69 @@ namespace Rtx
         mWorker = Platform::startThread("cell reader", [this](const std::stop_token& stop) { work(stop); });
     }
 
-    void CellSupply::ask(const CellRequest& request)
+    void CellSupply::retarget(const CellTarget& target, CellsDropped& dropped)
     {
         mOnFrame.check();
 
-        if (mReader == nullptr || request == mRequested)
-            return;
-
-        mRequested = request;
-
         mMonitor.give([&] {
-            mWanted = request;
-            ++mAsked;
-            mWantedTakes = mTakes;
+            mTable.retarget(target, mReturning, dropped);
             return true;
         });
     }
 
-    void CellSupply::take(std::vector<PreparedCell*>& cells, std::vector<PreparedGrass*>& grass)
+    void CellSupply::withdraw()
     {
         mOnFrame.check();
 
-        mMonitor.under([&] {
-            cells.insert(cells.end(), mDone.begin(), mDone.end());
-            grass.insert(grass.end(), mDoneGrass.begin(), mDoneGrass.end());
-            mDone.clear();
-            mDoneGrass.clear();
-            ++mTakes;
-        });
+        mMonitor.under([&] { mTable.withdraw(); });
     }
 
-    bool CellSupply::waitForOne()
+    void CellSupply::awaitOwed(const ReadKind kind)
     {
         mOnFrame.check();
 
-        return mMonitor.await([&] { return !mDone.empty() || !mDoneGrass.empty(); });
+        // The records stay where they stand through the wait: only the frame orders or erases them.
+        const std::optional<std::size_t> owed = mMonitor.under([&] { return mTable.findOwed(kind); });
+        if (owed.has_value())
+            mMonitor.await([&] { return mTable.isRead(*owed, kind); });
+    }
+
+    void CellSupply::collectFiled(std::vector<PreparedCell*>& cells, std::vector<PreparedGrass*>& grass)
+    {
+        mOnFrame.check();
+
+        mMonitor.under([&] { mTable.collectFiled(cells, grass); });
+    }
+
+    PreparedCell* CellSupply::adoptCell()
+    {
+        mOnFrame.check();
+
+        PreparedCell* adopted = nullptr;
+        mMonitor.give([&] {
+            adopted = mTable.adoptCell();
+            return adopted != nullptr;
+        });
+        return adopted;
+    }
+
+    PreparedGrass* CellSupply::adoptGrass()
+    {
+        mOnFrame.check();
+
+        PreparedGrass* adopted = nullptr;
+        mMonitor.give([&] {
+            adopted = mTable.adoptGrass();
+            return adopted != nullptr;
+        });
+        return adopted;
+    }
+
+    std::size_t CellSupply::countStood(const ReadKind kind)
+    {
+        mOnFrame.check();
+
+        return mMonitor.under([&] { return mTable.countStood(kind); });
     }
 
     void CellSupply::publish()
@@ -152,79 +164,59 @@ namespace Rtx
     void CellSupply::work(const std::stop_token& stop)
     {
         mMonitor.serve(
-            stop, [&] { return !mWanted.empty() || !mReturned.empty(); },
+            stop, [&] { return !mReturned.empty() || mTable.canPick(); },
             [&] {
                 mRecycling.take(mReturned);
-                mReading.take(mWanted);
-                mReadingAsked = mAsked;
-                mReadingTakes = mWantedTakes;
-
-                // What a take carried before this ask was made, the ask knew of.
-                std::erase_if(mOnTheWay, [&](const Handed& handed) { return handed.mTakes < mReadingTakes; });
+                mPicked = mTable.pick();
             },
             [&](const std::stop_token& turn) {
                 recycle();
-                read(turn);
+                if (mPicked.has_value())
+                    read(*mPicked, turn);
             });
     }
 
-    bool CellSupply::onTheWay(const osg::Vec2i& cell, const bool grass) const
+    void CellSupply::read(const CellPick& pick, const std::stop_token& stop)
     {
-        return std::any_of(mOnTheWay.begin(), mOnTheWay.end(),
-            [&](const Handed& handed) { return handed.mCell == cell && handed.mGrass == grass; });
-    }
-
-    bool CellSupply::superseded()
-    {
-        // A newer ask replaces this one: the eye has moved and what it lacks has changed. An ask
-        // for nothing too, which says the lists in flight are no longer wanted.
-        const bool newer = mMonitor.under([&] {
-            mRecycling.take(mReturned);
-            return mAsked != mReadingAsked;
-        });
-        recycle();
-        return newer;
-    }
-
-    void CellSupply::read(const std::stop_token& stop)
-    {
-        // The grass first: the cells around the eye, where a plant missing is seen at once.
-        for (const osg::Vec2i& cell : mReading.mGrass)
+        // What a band let go of while it was in hand goes back as the frame's own returns do, every hold the reader
+        // lent it with it, and is never handed.
+        if (pick.mKind == ReadKind::Grass)
         {
-            if (stop.stop_requested() || superseded())
+            const Crash::NoteScope noted("reading the groundcover of the cell {}, {}", pick.mCell.x(), pick.mCell.y());
+            PreparedGrass& made = mReader->readGrass(pick.mCell, stop);
+            if (stop.stop_requested())
                 return;
-
-            if (onTheWay(cell, true))
-                continue;
-
-            const Crash::NoteScope noted("reading the groundcover of the cell {}, {}", cell.x(), cell.y());
-            PreparedGrass& made = mReader->readGrass(cell);
             const ReaderMemory measured = mReader->measure();
-
+            bool filed = false;
             mMonitor.hand([&] {
-                mDoneGrass.push_back(&made);
+                filed = mTable.file(pick, made);
                 mMeasured = measured;
-                mOnTheWay.push_back(Handed{ .mCell = cell, .mGrass = true, .mTakes = mTakes });
             });
+            if (!filed)
+            {
+                mRecycling.mModels.assign(made.mModels.begin(), made.mModels.end());
+                mRecycling.mGrass.push_back(&made);
+                recycle();
+            }
+            return;
         }
 
-        for (const osg::Vec2i& cell : mReading.mCells)
+        const Crash::NoteScope noted("reading the cell {}, {}", pick.mCell.x(), pick.mCell.y());
+        PreparedCell& made = mReader->read(pick.mCell, stop);
+        if (stop.stop_requested())
+            return;
+        const ReaderMemory measured = mReader->measure();
+        bool filed = false;
+        mMonitor.hand([&] {
+            filed = mTable.file(pick, made);
+            mMeasured = measured;
+        });
+        if (!filed)
         {
-            if (stop.stop_requested() || superseded())
-                return;
-
-            if (onTheWay(cell, false))
-                continue;
-
-            const Crash::NoteScope noted("reading the cell {}, {}", cell.x(), cell.y());
-            PreparedCell& made = mReader->read(cell);
-            const ReaderMemory measured = mReader->measure();
-
-            mMonitor.hand([&] {
-                mDone.push_back(&made);
-                mMeasured = measured;
-                mOnTheWay.push_back(Handed{ .mCell = cell, .mTakes = mTakes });
-            });
+            mRecycling.mModels.assign(made.mModels.begin(), made.mModels.end());
+            made.mGround.collectTextures(mRecycling.mTextures);
+            mRecycling.mCells.push_back(&made);
+            recycle();
         }
     }
 }

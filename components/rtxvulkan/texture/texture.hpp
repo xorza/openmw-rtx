@@ -4,7 +4,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <deque>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -17,15 +17,16 @@
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/common/slots.hpp>
+#include <components/rtx/image/imageshape.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/image/texturewrap.hpp>
-#include <components/rtx/scene/deviceanswer.hpp>
+#include <components/rtx/renderer/residencydevice.hpp>
+#include <components/rtx/renderer/residencyop.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/handles.hpp>
-#include <components/rtxvulkan/device/memory/blockscoming.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/descriptorsets.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
@@ -43,70 +44,73 @@ namespace Rtx
     class Uploads;
     class GpuTimer;
     class GroundCompositePass;
-    class TextureTable;
+    class ContentArena;
     struct TexturePasses;
 
-    /// A sampled image on the GPU, the levels a content file brought for it, and what was measured
-    /// on it — two `Image`s: the first uploaded, the second its companion, made off the first on the
-    /// device as it arrives (`TextureCompanion`): for a normal map, the spread its levels lost, and
-    /// none for anything else. The companion travels with the texture because it is measured on it
-    /// and read at its coordinates.
+    /// **Where a texture's images stand**: at an offset of the content arena's memory, the slot residency reserved for
+    /// it, or, with no memory named, memory of their own that nothing stands in for (`MemoryUse::Essential`).
+    struct TexturePlace
+    {
+        const DeviceMemory* mMemory = nullptr;
+        VkDeviceSize mOffset = 0;
+    };
+
+    /// A sampled image on the GPU, the levels a content file brought for it, and what was measured on it — two
+    /// `Image`s: the first uploaded, the second its companion, made off the first on the device as it arrives
+    /// (`TextureCompanion`): for a normal map, the spread its levels lost, and none for anything else. The companion
+    /// travels with the texture because it is measured on it and read at its coordinates, and stands after it in its
+    /// slot.
     class Texture
     {
     public:
         /// A slot with nothing in it yet, which is what the array holds while it is being filled.
         Texture() = default;
 
+        /// What an image of `shape` is made as, and its companion, nothing where none stands beside it: the one
+        /// statement a price and a stand both read.
+        static ImageDescription describe(const ImageShape& shape);
+        static std::optional<ImageDescription> describeCompanion(const ImageShape& shape);
+
+        /// What a texture of `shape` takes of a slot, its companion after its image at the companion's alignment;
+        /// nothing where the device takes no image of it.
+        static std::optional<ContentPrice> price(const Device& device, const ImageShape& shape);
+
+        /// The shape a file stands as from level `first`, and what the image a texture stands holds.
+        static ImageShape shapeOf(const TextureData& data, std::uint32_t first);
+        ImageShape getShape() const { return mShape; }
+
         /// Stands a texture from its file's bytes in this one, which is empty, from level `first` on, uploaded level by
-        /// level. Left empty, and why, where the device has no room for it as `use`. Every image is made before
-        /// anything is handed to `arrival`, so a refusal leaves it as it found it. What makes the texture is
-        /// `arrival`'s to record, and this stays where it is until then: the work names its images.
+        /// level at `place`. What makes the texture is `arrival`'s to record, and this stays where it is until then:
+        /// the work names its images.
         ///
-        /// @param first the level the image begins at: nought for the file as it is, and further down for one held
-        ///        to a smaller side.
         /// @param name what a capture calls it. Empty where the build names no objects.
         /// @param regions the caller's scratch, cleared and refilled here with one copy per level.
-        Result<void, MemoryRefusal> standFile(const Device& device, Batch& batch, TextureArrival& arrival,
-            const TextureData& data, std::uint32_t first, std::string_view name,
-            std::vector<VkBufferImageCopy>& regions, MemoryUse use);
+        void standFile(const Device& device, Batch& batch, TextureArrival& arrival, const TextureData& data,
+            std::uint32_t first, std::string_view name, std::vector<VkBufferImageCopy>& regions,
+            const TexturePlace& place);
 
-        /// Stands `from`, a file's texture, in this one, which is empty, `dropped` levels down: its levels past the
-        /// first `dropped` copied on the device, nothing read from the host, and a normal map's spread measured again
-        /// at the smaller side (`TextureArrival::copyLevels`). Left empty, and why, where the device has no room for it
-        /// as `use`. `from` stays where it is until `arrival` records, since the work names its image.
-        Result<void, MemoryRefusal> standMovedDown(const Device& device, TextureArrival& arrival, const Texture& from,
-            std::uint32_t dropped, std::string_view name, MemoryUse use);
+        /// Stands `from` in this one, which is empty, `dropped` levels down at `place`: its levels past the first
+        /// `dropped` copied on the device, nothing read from the host, and a normal map's spread measured again. A
+        /// move out of a draining slab drops none. `from` stays where it is until `arrival` records.
+        void standMovedDown(const Device& device, TextureArrival& arrival, const Texture& from, std::uint32_t dropped,
+            std::string_view name, const TexturePlace& place);
 
-        /// Stands `from` in this one, which is empty, as it stands, both its images copied on the device into blocks
-        /// content's pools hold already other than `block` (`Image::tryMakeOutside`): a texture moved to give `block`
-        /// back (`TextureArray::moveOut`). Left empty where no other block has room for it. `from` stays where it is
-        /// until `arrival` records, since the work names its images.
-        Result<void, MemoryRefusal> standMovedOut(const Device& device, TextureArrival& arrival, const Texture& from,
-            VkDeviceMemory block, std::string_view name);
-
-        /// The image `standFile` makes of `data` from level `first` on: what a texture stood short asks of the room
-        /// to stand whole.
-        static ImageDescription describeFile(const TextureData& data, std::uint32_t first);
-
-        /// Stands a sprite's light bake in this one, which is empty: shaped like `source`, made from its alpha, under
-        /// the neutral map. `source` stands, uploaded in an earlier batch or in `arrival`'s run, which records every
-        /// copy ahead of every bake.
+        /// Stands a sprite's light bake in this one, which is empty, at `place`: shaped like `source`, made from its
+        /// alpha. `source` stands, uploaded in an earlier batch or in `arrival`'s run, which records every copy ahead
+        /// of every bake.
         ///
         /// @param format what the description says the bake is, which is its image's format.
-        Result<void, MemoryRefusal> standBake(const Device& device, TextureArrival& arrival, const Texture& source,
-            TextureFormat format, std::string_view name);
+        void standBake(const Device& device, TextureArrival& arrival, const Texture& source, TextureFormat format,
+            std::string_view name, const TexturePlace& place);
 
-        /// Stands a chunk's flattened ground in this one, which is empty, under the neutral map:
-        /// `GROUND_COMPOSITE_EXTENT` square in BC7, with a chain to one texel, left undefined. Copied into by
-        /// `TextureArray::bakeComposites`, in the placement after it arrives.
-        ///
-        /// @param format what the description says the composite is, which is its image's format.
-        Result<void, MemoryRefusal> standComposite(
-            const Device& device, TextureArrival& arrival, TextureFormat format, std::string_view name);
+        /// Stands a chunk's flattened ground in this one, which is empty, at `place`: `GROUND_COMPOSITE_EXTENT` square
+        /// in BC7, with a chain to one texel, left undefined. Copied into by `TextureArray::bakeComposites`, in the
+        /// placement after it arrives.
+        void standComposite(
+            const Device& device, TextureFormat format, std::string_view name, const TexturePlace& place);
 
-        /// Stands one texel of `colour` in this one, which is empty, whole floats so the value is
-        /// the one named, under the neutral map: what `TEXTURE_NEUTRAL` stands, once, when the array
-        /// is made. Essential, so never refused.
+        /// Stands one texel of `colour` in this one, which is empty, whole floats so the value is the one named, under
+        /// the neutral map: what `TEXTURE_NEUTRAL` stands, once, when the array is made. Essential.
         void standColour(const Device& device, Batch& batch, TextureArrival& arrival, std::string_view name,
             const osg::Vec4f& colour);
 
@@ -117,9 +121,8 @@ namespace Rtx
         /// Whether the slot holds no texture.
         bool isEmpty() const { return mImage.isEmpty(); }
 
-        /// The texture and its companion as a sampled image takes them, with no sampler, from the
-        /// read-only layout an upload leaves them in: a read pairs them with the sampler the
-        /// slot's wrap names (`TEXTURE_BIND_SAMPLERS`).
+        /// The texture and its companion as a sampled image takes them, with no sampler, from the read-only layout an
+        /// upload leaves them in: a read pairs them with the sampler the slot's wrap names (`TEXTURE_BIND_SAMPLERS`).
         VkDescriptorImageInfo describe() const
         {
             return mImage.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -133,53 +136,46 @@ namespace Rtx
             return mCompanion.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         }
 
-        // Read by the tests, the interface's pass, which draws with one, and the array, which
-        // hands a composite's image to the bake.
+        // Read by the tests, the interface's pass, which draws with one, and the array, which hands a composite's image
+        // to the bake.
         VkImageView getView() const { return mImage.getView(); }
         const Image& getImage() const { return mImage; }
 
         /// Its companion, empty where nothing is measured beside it.
         const Image& getCompanion() const { return mCompanion; }
 
-        /// How the file said this is addressed past its edges, which picks the sampler a read of it
-        /// goes through (`TEXTURE_WRAP_SHIFT`).
+        /// How the file said this is addressed past its edges, which picks the sampler a read of it goes through
+        /// (`TEXTURE_WRAP_SHIFT`).
         TextureWrap getWrap() const { return mWrap; }
 
-        /// What the texture keeps on the device, its companion included: `TextureCost::standing`
-        /// of what it was made as.
+        /// What the texture keeps on the device, its companion included: `TextureCost::standing` of what it was made
+        /// as.
         VkDeviceSize getBytes() const { return mBytes; }
 
     private:
+        /// Makes the image and the companion of `shape` at `place`.
+        void make(const Device& device, const ImageShape& shape, std::string_view name, const TexturePlace& place);
+
         Image mImage;
         Image mCompanion;
+        ImageShape mShape;
 
         TextureWrap mWrap = TextureWrap::Repeat;
         VkDeviceSize mBytes = 0;
-
-        /// What a file's texture is laid in, which a move prices its image by (`priceShape`).
-        TextureFormat mFormat{};
     };
 
-    /// What a texture array stands: how many of its slots hold a texture, and what those come to,
-    /// kept as each slot changes, so neither is a walk of the array. A slot that draws the stand-in
-    /// holds none.
+    /// What a texture array stands: how many of its slots hold a texture, and what those come to, kept as each slot
+    /// changes, so neither is a walk of the array. A slot that draws the stand-in holds none.
     struct TexturesHeld
     {
         std::uint32_t mCount = 0;
         VkDeviceSize mBytes = 0;
 
-        /// How many of those stand smaller than their files, from a level further down.
-        std::uint32_t mReduced = 0;
-
-        /// How many slots draw the stand-in for want of room, waiting for it or refused: beside the count, as such a
-        /// slot stands nothing.
-        std::uint32_t mShortOfRoom = 0;
-
         /// `mBytes` by what stands in each slot.
         TextureSourceBytes mBySource;
 
-        /// The canvases the scene's composites are baked on and the blocks they are encoded through,
-        /// beside the slots (`priceCanvas`, `priceBlocks`): nought until the first composite stands.
+        /// The canvases the scene's composites are baked on and the blocks they are encoded through, beside the slots
+        /// (`priceCanvas`, `priceBlocks`): nought until the first composite stands.
         VkDeviceSize mCanvasBytes = 0;
     };
 
@@ -187,227 +183,112 @@ namespace Rtx
     /// in a second array beside it at the same slot (an array and not a buffer, because each is a grid the texture unit
     /// filters; see `texturearray.glsl`).
     ///
-    /// One set per frame in flight, and a debt per set, the way `SlotTable` keeps its copies: an arrival writes the
-    /// slots it brought into the set the next placement binds and owes them to the other, which is paid when that set's
-    /// frame comes round. Update after bind makes writing a set legal while a command that bound it is on the queue,
-    /// for a slot that command does not read: a slot the sweep freed and an arrival took over is one the frame behind
-    /// still reads, and one set written from the host while it traced was exactly that read.
+    /// **It stands an image in the slot residency hands it and decides nothing** (`StandImage`, `DropImage`): which
+    /// texture stands at which level, and where, is `Residency`'s. A slot that stands nothing yet draws the stand-in.
+    ///
+    /// One set per frame in flight, and a debt per set, the way `SlotTable` keeps its copies: an operation writes the
+    /// slots it touched into the set the next placement binds and owes them to the other, which is paid when that
+    /// set's frame comes round.
     class TextureArray
     {
     public:
-        /// An array of `slots` textures, none of them written yet: `write` stands them. The length is the scene's table
-        /// and not what was described, because a slot the scene has given back still sits between two that are. A slot
-        /// nothing describes is one no material names, which is what `descriptorBindingPartiallyBound` is required for.
+        /// An array of `slots` textures, every one drawing nothing until the table names it.
         ///
-        /// @param layout what `describeLayout` made: every array is shaped by the one the renderer keeps, which is
-        ///        what lets one pass be handed any scene's set.
+        /// @param layout what `describeLayout` made: every array is shaped by the one the renderer keeps.
         /// @param passes the renderer's, which the stand-in and the neutral texel are made with.
-        /// @param arrival the renderer's, which every array's arrivals are recorded through: its rooms are scratch,
-        ///        grown to the largest group any scene met and kept.
+        /// @param arrival the renderer's, which every array's arrivals are recorded through.
         /// @param anisotropy `RenderProfile::mAnisotropy`: what the footprint binding filters by.
         TextureArray(const Device& device, Batch& batch, const SetLayout& layout, const TexturePasses& passes,
             TextureArrival& arrival, std::uint32_t slots, std::uint32_t anisotropy = 1);
 
-        /// The shape of every set an array here holds: three bindless arrays, partially bound and
-        /// updated after bind. Made once by whoever owns the passes that name it.
+        /// The shape of every set an array here holds: three bindless arrays, partially bound and updated after bind.
         static SetLayout describeLayout(const Device& device);
 
-        /// Uploads each of `arrived` into the slot it names, leaving every other texture alone (why the sets are
-        /// allocated at the maximum rather than at the scene's count). By slot and not by appending, because a slot a
-        /// departing cell freed is taken over wherever it sits. What a slot held before buries itself: a frame in
-        /// flight may be reading it. The descriptors are owed to every set and written by `sync`. The bakes go in after
-        /// every file, since a bake is made from a source that may be arriving beside it, and the ground last, for the
-        /// reason `chooseLevels` gives.
-        ///
-        /// Every file from the level `chooseLevels` gives it. A texture the room still cannot hold comes down a level
-        /// at a time; one with no level it can hold, or past the device's side at every level, draws the stand-in.
-        /// One past the side is refused into `answer`, saying why; one with no room is refused there where
-        /// `whenRoomless` refuses and nothing that stands moves down for it (`makeRoom`), and otherwise named among the
-        /// textures stood short (`DeviceAnswer::mShort`), as is every file stood smaller than the side allows.
-        ///
-        /// @param passes the renderer's, which every texture is made with as it arrives.
-        /// @param arrival the renderer's, which the arrival is recorded through.
-        /// @param timer where what the arrival is made with on the device is timed, or null where it
-        ///        is not: a scene being built, which is a load and no frame's.
-        /// @param table the scene's textures, whose wants say what may move down first and what a move leaves short.
-        void write(Batch& batch, const TexturePasses& passes, TextureArrival& arrival,
-            std::span<const TextureData> arrived, const TextureTable& table, DeviceAnswer& answer,
-            WhenRoomless whenRoomless, GpuTimer* timer);
+        /// What one `execute` is of: the batch and the arrival it records into, the arena whose memory the slots
+        /// stand in, and where the work is timed, or null.
+        struct Executing
+        {
+            Batch& mBatch;
+            const TexturePasses& mPasses;
+            TextureArrival& mArrival;
+            const ContentArena& mArena;
+            GpuTimer* mTimer = nullptr;
+        };
 
-        /// Writes the descriptors `slot`'s set owes, and the texel words its copy owes through
-        /// `uploads`. Before the placement that binds it, after `finishReads`: the bindings allow an
-        /// update after a bind, but not of a descriptor a pending submit samples, and a trace
-        /// samples whichever slots its materials name.
+        /// **Does residency's texture operations in order**: each `StandImage` stands its texture in the slot its place
+        /// names — a file's levels uploaded, a lowering or a move copied on the device, a bake made from its sources —
+        /// and each `DropImage` lets its texture go. What a slot held buries itself under the frames that may read it.
+        /// The descriptors are owed to every set and written by `sync`.
+        void execute(const Executing& executing, std::span<const ResidencyOp> ops);
+
+        /// A slot the scene took draws the stand-in until something stands in it; one it freed draws nothing.
+        void standIn(std::span<const TextureIndex> taken);
+        void free(std::span<const TextureIndex> freed);
+
+        /// Writes the descriptors `slot`'s set owes, and the texel words its copy owes through `uploads`. Before the
+        /// placement that binds it, after `finishReads`.
         void sync(FrameSlot slot, Uploads& uploads);
 
         /// Records the bake of every composite that arrived since the last call, into the composites themselves,
-        /// reading `slot`'s set and texel counts and the tables `tables` names — the copy the placement recording this
-        /// has just written. After `sync(slot)`, so the set holds the layers' textures and the composites alike. True
-        /// where a bake was recorded, because a placement that recorded nothing else is not submitted. Timed as
-        /// `FrameZone::Ground` on `timer`, null where nothing is timed.
+        /// reading `slot`'s set and texel counts and the tables `tables` names. After `sync(slot)`. True where a bake
+        /// was recorded. Timed as `FrameZone::Ground` on `timer`, null where nothing is timed.
         bool bakeComposites(VkCommandBuffer commands, const GroundCompositePass& pass, FrameSlot slot,
             const Shaders::GpuTables& tables, GpuTimer* timer);
 
         /// Waits until nothing on the queue binds `slot`'s set, ahead of the `sync` that writes it.
         void finishReads(FrameSlot slot) const;
 
-        /// Destroys the images of `slots`, leaving the slots themselves where they are. The
-        /// descriptors are left naming what has gone, which `VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT`
-        /// makes legal: no live material names a freed slot. The array does not shrink, because the
-        /// scene's table has not either.
-        void drop(std::span<const TextureIndex> slots);
-
-        /// Filters the footprint binding by `anisotropy`, written into every set before this returns: on a
-        /// queue that binds none of them (`VulkanRenderer::setAnisotropy` drains it first), as a scene not
-        /// placed since is traced through what its sets name. The samplers replaced go under the frames that
-        /// may still read them.
+        /// Filters the footprint binding by `anisotropy`, written into every set before this returns.
         void setAnisotropy(std::uint32_t anisotropy);
 
-        /// The set `slot`'s frame binds, which `sync(slot)` brought up to date. A hand-out, so it
-        /// names the set for the next submit the way `Buffer::addressFor` names a buffer.
+        /// The set `slot`'s frame binds, which `sync(slot)` brought up to date.
         VkDescriptorSet getSet(FrameSlot slot) const;
 
-        /// How long the array is, which is where an append begins and what an uploader compares a
-        /// scene's table against. Not how many textures there are: see `getHeld`.
+        /// How long the array is: not how many textures there are (`getHeld`).
         std::uint32_t getCount() const { return static_cast<std::uint32_t>(mSlots.size()); }
 
-        /// Where `slot`'s copy of the texel counts is — `GpuTables::mTextureTexels` — named for
-        /// the next submit, which `sync(slot)` brought up to date.
+        /// Where `slot`'s copy of the texel counts is — `GpuTables::mTextureTexels`.
         VkDeviceAddress getTexelsAddress(FrameSlot slot) const { return mTexels.addressFor(slot); }
 
-        /// `slot`'s word in those counts, as every copy is brought up to: how many texels stand in
-        /// it, with `TEXTURE_STANDS_IN` over the count where they are the stand-in's.
+        /// `slot`'s word in those counts: how many texels stand in it, with `TEXTURE_STANDS_IN` over the count where
+        /// they are the stand-in's.
         std::uint32_t getTexels(const TextureIndex slot) const { return mTexels.getRows()[slot]; }
 
-        /// How many texels across and down stand in `slot` — the stand-in's where it draws the
-        /// stand-in, and nought where it holds nothing.
+        /// How many texels across and down stand in `slot` — the stand-in's where it draws the stand-in, and nought
+        /// where it holds nothing.
         Shaders::uvec2 getExtent(TextureIndex slot) const;
 
         /// The image `slot` samples, the stand-in's where it draws the stand-in: read back by the tests.
         const Image& getImage(TextureIndex slot) const;
 
-        /// What the array actually stands. A slot the scene gave back holds nothing and costs
-        /// nothing, and neither is counted here.
+        /// What the array actually stands.
         const TexturesHeld& getHeld() const { return mHeld; }
 
-        /// How many files of the last `write` the room held below their first level within the
-        /// device's side: nought where it took nothing off. Read by the tests and by nothing else.
-        std::uint32_t getRoomHeld() const { return mRoomHeld; }
-
-        /// The most texels a side the device takes of every image a texture is made as — the
-        /// least `maxExtent` over those images' formats and usages, which is what `vkCreateImage`
-        /// is valid against, and never more than `maxImageDimension2D`.
+        /// The most texels a side the device takes of every image a texture is made as.
         std::uint32_t getSideLimit() const { return mSideLimit; }
 
-        /// The most bytes of images one `makeRoom` copies, a frame's share: a 4096-square map's chain in BC7 is 21 MiB.
-        static constexpr VkDeviceSize sMoveCopyMost = VkDeviceSize{ 64 } << 20;
-
-        /// The longer side under which no texture moves down: 64 texels, a quarter of Morrowind's usual 256, which
-        /// its own chains reach two levels from their ends.
-        static constexpr std::uint32_t sMoveFloorSide = 64;
-
-        /// What `makeRoom` is asked: the bytes it gives back of what stands, the slots it leaves where they are, an
-        /// arrival's, and the most bytes of images it copies, an arrival's frame's share or, at a change of mode,
-        /// every byte it needs.
-        struct RoomAsk
-        {
-            VkDeviceSize mBytes = 0;
-            std::span<const TextureData> mKeep{};
-            VkDeviceSize mCopyMost = sMoveCopyMost;
-        };
-
-        /// The level `slot`'s readers want it from (`TextureTable::getWant`), and for one that rests the level its last
-        /// readers asked (`TextureRow::mLastWant`); nought for a slot the table no longer holds.
-        static std::uint32_t readersWant(const TextureTable& table, TextureIndex slot);
-
-        /// A table that wants nothing of any slot, for what moves textures down with no scene at hand: a change of
-        /// mode, which moves the largest first and leaves every move short, as a want of level 0 does.
-        static const TextureTable& noWants();
-
-        /// **Room made by textures that stand moving down**, as Unreal's streamer takes a level off the textures it
-        /// needs least (`docs/architecture.md`, "A texture that stands moves down to make room"): a file standing finer
-        /// than its readers want moves first, then the file standing the most bytes, a level each, until the moves give
-        /// back what `ask` asks, its copies reach their most, or nothing moves past `sMoveFloorSide`. A level a run at
-        /// most: an image `arrival`'s run writes is copied from only once that run is recorded. Each is
-        /// copied on the device and its old image buried, so the room comes back once the frames that sample it are
-        /// done. A slot moved coarser than its want stands short: named in `answer.mShort` with the bytes it stood
-        /// before, so its owner hands it over whole again once the room is back; one still at or finer than its want
-        /// is named in `answer.mMoved`. What it gave back, of what stands.
-        VkDeviceSize makeRoom(
-            TextureArrival& arrival, const RoomAsk& ask, const TextureTable& table, DeviceAnswer& answer);
-
-        /// The most bytes of images one `moveOut` copies, a placement's share: the structures' share
-        /// (`BottomLevelStore::sCompactionPerPlacement`), so a placement that moves both copies twice what one moves.
-        static constexpr VkDeviceSize sMoveOutPerPlacement = VkDeviceSize{ 8 } << 20;
-
-        /// **Textures moved out of a block to give it back, while the device asks for one**
-        /// (`MemoryAllocator::asksForBlock`), as structures are (`BottomLevelStore::moveOut`): the block of content's
-        /// pools the array's textures fill least, where the other blocks they stand in have room for them, its textures
-        /// copied as they stand into those (`Texture::standMovedOut`), as many as `budget` takes, at least one, and
-        /// owed to every set. The block goes back once its last range does. A block begun is emptied whole, the device
-        /// asking or not, and a texture that finds no room ends it. A block something stands in that cannot move — a
-        /// composite yet to be baked, the canvas composites are baked on — is never chosen, and a block the array
-        /// stands nothing in is not seen. What it copied.
-        VkDeviceSize moveOut(TextureArrival& arrival, VkDeviceSize budget);
-
-        /// What `moveOut` has copied since the array was made: what giving blocks back cost the device.
-        VkDeviceSize getMovedOutBytes() const { return mMovedOut; }
-
-        /// Names every file's slot that draws the stand-in for want of room short in `answer`, with the bytes its file
-        /// asks: what the device refused where no room was coming, waiting again for room it did not see coming, a
-        /// reserve that shrank (`SceneUploader`).
-        void waitAgain(DeviceAnswer& answer) const;
-
-        /// The level `write` stands each of `arrived` from where the device has `room` bytes for it, into `firsts` at
-        /// the arrival's index: each file from its first level within the device's side, brought down a level at a
-        /// time, the file standing the most bytes first, until the arrival comes to no more than the room. Where it
-        /// fits after no count of drops, as far as its files fit without the ground's composites, which then take what
-        /// is left; and each file as far down as it goes where not even that fits. Nought for what is not a file. The
-        /// rooms of `arrival` are priced past what they hold already.
-        void chooseLevels(std::span<const TextureData> arrived, VkDeviceSize room, const TextureArrival& arrival,
-            std::vector<std::uint32_t>& firsts);
-
     private:
-        /// One slot of the array: the texture standing in it, or the stand-in, which stands once
-        /// beside the array for every slot that draws it. One row, so a slot cannot be half
-        /// updated.
+        /// One slot of the array: the texture standing in it, or the stand-in, which stands once beside the array for
+        /// every slot that draws it.
         struct Slot
         {
-            Texture mTexture;
+            /// Its own object, so the work an arrival records names it wherever the slot moves as the array grows.
+            std::unique_ptr<Texture> mTexture;
             bool mStandIn = false;
-
-            /// Whether the texture stands smaller than its file.
-            bool mReduced = false;
-
-            /// Whether it draws the stand-in for want of room (`TexturesHeld::mShortOfRoom`).
-            bool mShortOfRoom = false;
-
-            /// What a file's texture asks of the room to stand whole at the side the device allows, which a slot short
-            /// of room is named short with again (`waitAgain`); nought for any other.
-            VkDeviceSize mWholeBytes = 0;
 
             /// What the texture was made from, which `mHeld` counts its bytes under.
             TextureSource mSource = TextureSource::File;
 
-            /// The level of its file its image begins at: where it was stood from, one more for each move down.
-            std::uint32_t mFirst = 0;
-
-            bool isEmpty() const { return mTexture.isEmpty() && !mStandIn; }
+            bool isEmpty() const { return mTexture == nullptr && !mStandIn; }
         };
 
-        /// Chooses the block `moveOut` empties into `mEmptying` and lists the slots standing in it into `mLeaving`;
-        /// nothing where no block may be emptied. Walks every slot, so not again until a slot changes
-        /// (`mChanges`) where the last walk found nothing.
-        void chooseBlock();
+        /// Stands one operation's texture in its slot.
+        void stand(const Executing& executing, const StandImage& stand);
 
-        /// `moveOut`'s copies, chosen and made: what it copied.
-        VkDeviceSize emptyBlock(TextureArrival& arrival, VkDeviceSize budget);
+        /// Lets what `slot` stands go, kept until the arrival records, since its work may copy out of it.
+        void replace(Slot& slot);
 
-        /// Whether `slot` is a composite yet to be baked, which stays where the bake will write it.
-        bool awaitsBake(TextureIndex slot) const;
-
-        /// Writes slot `at`'s texel word into every copy's owed row and owes its descriptors to every set: what a slot
-        /// that changed what it stands owes the frames.
+        /// Writes slot `at`'s texel word into every copy's owed row and owes its descriptors to every set.
         void owe(TextureIndex at);
 
         /// Takes what `slot` stands off `mHeld`, before it changes, and counts what it stands after.
@@ -418,44 +299,12 @@ namespace Rtx
         static std::uint64_t& bytesBySource(TexturesHeld& held, const Slot& slot);
 
         /// What `slot` is sampled through: its texture, or the stand-in.
-        const Texture& standingIn(const Slot& slot) const { return slot.mStandIn ? mStandIn : slot.mTexture; }
-
-        /// What `arrived` would take of the device with each file begun at its level in `firsts`,
-        /// at the most while it is made: each texture's `TextureCost::total`, the ground's
-        /// composites only where `ground` says. The resources' own bytes, which the allocator
-        /// rounds up a little, and the reason `write` still comes down level by level.
-        VkDeviceSize costAt(std::span<const TextureData> arrived, std::span<const std::uint32_t> firsts, bool ground,
-            const TextureArrival& arrival) const;
-
-        /// Stands what `texture` is made as in `into`, a file from level `first`, or says why the
-        /// device had no room for it.
-        Result<void, MemoryRefusal> make(Batch& batch, TextureArrival& arrival, Texture& into,
-            const TextureData& texture, std::uint32_t first, std::string_view name);
-
-        /// What one `write` stands its arrival with: the batch and the arrival it records into, the scene's textures
-        /// and what arrived, which a move down for room reads, the answer it fills, and what becomes of a texture the
-        /// device has no room for.
-        struct Standing
+        const Texture& standingIn(const Slot& slot) const
         {
-            Batch& mBatch;
-            TextureArrival& mArrival;
-            const TextureTable& mTable;
-            std::span<const TextureData> mArrived;
-            DeviceAnswer& mAnswer;
-            WhenRoomless mWhenRoomless = WhenRoomless::Refuses;
-        };
+            return slot.mStandIn || slot.mTexture == nullptr ? mStandIn : *slot.mTexture;
+        }
 
-        /// Stands one of the arrival in its slot: a file from level `first`, a texture of another
-        /// source from its bytes, or a bake from its source, which must stand already — or the
-        /// stand-in, where the texture cannot stand.
-        void stand(const Standing& standing, const TextureData& texture, std::uint32_t first);
-
-        /// What a file the device stood short waits on (`RoomWant`): the hole its whole image at the side the device
-        /// allows needs in the pools textures stand in.
-        RoomWant wantOf(const TextureData& texture) const;
-
-        /// Queues a write of `image` into `set` at `binding[slot]`, behind the image info the write
-        /// names by address.
+        /// Queues a write of `image` into `set` at `binding[slot]`, behind the image info the write names by address.
         static void queueWrite(VkDescriptorSet set, std::uint32_t binding, std::uint32_t slot, VkDescriptorType type,
             const VkDescriptorImageInfo& image, std::vector<VkDescriptorImageInfo>& images,
             std::vector<VkWriteDescriptorSet>& writes);
@@ -465,91 +314,23 @@ namespace Rtx
 
         const Device& mDevice;
 
-        /// Cleared and refilled by every describe and every write, never freed. Each settles at the
-        /// busiest arrival so far, and an arrival is the frame with the least room to grow one.
+        /// Cleared and refilled by every write, never freed.
         std::vector<VkDescriptorImageInfo> mImageScratch;
         std::vector<VkWriteDescriptorSet> mWriteScratch;
         std::vector<VkBufferImageCopy> mRegionScratch;
 
-        /// Where each slot stands in the arrival `chooseLevels` is weighing, `sNotArriving` for a slot that
-        /// did not arrive: what a bake's cost asks of its source, where a search of the arrival asked
-        /// it up to twice a halving for every bake. Refilled per arrival, and kept.
-        RowVector<std::uint32_t, TextureIndex> mArrivingAt;
-        static constexpr std::uint32_t sNotArriving = ~std::uint32_t{ 0 };
+        /// What an operation took the place of, kept until its arrival records: an image buries itself as it goes,
+        /// under the next submit.
+        std::vector<std::unique_ptr<Texture>> mReplaced;
 
-        /// One level a file of the arrival `chooseLevels` is weighing can come down by: what the
-        /// file stands from the level it comes down from, its slot, and where it stands in the
-        /// arrival. Refilled per arrival, and kept, as `mArrivingAt` is, with the levels each
-        /// count of drops tries.
-        struct Drop
-        {
-            VkDeviceSize mStanding = 0;
-            TextureIndex mSlot;
-            std::size_t mAt = 0;
-        };
-        std::vector<Drop> mDrops;
-        std::vector<std::uint32_t> mTrialFirsts;
-        std::vector<std::uint32_t> mFullFirsts;
-
-        /// The levels `chooseLevels` gave the last `write`'s arrival. Refilled per arrival, and kept.
-        std::vector<std::uint32_t> mFirsts;
-
-        /// What `makeRoom` weighs: each slot that may move, by what it stands, the most first. Refilled per call, and
-        /// kept.
-        struct Movable
-        {
-            bool mAboveWant = false;
-            VkDeviceSize mStanding = 0;
-            TextureIndex mSlot;
-        };
-        std::vector<Movable> mMovable;
-
-        /// What `moveOut` empties: the block, and the slots standing in it still to move, the last first.
-        std::optional<VkDeviceMemory> mEmptying;
-        std::vector<TextureIndex> mLeaving;
-        VkDeviceSize mMovedOut = 0;
-
-        /// How many takes the allocator had refused at the last `moveOut`, or when the array was made
-        /// (`MemoryAllocator::asksForBlock`).
-        std::uint64_t mRefusedSeen = 0;
-
-        /// The block `moveOut` empties, said to come back once a placement until what moved out of it is buried.
-        BlocksComing mComing;
-
-        /// How many times a slot has changed what it stands (`count`), and the count a walk for a block to empty last
-        /// found none at.
-        std::uint64_t mChanges = 0;
-        std::optional<std::uint64_t> mFruitlessAt;
-
-        /// One range the array holds in a block of content's pools, as `chooseBlock` gathers them, and then one entry
-        /// a block, the bytes of all its ranges. Refilled per walk, and kept.
-        struct BlockRange
-        {
-            VkDeviceMemory mBlock = VK_NULL_HANDLE;
-            VkDeviceSize mBytes = 0;
-
-            /// Whether something in it cannot move.
-            bool mPinned = false;
-        };
-        std::vector<BlockRange> mBlockRanges;
-
-        /// What a move took the place of, kept until the next write or `moveOut`, when the batch that copies out of it
-        /// has been handed to the queue: an image buries itself as it goes, under the next submit. A deque, so a
-        /// texture stays where the arrival's work named it as more are moved.
-        std::deque<Texture> mMovedFrom;
-
-        /// Indexed by slot. A slot the scene has freed holds nothing until something takes it over —
-        /// `drop` buries the image it had, and the descriptor is left naming what has gone for the
-        /// reason `drop` gives.
+        /// Indexed by slot.
         RowVector<Slot, TextureIndex> mSlots;
 
         /// What the slots stand, kept by `forget` and `count` around every change to one.
         TexturesHeld mHeld;
 
-        /// Where a chunk is baked before it is encoded into its slot, its albedo and its gloss as the
-        /// bake writes them, and the blocks each is encoded through. **Each made at the scene's first
-        /// composite that needs it, and kept**, since every later bake reuses it: a scene with no
-        /// ground makes none, and one whose ground has nothing that reflects makes no gloss.
+        /// Where a chunk is baked before it is encoded into its slot, and the blocks each is encoded through: each made
+        /// at the scene's first composite that needs it, and kept.
         struct CompositeCanvas
         {
             std::optional<Image> mAlbedo;
@@ -561,52 +342,35 @@ namespace Rtx
         /// Writes both sampler bindings into every set: at the making, and at a change of anisotropy.
         void writeSamplers();
 
-        /// Makes the blocks and the canvas a composite of `source` is baked on, where either is
-        /// missing, or says why the device has no room for one.
-        Result<void, MemoryRefusal> makeCanvas(TextureSource source);
+        /// Makes the blocks and the canvas a composite of `source` is baked on, where either is missing.
+        void makeCanvas(TextureSource source);
 
-        /// One per `TextureWrap`, indexed by it: the sampler a read of a slot pairs its image with
-        /// is the one its file's wrap names, for the texture and for its companion alike.
         std::array<Sampler, sTextureWrapCount> mSamplers;
-
-        /// The same, filtering anisotropically, from `TEXTURE_SAMPLERS_ALONG`.
         std::array<Sampler, sTextureWrapCount> mFootprintSamplers;
 
-        /// The one texel every material with no diffuse names, at `TEXTURE_NEUTRAL` of every set:
-        /// beside the array rather than in it, so the array's length stays the scene's table's.
+        /// The one texel every material with no diffuse names, at `TEXTURE_NEUTRAL` of every set.
         Texture mNeutral;
 
-        /// `describeStandIn`, stood once, essential: what every slot that cannot stand draws, so a
-        /// refusal costs the device nothing and a device with no room left can still refuse.
+        /// `describeStandIn`, stood once, essential: what every slot that stands nothing yet draws.
         Texture mStandIn;
 
         std::uint32_t mSideLimit = 0;
-        std::uint32_t mRoomHeld = 0;
-
-        /// The most levels the log has said a texture is held below what it came at, which it says
-        /// again only for more.
-        std::uint32_t mSaidDrop = 0;
 
         /// One word per slot of the array, `TEXTURE_SLOTS` long: how many texels the texture in it holds, which
-        /// `coneLod` reads where it asked the driver for a size, and `TEXTURE_STANDS_IN` over it where they are the
-        /// stand-in's. A copy per frame in flight, owed and paid the way the descriptors are: one buffer written as
-        /// textures stood was a count rewritten under a trace, for a slot the frame behind still reads.
+        /// `coneLod` reads, and `TEXTURE_STANDS_IN` over it where they are the stand-in's. A copy per frame in flight.
         SlotTable<std::uint32_t, TextureIndex> mTexels;
 
         /// One set per frame in flight, each image array at the maximum the layout declares.
         DescriptorSets mSets;
 
-        /// The last submit that bound each set: a set is bound by handle and carries no stamp of
-        /// its own, and a descriptor written under a trace still sampling it is the same hazard as
-        /// a table written under one.
+        /// The last submit that bound each set.
         PerSlot<ReadStamp> mBound;
 
         /// The slots each set has yet to be told, each once however often it was written.
         PerSlot<SlotSet<TextureIndex>> mOwed;
 
-        /// Which composites arrived and stand empty, whose ground each is and which of its two
-        /// images: what the next placement bakes, one sum a chunk for whichever of its two it
-        /// finds here. Cleared by `bakeComposites` and never freed.
+        /// Which composites arrived and stand empty, whose ground each is and which of its two images: what the next
+        /// placement bakes. Cleared by `bakeComposites` and never freed.
         struct PendingComposite
         {
             TextureIndex mSlot;
@@ -622,9 +386,8 @@ namespace Rtx
         std::vector<PendingComposite> mPendingComposites;
         std::vector<TextureIndex> mPendingReads;
 
-        /// Says, in the log and in a debug build's assert, every layer of `pending` that draws the stand-in as its
-        /// bake is recorded: the stand-in's grey kept in the distance for good. The scene never asks it
-        /// (`CompositeQueue`), so a tour that meets one has met a bug.
+        /// Says, in the log and in a debug build's assert, every layer of `pending` that draws the stand-in as its bake
+        /// is recorded.
         void checkReads(const PendingComposite& pending) const;
     };
 }

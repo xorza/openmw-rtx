@@ -465,10 +465,7 @@ namespace Rtx
 
     VkDeviceSize DlssUpscaler::bytesAt(const VkExtent2D render, const VkExtent2D output) const
     {
-        for (const Measured& measured : mMeasured)
-            if (sameExtent(measured.mRender, render) && sameExtent(measured.mOutput, output))
-                return measured.mBytes;
-        return 0;
+        return mMeasured.at(render, output);
     }
 
     VkDeviceSize DlssUpscaler::getHeldOutside() const
@@ -476,18 +473,7 @@ namespace Rtx
         return mTargets != nullptr ? mTargets->mBytes : 0;
     }
 
-    void DlssUpscaler::remember(const Measured& measured)
-    {
-        // At one output only: a resize of the window measures its modes again, and what was measured
-        // at another output names extents no mode traces at now.
-        std::erase_if(mMeasured, [&](const Measured& kept) {
-            return !sameExtent(kept.mOutput, measured.mOutput) || sameExtent(kept.mRender, measured.mRender);
-        });
-        mMeasured.push_back(measured);
-        assert(mMeasured.size() <= sUpscaleMenu.size() && "a mode measured twice at one output");
-    }
-
-    DlssUpscaler::Measured DlssUpscaler::makeAndMeasure(
+    VkDeviceSize DlssUpscaler::makeAndMeasure(
         const Upscale mode, const VkExtent2D render, const VkExtent2D output, std::unique_ptr<Targets>& into)
     {
         // **The stats after the feature stands less the stats before it**, since NGX's stats are what
@@ -518,7 +504,7 @@ namespace Rtx
         Log(Debug::Info) << std::format(
             "NVIDIA DLSS Ray Reconstruction's feature, {} at {}x{} to {}x{}: NGX holds {} bytes, {} before it",
             sUpscaleNames.name(mode), render.width, render.height, output.width, output.height, after, before);
-        return Measured{ .mRender = render, .mOutput = output, .mBytes = after > before ? after - before : 0 };
+        return after > before ? after - before : 0;
     }
 
     void DlssUpscaler::prepare(const Upscale mode, const VkExtent2D render, const VkExtent2D output)
@@ -528,20 +514,19 @@ namespace Rtx
             return;
 
         mTargets.reset();
-        const Measured measured = makeAndMeasure(mode, render, output, mTargets);
-        mTargets->mBytes = measured.mBytes;
-        remember(measured);
+        const VkDeviceSize bytes = makeAndMeasure(mode, render, output, mTargets);
+        mTargets->mBytes = bytes;
+        mMeasured.remember(render, output, bytes);
         mFresh = true;
     }
 
     void DlssUpscaler::measure(const Upscale mode, const VkExtent2D render, const VkExtent2D output)
     {
-        for (const Measured& measured : mMeasured)
-            if (sameExtent(measured.mRender, render) && sameExtent(measured.mOutput, output))
-                return;
+        if (mMeasured.holds(render, output))
+            return;
 
         std::unique_ptr<Targets> probe;
-        remember(makeAndMeasure(mode, render, output, probe));
+        mMeasured.remember(render, output, makeAndMeasure(mode, render, output, probe));
     }
 
     void DlssUpscaler::resize(const Upscale, const VkExtent2D render, const VkExtent2D output, const ArenaRun& shared)
@@ -565,7 +550,8 @@ namespace Rtx
     {
         const GpuZone timed(timer, commands, FrameZone::Upscale);
 
-        assert(mTargets != nullptr && mTargets->mShared.size() == sShared && "a DLSS upscale before a resize");
+        assert(mTargets != nullptr && "a DLSS upscale before a resize");
+        assert(mTargets->mShared.size() == sShared && "a DLSS upscale before a resize");
         Targets& targets = *mTargets;
 
         const bool reset = std::exchange(mFresh, false);

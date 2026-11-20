@@ -685,7 +685,8 @@ namespace Rtx
                 {
                     const std::string folder = topFolderOf(file.lexically_relative(root));
                     met.insert(folder);
-                    if (file.extension() != ".cpp" && file.extension() != ".hpp")
+                    // The headers GLSL reads as well are `.h`, and include across folders as any header does.
+                    if (file.extension() != ".cpp" && file.extension() != ".hpp" && file.extension() != ".h")
                         continue;
 
                     const std::string relative = genericName(file.lexically_relative(sRoot));

@@ -48,9 +48,24 @@ namespace Platform::LinuxText
     /// file system's root, `/` for the root itself; nothing where it is in no v2 group.
     std::optional<std::string_view> unifiedCgroup(std::string_view cgroup);
 
-    /// The bytes a cgroup v2 file states, `memory.max` or `memory.current`, one number and a line
+    /// The bytes a cgroup v2 file states, `memory.max`, `memory.high` or `memory.current`, one number and a line
     /// break: nothing where it says `max`, no limit, or is not a number.
     std::optional<std::uint64_t> cgroupBytes(std::string_view text);
+
+    /// The bytes of a cgroup's memory that are pages of files, from its `memory.stat` (`inactive_file` and
+    /// `active_file`): what the kernel reclaims before the group meets a limit, and what `MemAvailable` counts as
+    /// the system's to give. Nought for a field the text does not name or that is not a number.
+    std::uint64_t cgroupFileBytes(std::string_view stat);
+
+    /// The room a cgroup leaves under `limit`, the least of its `memory.high`, past which the kernel throttles it,
+    /// and its `memory.max`: the limit less what it holds (`current`) that is not pages of files (`fileBytes`).
+    /// **File pages are room**: a process that reads its content through the page cache fills its group with them,
+    /// and counted as taken they shrank the caches for memory the kernel gives back on the first ask.
+    constexpr std::uint64_t cgroupRoom(std::uint64_t limit, std::uint64_t current, std::uint64_t fileBytes)
+    {
+        const std::uint64_t held = current - (fileBytes < current ? fileBytes : current);
+        return limit - (held < limit ? held : limit);
+    }
 
     /// One DRM client as one of its open files states it: the kernel's number for the client, `drm-client-id`, which
     /// every file that shares or duplicates it states too, and what it holds.

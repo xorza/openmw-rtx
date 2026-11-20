@@ -173,6 +173,14 @@ namespace Misc
             EXPECT_FALSE(served.mMonitor.give([] { return false; }));
             EXPECT_FALSE(served.mMonitor.await([&] { return served.mDone.size() >= 2; }))
                 << "a give that gave nothing woke the worker out of its idleness";
+
+            // **And a wait with a patience says which of the three it was**: ready, hopeless where no worker can
+            // help, whatever patience is left, and still waiting only where one is at it.
+            using Awaited = Monitor::Awaited;
+            constexpr std::chrono::hours sLong{ 1 };
+            EXPECT_EQ(unserved.mMonitor.awaitFor(sLong, [&] { return !unserved.mDone.empty(); }), Awaited::Hopeless);
+            EXPECT_EQ(served.mMonitor.awaitFor(sLong, [&] { return !served.mDone.empty(); }), Awaited::Ready);
+            EXPECT_EQ(served.mMonitor.awaitFor(sLong, [&] { return served.mDone.size() >= 2; }), Awaited::Hopeless);
         }
 
         /// **A worker in a turn is not idle**, so a wait goes on while it works rather than taking
@@ -202,6 +210,9 @@ namespace Misc
 
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
             EXPECT_FALSE(answered) << "the wait ended while the worker was in its turn";
+            EXPECT_EQ(served.mMonitor.awaitFor(std::chrono::milliseconds(1), [&] { return !served.mDone.empty(); }),
+                Monitor::Awaited::StillWaiting)
+                << "a patience that passed with the worker in its turn";
 
             release = true;
             waiter.join();

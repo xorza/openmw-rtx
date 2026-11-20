@@ -29,10 +29,10 @@
 #include <components/rtx/frame/framesampling.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/denoiserimage.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
+#include <components/rtx/renderer/memoryprices.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/renderer/verticalsync.hpp>
@@ -44,6 +44,7 @@
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/batch.hpp>
+#include <components/rtxvulkan/device/memory/contentarena.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
@@ -64,12 +65,13 @@
 #include <components/rtxvulkan/present/surface.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/placing.hpp>
-#include <components/rtxvulkan/scene/whenroomless.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
 #include <components/rtxvulkan/trace/tracerecording.hpp>
 #include <components/rtxvulkan/trace/visibilitypass.hpp>
 #include <components/rtxvulkan/upscale/dlssapplication.hpp>
 #include <components/rtxvulkan/upscale/upscaler.hpp>
+
+#include "memorypricing.hpp"
 
 namespace Rtx
 {
@@ -122,6 +124,13 @@ namespace Rtx
             return options.mReporting == Reporting::Measured;
         }
 
+        /// Where DLSS's files are among the host's folders: the runtime folder the launcher downloads the feature
+        /// library into, and the game's own.
+        DlssLibrary::Folders dlssFoldersOf(const HostFolders& host)
+        {
+            return DlssLibrary::foldersIn(host.mUserLocalData, host.mGame);
+        }
+
         /// What NGX is told of the application, where the run uses DLSS: a profile that does not
         /// makes none, and no folder is made for it.
         std::optional<Dlss::Application> dlssApplicationFor(const RendererOptions& options)
@@ -129,7 +138,7 @@ namespace Rtx
             if (options.mRun.mProfile.mUpscaler != UpscalerChoice::Dlss)
                 return std::nullopt;
 
-            return std::optional<Dlss::Application>(std::in_place, options.mDlss);
+            return std::optional<Dlss::Application>(std::in_place, dlssFoldersOf(options.mHostFolders));
         }
 
         /// What NGX asks of a device for DLSS, where the run may use DLSS.
@@ -170,7 +179,8 @@ namespace Rtx
                   .mCheckpoints = options.mRun.mValidation.mCheckpoints,
                   .mAskedExtensions = dlssExtensionsFor(mDlss) })
         , mUpscaler(mDevice, options.mRun.mProfile.mUpscaler,
-              DlssUpscaler::availabilityOn(mDevice.getPhysicalDevice().getDriver(), options.mDlss),
+              DlssUpscaler::availabilityOn(
+                  mDevice.getPhysicalDevice().getDriver(), dlssFoldersOf(options.mHostFolders)),
               mDlss.has_value() ? &*mDlss : nullptr)
         , mUpscalers(offeredUpscalers(offersDlss(mUpscaler.getDlss())))
         , mCounting(measured(options))
@@ -209,7 +219,7 @@ namespace Rtx
             mPresenter
                 = std::make_unique<Presenter>(mDevice, std::move(mSurface), options.mWindow, options.mVerticalSync);
 
-        createTargets(options.mWidth, options.mHeight, ContentFollows::TheReserve);
+        createTargets(options.mWidth, options.mHeight);
     }
 
     VulkanRenderer::~VulkanRenderer()
@@ -242,11 +252,10 @@ namespace Rtx
         mProfile.mUpscale = upscale;
 
         const VkExtent2D output = mTarget.getExtent();
-        createTargets(output.width, output.height, ContentFollows::TheReserve);
+        createTargets(output.width, output.height);
     }
 
-    void VulkanRenderer::createTargets(
-        const std::uint32_t width, const std::uint32_t height, const ContentFollows follows)
+    void VulkanRenderer::createTargets(const std::uint32_t width, const std::uint32_t height)
     {
         assert(width > 0 && height > 0);
 
@@ -262,14 +271,15 @@ namespace Rtx
         FrameTracer::declare(render, output, mProfile, mUpscaler, declared);
         const FrameTracer::Moves moves = mFrame.movesTo(render, output, mProfile.mUpscale, declared, mUpscaler);
 
-        // A frame of a different size is not one this one can be reprojected against; a mode that
-        // traces and shows at the sizes the last did keeps every history.
-        if (moves.mRenderExtent || moves.mOutputExtent)
+        // A frame of a different size is not one this one can be reprojected against, nor is one traced through a
+        // chain made again; a mode that traces and shows at the sizes the last did, through the chain it did, keeps
+        // every history.
+        if (moves.losesPast())
             mDescriber.lose(FramePast::resized());
 
         // **Logged where the frame differs from the last one logged or anything is made again**: the mode
-        // alone, Native against Off, moves no extent, and a mode that keeps its extents keeps the chain and
-        // every history; a resize to the size the targets stand at says nothing new.
+        // alone, Native against Off, moves no extent, and keeps the chain and every history wherever one filter
+        // serves both; a resize to the size the targets stand at says nothing new.
         std::string frame = std::format(
             "{}x{} shown, traced at {}x{} ({}, {:.1f}% a side), by {}, the light filtered by the {}", output.width,
             output.height, render.width, render.height, sUpscaleNames.name(mProfile.mUpscale),
@@ -304,9 +314,27 @@ namespace Rtx
             mDevice.collectIdle();
         }
 
-        // **What the upscaler's runtime allocates is made before the reserve that counts it**: DLSS's
-        // feature is hundreds of megabytes the driver shows only once it stands. Each mode the run moves
-        // to is measured once at this output (`Upscaler::measure`).
+        // **The world stays whatever the reserve does**: a reserve that moves moves the arena's cap, which residency's
+        // plan follows over the next frames.
+        MemoryAllocator& memory = mDevice.getMemory();
+        const VkDeviceSize reserved = memory.getFrameReserve();
+        const auto reserveFrame = [&](const VkDeviceSize bytes) {
+            memory.refreshBudget(mDevice.getTimeline().getNext());
+            memory.reserveFrame(bytes);
+        };
+
+        // **Room for what the upscaler's runtime allocates is made before it allocates**, by what the feature was
+        // measured at, or the most any was where this one never stood (`Upscaler::bytesAt`): DLSS's feature is
+        // hundreds of megabytes the driver takes outside the allocator. Made after the exact reserve alone, a larger
+        // mode on a full card was refused by the driver, where FSR's targets, the allocator's, found the room made.
+        memory.holdOutside(mUpscaler.getHeldOutside());
+        if (upscales(mProfile.mUpscale) && !mUpscaler.isAt(render, output))
+            if (const VkDeviceSize ahead = frameAt(mDevice, width, height, mPictureRoom, mProfile, mUpscaler, declared);
+                ahead > reserved)
+                reserveFrame(ahead);
+
+        // The feature's bytes are exact only once it stands. Each mode the run moves to is measured once at this
+        // output (`Upscaler::measure`).
         if (upscales(mProfile.mUpscale))
             mUpscaler.prepare(mProfile.mUpscale, render, output);
         for (const Upscale mode : mReservedUpscales)
@@ -315,7 +343,6 @@ namespace Rtx
                 const FrameExtents its = mUpscaler.extentsFor(width, height, mode);
                 mUpscaler.measure(mode, VkExtent2D{ its.mRenderWidth, its.mRenderHeight }, output);
             }
-        MemoryAllocator& memory = mDevice.getMemory();
         memory.holdOutside(mUpscaler.getHeldOutside());
 
         // **Room for the running mode's targets, not for the most any mode would take**: native's are about
@@ -324,34 +351,17 @@ namespace Rtx
         VkDeviceSize reserve = frameAt(mDevice, width, height, mPictureRoom, mProfile, mUpscaler, declared);
         for (const Upscale mode : mReservedUpscales)
         {
-            RenderProfile reserved = mProfile;
-            reserved.mUpscale = mode;
+            RenderProfile itsProfile = mProfile;
+            itsProfile.mUpscale = mode;
             const FrameExtents its = mUpscaler.extentsFor(width, height, mode);
             std::vector<ArenaImage> itsDeclared;
             FrameTracer::declare(
-                VkExtent2D{ its.mRenderWidth, its.mRenderHeight }, output, reserved, mUpscaler, itsDeclared);
+                VkExtent2D{ its.mRenderWidth, its.mRenderHeight }, output, itsProfile, mUpscaler, itsDeclared);
             reserve
-                = std::max(reserve, frameAt(mDevice, width, height, mPictureRoom, reserved, mUpscaler, itsDeclared));
+                = std::max(reserve, frameAt(mDevice, width, height, mPictureRoom, itsProfile, mUpscaler, itsDeclared));
         }
 
-        // **The world stays whatever the reserve does**: one that grows past what content holds is room made by
-        // textures moving down (`makeRoom`), copied on the device, what moved handed over whole again once the room is
-        // back; one that shrinks sets what the device refused for room waiting again, structures and textures, as the
-        // room it did not see coming is room after all (`DeviceScene::waitAgain`). A rebuild was every structure and
-        // texture in one flushed batch, seconds of a frame, and needed the host's copy of every mesh.
-        const VkDeviceSize reserved = memory.getFrameReserve();
-        memory.refreshBudget(mDevice.getTimeline().getNext());
-        memory.reserveFrame(reserve);
-        DeviceScene* const world = mScenes.find(SceneSlot::world());
-        if (follows == ContentFollows::TheReserve && world != nullptr && reserve > reserved)
-            if (const VkDeviceSize over = memory.getContentOver(); over > 0)
-            {
-                Batch moved(mDevice.getPool());
-                world->makeTextureRoom(moved, mArrival, over);
-                moved.flush();
-            }
-        if (follows == ContentFollows::TheReserve && world != nullptr && reserve < reserved)
-            world->waitAgain();
+        reserveFrame(reserve);
 
         // **Placed again only where the arena moved**, which the device was drained for.
         mFrame.resize(moves, render, output, mProfile.mUpscale, std::move(declared), mUpscaler);
@@ -402,10 +412,9 @@ namespace Rtx
         return mInstance.getValidationLog() != nullptr;
     }
 
-    void VulkanRenderer::setScene(const SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> textures)
+    void VulkanRenderer::standScene(const SceneSlot slot, const SceneDesc& scene)
     {
-        const Crash::NoteScope noted(
-            "building the scene: {} meshes, {} textures", scene.meshes().getRows().size(), textures.size());
+        const Crash::NoteScope noted("building the scene: {} meshes", scene.meshes().getRows().size());
 
         // What the old scene held on the device buries itself, so a picture recorded against it and
         // not yet carried keeps it until the submit that carries the picture has run.
@@ -427,16 +436,13 @@ namespace Rtx
             mDescriber.lose(FramePast::everything());
         }
 
-        // What the device has room for is decided below, against what it says now.
         mDevice.getMemory().refreshBudget(mDevice.getTimeline().getNext());
 
-        // **The world's structures settle tight before its textures are made** (`BuildCompaction`): its
-        // build is flushed and waited on anyway, and textures made beside loose structures were held to
-        // room compaction gave back later. A picture's rides the next submit and may not wait.
+        // The world's tables are flushed and waited on; a picture's ride the next submit and may not wait.
         Batch setup(mDevice.getPool());
         DeviceScene& held = mScenes.hold(slot,
-            std::make_unique<DeviceScene>(mDevice, setup, mScenePasses, mArrival, scene, textures, mProfile.mAnisotropy,
-                scene.getRoom(), slot.isWorld() ? BuildCompaction::Settled : BuildCompaction::Streamed));
+            std::make_unique<DeviceScene>(
+                mDevice, setup, mScenePasses, mArrival, scene, mProfile.mAnisotropy, scene.getRoom()));
 
         // A picture's scene rides the next submit, as an arrival does. The world's is one submit for the
         // whole cell, made by hand rather than by the destructor, so a failed submit throws from here.
@@ -457,15 +463,16 @@ namespace Rtx
         mMedia.keepRipples(scene);
     }
 
-    void VulkanRenderer::extendScene(const SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> arrived)
+    DeviceEpoch VulkanRenderer::handOver(
+        const SceneSlot slot, const SceneDesc& scene, const std::span<const ResidencyOp> ops)
     {
-        const Crash::NoteScope noted("extending the scene: {} textures", arrived.size());
+        const Crash::NoteScope noted("handing the scene over: {} operations", ops.size());
 
         DeviceScene& held = mScenes.at(slot);
 
-        // An arrival does not wait for the frames in flight: its writes queue behind whatever they still
-        // read and end in the barrier `orderStagedWrites` records. It opens the frame it lands in, since
-        // `beginFrame` clears the timer and a zone opened before it would be forgotten.
+        // What arrived does not wait for the frames in flight: its writes queue behind whatever they still read and end
+        // in the barrier `orderStagedWrites` records. It opens the frame it lands in, since `beginFrame` clears the
+        // timer and a zone opened before it would be forgotten.
         GpuTimer* timer = nullptr;
         if (slot.isWorld())
             timer = &mRing.begin().mTimer;
@@ -473,17 +480,70 @@ namespace Rtx
         mDevice.getMemory().refreshBudget(mDevice.getTimeline().getNext());
 
         Batch setup(mDevice.getPool());
-        held.extend(setup, mArrival, scene, arrived, whenRoomless(mDevice, scene), timer);
+        held.extend(
+            DeviceScene::Extending{
+                .mBatch = setup, .mArrival = mArrival, .mArena = mDevice.getContent(), .mTimer = timer },
+            scene, ops);
         mHandedOver = true;
 
-        // Deferred to the placement's submit, which the caller's `placeScene` makes ahead of the refit and
-        // the top level, so a composite landing costs no submit, fence or wait of its own.
+        // Deferred to the placement's submit below, so what arrived costs no submit, fence or wait of its own: the
+        // pool puts every deferred batch ahead of its next submit.
         setup.defer();
 
-        // The history is kept: nothing was renumbered, and dropping it flashes every time an actor walks
-        // into view with a texture nobody has worn yet.
+        // The history is kept: nothing was renumbered, and dropping it flashes every time an actor walks into view
+        // with a texture nobody has worn yet.
         if (slot.isWorld())
             held.readStats(mStats);
+
+        place(slot, scene);
+
+        // **The epoch the operations ride**: the world's placement submitted them, or nothing was left to ride, so the
+        // last submit covers them; a picture's placement is deferred, so they ride the next.
+        const std::uint64_t next = mDevice.getTimeline().getNext();
+        return DeviceEpoch{ .mValue = slot.isWorld() ? next - 1 : next };
+    }
+
+    ArenaIndex VulkanRenderer::arenaOf(const SlotKind kind) const
+    {
+        return mDevice.getContent().arenaOf(kind);
+    }
+
+    std::optional<ContentPrice> VulkanRenderer::priceImage(const ImageShape& shape) const
+    {
+        return Texture::price(mDevice, shape);
+    }
+
+    ContentPrice VulkanRenderer::priceStructure(const StructureShape& shape) const
+    {
+        return BottomLevelStore::price(mDevice, shape);
+    }
+
+    ContentBudget VulkanRenderer::openFrame(DeviceEvents& events)
+    {
+        events.clear();
+        MemoryAllocator& memory = mDevice.getMemory();
+        memory.refreshBudget(mDevice.getTimeline().getNext());
+        ContentArena& content = mDevice.getContent();
+        content.collect(events.mBlocksArrived, events.mBlocksRefused);
+        events.mFinished = DeviceEpoch{ .mValue = mDevice.getTimeline().poll() };
+        mScenes.forEach([&](const SceneSlot slot, DeviceScene& scene) { scene.readAnswers(slot, events.mTightSizes); });
+
+        return ContentBudget{ .mCapBytes = content.capUnder(memory) };
+    }
+
+    void VulkanRenderer::acquireBlock(const BlockIndex block, const ArenaIndex arena, const std::uint64_t bytes)
+    {
+        mDevice.getContent().acquire(block, arena, bytes);
+    }
+
+    void VulkanRenderer::awaitBlocks()
+    {
+        mDevice.getContent().awaitIdle();
+    }
+
+    void VulkanRenderer::releaseBlock(const BlockIndex block)
+    {
+        mDevice.getContent().release(block);
     }
 
     SceneHeld VulkanRenderer::describeHeld(const SceneSlot slot) const
@@ -492,33 +552,7 @@ namespace Rtx
         return held != nullptr ? held->describe() : SceneHeld{};
     }
 
-    void VulkanRenderer::takeAnswer(const SceneSlot slot, DeviceAnswer& into)
-    {
-        const std::size_t refusedBefore = into.mRefused.size();
-        mScenes.at(slot).takeAnswer(into);
-
-        // **A refusal says how the heap stood**, once each time the allocator refused content anew: what the take
-        // asked and every content pool's room, the figures a mesh left out beside resting textures is read by.
-        const MemoryAllocator& memory = mDevice.getMemory();
-        if (into.mRefused.size() > refusedBefore && memory.getRefusedCount() > mRefusedTakesSaid)
-        {
-            mRefusedTakesSaid = memory.getRefusedCount();
-            if (const std::optional<RefusedTake> refused = memory.getLastRefused(); refused.has_value())
-                Log(Debug::Warning) << "Ray tracing had " << describe(*refused);
-        }
-    }
-
-    std::optional<ArrivalRoom> VulkanRenderer::getArrivalRoom(SceneSlot /*slot*/) const
-    {
-        // The device's room, which every slot's content shares.
-        const VideoBudget video = mDevice.getMemory().getVideoBudget();
-        return ArrivalRoom{ .mFree = mDevice.getMemory().getRoom(MemoryUse::Texture),
-            .mStructureFree = mDevice.getMemory().getRoom(MemoryUse::Structure),
-            .mBudget = video.mBudget,
-            .mHeld = video.mHeld };
-    }
-
-    void VulkanRenderer::placeScene(const SceneSlot slot, const SceneDesc& scene)
+    void VulkanRenderer::place(const SceneSlot slot, const SceneDesc& scene)
     {
         DeviceScene& held = mScenes.at(slot);
 
@@ -567,9 +601,6 @@ namespace Rtx
         // so that the refit and the top level are counted.
         FrameRecord& frame = mRing.begin();
 
-        // The world's textures out of a block the device gives back, copied in the batch ahead of the placement.
-        held.moveTexturesOut(written, mArrival);
-
         // Submitted without a wait; the frame's trace, later on the queue, covers it. Nothing recorded is
         // nothing submitted, as for every frame of a standing camera in an empty place.
         Recording placement = mDevice.getPool().begin(mRing.takePlaceCommands(frame));
@@ -584,7 +615,10 @@ namespace Rtx
             });
         uploads.order();
         written.defer();
-        if (placed)
+
+        // **Submitted where anything waits to go**, the placement's own or what the hand-over deferred, so the epoch
+        // the operations ride is one the queue is given and finishes.
+        if (placed || mDevice.getPool().hasDeferred())
             std::move(placement).submit();
         else
             std::move(placement).end();
@@ -595,9 +629,24 @@ namespace Rtx
         mMedia.keepRipples(scene);
     }
 
-    std::uint64_t VulkanRenderer::getSystemClaim() const
+    std::optional<std::uint64_t> VulkanRenderer::getSystemHeld() const
     {
-        return mDevice.getMemory().getSystemClaim();
+        return mDevice.getMemory().getSystemHeld();
+    }
+
+    void VulkanRenderer::setSystemBound(const std::optional<std::uint64_t> bound)
+    {
+        mDevice.getMemory().setSystemBound(bound);
+    }
+
+    MemoryPrices VulkanRenderer::priceMemory() const
+    {
+        return Rtx::priceMemory(mDevice);
+    }
+
+    std::vector<CopyRate> VulkanRenderer::measureCopies()
+    {
+        return Rtx::measureCopies(mDevice);
     }
 
     MemoryReport VulkanRenderer::getMemoryReport() const
@@ -626,12 +675,13 @@ namespace Rtx
         // change of the vertical sync is.
         mProfile.mAnisotropy = anisotropy;
         drain();
-        mScenes.forEach([&](DeviceScene& scene) { scene.setAnisotropy(anisotropy); });
+        mScenes.forEach([&](SceneSlot, DeviceScene& scene) { scene.setAnisotropy(anisotropy); });
     }
 
     void VulkanRenderer::setGamma(const float gamma)
     {
-        assert(gamma > 0.0f && std::isfinite(gamma) && "a gamma its reader should have refused");
+        assert(gamma > 0.0f && "a gamma its reader should have refused");
+        assert(std::isfinite(gamma) && "a gamma its reader should have refused");
 
         mProfile.mGamma = gamma;
         mInverseGamma = 1.0f / gamma;
@@ -644,7 +694,8 @@ namespace Rtx
 
     void VulkanRenderer::setBounceRays(const std::uint32_t rays)
     {
-        assert(rays >= 1 && rays <= Shaders::MAX_BOUNCE_RAYS && "a count its reader should have refused");
+        assert(rays >= 1 && "a count its reader should have refused");
+        assert(rays <= Shaders::MAX_BOUNCE_RAYS && "a count its reader should have refused");
 
         const std::uint32_t was = mProfile.mReconstruction.mSampling.mBounceRays;
         mProfile.mReconstruction.mSampling.mBounceRays = rays;
@@ -654,7 +705,7 @@ namespace Rtx
         if ((was > 1) != (rays > 1) && mTarget.isOpen())
         {
             const VkExtent2D output = mTarget.getExtent();
-            createTargets(output.width, output.height, ContentFollows::TheReserve);
+            createTargets(output.width, output.height);
         }
     }
 
@@ -684,7 +735,7 @@ namespace Rtx
         if (width == mTarget.getExtent().width && height == mTarget.getExtent().height)
             return;
 
-        createTargets(width, height, ContentFollows::TheReserve);
+        createTargets(width, height);
     }
 
     void VulkanRenderer::showIn(std::uint32_t width, std::uint32_t height)
@@ -812,7 +863,7 @@ namespace Rtx
             mDevice.getPool().getStaging().shed(sStagingKept, mDevice.getTimeline().getKnownFinished());
 
         const DeviceScene* const held = mScenes.find(SceneSlot::world());
-        assert(held != nullptr && "renderFrame before setScene");
+        assert(held != nullptr && "renderFrame before standScene");
         const DeviceScene& world = *held;
         assert((options.mAccumulate == 0 || mProfile.mRadianceWidth == RadianceWidth::Summed)
             && "a sum of frames in a run that only shows them, whose reserve keeps no room for it");
@@ -825,7 +876,7 @@ namespace Rtx
         assert((camera.mTransparentBackground == 0 || !upscaling())
             && "a frame that stops where nothing was hit belongs to traceGuiTexture, which does not upscale");
 
-        // The frame `placeScene` opened, or a new one where nothing was placed.
+        // The frame a hand-over opened, or a new one where nothing was placed.
         FrameRecord& frame = mRing.begin();
 
         const float sinceLastMs = options.mSinceLast * 1000.0f;
@@ -1011,7 +1062,7 @@ namespace Rtx
         // is left beside them.
         mPictureRoom = VkExtent2D{ std::max(mPictureRoom.width, width), std::max(mPictureRoom.height, height) };
         const VkExtent2D output = mTarget.getExtent();
-        createTargets(output.width, output.height, ContentFollows::Never);
+        createTargets(output.width, output.height);
     }
 
     SceneSlot VulkanRenderer::addViewScene()

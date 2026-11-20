@@ -38,6 +38,29 @@ namespace RtxTool
         /// What the closing leg came to past where the first leg began: memory or the median frame.
         Growth,
 
+        /// A resident the plan could fit nowhere at its floor, at the leg's most (`Rtx::ResidencyReport`).
+        Starved,
+
+        /// A measured frame on which a demanded texture drew the stand-in.
+        StandInDrawn,
+
+        /// A demanded texture planned coarser than it wants for more than `sBelowWantFramesMost` measured frames on
+        /// end.
+        BelowWant,
+
+        /// A cell the ring adopted inside the drawn reach after the leg stood whole: it appeared where it was seen.
+        Pop,
+
+        /// A measured frame on which a demanded mesh stood nothing: the placement stood after its first frame.
+        LateStand,
+
+        /// A demanded texture raised a level in view on a measured frame.
+        LevelStep,
+
+        /// A crossing held on the loading screen for its band (`Renderer::standWhole`): the flight outran the
+        /// predictions.
+        HeldAtCrossing,
+
         /// Where the watcher pressed Home.
         Mark,
 

@@ -327,7 +327,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene(identities);
                 WalkContext context{};
-                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -371,8 +371,7 @@ namespace Rtx::Testing
             walk.read(*quad, ~0u, model, content);
             ASSERT_EQ(model.mParts.size(), 1u);
             ASSERT_TRUE(model.mParts[0].mMaterial.mDiffuseFacts.has_value());
-            EXPECT_EQ(model.mParts[0].mMaterial.mDiffuseFacts->mReachesSolid, std::optional<bool>(false));
-            EXPECT_FALSE(model.mParts[0].mMaterial.mDiffuseFacts->mMean.has_value()) << "a pane asks no mean";
+            EXPECT_FALSE(model.mParts[0].mMaterial.mDiffuseFacts->mReachesSolid);
         }
 
         /// **A pane's dark map tells traversal nothing, whatever its alpha**: a see-through hit's coverage is the
@@ -401,7 +400,7 @@ namespace Rtx::Testing
             const auto extractOne = [&](osg::Image& dark, bool blend) {
                 Rtx::SceneDesc scene(identities);
                 WalkContext context{};
-                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
                 extractor.extract(*quadWearing(dark, blend), osg::Matrixf::identity(), 0);
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
                 return scene.materials().getRows().items().front();
@@ -438,7 +437,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene(identities);
                 WalkContext context{};
-                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -501,7 +500,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene(identities);
                 WalkContext context{};
-                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
                 return scene.materials().getRows().items().front();
@@ -702,7 +701,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene(identities);
                 WalkContext context{};
-                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -808,7 +807,7 @@ namespace Rtx::Testing
 
             Rtx::SceneDesc scene(identities);
             WalkContext context{};
-            SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+            SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
             extractor.extract(*both, osg::Matrixf::identity(), 0);
 
             ASSERT_EQ(scene.materials().getRows().size(), 2u);
@@ -1092,7 +1091,7 @@ namespace Rtx::Testing
             {
                 Rtx::SceneIdentities identities;
                 Rtx::SceneDesc scene(identities);
-                SceneExtractor extractor(scene, mContext, sSubjectExtractorRoom);
+                SceneExtractor extractor(scene, mContext, sSubjectExtractorRoom, HoldTier::Shown);
 
                 osg::ref_ptr<osg::StateSet> shared = shapeState();
 
@@ -1202,7 +1201,7 @@ namespace Rtx::Testing
             {
                 Rtx::SceneIdentities identities;
                 Rtx::SceneDesc scene(identities);
-                SceneExtractor extractor(scene, mContext, sSubjectExtractorRoom);
+                SceneExtractor extractor(scene, mContext, sSubjectExtractorRoom, HoldTier::Shown);
 
                 const osg::ref_ptr<osg::Group> shape = makeShape(shapeState(), onDrawable);
                 const std::array<osg::ref_ptr<FlipController>, 2> glows{ makeFlip(), new FlipController };
@@ -1274,7 +1273,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene(identities);
                 WalkContext context{};
-                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
                 extractor.extract(*parent, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.placements().getRows().size(), 1u);
@@ -1365,7 +1364,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene(identities);
                 WalkContext context{};
-                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -1405,7 +1404,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene(identities);
                 WalkContext context{};
-                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
                 extractor.extract(*root, osg::Matrixf::identity(), 0);
 
                 const std::span<const Light> lights = scene.lights();
@@ -1434,7 +1433,7 @@ namespace Rtx::Testing
 
                 Rtx::SceneDesc scene(identities);
                 WalkContext context{};
-                SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+                SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -1478,7 +1477,7 @@ namespace Rtx::Testing
             colours(*quad->getOrCreateStateSet());
 
             Rtx::SceneDesc plain(identities);
-            SceneExtractor other(plain, mContext, sSubjectExtractorRoom);
+            SceneExtractor other(plain, mContext, sSubjectExtractorRoom, HoldTier::Shown);
             other.extract(*quad, osg::Matrixf::identity(), 0);
             EXPECT_FALSE(plain.meshes().getRows()[MeshIndex(0)].mShape.mSheet);
             EXPECT_EQ(plain.meshes().getRows()[MeshIndex(0)].getTriangleCount(), 2u);
@@ -1514,7 +1513,7 @@ namespace Rtx::Testing
             // an analytic sea of its own instead.
             {
                 Rtx::SceneDesc scene(identities);
-                SceneExtractor silent(scene, mContext, sSubjectExtractorRoom);
+                SceneExtractor silent(scene, mContext, sSubjectExtractorRoom, HoldTier::Shown);
                 silent.extract(*root, osg::Matrixf::identity(), 0);
 
                 ASSERT_EQ(scene.materials().getRows().size(), 3u);

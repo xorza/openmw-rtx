@@ -29,6 +29,7 @@
 namespace Rtx
 {
     class Batch;
+    class ContentArena;
     class Device;
     class GpuTimer;
     class SceneDesc;
@@ -47,15 +48,11 @@ namespace Rtx
     class DeviceScene
     {
     public:
-        /// Builds every structure, table and texture of `scene` into `batch`, which the caller
-        /// flushes: one submit for the whole cell, not a round trip apiece. Every scene is traced by
-        /// two frames at once, the doll's included (a picture rides the frame it was asked on and
-        /// the next frame may place it again), so every table has `sFrameSlots` copies. The
-        /// structures before the textures, because a mesh left out is worse than a texture held to
-        /// a smaller side, and the textures are held to what the structures left; what the device
-        /// had no room for is `getRefusals`. Left tight where `compaction` settles them: a load
-        /// that waits copies them tight first, so the textures are held to what the tight
-        /// structures leave.
+        /// Builds every table of `scene` into `batch`, which the caller flushes: one submit for the whole cell, not
+        /// a round trip apiece. Every scene is traced by two frames at once, the doll's included (a picture rides the
+        /// frame it was asked on and the next frame may place it again), so every table has `sFrameSlots` copies.
+        /// No structure and no texture stands until residency stands it, every texture drawing the stand-in and
+        /// every mesh placing nothing until then.
         ///
         /// @param passes what poses this scene's bodies, at the build and at every placement, what
         ///        every texture is made with as it arrives, and what flattens every chunk's stack
@@ -64,27 +61,26 @@ namespace Rtx
         ///        for every scene: `TextureArray`'s constructor says why one.
         /// @param anisotropy `RenderProfile::mAnisotropy`, which the textures are read along a
         ///        footprint by.
-        /// @param compaction `BuildCompaction::Settled` for a caller that flushes `batch` and may
-        ///        wait, which this then flushes as well; Streamed for one that defers it.
         DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, TextureArrival& arrival,
-            const SceneDesc& scene, std::span<const TextureData> textures, std::uint32_t anisotropy,
-            const SceneRoom& room, BuildCompaction compaction);
+            const SceneDesc& scene, std::uint32_t anisotropy, const SceneRoom& room);
 
         /// `TextureArray::setAnisotropy`.
         void setAnisotropy(std::uint32_t anisotropy) { mTextures.setAnisotropy(anisotropy); }
 
-        /// Takes in what the scene says arrived: the meshes where the mesh table's revision moved —
-        /// the geometry blocks are appended to rather than replaced, so every address a structure
-        /// was built from is still its own — and then the textures, for the reason the constructor
-        /// gives. The revision and not the count, because a freed slot taken over holds different
-        /// geometry at the same size. Into `batch`, which the caller defers or flushes.
-        ///
-        /// @param arrival the textures' arrival, as the constructor takes it.
-        /// @param whenRoomless what a texture the device has no room for does (`Rtx::whenRoomless`).
-        /// @param timer where the arrived meshes' build and the arrived textures' making are timed, or
-        ///        null for a picture's scene.
-        void extend(Batch& batch, TextureArrival& arrival, const SceneDesc& scene, std::span<const TextureData> arrived,
-            WhenRoomless whenRoomless, GpuTimer* timer);
+        /// What one `extend` records with: the batch, the arrival textures are recorded through, the arena they stand
+        /// in, and where the work is timed, or null.
+        struct Extending
+        {
+            Batch& mBatch;
+            TextureArrival& mArrival;
+            const ContentArena& mArena;
+            GpuTimer* mTimer = nullptr;
+        };
+
+        /// Appends what the scene gained since its last build or extension — its meshes' geometry and its materials'
+        /// runs — and does residency's operations, structures and textures, every texture slot the table took since
+        /// drawing the stand-in until something stands in it. Does not place.
+        void extend(const Extending& extending, const SceneDesc& scene, std::span<const ResidencyOp> ops);
 
         /// Everything a placement of this scene is, recorded and written where `placing` says. True
         /// where anything was recorded, which is whether its command buffer is worth submitting.
@@ -94,8 +90,6 @@ namespace Rtx
         /// Waits until nothing on the queue reads or writes `slot`'s copy of any table a placement
         /// writes from the host. Asked of each table, which carries the value itself.
         void finishReads(FrameSlot slot) const;
-
-        /// Destroys the images of `textures`, leaving the slots where they are: `TextureArray::drop`.
 
         /// Which copy of the tables the last placement wrote — what a trace of this scene reads,
         /// and the copy the next placement leaves alone. A placement's parity and not a frame's,
@@ -116,30 +110,8 @@ namespace Rtx
         /// What this scene holds, as `SceneHolder::describeHeld` answers it.
         SceneHeld describe() const;
 
-        /// Whether the room the scene was built and extended in held any of it back: a texture stood
-        /// smaller than its file, or a texture or a structure left out. A scene built again in more
-        /// room would stand more of it.
-        /// Sets what the device refused for room waiting again, its structures (`BottomLevelStore::waitAgain`) and its
-        /// textures, named short in the next answer (`TextureArray::waitAgain`): what a reserve that shrank may stand.
-        void waitAgain()
-        {
-            mAcceleration.waitAgain();
-            mTextures.waitAgain(mAnswer);
-        }
-
-        /// Appends what the build, an `extend` or a placement made of the scene since the last take, and forgets it:
-        /// what it left out, for want of room on the device or for a side the device does not take, and what each
-        /// mesh's structure took at its build — `SceneHolder::takeAnswer`.
-        void takeAnswer(DeviceAnswer& into);
-
-        /// Moves textures that stand down until they give back `bytes`, recorded into `batch` through `arrival`
-        /// (`TextureArray::makeRoom`); what moved is in the next answer, short of its file.
-        void makeTextureRoom(Batch& batch, TextureArrival& arrival, VkDeviceSize bytes);
-
-        /// Moves textures out of a block to give it back where the device asks for one, a placement's share
-        /// (`TextureArray::moveOut`), recorded into `batch` through `arrival`: ahead of the placement, whose `sync`
-        /// names them in its set.
-        void moveTexturesOut(Batch& batch, TextureArrival& arrival);
+        /// `BottomLevelStore::readAnswers`, as `slot`'s.
+        void readAnswers(const SceneSlot slot, std::vector<TightSize>& into) { mAcceleration.readAnswers(slot, into); }
 
         /// Reads all of `stats`: at every placement, a build and an extension. Every figure is a
         /// total kept as it changes, so a placement on the frame path reads them all.
@@ -187,6 +159,9 @@ namespace Rtx
         /// slot handed out again appears only among the arrivals, where `buildArrived` buries it.
         void releaseFreed(const SceneDesc& scene);
 
+        /// Has every slot the table took since the last read draw the stand-in until something stands in it.
+        void standInTaken(const SceneDesc& scene);
+
         const ScenePasses& mPasses;
 
         /// One row per placement slot, made whole when the scene is built and kept across frames,
@@ -205,6 +180,10 @@ namespace Rtx
         /// through, down the path a list of arrivals takes. Here, as the records are, because both
         /// read it. Before the halves.
         std::vector<MeshIndex> mEveryMesh;
+        std::vector<TextureIndex> mEveryTexture;
+
+        /// The texture table's revision the slots drawing the stand-in were last read at (`standInTaken`).
+        std::uint64_t mStoodInRevision = ~std::uint64_t{ 0 };
 
         SceneAcceleration mAcceleration;
         SceneBuffers mBuffers;
@@ -220,7 +199,6 @@ namespace Rtx
         /// `MeshTable::getFreedCount` and `TextureTable::getFreedCount` as `releaseFreed` last gave their
         /// lists back, which a list already given back in this hand-over matches.
         std::uint64_t mReleasedMeshes = 0;
-        std::uint64_t mReleasedTextures = 0;
 
         /// The revision of the whole structure this was built from: what `describe` answers and
         /// an uploader appends against.
@@ -238,10 +216,5 @@ namespace Rtx
 
         /// The submit a picture of each copy rides, as the timeline value it was recorded for.
         std::array<std::uint64_t, sFrameSlots> mPictureRides{};
-
-        /// Filled by the build, refilled by every `extend`, and never freed.
-        /// What the build, the extensions and the placements made of the scene since the last `takeAnswer`, but the
-        /// structures' sizes, which the acceleration keeps.
-        DeviceAnswer mAnswer;
     };
 }

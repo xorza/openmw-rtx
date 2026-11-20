@@ -34,8 +34,9 @@ namespace Rtx
     SceneUtil::LightController::LightType animationOf(const SceneUtil::LightCommon& record);
 
     /// The light a `LIGH` reference casts at `simulationTime`: a lamp; nothing where it casts none
-    /// (`castsWherePlaced`); or an error saying why, for a negative light, which is meaningless to a ray traced to an
-    /// emitter. The error is a literal, so a refusal made every frame builds no string.
+    /// (`castsWherePlaced`); or an error saying why, for a colour that gives in one channel and takes in another, or a
+    /// number that is not finite. A negative light is a lamp of negative intensity. The error is a literal, so a
+    /// refusal made every frame builds no string.
     ///
     /// **The light the walk builds from the `SceneUtil::LightSource` the game hangs on the same record, down to the
     /// last bit**, which is what lets the cell ring stand a lamp the game has not loaded and the walk take it over when
@@ -159,9 +160,6 @@ namespace Rtx
         /// and flames that add hide nothing of one another, so a cloud of them is a source of intensity `pi * r^2 * L`
         /// summed over its discs. Exact for what the march adds sprite by sprite; what it is over by is the saturation
         /// the march applies to a stack, `1 - prod(1 - g)`.
-        ///
-        /// **The ball is the emitter's own**, `SpriteEmitter::mCentre` and `mReach`, which the scene measured over
-        /// these same sprites.
         ///
         /// **The ball is the emitter's own**, `SpriteEmitter::mCentre` and `mReach`, which the scene measured over
         /// these same sprites.

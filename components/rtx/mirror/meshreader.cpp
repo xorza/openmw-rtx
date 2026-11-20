@@ -31,6 +31,8 @@
 #include <components/sceneutil/riggeometry.hpp>
 #include <components/shader/automaps.hpp>
 
+#include "modelfold.hpp"
+
 namespace Rtx
 {
     namespace
@@ -637,14 +639,38 @@ namespace Rtx
             .mSplits = splits,
             .mBeside = beside,
         };
-        ShapePass::Output shaped{ .mKept = mIndexScratch, .mNormals = mNormalScratch, .mSources = mSourceScratch };
-        content.shape(shape, shaped);
-        into.mShape = shaped.mShape;
 
-        const std::span<const std::uint32_t> sources = mSourceScratch;
+        // **The fold its model's derivation kept, where it was made of what this read reads** (`ModelFold`): the
+        // shape's key, as the store files it, says so. A template's shape and its clone's differ where the game
+        // moves the clone's parts, as an actor's animation does, which then reads its beside differently.
+        ContentStore::Digest digest(sContentPasses.name(ContentPassId::Shape), ShapePass::sVersion);
+        ShapePass::digest(shape, digest);
+        into.mShapeKey = digest.getKey();
+        std::span<const std::uint32_t> kept;
+        std::span<const osg::Vec3f> splitNormals;
+        std::span<const std::uint32_t> sources;
+        if (const ModelFold* const fold = ModelFold::of(geometry); fold != nullptr && fold->mInput == into.mShapeKey)
+        {
+            kept = fold->mKept;
+            splitNormals = fold->mNormals;
+            sources = fold->mSources;
+            into.mShape = fold->mShape;
+        }
+        else
+        {
+            ShapePass::Output shaped{ .mKept = mIndexScratch, .mNormals = mNormalScratch, .mSources = mSourceScratch };
+            content.shape(shape, shaped);
+            into.mShape = shaped.mShape;
+            kept = mIndexScratch;
+            splitNormals = mNormalScratch;
+            sources = mSourceScratch;
+        }
+        into.mSplitNormals = splitNormals;
+        into.mSources = sources;
+
         into.mArrays = MeshArrays{
             .mPositions = withCopies(arrays.mPositions, sources, mPositionScratch),
-            .mNormals = mNormalScratch.empty() ? arrays.mNormals : std::span<const osg::Vec3f>(mNormalScratch),
+            .mNormals = splitNormals.empty() ? arrays.mNormals : splitNormals,
             .mTexCoords = withCopies(texCoords.value() != nullptr
                     ? finiteOrNone(texCoords.value()->asVector(), mReadTexCoordScratch)
                     : std::span<const osg::Vec2f>(),
@@ -656,7 +682,7 @@ namespace Rtx
             .mUnitStreams = unitStreams,
             .mColours = withCopies(colours.value(), sources, mCopiedColourScratch),
             .mTangents = withCopies(tangents.value(), sources, mTangentScratch),
-            .mIndices = mIndexScratch,
+            .mIndices = kept,
         };
 
         return MeshRead::Triangles;

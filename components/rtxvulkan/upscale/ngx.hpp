@@ -287,10 +287,6 @@ namespace Rtx::Dlss::Ngx
     inline constexpr const char* sOutHeight = "OutHeight";
     inline constexpr const char* sPerfQualityValue = "PerfQualityValue";
     inline constexpr const char* sRtxValue = "RTXValue";
-    inline constexpr const char* sDynamicMaxWidth = "DLSS.Get.Dynamic.Max.Render.Width";
-    inline constexpr const char* sDynamicMaxHeight = "DLSS.Get.Dynamic.Max.Render.Height";
-    inline constexpr const char* sDynamicMinWidth = "DLSS.Get.Dynamic.Min.Render.Width";
-    inline constexpr const char* sDynamicMinHeight = "DLSS.Get.Dynamic.Min.Render.Height";
     inline constexpr const char* sSizeInBytes = "SizeInBytes";
     inline constexpr const char* sFeatureCreateFlags = "DLSS.Feature.Create.Flags";
     inline constexpr const char* sEnableOutputSubrects = "DLSS.Enable.Output.Subrects";
@@ -349,14 +345,10 @@ namespace Rtx::Dlss::Ngx
         float mFrameMs = 0.0f;
     };
 
-    /// The traced extents NGX deems right for a mode at an output, and the range it takes: what
-    /// `NGX_DLSSD_GET_OPTIMAL_SETTINGS` answers. A library that names no range has the optimal extent
-    /// for both ends, as the SDK's helper reads it.
+    /// The traced extent NGX deems right for a mode at an output: what `NGX_DLSSD_GET_OPTIMAL_SETTINGS` answers.
     struct OptimalSettings
     {
         VkExtent2D mOptimal{};
-        VkExtent2D mMin{};
-        VkExtent2D mMax{};
     };
 
     /// Sets the parameter map up as the SDK's Ray Reconstruction create helper does

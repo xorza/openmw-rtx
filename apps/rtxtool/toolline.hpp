@@ -242,6 +242,9 @@ namespace RtxTool
             /// Whether the frames are held to the step, the world's second the wall's (`--pace=real`), or flown as
             /// fast as the card draws them.
             bool mPaced = false;
+
+            /// Whether each walk waits for the cell it adopts (`--settled`), or streams as the game does.
+            bool mSettled = true;
         };
 
         /// What the hosted game is started with, as `apps/openmw/main.cpp` reads it.
@@ -258,6 +261,9 @@ namespace RtxTool
 
         bool mShaderSource = false;
         bool mFolders = false;
+
+        /// `info --prices`: what the device charges for what content stands in, after the device's report.
+        bool mPrices = false;
         std::filesystem::path mResources;
 
         /// `--out`, or nothing for a folder named after the verb.

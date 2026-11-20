@@ -170,8 +170,10 @@ namespace
             = EsmLoader::loadEsmData(query, contentFiles, fileCollections, readers, &encoder);
 
         constexpr double expiryDelay = 0;
-        // Keeps nothing that nothing holds, as the delay of nought keeps nothing.
-        Resource::CacheBudget cacheBudget(0);
+        // Keeps everything, as the delay did, which nothing here ever applied: a budget of nought found
+        // everything in use at its first insertion and never looked again, and what it had evicted was
+        // destroyed by a look nothing here makes.
+        Resource::CacheBudget cacheBudget(Resource::CacheBudget::sUnbounded);
         Resource::ImageManager imageManager(&vfs, cacheBudget);
         Resource::NifFileManager nifFileManager(&vfs, cacheBudget, &encoder.getStatelessEncoder());
         Resource::BgsmFileManager bgsmFileManager(&vfs, expiryDelay);

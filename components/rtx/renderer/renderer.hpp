@@ -14,7 +14,6 @@
 
 #include <osg/Vec2d>
 
-#include <components/dlss/dlss.hpp>
 #include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/namedenum.hpp>
@@ -31,10 +30,12 @@
 #include "framesinflight.hpp"
 #include "framezone.hpp"
 #include "guirenderer.hpp"
+#include "memoryprices.hpp"
 #include "memoryreport.hpp"
 #include "picturerenderer.hpp"
 #include "shaderset.hpp"
 #include "slot.hpp"
+#include "structuretightness.hpp"
 #include "verticalsync.hpp"
 
 struct SDL_Window;
@@ -190,6 +191,13 @@ namespace Rtx
         Measured,
     };
 
+    /// The host's folders a backend may look for a library in.
+    struct HostFolders
+    {
+        std::filesystem::path mUserLocalData;
+        std::filesystem::path mGame;
+    };
+
     struct RendererOptions
     {
         /// The compiled shaders of whichever backend this is, which outlive the renderer, and whether
@@ -202,10 +210,10 @@ namespace Rtx
         /// is regenerable and worth tens of megabytes. Empty keeps nothing.
         std::filesystem::path mCacheDirectory{};
 
-        /// Where DLSS's files are, as the host's configuration names them: the runtime folder the
-        /// launcher downloads the feature library into, and the game's own folder. Empty folders
-        /// leave DLSS uninstalled.
-        DlssLibrary::Folders mDlss{};
+        /// Where the host keeps its user's local data and its own files, as its configuration names them
+        /// (`Files::ConfigurationManager`): what a backend looks for an upscaler's library in, under names of its own.
+        /// Empty folders hold none.
+        HostFolders mHostFolders{};
 
         /// The frame's size: what `readPixels` gives back, and what a window shows scaled to fit.
         /// What it is traced at follows from `mRun.mProfile.mUpscale`.
@@ -266,6 +274,9 @@ namespace Rtx
         /// the device would not say: the difference from `mStructureBytes` is what compacting gives.
         std::uint64_t mCompactableBytes = 0;
         std::uint64_t mCompactableNowBytes = 0;
+
+        /// What every structure answered so far came to tight against as first built, by its triangles.
+        StructureTightness mTightness{};
 
         /// What the structures moved out of a block to give it back have come to since the scene was made: what the
         /// device's memory past its budget has cost in copies.
@@ -705,10 +716,22 @@ namespace Rtx
         /// allocation, so asked once at a place and never once a frame.
         virtual MemoryReport getMemoryReport() const = 0;
 
-        /// What the device claims of the host's caches, where its memory is the system's: memory it gave back lately
-        /// and is likely to take again, which the caches leave it (`Resource::CacheBudget::yieldTo`); nought where the
-        /// device has memory of its own. Asked once a frame.
-        virtual std::uint64_t getSystemClaim() const = 0;
+        /// What the device charges for what content stands in (`MemoryPrices`): asked of the driver, a few hundred
+        /// questions and nothing made, so once and never on a frame.
+        virtual MemoryPrices priceMemory() const = 0;
+
+        /// How fast the device copies texture chains on itself (`CopyRate`), a side of `sCopiedSides` each: what a
+        /// frame's share of copies is set from. Makes images of `sCopiedBytes` a side and waits for the device, so
+        /// once, on a device that draws nothing; empty where nothing can be timed.
+        virtual std::vector<CopyRate> measureCopies() = 0;
+
+        /// What the device holds of the system's memory, where its memory is the system's; nothing where the device has
+        /// memory of its own. Asked once a frame, for the host's sampler (`Resource::MemoryArbiter`).
+        virtual std::optional<std::uint64_t> getSystemHeld() const = 0;
+
+        /// What the host's sampler holds the device to, where its memory is the system's; nothing leaves it to its
+        /// driver's word. Told once a frame.
+        virtual void setSystemBound(std::optional<std::uint64_t> bound) = 0;
 
         /// What the world scene is made of, as the backend last placed it. Only meaningful once
         /// `Renderer::setScene` has been called for the world.

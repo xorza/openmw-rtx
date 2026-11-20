@@ -232,7 +232,7 @@ namespace Rtx
         }
 
         /// An image read again is the texture it was handed and nothing of the one before, and it costs the heap
-        /// nothing to say so. `ChainBuild` and `SceneTextures` keep one of these through a cell's worth of
+        /// nothing to say so. `ChainBuild` and `TextureHands` keep one of these through a cell's worth of
         /// textures: one that carried the last texture's levels through would weigh one texture's colours by
         /// another's alpha, and one that gave its room back would go to the heap once a texture.
         TEST(RtxAlphaImageTest, anImageReadAgainIsTheNewTextureAndKeepsTheRoomOfTheLast)
@@ -291,11 +291,13 @@ namespace Rtx
             // per translucent diffuse map it arrives with.
             ContentPreprocessor content;
 
-            EXPECT_TRUE(content.reachesSolid(*makeAlphaImage({ 0, 119, 254, 255 }))) << "one solid texel is a mask";
-            EXPECT_FALSE(content.reachesSolid(*makeAlphaImage({ 0, 119, 254, 254 }))) << "one short of solid is a wisp";
-            EXPECT_FALSE(content.reachesSolid(*makeAlphaImage({ 119, 119, 119, 119 })))
+            EXPECT_TRUE(content.facts(*makeAlphaImage({ 0, 119, 254, 255 })).mReachesSolid)
+                << "one solid texel is a mask";
+            EXPECT_FALSE(content.facts(*makeAlphaImage({ 0, 119, 254, 254 })).mReachesSolid)
+                << "one short of solid is a wisp";
+            EXPECT_FALSE(content.facts(*makeAlphaImage({ 119, 119, 119, 119 })).mReachesSolid)
                 << "the blight cloud's own peak";
-            EXPECT_TRUE(content.reachesSolid(*makeAlphaImage({ 255, 255, 255, 255 })))
+            EXPECT_TRUE(content.facts(*makeAlphaImage({ 255, 255, 255, 255 })).mReachesSolid)
                 << "an untextured surface's stand-in";
 
             // **A spare byte is no alpha**: an X8 file, whose fourth byte the header gave no mask,
@@ -306,7 +308,7 @@ namespace Rtx
                 const osg::ref_ptr<osg::Image> spare = makeAlphaImage({ 0, 0, 0, 0 });
                 spare->setPixelFormat(order);
                 spare->setInternalTextureFormat(GL_RGB);
-                EXPECT_TRUE(content.reachesSolid(*spare)) << "a spare byte of nought cut a hole, " << order;
+                EXPECT_TRUE(content.facts(*spare).mReachesSolid) << "a spare byte of nought cut a hole, " << order;
             }
         }
 
@@ -350,28 +352,40 @@ namespace Rtx
         {
             ContentPreprocessor content;
 
-            EXPECT_TRUE(content.reachesSolid(*makeBlockImage(
-                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF })))
+            EXPECT_TRUE(content
+                    .facts(*makeBlockImage(
+                        GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF }))
+                    .mReachesSolid)
                 << "descending endpoints: four colours and no hole";
-            EXPECT_FALSE(content.reachesSolid(*makeBlockImage(
-                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF })))
+            EXPECT_FALSE(content
+                    .facts(*makeBlockImage(
+                        GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }))
+                    .mReachesSolid)
                 << "ascending endpoints and every index three: all hole";
-            EXPECT_TRUE(content.reachesSolid(*makeBlockImage(
-                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0x00, 0x00, 0xFF, 0xFF, 0xFC, 0xFF, 0xFF, 0xFF })))
+            EXPECT_TRUE(content
+                    .facts(*makeBlockImage(
+                        GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0x00, 0x00, 0xFF, 0xFF, 0xFC, 0xFF, 0xFF, 0xFF }))
+                    .mReachesSolid)
                 << "ascending endpoints and one index nought: one texel of paint";
 
             // Where OpenSceneGraph counts the level short of its block, `describeImage` refuses the
             // image, and a refused image answers what changes nothing about how the surface is traced.
             const bool wholeBlock = countedBytes(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2) == 16;
-            EXPECT_EQ(content.reachesSolid(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2,
-                          { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })),
+            EXPECT_EQ(content
+                          .facts(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2,
+                              { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }))
+                          .mReachesSolid,
                 !wholeBlock)
                 << "the 255 is in the padding";
-            EXPECT_TRUE(content.reachesSolid(*makeBlockImage(
-                GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4, { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })))
+            EXPECT_TRUE(content
+                    .facts(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4,
+                        { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }))
+                    .mReachesSolid)
                 << "the same block whole: texel three is in the picture";
-            EXPECT_FALSE(content.reachesSolid(*makeBlockImage(
-                GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4, { 200, 0, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })))
+            EXPECT_FALSE(content
+                    .facts(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4,
+                        { 200, 0, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }))
+                    .mReachesSolid)
                 << "descending from 200, index seven is a step of the ramp and nothing reaches 255";
         }
 
@@ -390,7 +404,7 @@ namespace Rtx
         {
             ContentPreprocessor content;
             const auto range = [&](const osg::ref_ptr<osg::Image>& image) {
-                const AlphaRange read = content.alphaRange(*image);
+                const AlphaRange read = content.facts(*image).mAlphaRange;
                 return std::array<std::int32_t, 2>{ read.mLow, read.mHigh };
             };
             using Range = std::array<std::int32_t, 2>;
@@ -432,10 +446,10 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> wisp = makeAlphaImage({ 0, 119, 254, 254 });
 
             ContentPreprocessor content;
-            ASSERT_TRUE(content.reachesSolid(*mask)) << "the image this one has to stop carrying";
+            ASSERT_TRUE(content.facts(*mask).mReachesSolid) << "the image this one has to stop carrying";
 
             bool answer{};
-            const std::size_t spent = Testing::allocationsIn([&] { answer = content.reachesSolid(*wisp); });
+            const std::size_t spent = Testing::allocationsIn([&] { answer = content.facts(*wisp).mReachesSolid; });
 
             EXPECT_FALSE(answer) << "the last image's alpha came through";
             EXPECT_EQ(spent, 0u) << "a second reading reached the heap " << spent << " times";
@@ -451,7 +465,7 @@ namespace Rtx
             osg::ref_ptr<osg::Image> luminance = Testing::makeImage("odd.dds", 2, 2, GL_LUMINANCE, GL_UNSIGNED_BYTE);
 
             ContentPreprocessor content;
-            EXPECT_TRUE(content.reachesSolid(*luminance));
+            EXPECT_TRUE(content.facts(*luminance).mReachesSolid);
         }
     }
 }

@@ -129,8 +129,7 @@ namespace Rtx
 
             EXPECT_EQ(nameOf(MemoryUse::Frame), "frame");
             EXPECT_EQ(nameOf(MemoryUse::Essential), "essential");
-            EXPECT_EQ(nameOf(MemoryUse::Structure), "structure");
-            EXPECT_EQ(nameOf(MemoryUse::Texture), "texture");
+            EXPECT_EQ(nameOf(MemoryUse::Content), "content");
         }
     }
 }

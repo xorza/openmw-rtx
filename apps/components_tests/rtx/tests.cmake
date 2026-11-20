@@ -15,12 +15,15 @@ target_sources(
         rtx/common/error.cpp
         rtx/common/halffloat.cpp
         rtx/common/job.cpp
+        rtx/common/classanswers.cpp
         rtx/common/namedenum.cpp
         rtx/common/ownedby.cpp
         rtx/common/parallel.cpp
         rtx/common/radicalinverse.cpp
         rtx/common/rows.cpp
         rtx/common/runs.cpp
+        rtx/common/slotledger.cpp
+        rtx/common/scratch.cpp
         rtx/common/slots.cpp
         rtx/common/stepped.cpp
         rtx/environment/atmospheremesh.cpp
@@ -43,8 +46,10 @@ target_sources(
         rtx/image/spritelight.cpp
         rtx/image/texels.cpp
         rtx/mirror/cells/cellgrid.cpp
-        rtx/mirror/cells/cellring.cpp
+        rtx/mirror/cells/cellstreamer.cpp
+        rtx/mirror/cells/celltable.cpp
         rtx/mirror/cells/groundreader.cpp
+        rtx/mirror/cells/predictedbands.cpp
         rtx/mirror/cells/templatewalk.cpp
         rtx/mirror/drawableposer.cpp
         rtx/mirror/extractor/frozen.cpp
@@ -69,17 +74,20 @@ target_sources(
         rtx/prepare/preparationmanifest.cpp
         rtx/preprocess/contentpreprocessor.cpp
         rtx/preprocess/passversions.cpp
-        rtx/preprocess/preparedimages.cpp
         rtx/preprocess/shape/creasesplit.cpp
         rtx/preprocess/shape/shapefold.cpp
-        rtx/renderer/arrivalwindow.cpp
+        rtx/preprocess/sourceindex.cpp
+        rtx/preprocess/texturehands.cpp
         rtx/renderer/framedescriber.cpp
         rtx/renderer/frameimage.cpp
         rtx/renderer/frametimehistogram.cpp
+        rtx/renderer/memoryprices.cpp
+        rtx/renderer/nulldevice.cpp
+        rtx/renderer/residency.cpp
         rtx/renderer/memoryreport.cpp
+        rtx/renderer/structuretightness.cpp
         rtx/renderer/notfinite.cpp
         rtx/renderer/nullrenderer.cpp
-        rtx/renderer/scenetextures.cpp
         rtx/renderer/sceneuploader.cpp
         rtx/renderer/shaderset.cpp
         rtx/scene/compositequeue.cpp
@@ -111,6 +119,7 @@ target_sources(
         rtxtool/homekey.cpp
         rtxtool/instruments/cardwatch.cpp
         rtxtool/instruments/drivercache.cpp
+        rtxtool/instruments/filewriter.cpp
         rtxtool/instruments/framehashes.cpp
         rtxtool/instruments/frametimes.cpp
         rtxtool/instruments/gpuclock.cpp
@@ -133,11 +142,11 @@ target_sources(
         rtxtool/model/legselection.cpp
         rtxtool/model/longestframes.cpp
         rtxtool/model/measurewindow.cpp
-        rtxtool/model/restreuse.cpp
         rtxtool/model/runrecord.cpp
         rtxtool/model/skycrossing.cpp
         rtxtool/model/stopdescription.cpp
         rtxtool/model/tour.cpp
+        rtxtool/model/tourwatch.cpp
         rtxtool/model/viewfile.cpp
         rtxtool/noise.cpp
         rtxtool/numbervalue.cpp
@@ -154,9 +163,9 @@ target_sources(
         rtxvulkan/device/memory/largestowed.cpp
         rtxvulkan/device/memory/memorypriority.cpp
         rtxvulkan/device/memory/memorytypes.cpp
-        rtxvulkan/device/memory/systemshare.cpp
         rtxvulkan/device/memory/uploads.cpp
         rtxvulkan/device/physicaldevice.cpp
+        rtxvulkan/device/pipelinecacheblob.cpp
         rtxvulkan/device/pipelinecode.cpp
         rtxvulkan/device/pipelinetally.cpp
         rtxvulkan/device/requirements.cpp
@@ -166,6 +175,7 @@ target_sources(
         rtxvulkan/device/validation.cpp
         rtxvulkan/device/zonecounters.cpp
         rtxvulkan/frame/gbufferstages.cpp
+        rtxvulkan/frametracer.cpp
         rtxvulkan/pipeline/dispatch.cpp
         rtxvulkan/pipeline/passbindings.cpp
         rtxvulkan/present/swapchain.cpp
@@ -186,6 +196,7 @@ target_sources(
         rtxvulkan/spirv/spirvpin.cpp
         rtxvulkan/texture/meansgrownto.cpp
         rtxvulkan/trace/tuplequeue.cpp
+        rtxvulkan/upscale/featurebytes.cpp
         rtxvulkan/upscale/fsrframe.cpp
         rtxvulkan/upscale/upscaler.cpp
         sky/skyclock.cpp
@@ -248,6 +259,9 @@ elseif(LINUX)
     target_sources(
         components-tests
         PRIVATE
+            contentstore/storelinux.cpp
+            files/constrainedfilestreamlinux.cpp
+            platform/filelinux.cpp
             platform/gpulinux.cpp
             platform/kernelfilelinux.cpp
             platform/processlinux.cpp
@@ -290,6 +304,7 @@ target_sources(
         rtxvulkan/device/commands.cpp
         rtxvulkan/device/device.cpp
         rtxvulkan/device/gputimer.cpp
+        rtxvulkan/device/graveyard.cpp
         rtxvulkan/device/halfstore.cpp
         rtxvulkan/device/memory/barriers.cpp
         rtxvulkan/device/memory/buffer.cpp
@@ -297,7 +312,6 @@ target_sources(
         rtxvulkan/device/memory/imagearenadevice.cpp
         rtxvulkan/device/memory/memory.cpp
         rtxvulkan/device/memory/slottable.cpp
-        rtxvulkan/device/memory/structurestorage.cpp
         rtxvulkan/device/pipelinecache.cpp
         rtxvulkan/device/probe.cpp
         rtxvulkan/device/readstamp.cpp
@@ -310,6 +324,8 @@ target_sources(
         rtxvulkan/frame/notfinitekeep.cpp
         rtxvulkan/framering.cpp
         rtxvulkan/frames.cpp
+        rtxvulkan/residencydevice.cpp
+        rtxvulkan/memorypricing.cpp
         rtxvulkan/gui/guipass.cpp
         rtxvulkan/gui/guitextures.cpp
         rtxvulkan/pipeline/computepipeline.cpp
@@ -327,6 +343,7 @@ target_sources(
         rtxvulkan/support/device/memorylimits.cpp
         rtxvulkan/support/device/readback.cpp
         rtxvulkan/support/device/rendererprobe.cpp
+        rtxvulkan/support/device/scenestander.cpp
         rtxvulkan/texture/bc7encodepass.cpp
         rtxvulkan/texture/groundcompositepass.cpp
         rtxvulkan/texture/mipchainpass.cpp
@@ -373,6 +390,7 @@ target_sources(
                 rtxvulkan/support/device/memorylimits.hpp
                 rtxvulkan/support/device/readback.hpp
                 rtxvulkan/support/device/rendererprobe.hpp
+                rtxvulkan/support/device/scenestander.hpp
                 rtxvulkan/trace/visibility/fixture.hpp
                 ${RTX_TEST_SUPPORT_HEADERS}
 )

@@ -27,6 +27,7 @@ namespace osg
 
 namespace Rtx
 {
+    class Residency;
     class PoseCull;
     class PoseUpdate;
     class Released;
@@ -128,21 +129,26 @@ namespace Rtx
         ///        bones once and never again.
         /// @param releasing what the sweep lets go of goes into, for the caller to hand to the queue
         ///        the world's goes to, so a doll's retired parts are not destroyed on the frame thread.
-        /// @param settled whether the hand-over waits for the images its files' chains are made in
-        ///        (`SceneUploader::Handing::mSettled`): a settled run's, as the world's waits.
-        bool rebuildSubject(const osg::FrameStamp& posing, Released& releasing, bool settled);
+        bool rebuildSubject(const osg::FrameStamp& posing, Released& releasing);
 
-        /// Whether a slot of the subject stands its file while its image is made, which a picture
-        /// drawn again once made stands with: never for a picture of the world, whose slots are the
-        /// world's.
+        /// Whether residency still owes the subject's scene what it plans, a texture on its way among it, which a
+        /// picture drawn again once it stands stands with; for a picture of the world, whether the world's shown
+        /// content still waits.
         bool awaitsImages() const;
 
-        /// Traces the picture into `texture`, a slot from `Renderer::addGuiTexture`, and leaves a
-        /// copy for `takeCopy` where `readBack` asks for one. Whether it recorded the picture: false
-        /// where the camera could not be described or the renderer recorded nothing.
-        bool traceInto(GuiSlot texture, bool readBack = false);
+        /// Whether a trace leaves a copy of its picture for `takeCopy`.
+        enum class Copy : std::uint8_t
+        {
+            None,
+            Kept,
+        };
 
-        /// The copy the last `traceInto(texture, true)` left, into `into`, or false while the
+        /// Traces the picture into `texture`, a slot from `Renderer::addGuiTexture`, and leaves a
+        /// copy for `takeCopy` where `copy` asks for one. Whether it recorded the picture: false
+        /// where the camera could not be described or the renderer recorded nothing.
+        bool traceInto(GuiSlot texture, Copy copy);
+
+        /// The copy the last `traceInto(texture, Copy::Kept)` left, into `into`, or false while the
         /// trace that leaves it has not landed — `PictureRenderer::takeGuiCopy`, through the renderer
         /// this traces with, so a view reaches no further than its own trace for its picture.
         bool takeCopy(GuiSlot texture, std::span<std::uint8_t> into) const;
@@ -162,6 +168,9 @@ namespace Rtx
         std::optional<Viewpoint> describeCamera() const;
 
         PictureRenderer& mRenderer;
+
+        /// What stands of every scene, which a picture waits on; the renderer's, which outlives this.
+        const Residency& mResidency;
 
         /// Everything a picture of its own subject needs, and a picture of the world has none of:
         /// `mSubject` being null is the whole of what "this is a picture of the world" means.

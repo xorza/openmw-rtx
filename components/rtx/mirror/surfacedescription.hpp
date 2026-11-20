@@ -77,8 +77,8 @@ namespace Rtx
         Specular,
         Dark,
 
-        /// Named so a unit that carries one is a role and not an unknown, and read by nothing:
-        /// none of the four occurs in the shipped files, over every NIF the three archives hold.
+        /// Bound by no shipped file, over every NIF the three archives hold, and by a mod's surfaces, which the trace
+        /// reads as `objects.frag` does (`SurfaceMap`).
         Detail,
         Decal,
         Gloss,
@@ -247,7 +247,16 @@ namespace Rtx
         /// nearer one's, as every other fact here is.
         std::uint32_t mUnread = 0;
 
-        bool isUnread(UnreadState state) const { return (mUnread & static_cast<std::uint32_t>(state)) != 0; }
+        /// The states unread of the surface as it stands: the chain's, less a blend's pair and equation where the
+        /// surface does not blend, which then composite nothing.
+        std::uint32_t getUnread() const
+        {
+            constexpr std::uint32_t ofABlend = static_cast<std::uint32_t>(UnreadState::BlendPair)
+                | static_cast<std::uint32_t>(UnreadState::BlendEquation);
+            return mAlphaMode == AlphaMode::Blend ? mUnread : mUnread & ~ofABlend;
+        }
+
+        bool isUnread(UnreadState state) const { return (getUnread() & static_cast<std::uint32_t>(state)) != 0; }
 
         void markUnread(UnreadState state, bool unread)
         {
@@ -298,9 +307,9 @@ namespace Rtx
 
         const TextureUse& getTextureUse(SurfaceMap map) const { return mTextures[static_cast<std::size_t>(map)]; }
 
-        /// What `map` is bound as, its `_spec` map measured as `specular` (`specularLayoutOf`): a normal map as a
-        /// normal map; a classic pair's diffuse and `_spec` as its converted base colour and metal-roughness map; a
-        /// metal-roughness `_spec` as data; and every other map, a diffuse with or without a `_spec` among them, as a
+        /// What `map` is bound as, its `_spec` map measured as `specular` (`ImageFacts::mSpecularLayout`): a normal map
+        /// as a normal map; a classic pair's diffuse and `_spec` as its converted base colour and metal-roughness map;
+        /// a metal-roughness `_spec` as data; and every other map, a diffuse with or without a `_spec` among them, as a
         /// colour. The one rule, which the material resolver binds by and the loading screen's preparation makes the
         /// chains of.
         TextureEncoding encodingOf(SurfaceMap map, SpecularLayout specular) const;

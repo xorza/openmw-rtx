@@ -16,7 +16,6 @@
 
 #include <apps/openmw/mwrender/rtx/mirrorknobs.hpp>
 #include <apps/rtxtool/instruments/jsontext.hpp>
-#include <apps/rtxtool/instruments/reportfile.hpp>
 #include <components/rtx/common/mebibytes.hpp>
 #include <components/rtx/mirror/cells/readermemory.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
@@ -81,11 +80,10 @@ namespace RtxTool
         {
             const Rtx::RenderProfile& profile = setup.mRun.mProfile;
             const MWRender::MirrorKnobs& mirror = setup.mMirror;
-            return std::format(R"(  "filter": {}, "jitter": {}, "gamma": {}, "show": "{}", )"
-                               R"("exposure": {}, "exposureHeld": {}, "variants": {}, "holdMs": {},)"
-                               "\n"
-                               R"(  "landCells": {}, "viewingDistance": {}, "distantStatics": {}, "step": {}, )"
-                               R"("settled": {}, "memoryBudget": {}, "cacheBudget": {},)",
+            return std::format(R"("filter": {}, "jitter": {}, "gamma": {}, "show": "{}", )"
+                               R"("exposure": {}, "exposureHeld": {}, "variants": {}, "holdMs": {}, )"
+                               R"("landCells": {}, "viewingDistance": {}, "distantStatics": {}, "step": {}, )"
+                               R"("settled": {}, "memoryBudget": {}, "cacheBudget": {})",
                 profile.mReconstruction.mDenoise, profile.mReconstruction.mJitter, jsonNumber(profile.mGamma, 3),
                 Rtx::sSurfaceViewNames.name(profile.mShow), asJson(fixedScaleOf(profile.mExposure)),
                 std::holds_alternative<Rtx::HeldExposure>(profile.mExposure), profile.mSpecializeKernels,
@@ -168,10 +166,8 @@ namespace RtxTool
             const Rtx::MemoryUses& uses = memory.mUses;
             return std::format(R"({{"heaps": {}, )"
                                R"("uses": {{"frame": {}, "frameReserve": {}, "essential": {}, "essentialGrowth": {}, )"
-                               R"("structures": {}, "structureGrowth": {}, "structureRoom": {}, "textures": {}, )"
-                               R"("textureRoom": {}}}}})",
-                heaps, uses.mFrame, uses.mFrameReserve, uses.mEssential, uses.mEssentialGrowth, uses.mStructures,
-                uses.mStructureGrowth, uses.mStructureRoom, uses.mTextures, uses.mTextureRoom);
+                               R"("content": {}}}}})",
+                heaps, uses.mFrame, uses.mFrameReserve, uses.mEssential, uses.mEssentialGrowth, uses.mContent);
         }
 
         /// What the graphics driver held, by region, or null where the system states none.
@@ -189,27 +185,22 @@ namespace RtxTool
         std::string asJson(const Rtx::ContentMemory& content)
         {
             const Rtx::ReaderMemory& reader = content.mReader;
-            std::string out
-                = std::format(R"({{"vertexEnd": {}, "verticesUsed": {}, "indexEnd": {}, "indicesUsed": {}, )"
-                              R"("restingVertices": {}, "restingIndices": {}, "geometryBytes": {}, )"
-                              R"("layerEnd": {}, "maskEnd": {}, "rigRunEnd": {}, "influenceEnd": {}, )"
-                              R"("offsetEnd": {}, "poseEnd": {}, "bindVertexEnd": {}, )"
-                              R"("restingTextures": {}, "restingTextureBytes": {}, )"
-                              R"("aboveWant": {{"stood": {}, "above": {}, "textures": {}, "restingStood": {}, )"
-                              R"("restingAbove": {}}}, )"
-                              R"("reader": {{"lentModels": {}, "spareModels": {}, "filedModels": {}, )"
-                              R"("lentBytes": {}, "spareBytes": {}, "filedBytes": {}, "lentContentBytes": {}, )"
-                              R"("filedContentBytes": {}}}, )"
-                              R"("prepared": {{"entries": {}, "bytes": {}, "leftPending": {}}}, "ring": [)",
-                    content.mVertexEnd, content.mVerticesUsed, content.mIndexEnd, content.mIndicesUsed,
-                    content.mRestingVertices, content.mRestingIndices, content.mGeometryBytes, content.mLayerEnd,
-                    content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd, content.mOffsetEnd, content.mPoseEnd,
-                    content.mBindVertexEnd, content.mRestingTextures, content.mRestingTextureBytes,
-                    content.mAboveWant.mStood, content.mAboveWant.mAbove, content.mAboveWant.mTextures,
-                    content.mAboveWant.mRestingStood, content.mAboveWant.mRestingAbove, reader.mLentModels,
-                    reader.mSpareModels, reader.mFiledModels, reader.mLentBytes, reader.mSpareBytes, reader.mFiledBytes,
-                    reader.mLentContentBytes, reader.mFiledContentBytes, content.mPrepared.mEntries,
-                    content.mPrepared.mBytes, content.mPrepared.mLeftPending);
+            std::string out = std::format(
+                R"({{"vertexEnd": {}, "verticesUsed": {}, "indexEnd": {}, "indicesUsed": {}, )"
+                R"("restingVertices": {}, "restingIndices": {}, "vertexHoles": {}, "indexHoles": {}, )"
+                R"("geometryBytes": {}, )"
+                R"("layerEnd": {}, "maskEnd": {}, "rigRunEnd": {}, "influenceEnd": {}, )"
+                R"("offsetEnd": {}, "poseEnd": {}, "bindVertexEnd": {}, )"
+                R"("restingTextures": {}, )"
+                R"("reader": {{"lentModels": {}, "spareModels": {}, "filedModels": {}, )"
+                R"("lentBytes": {}, "spareBytes": {}, "filedBytes": {}, "lentContentBytes": {}, )"
+                R"("filedContentBytes": {}}}, "ring": [)",
+                content.mVertexEnd, content.mVerticesUsed, content.mIndexEnd, content.mIndicesUsed,
+                content.mRestingVertices, content.mRestingIndices, content.mVertexHoles, content.mIndexHoles,
+                content.mGeometryBytes, content.mLayerEnd, content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd,
+                content.mOffsetEnd, content.mPoseEnd, content.mBindVertexEnd, content.mRestingTextures,
+                reader.mLentModels, reader.mSpareModels, reader.mFiledModels, reader.mLentBytes, reader.mSpareBytes,
+                reader.mFiledBytes, reader.mLentContentBytes, reader.mFiledContentBytes);
             for (std::size_t distance = 0; distance < Rtx::sRingDistances; ++distance)
             {
                 const Rtx::RingDistance& at = content.mRing.mByDistance[distance];
@@ -224,13 +215,26 @@ namespace RtxTool
         std::string asJson(const Rtx::TexelReads& reads)
         {
             return std::format(
-                R"({{"fact": {}, "factBytes": {}, "file": {}, "fileBytes": {}, "partner": {}, )"
+                R"({{"file": {}, "fileBytes": {}, "partner": {}, )"
                 R"("partnerBytes": {}, "preparation": {}, "preparationBytes": {}, "chainsFoundWhole": {}, )"
                 R"("cancelled": {}}})",
-                reads.count(Rtx::TexelRead::Fact), reads.bytes(Rtx::TexelRead::Fact), reads.count(Rtx::TexelRead::File),
-                reads.bytes(Rtx::TexelRead::File), reads.count(Rtx::TexelRead::Partner),
-                reads.bytes(Rtx::TexelRead::Partner), reads.count(Rtx::TexelRead::Preparation),
-                reads.bytes(Rtx::TexelRead::Preparation), reads.mChainsFoundWhole, reads.mCancelled);
+                reads.count(Rtx::TexelRead::File), reads.bytes(Rtx::TexelRead::File),
+                reads.count(Rtx::TexelRead::Partner), reads.bytes(Rtx::TexelRead::Partner),
+                reads.count(Rtx::TexelRead::Preparation), reads.bytes(Rtx::TexelRead::Preparation),
+                reads.mChainsFoundWhole, reads.mCancelled);
+        }
+
+        std::string asJson(const ResidencyMost& most)
+        {
+            return std::format(
+                R"({{"frames": {}, "opsIssued": {}, "bytesUploaded": {}, "bytesCopied": {}, "belowWant": {}, )"
+                R"("standIns": {}, "meshesMissing": {}, "starvedTextures": {}, "starvedStructures": {}, )"
+                R"("slotsLive": {}, "slotsRetiring": {}, "bytesHeld": {}, "capBytesLeast": {}, "blocksRefused": {}, )"
+                R"("drainsAbandoned": {}, "drainWaitFrames": {}}})",
+                most.mFrames, most.mOpsIssued, most.mBytesUploaded, most.mBytesCopied, most.mBelowWant, most.mStandIns,
+                most.mMeshesMissing, most.mStarvedTextures, most.mStarvedStructures, most.mSlotsLive,
+                most.mSlotsRetiring, most.mBytesHeld, most.mCapBytesLeast, most.mBlocksRefused, most.mDrainsAbandoned,
+                most.mDrainWaitFrames);
         }
 
         std::string asJson(const Arrivals& arrivals)
@@ -435,8 +439,7 @@ namespace RtxTool
             "{:.2f} M, {:.2f} M, {:.2f} M of {:.2f} M   geometry {:.1f} MiB   reader {:.1f} MiB lent in {} models "
             "holding {:.1f}, {:.1f} MiB spare in {}, {:.1f} MiB filed unlent in {} holding {:.1f}\n"
             "  runs  layers {}   masks {}   rig runs {}   influences {}   offsets {}   pose words {}   "
-            "bind vertices {}   resting textures {}, {:.1f} MiB   above want {:.1f} of {:.1f} MiB stood whole, in {} "
-            "textures, {:.1f} of {:.1f} MiB resting   prepared {} unhanded, {:.1f} MiB, {} slots left pending\n",
+            "bind vertices {}   resting textures {}\n",
             (content.mVerticesUsed - content.mRestingVertices) / 1e6, content.mRestingVertices / 1e6,
             (content.mVertexEnd - content.mVerticesUsed) / 1e6, content.mVertexEnd / 1e6,
             (content.mIndicesUsed - content.mRestingIndices) / 1e6, content.mRestingIndices / 1e6,
@@ -445,11 +448,7 @@ namespace RtxTool
             Rtx::mebibytes(reader.mLentContentBytes), Rtx::mebibytes(reader.mSpareBytes), reader.mSpareModels,
             Rtx::mebibytes(reader.mFiledBytes), reader.mFiledModels, Rtx::mebibytes(reader.mFiledContentBytes),
             content.mLayerEnd, content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd, content.mOffsetEnd,
-            content.mPoseEnd, content.mBindVertexEnd, content.mRestingTextures,
-            Rtx::mebibytes(content.mRestingTextureBytes), Rtx::mebibytes(content.mAboveWant.mAbove),
-            Rtx::mebibytes(content.mAboveWant.mStood), content.mAboveWant.mTextures,
-            Rtx::mebibytes(content.mAboveWant.mRestingAbove), Rtx::mebibytes(content.mAboveWant.mRestingStood),
-            content.mPrepared.mEntries, Rtx::mebibytes(content.mPrepared.mBytes), content.mPrepared.mLeftPending);
+            content.mPoseEnd, content.mBindVertexEnd, content.mRestingTextures);
     }
 
     std::string describeGameHeld(const GameHeld& game)
@@ -478,6 +477,22 @@ namespace RtxTool
         return out.empty() ? std::string() : "  ring  standing of held by distance" + out + "\n";
     }
 
+    std::string describeResidency(const ResidencyMost& most)
+    {
+        if (most.mFrames == 0)
+            return {};
+        return std::format(
+            "  residency at most   ops {}   uploaded {:.1f} MiB   copied {:.1f} MiB   below want {}   "
+            "stand-ins {}   meshes missing {}   starved {} textures {} meshes   slots {} live {} "
+            "retiring   held {:.1f} MiB under a cap of {:.1f} MiB at the least   blocks refused {}   drains given up "
+            "{}, "
+            "waiting on another scene {} frames\n",
+            most.mOpsIssued, Rtx::mebibytes(most.mBytesUploaded), Rtx::mebibytes(most.mBytesCopied), most.mBelowWant,
+            most.mStandIns, most.mMeshesMissing, most.mStarvedTextures, most.mStarvedStructures, most.mSlotsLive,
+            most.mSlotsRetiring, Rtx::mebibytes(most.mBytesHeld), Rtx::mebibytes(most.mCapBytesLeast),
+            most.mBlocksRefused, most.mDrainsAbandoned, most.mDrainWaitFrames);
+    }
+
     std::string describeTexelReads(const Rtx::TexelReads& reads)
     {
         // Said only where a header was asked at all: a renderer that reads no file through one asks nothing.
@@ -488,9 +503,9 @@ namespace RtxTool
             return {};
 
         std::string out = "  texels asked";
-        for (const auto& [why, name] : { std::pair{ Rtx::TexelRead::Fact, "fact" },
-                 std::pair{ Rtx::TexelRead::File, "file" }, std::pair{ Rtx::TexelRead::Partner, "partner" },
-                 std::pair{ Rtx::TexelRead::Preparation, "preparation" } })
+        for (const auto& [why, name] :
+            { std::pair{ Rtx::TexelRead::File, "file" }, std::pair{ Rtx::TexelRead::Partner, "partner" },
+                std::pair{ Rtx::TexelRead::Preparation, "preparation" } })
             out += std::format("   {} {} ({:.1f} MiB)", name, reads.count(why), Rtx::mebibytes(reads.bytes(why)));
         out += std::format("   chains found whole {}   cancelled {}\n", reads.mChainsFoundWhole, reads.mCancelled);
         return out;
@@ -570,6 +585,7 @@ namespace RtxTool
         out += describeRingStanding(place.mContent.mRing);
         out += describeGameHeld(place.mGame);
         out += describeTexelReads(place.mTexelReads);
+        out += describeResidency(place.mResidency);
 
         // How much of the frame hit something is what tells "the cell rendered" from "the camera faced away".
         if (place.mHitPercent > 0.0)
@@ -641,26 +657,21 @@ namespace RtxTool
         return std::format("\n{} places, {} frames in {:.1f} s\n", places.size(), frames, lasted);
     }
 
-    Result<void, std::string> writeJson(
-        const std::filesystem::path& path, const BenchHeader& header, const std::span<const BenchPlace> places)
+    std::string recordHeaderLine(const BenchHeader& header)
     {
-        std::ostringstream file;
+        std::ostringstream line;
 
-        file
-            << "{\n"
-            << std::format(R"(  "suite": {},)", asJson(header.mSuite)) << '\n'
-            << std::format(R"(  "output": [{}, {}],)", header.mExtents.mOutputWidth, header.mExtents.mOutputHeight)
-            << '\n'
-            << std::format(R"(  "render": [{}, {}],)", header.mExtents.mRenderWidth, header.mExtents.mRenderHeight)
-            << '\n'
-            << std::format(R"(  "upscale": "{}", "lightFilter": "{}", "jittered": {},)",
+        line
+            << R"({"header": {)" << std::format(R"("suite": {}, )", asJson(header.mSuite))
+            << std::format(R"("output": [{}, {}], )", header.mExtents.mOutputWidth, header.mExtents.mOutputHeight)
+            << std::format(R"("render": [{}, {}], )", header.mExtents.mRenderWidth, header.mExtents.mRenderHeight)
+            << std::format(R"("upscale": "{}", "lightFilter": "{}", "jittered": {}, )",
                    Rtx::sUpscaleNames.name(header.mReconstruction.mUpscale),
                    Rtx::sLightFilterNames.name(header.mReconstruction.mFilter), header.mReconstruction.mJitter)
-            << '\n'
             << std::format(
-                   R"(  "noise": "{}", "levelBias": {}, "antilag": {}, )"
+                   R"("noise": "{}", "levelBias": {}, "antilag": {}, )"
                    R"("historyFix": {}, "dualMotion": {}, "antiFirefly": {}, "shadowFloor": {}, "lampCandidates": {}, )"
-                   R"("indirect": {}, "bounceRays": {}, "relief": {}, "softEdgeDither": {}, "waterInterleave": {},)",
+                   R"("indirect": {}, "bounceRays": {}, "relief": {}, "softEdgeDither": {}, "waterInterleave": {}, )",
                    Rtx::sNoiseSourceNames.name(header.mReconstruction.mNoise),
                    jsonNumber(header.mReconstruction.mLevelBias, 3), header.mReconstruction.mFilters.mAntilag,
                    header.mReconstruction.mFilters.mHistoryFix, header.mReconstruction.mFilters.mDualMotion,
@@ -669,68 +680,59 @@ namespace RtxTool
                    header.mReconstruction.mSampling.mLampCandidates, header.mReconstruction.mSampling.mIndirect,
                    header.mReconstruction.mSampling.mBounceRays, header.mReconstruction.mSampling.mRelief,
                    header.mReconstruction.mSoftEdgeDither, header.mReconstruction.mSampling.mWaterInterleave)
-            << '\n'
-            << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", header.mMeasured, header.mWarmup,
+            << std::format(R"("frames": {}, "warmup": {}, "validation": {}, )", header.mMeasured, header.mWarmup,
                    header.mValidating)
-            << '\n'
-            << std::format(R"(  "asserts": {}, "measures": {}, "hashed": {}, "turnsWeather": {}, "maps": "{}", )"
-                           R"("hugePageShare": {},)",
+            << std::format(R"("asserts": {}, "measures": {}, "hashed": {}, "turnsWeather": {}, "maps": "{}", )"
+                           R"("hugePageShare": {}, )",
                    header.mAsserts, header.mMeasures, header.mHashed, header.mTurnsWeather,
                    describeMaps(header.mPlayed), asJson(header.mHugePageShare))
-            << '\n'
-            << asJson(header.mSetup, header.mStep) << '\n'
-            << R"(  "places": [)" << '\n';
+            << asJson(header.mSetup, header.mStep) << "}}\n";
+        return std::move(line).str();
+    }
 
-        for (std::size_t at = 0; at < places.size(); ++at)
+    std::string recordPlaceLine(const BenchPlace& place)
+    {
+        std::ostringstream file;
+        file << std::format(R"({{"place": {{"view": {}, "cell": {}, "hour": {}, "weather": {}, )", asJson(place.mView),
+            asJson(place.mCell), jsonNumber(place.mHour, 4), asJson(place.mWeather))
+             << R"("scene": )" << asJson(place.mScene) << R"(, "memory": )" << asJson(place.mMemory)
+             << R"(, "driver": )" << asJson(place.mDriver) << R"(, "content": )" << asJson(place.mContent)
+             << R"(, "texelReads": )" << asJson(place.mTexelReads) << R"(, "residency": )" << asJson(place.mResidency)
+             << std::format(R"(, "game": {{"loadedCells": {}, "preloadedCells": {}, "starvedLooks": {}}})",
+                    place.mGame.mLoadedCells, place.mGame.mPreloadedCells, place.mGame.mStarvedLooks)
+             << std::format(R"(, "frames": {}, "wallSeconds": {}, "hitPercent": {}, )", place.mFrames,
+                    jsonNumber(place.mWallSeconds, 4), jsonNumber(place.mHitPercent, 2))
+             << R"("crossings": )" << asJson(place.mCrossings) << R"(, "arrivals": )" << asJson(place.mArrivals)
+             << std::format(R"(, "overlap": {{"mean": {}, "least": {}}}, "travelled": {}, )",
+                    jsonNumber(place.mOverlap.getMean(), 4), place.mOverlap.mLeast, jsonNumber(place.mTravelled, 4));
+
+        for (const Rtx::Timing timing : Rtx::sTimings.values())
+            file << std::format(R"("{}Ms": )", Rtx::sTimings.name(timing)) << asJson(place.mRows[indexOf(timing)])
+                 << ", ";
+
+        file << R"("gpuMs": {)";
+
+        for (std::size_t zone = 0; zone < place.mGpu.size(); ++zone)
+            file << std::format(R"({}{}: {})", zone == 0 ? "" : ", ",
+                asJson(Rtx::sFrameZoneNames.name(place.mGpu[zone].mZone)), asJson(place.mGpu[zone]));
+
+        // Beside the times and not inside them, so a record read for its times reads as it did.
+        file << R"(}, "gpuCounters": {)";
+        for (std::size_t zone = 0; zone < place.mGpu.size() && !place.mCounterNames.empty(); ++zone)
         {
-            const BenchPlace& place = places[at];
-            file << std::format(R"(    {{"view": {}, "cell": {}, "hour": {}, "weather": {}, )", asJson(place.mView),
-                asJson(place.mCell), jsonNumber(place.mHour, 4), asJson(place.mWeather))
-                 << R"("scene": )" << asJson(place.mScene) << R"(, "memory": )" << asJson(place.mMemory)
-                 << R"(, "driver": )" << asJson(place.mDriver) << R"(, "content": )" << asJson(place.mContent)
-                 << R"(, "texelReads": )" << asJson(place.mTexelReads)
-                 << std::format(R"(, "game": {{"loadedCells": {}, "preloadedCells": {}, "starvedLooks": {}}})",
-                        place.mGame.mLoadedCells, place.mGame.mPreloadedCells, place.mGame.mStarvedLooks)
-                 << std::format(R"(, "frames": {}, "wallSeconds": {}, "hitPercent": {}, )", place.mFrames,
-                        jsonNumber(place.mWallSeconds, 4), jsonNumber(place.mHitPercent, 2))
-                 << R"("crossings": )" << asJson(place.mCrossings) << R"(, "arrivals": )" << asJson(place.mArrivals)
-                 << std::format(R"(, "overlap": {{"mean": {}, "least": {}}}, "travelled": {}, )",
-                        jsonNumber(place.mOverlap.getMean(), 4), place.mOverlap.mLeast,
-                        jsonNumber(place.mTravelled, 4));
-
-            for (const Rtx::Timing timing : Rtx::sTimings.values())
-                file << std::format(R"("{}Ms": )", Rtx::sTimings.name(timing)) << asJson(place.mRows[indexOf(timing)])
-                     << ", ";
-
-            file << R"("gpuMs": {)";
-
-            for (std::size_t zone = 0; zone < place.mGpu.size(); ++zone)
-                file << std::format(R"({}{}: {})", zone == 0 ? "" : ", ",
-                    asJson(Rtx::sFrameZoneNames.name(place.mGpu[zone].mZone)), asJson(place.mGpu[zone]));
-
-            // Beside the times and not inside them, so a record read for its times reads as it did.
-            file << R"(}, "gpuCounters": {)";
-            for (std::size_t zone = 0; zone < place.mGpu.size() && !place.mCounterNames.empty(); ++zone)
+            file << std::format(
+                R"({}{}: {{)", zone == 0 ? "" : ", ", asJson(Rtx::sFrameZoneNames.name(place.mGpu[zone].mZone)));
+            for (std::size_t counter = 0; counter < place.mCounterNames.size(); ++counter)
             {
-                file << std::format(
-                    R"({}{}: {{)", zone == 0 ? "" : ", ", asJson(Rtx::sFrameZoneNames.name(place.mGpu[zone].mZone)));
-                for (std::size_t counter = 0; counter < place.mCounterNames.size(); ++counter)
-                {
-                    // A counter no run read a number for is null, which JSON has and NaN it has not.
-                    file << std::format(R"({}{}: {})", counter == 0 ? "" : ", ", asJson(place.mCounterNames[counter]),
-                        jsonSignificant(place.mGpu[zone].mCounters[counter], 6));
-                }
-                file << '}';
+                // A counter no run read a number for is null, which JSON has and NaN it has not.
+                file << std::format(R"({}{}: {})", counter == 0 ? "" : ", ", asJson(place.mCounterNames[counter]),
+                    jsonSignificant(place.mGpu[zone].mCounters[counter], 6));
             }
-
-            file << "}, \"clock\": " << asJson(place.mClock) << ", \"card\": " << asJson(place.mCard)
-                 << ", \"thread\": " << asJson(place.mThread) << "}" << (at + 1 < places.size() ? "," : "") << '\n';
+            file << '}';
         }
 
-        file << "  ]\n}\n";
-
-        // A record compared across commits that was never written would leave the last one at its path to be
-        // compared as this one, so a failed write is reported.
-        return writeReport(path, file.view());
+        file << "}, \"clock\": " << asJson(place.mClock) << ", \"card\": " << asJson(place.mCard)
+             << ", \"thread\": " << asJson(place.mThread) << "}}\n";
+        return std::move(file).str();
     }
 }

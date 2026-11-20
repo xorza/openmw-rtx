@@ -3,7 +3,6 @@ suite, in the release build, which carries line tables and frame pointers so no 
 nobody timed. **`--offcpu` sees the shape alone**: BPF walks frame pointers, which the driver lacks, so a wait inside
 it is an address; read `blocked-libraries.txt` for which library the process waits in."""
 
-import json
 import os
 import re
 import subprocess
@@ -13,6 +12,7 @@ from pathlib import Path
 from typing import IO
 
 from omw.build import Build
+from omw.record import Record, read_record
 from omw.system import WINDOWS, Refusal, Switches, on_path, read_text, require, status, user_and_group
 
 SAMPLES_A_SECOND = "5999"
@@ -57,7 +57,7 @@ def profile(build: Build, args: list[str]) -> int:
             record += ["-e", "task-clock", "-F", SAMPLES_A_SECOND, "--call-graph", "fp"]
 
         bench = [str(part) for part in build.harness_line("bench", "--window=false", *place,
-                                                          f"--perf-control={control}", f"--json={out / 'bench.json'}",
+                                                          f"--perf-control={control}", f"--json={out / 'bench.jsonl'}",
                                                           *extra)]
         with (out / "bench.txt").open("w", encoding="utf-8") as log:
             if offcpu:
@@ -91,9 +91,9 @@ class Measured:
     seconds: float
 
 
-def measured_window(record: dict) -> Measured:
+def measured_window(record: Record) -> Measured:
     """The frames `bench --json` measured and the wall seconds they took, over every place: the recording's window."""
-    places = record.get("places", [])
+    places = record.places
     return Measured(sum(int(place["frames"]) for place in places),
                     sum(float(place["wallSeconds"]) for place in places))
 
@@ -116,7 +116,7 @@ def _report(data: Path, out: Path, slug: str, blocked: bool) -> None:
     """The reports, every figure per second of what the run said it measured, which the recording is bounded to.
     **`--no-inline` throughout**: perf resolves the inline stack at a return address, which lands in whatever was
     inlined after the call and names the wrong thing."""
-    measured = measured_window(json.loads(read_text(out / "bench.json")))
+    measured = measured_window(read_record(read_text(out / "bench.jsonl")))
     frames, wall = measured.frames, measured.seconds
 
     common = ["-i", str(data), "--stdio", "--no-inline"]

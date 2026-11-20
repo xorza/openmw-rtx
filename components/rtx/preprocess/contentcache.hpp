@@ -25,10 +25,8 @@ namespace Rtx
     {
     public:
         /// @param store the process's store, or null for none.
-        /// @param reach where an ask may reach: the frame's thread asks memory alone.
-        ContentCache(ContentStore::Store* store, ContentStore::Reach reach)
+        explicit ContentCache(ContentStore::Store* store)
             : mStore(store)
-            , mReach(reach)
         {
         }
 
@@ -43,7 +41,7 @@ namespace Rtx
             requires StoredOutput<typename Pass::Output>
         bool find(const ContentStore::Key& key, const typename Pass::Input& input, typename Pass::Output& output)
         {
-            if (!mStore->read(key, storeKindOf(Pass::sPass), Pass::sVersion, mReach, mPayload))
+            if (!mStore->read(key, storeKindOf(Pass::sPass), Pass::sVersion, mPayload))
                 return false;
             if (ContentCodec<typename Pass::Output>::decode(mPayload, output) && fits<Pass>(input, output))
                 return true;
@@ -55,7 +53,7 @@ namespace Rtx
         template <ContentPass Pass>
         std::optional<ContentStore::Opened> open(const ContentStore::Key& key)
         {
-            return mStore->open(key, storeKindOf(Pass::sPass), Pass::sVersion, mReach);
+            return mStore->open(key, storeKindOf(Pass::sPass), Pass::sVersion);
         }
 
         /// `ContentStore::Store::readSegments`.
@@ -76,7 +74,7 @@ namespace Rtx
         template <ContentPass Pass>
         bool stands(const ContentStore::Key& key)
         {
-            return mStore->holds(key, storeKindOf(Pass::sPass), mReach);
+            return mStore->holds(key, storeKindOf(Pass::sPass));
         }
 
         /// Keeps what `Pass` computed from `input`, filed under `key`: encoded into a payload of its
@@ -98,7 +96,7 @@ namespace Rtx
             if constexpr (requires { Pass::segmentEndsOf(input, output, entry.mSegmentEnds); })
                 Pass::segmentEndsOf(input, output, entry.mSegmentEnds);
             ContentCodec<typename Pass::Output>::encode(std::forward<Output>(output), entry.mPayload);
-            mStore->write(std::move(entry), mReach);
+            mStore->write(std::move(entry));
         }
 
     private:
@@ -113,7 +111,6 @@ namespace Rtx
         }
 
         ContentStore::Store* mStore;
-        ContentStore::Reach mReach;
 
         /// A payload read, refilled for each, and taken whole by a decoder whose output keeps its bytes
         /// (`ContentCodec<MadeChain>`): so it holds the largest of the small outputs a thread read, and

@@ -439,6 +439,7 @@ namespace RtxTool
         assert(pacing.mStep == sStepSeconds && "a tour steps at the measured rate, which its limit is held to");
         if (line.mPaced)
             framed.mWindow.mFramerateLimit = sStepRate;
+        framed.mSetup.mSettled = line.mSettled;
 
         // What the tour writes, each after every leg: its record and its findings, the pictures Home marks, and each
         // leg's frames where asked.
@@ -463,7 +464,7 @@ namespace RtxTool
             .mPaced = line.mPaced,
             .mFindings = out / "findings.txt",
             .mExpected = line.mExpected };
-        request.mJson = out / "tour.json";
+        request.mJson = out / "tour.jsonl";
         request.mHomePictures = out / "marks";
         request.mPlanWhereTheWorldStands = [pacing, line, profile, frameTimes, readMap = std::move(readMap),
                                                policy = policyOf(command.mVerb)](const float ownTimeScale) mutable {

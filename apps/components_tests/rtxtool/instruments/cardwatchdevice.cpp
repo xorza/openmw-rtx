@@ -8,6 +8,7 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/components_tests/rtx/support/bound.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <apps/rtxtool/instruments/cardwatch.hpp>
 #include <apps/rtxtool/instruments/gpuclock.hpp>
@@ -115,8 +116,8 @@ namespace RtxTool
             // **Waited for and not slept out.** What the claim needs is a few turns of the watch's
             // own loop, and how long those take is the machine's to say.
             const auto waitFor = [&](std::uint32_t readings) {
-                const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-                while (watch.getReadings() < readings && std::chrono::steady_clock::now() < deadline)
+                for (const Rtx::Testing::WaitBound bound(std::chrono::seconds(10));
+                    watch.getReadings() < readings && !bound.passed();)
                     std::this_thread::sleep_for(std::chrono::milliseconds(5));
             };
 
@@ -130,8 +131,7 @@ namespace RtxTool
             // **Starting a place's window asks and waits on nothing**: the watch's next turn closes
             // the window between places and begins the place's, which is waited for, not timed.
             watch.start();
-            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-            while (!watch.hasBegun() && std::chrono::steady_clock::now() < deadline)
+            for (const Rtx::Testing::WaitBound bound(std::chrono::seconds(10)); !watch.hasBegun() && !bound.passed();)
                 std::this_thread::sleep_for(std::chrono::milliseconds(5));
             ASSERT_TRUE(watch.hasBegun()) << "the watch's loop never began the window";
 

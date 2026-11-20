@@ -67,7 +67,7 @@ namespace Rtx
         /// on a swapchain that stands.
         void awaitLatency()
         {
-            if (!mLost)
+            if (mFit != Fit::Lost)
                 mSwapchain.awaitLatency();
         }
 
@@ -104,7 +104,7 @@ namespace Rtx
         bool setVerticalSync(VerticalSync mode, BeforeRebuild&& beforeRebuild)
         {
             // A lost surface takes the setting with the rebuild that makes it again.
-            if (!mSwapchain.setVerticalSync(mode) || mLost)
+            if (!mSwapchain.setVerticalSync(mode) || mFit == Fit::Lost)
                 return false;
 
             beforeRebuild();
@@ -202,20 +202,31 @@ namespace Rtx
         /// device's pool, which allows a buffer to be reset by beginning it again.
         LentCommands mCommands;
 
-        /// Whether the surface stopped matching the window since the last rebuild. An acquire or a
-        /// present can fail at a size nothing asked to change, and a resize that only rebuilt when
-        /// the extent differed would leave that one unrecoverable.
-        bool mStale = false;
+        /// How the swapchain stands to the window's surface since the last rebuild.
+        enum class Fit : std::uint8_t
+        {
+            Matches,
 
-        /// Whether the surface is lost: the one record of it, which `rebuild` clears.
-        bool mLost = false;
+            /// The surface stopped matching the window. An acquire or a present can fail at a size nothing asked to
+            /// change, and a resize that only rebuilt when the extent differed would leave that one unrecoverable.
+            Stale,
+
+            /// The surface is lost: the one record of it, which `rebuild` answers by making it again.
+            Lost,
+        };
+        Fit mFit = Fit::Matches;
 
         /// Whether the surface was made again and no present showed on it yet.
         bool mRemade = false;
 
-        /// Whether a suboptimal present at the extent asked has rebuilt the swapchain already, and
-        /// whether the log has said one went on after it: `suboptimal`. Cleared by a new extent.
-        bool mSuboptimalRebuilt = false;
-        bool mSuboptimalSaid = false;
+        /// How far a suboptimal present at the extent asked went (`suboptimal`): none yet, one that rebuilt the
+        /// swapchain, and one after it the log has said went on. Opened again by a new extent.
+        enum class Suboptimal : std::uint8_t
+        {
+            None,
+            Rebuilt,
+            Said,
+        };
+        Suboptimal mSuboptimal = Suboptimal::None;
     };
 }

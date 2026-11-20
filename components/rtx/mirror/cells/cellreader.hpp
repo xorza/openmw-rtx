@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <memory>
+#include <stop_token>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -49,7 +50,9 @@ namespace Rtx
         /// statics, every reference that names a model with something to trace, as one `PreparedRef` each. The cell is
         /// lent, and `giveBack` is where it returns; every model and ground texture it names is lent to it as well, one
         /// hold each, and those come back on their own.
-        PreparedCell& read(const osg::Vec2i& cell);
+        ///
+        /// A stop asked between two references ends the read there, for a reader about to go with everything it lent.
+        PreparedCell& read(const osg::Vec2i& cell, const std::stop_token& stop);
 
         /// Takes a cell back, once the frame has copied what it wanted of it.
         void giveBack(PreparedCell& cell);
@@ -57,7 +60,7 @@ namespace Rtx
         /// Reads the groundcover of the cell at `cell`: a `PreparedRef` a plant, of a model read as
         /// groundcover (`readModel`). Lent as a cell is, its models lent to it a hold each; nothing
         /// for a world with no groundcover. `giveBack` is where it returns.
-        PreparedGrass& readGrass(const osg::Vec2i& cell);
+        PreparedGrass& readGrass(const osg::Vec2i& cell, const std::stop_token& stop);
 
         /// Takes a cell's groundcover back, once the frame has copied what it wanted of it.
         void giveBack(PreparedGrass& grass);
@@ -77,7 +80,7 @@ namespace Rtx
     private:
         /// Reads the cell into `prepared`, which `read` has taken and lends after: the whole of a
         /// read but the pool's part.
-        void fill(PreparedCell& prepared, const osg::Vec2i& cell);
+        void fill(PreparedCell& prepared, const osg::Vec2i& cell, const std::stop_token& stop);
 
         /// What `readLamp` carried of a reference.
         struct CarriedLamp
@@ -108,15 +111,15 @@ namespace Rtx
         /// path. Refused, with no part and `PreparedModel::mRefused` saying why, where the template describes a mesh
         /// this renderer cannot take.
         ///
-        /// **Read as groundcover where `groundcover` says**, and filed apart from the same file read as a static:
+        /// **Read as groundcover where `use` says**, and filed apart from the same file read as a static:
         /// upstream's groundcover states an alpha test of 128 / 255 with no blend over every model it draws, because
         /// MGE's content states no alpha it can be trusted with (`MWRender::Groundcover`). Each such reading says so
         /// (`MaterialReading::mGroundcover`), and the frame keys it apart from a static's material.
-        PreparedModel* readModel(VFS::Path::NormalizedView path, bool groundcover);
+        PreparedModel* readModel(VFS::Path::NormalizedView path, ModelUse use);
 
         /// `readModel` for a reference: null where it stands nothing, no model or one with no part,
         /// and the model's refusal added to `refusals` where it has one.
-        PreparedModel* readStanding(VFS::Path::NormalizedView path, bool groundcover, std::vector<Refusal>& refusals);
+        PreparedModel* readStanding(VFS::Path::NormalizedView path, ModelUse use, std::vector<Refusal>& refusals);
 
         /// Appends a reference of `model` to `models` and `refs`, the model lent once to the list
         /// however many of its references stand: what a cell's statics and its grass both keep.
@@ -154,12 +157,12 @@ namespace Rtx
         Spares<PreparedTexture> mTextures;
 
         /// What a model is filed under: its path, and whether it was read as groundcover.
-        using ModelKey = std::pair<std::string_view, bool>;
+        using ModelKey = std::pair<std::string_view, ModelUse>;
 
         /// What the two tables are ordered by: the path each is filed under.
         struct PathOf
         {
-            ModelKey operator()(const PreparedModel* held) const { return { held->mPath, held->mGroundcover }; }
+            ModelKey operator()(const PreparedModel* held) const { return { held->mPath, held->mUse }; }
             std::string_view operator()(const PreparedTexture* held) const { return held->mPath.value(); }
         };
 

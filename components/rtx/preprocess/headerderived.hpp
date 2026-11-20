@@ -1,12 +1,9 @@
 #pragma once
 
-#include <optional>
-
 #include <osg/Referenced>
 
 #include <components/contentstore/key.hpp>
-
-#include "imagefactcache.hpp"
+#include <components/rtx/image/imagefacts.hpp>
 
 namespace Rtx
 {
@@ -15,16 +12,24 @@ namespace Rtx
     struct FileFacts
     {
         ContentStore::Key mFile;
-
-        /// Each fact set.
         ImageFacts mFacts;
     };
 
-    /// A header's derivation (`Resource::ImageHeader::derived`), made by `ImageDerivation` before its manager hands
-    /// the header out, and read by every thread after without a lock: nothing writes it once a second thread can
-    /// see it.
-    struct HeaderDerived : osg::Referenced
+    /// **A header's derivation** (`Resource::ImageHeader::derived`), made by `ImageDerivation` before its manager
+    /// makes the header, and read by every thread after without a lock: nothing writes it once it is made.
+    class HeaderDerived final : public osg::Referenced
     {
-        std::optional<FileFacts> mFacts;
+    public:
+        explicit HeaderDerived(const FileFacts& facts)
+            : mFacts(facts)
+        {
+        }
+
+        const FileFacts& getFacts() const { return mFacts; }
+
+    private:
+        ~HeaderDerived() override = default;
+
+        const FileFacts mFacts;
     };
 }

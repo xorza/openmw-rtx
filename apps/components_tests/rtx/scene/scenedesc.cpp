@@ -352,23 +352,23 @@ namespace Rtx
             const TextureIndex normalOnly = scene.textures().add(normal, TextureWrap::Repeat, TextureEncoding::Normal);
             EXPECT_EQ(scene.textures().findFile(normal), sNoRow) << "data is no bake's source";
 
-            // **A bake finds a slot that stands, never one that rests**: the device frees what rests whenever room is
-            // wanted, and a bake made from a slot freed in its own hand-over names nothing.
+            // **A bake finds a slot that stands, never one that rests**: a full table frees what rests, and a bake made
+            // from a slot freed in its own hand-over names nothing.
             constexpr VFS::Path::NormalizedView spark("textures/tx_spark.dds");
             const TextureIndex clamped = scene.textures().add(spark, TextureWrap::Clamp);
             const TextureIndex repeated = scene.textures().add(spark, TextureWrap::Repeat);
-            scene.textures().stand(clamped, 64, false, 0);
-            scene.drop(scene.holdTexture(clamped));
+            scene.textures().setStanding(clamped, true);
+            scene.drop(scene.holdTexture(clamped, HoldTier::Shown));
             scene.compact();
             ASSERT_TRUE(scene.textures().getRows()[clamped].mRest.mResting);
             EXPECT_EQ(scene.textures().findFile(spark), repeated) << "the slot that stands, not the one that rests";
-            scene.drop(scene.holdTexture(repeated));
+            scene.drop(scene.holdTexture(repeated, HoldTier::Shown));
             EXPECT_EQ(scene.textures().findFile(spark), sNoRow) << "a slot that rests alone";
 
             // The file leaves the lookup with its last slot of either encoding, and not before.
-            TextureHold colour = scene.holdTexture(TextureIndex(0));
-            TextureHold data = scene.holdTexture(stoneData);
-            TextureHold normalMap = scene.holdTexture(normalOnly);
+            TextureHold colour = scene.holdTexture(TextureIndex(0), HoldTier::Shown);
+            TextureHold data = scene.holdTexture(stoneData, HoldTier::Shown);
+            TextureHold normalMap = scene.holdTexture(normalOnly, HoldTier::Shown);
             scene.drop(std::move(colour));
             EXPECT_EQ(scene.textures().add(stone, TextureWrap::Repeat, TextureEncoding::Data), stoneData);
             scene.drop(std::move(data));
@@ -401,12 +401,12 @@ namespace Rtx
             EXPECT_EQ(textures.getRefused(), 2u);
             EXPECT_EQ(textures.add(names[7]), TextureIndex(7)) << "a texture that stands takes no slot";
 
-            scene.drop(scene.holdTexture(TextureIndex(7)));
+            scene.drop(scene.holdTexture(TextureIndex(7), HoldTier::Shown));
             EXPECT_EQ(textures.add(names.back()), TextureIndex(7)) << "the slot given back is the next arrival's";
             EXPECT_EQ(textures.getRefused(), 2u);
 
             // The neutral texel a refused ground layer names is no slot of the table's.
-            scene.drop(scene.holdTexture(TextureIndex(Shaders::TEXTURE_NEUTRAL)));
+            scene.drop(scene.holdTexture(TextureIndex(Shaders::TEXTURE_NEUTRAL), HoldTier::Shown));
             EXPECT_EQ(textures.getLiveCount(), TextureTable::sCapacity);
 
             // Counted for the hand-over as well, which reports the limit once for all of them
@@ -416,16 +416,15 @@ namespace Rtx
             EXPECT_EQ(textures.getRefusedArrivals(), 0u);
             EXPECT_EQ(textures.getRefused(), 2u) << "the count since the table began";
 
-            // 5 comes to rest a batch before 3, each stood whole, and the full table stays full.
+            // 5 comes to rest a batch before 3, each standing, and the full table stays full.
             for (const TextureIndex resting : { TextureIndex(5), TextureIndex(3) })
             {
-                textures.stand(resting, 64, false, 0);
-                scene.drop(scene.holdTexture(resting));
+                textures.setStanding(resting, true);
+                scene.drop(scene.holdTexture(resting, HoldTier::Shown));
                 scene.compact();
             }
             EXPECT_EQ(textures.getLiveCount(), TextureTable::sCapacity);
             EXPECT_EQ(textures.getResting().getCount(), 2u);
-            EXPECT_EQ(textures.getResting().getBytes(), 128u);
 
             EXPECT_EQ(textures.add(VFS::Path::NormalizedView("textures/tx_a.dds")), TextureIndex(5))
                 << "the oldest to rest";
@@ -433,15 +432,14 @@ namespace Rtx
             EXPECT_EQ(textures.add(VFS::Path::NormalizedView("textures/tx_c.dds")), sNoRow) << "none rests now";
             EXPECT_EQ(textures.getRefused(), 3u);
             EXPECT_EQ(textures.getResting().getCount(), 0u);
-            EXPECT_EQ(textures.getResting().getBytes(), 0u);
             scene.compact();
             EXPECT_TRUE(textures.getFreed().empty()) << "each freed and taken over, which reads as an arrival";
             EXPECT_EQ(sorted(textures.getArrived()), (std::vector{ TextureIndex(3), TextureIndex(5) }));
 
             // The room made by freeing the file's own slot under another wrap, which took the file out of the
             // lookup the take then files it under.
-            textures.stand(TextureIndex(9), 64, false, 0);
-            scene.drop(scene.holdTexture(TextureIndex(9)));
+            textures.setStanding(TextureIndex(9), true);
+            scene.drop(scene.holdTexture(TextureIndex(9), HoldTier::Shown));
             EXPECT_EQ(textures.add(names[9], TextureWrap::Clamp), TextureIndex(9));
             EXPECT_EQ(textures.findFile(names[9]), TextureIndex(9));
             EXPECT_EQ(textures.add(names[9], TextureWrap::Clamp), TextureIndex(9))
@@ -463,28 +461,25 @@ namespace Rtx
                      VFS::Path::NormalizedView("textures/tx_3.dds"), VFS::Path::NormalizedView("textures/tx_4.dds") })
             {
                 const TextureIndex slot = textures.add(name);
-                textures.stand(slot, 8, false, 0);
-                holds.push_back(scene.holdTexture(slot));
+                textures.setStanding(slot, true);
+                holds.push_back(scene.holdTexture(slot, HoldTier::Shown));
             }
 
             // 2, 0, 3 and 1 dropped in that order, and 3 taken again before the batch is filed.
             for (const std::size_t going : { 2u, 0u, 3u, 1u })
                 scene.drop(std::move(holds[going]));
             EXPECT_EQ(textures.add(VFS::Path::NormalizedView("textures/tx_3.dds")), TextureIndex(3));
-            holds[3] = scene.holdTexture(TextureIndex(3));
+            holds[3] = scene.holdTexture(TextureIndex(3), HoldTier::Shown);
             scene.compact();
             scene.drop(std::move(holds[4]));
 
-            // One at a time, each the oldest to rest: 8 bytes asks for one.
+            // The order a full table frees them in, the oldest first, 4 filed at the tick after.
+            scene.compact();
             EXPECT_EQ(textures.getResting().getCount(), 4u);
             std::vector<TextureIndex> order;
-            while (textures.getResting().getCount() > 0)
-            {
-                ASSERT_EQ(scene.evictResting(1), 8u);
-                for (const TextureIndex slot : everyRow<TextureIndex>(5))
-                    if (!textures.isLive(slot) && std::ranges::find(order, slot) == order.end())
-                        order.push_back(slot);
-            }
+            for (TextureIndex slot = textures.getResting().first(); slot != sNoRow;
+                slot = textures.getRows()[slot].mRest.mAfter)
+                order.push_back(slot);
             EXPECT_EQ(order, (std::vector{ TextureIndex(0), TextureIndex(1), TextureIndex(2), TextureIndex(4) }));
             EXPECT_TRUE(textures.isLive(TextureIndex(3))) << "taken again, and no rest of it";
             scene.drop(std::move(holds[3]));
@@ -859,14 +854,12 @@ namespace Rtx
             EXPECT_EQ(Testing::addOneBoneBody(scene, quad).mDeformer, second.mDeformer) << "then the one above it";
         }
 
-        /// **A static mesh is the one its content is, and rests as a texture does** (`docs/architecture.md`, "One
-        /// residency policy for the content"). Two quads of one geometry are one mesh; another shape is another.
-        /// A quad the device stood whole — its geometry, 4 vertices at 36 bytes and 6 indices at 4, 168 bytes, and a
-        /// structure of 100 — rests when nothing holds it, and the same geometry added again is that mesh, taken
-        /// back with nothing arriving; one the device never stood is freed. The rests of both tables are one order:
-        /// a texture that rested on an earlier hand-over goes before a mesh that rested on a later one, and the limit
-        /// frees the oldest first whatever its kind. A mesh that deforms is filed under no key.
-        TEST(RtxSceneDescTest, aStaticMeshIsItsContentAndRestsInOneOrderWithTheTextures)
+        /// **A static mesh is the one its content is, and rests while residency stands its structure**
+        /// (`docs/architecture.md`, "One residency policy for the content"). Two quads of one geometry are one mesh;
+        /// another shape is another. A quad residency says stands rests when nothing holds it, and the same geometry
+        /// added again is that mesh, taken back with nothing arriving; one that stands nothing is freed, and so is one
+        /// that rests once residency stops standing it. A mesh that deforms is filed under no key.
+        TEST(RtxSceneDescTest, aStaticMeshIsItsContentAndRests)
         {
             SceneIdentities identities;
             SceneDesc scene(identities);
@@ -880,22 +873,15 @@ namespace Rtx
                 FoldedShape{ .mSheet = true });
             EXPECT_NE(sheet, quad) << "the shape is part of what a mesh is";
 
-            // A texture that rests first, on a hand-over of its own.
-            const TextureIndex texture = scene.textures().add(VFS::Path::NormalizedView("textures/tx_old.dds"));
-            scene.textures().stand(texture, 64, false, 0);
-            scene.drop(scene.holdTexture(texture));
-            scene.compact();
-
-            // A mesh rests what its eviction gives back, its structure's 100 bytes, and not its geometry's.
-            scene.standMesh(quad, 100);
+            scene.standMesh(quad, true);
             scene.clearArrivals();
             Testing::letGoMesh(scene, quad);
             Testing::letGoMesh(scene, other);
             scene.compact();
-            EXPECT_TRUE(scene.meshes().isLive(quad)) << "a mesh the device stood whole was freed";
+            EXPECT_TRUE(scene.meshes().isLive(quad)) << "a mesh residency stands was freed";
             EXPECT_TRUE(scene.meshes().getRows()[quad].mRest.mResting);
-            EXPECT_FALSE(scene.meshes().isLive(other)) << "a mesh the device never stood rested";
-            EXPECT_EQ(scene.getRestingBytes(), 64u + 100u);
+            EXPECT_FALSE(scene.meshes().isLive(other)) << "a mesh residency stands nothing of rested";
+            EXPECT_EQ(scene.meshes().getResting().getCount(), 1u);
             // What it rests in the runs is the quad's 4 vertices and 6 indices, the one never stood holding none.
             EXPECT_EQ(scene.meshes().getRestingGeometry().mVertices, 4u);
             EXPECT_EQ(scene.meshes().getRestingGeometry().mIndices, 6u);
@@ -904,23 +890,17 @@ namespace Rtx
             scene.clearArrivals();
             EXPECT_EQ(Testing::addQuadMesh(scene), quad);
             EXPECT_TRUE(scene.meshes().getArrived().empty()) << "a mesh taken back from rest arrived again";
-            EXPECT_EQ(scene.getRestingBytes(), 64u);
+            EXPECT_EQ(scene.meshes().getResting().getCount(), 0u);
             EXPECT_EQ(scene.meshes().getRestingGeometry().mVertices, 0u) << "a mesh taken back still rests its runs";
-            EXPECT_EQ(scene.meshes().getRestingGeometry().mIndices, 0u);
             Testing::letGoMesh(scene, quad);
             scene.compact();
+            ASSERT_TRUE(scene.meshes().getRows()[quad].mRest.mResting);
 
-            // The texture rested on the earlier tick, so it goes first. **Paced**: past a limit of nought by a step of
-            // nought, a row goes and no more; the room an arrival needs goes whole all the same, a byte of it the whole
-            // mesh.
-            scene.setRestLimit(RestLimit{ .mBytes = 0, .mStep = 0 });
-            EXPECT_EQ(scene.evictResting(), 64u);
-            EXPECT_FALSE(scene.textures().isLive(texture));
-            EXPECT_TRUE(scene.meshes().isLive(quad));
-            EXPECT_EQ(scene.meshes().getRestingGeometry().mVertices, 4u);
-            EXPECT_EQ(scene.evictResting(1), 100u);
+            // Residency stops standing it: freed from its rest, its runs with it.
+            scene.standMesh(quad, false);
             EXPECT_FALSE(scene.meshes().isLive(quad));
-            EXPECT_EQ(scene.getRestingBytes(), 0u);
+            EXPECT_FALSE(scene.meshes().getRows()[quad].mRest.mResting);
+            EXPECT_EQ(scene.meshes().getResting().getCount(), 0u);
             EXPECT_EQ(scene.meshes().getRestingGeometry().mVertices, 0u)
                 << "a mesh freed from rest still rests its runs";
             EXPECT_EQ(scene.meshes().getRestingGeometry().mIndices, 0u);
@@ -930,105 +910,30 @@ namespace Rtx
             EXPECT_FALSE(scene.meshes().getRows()[body.mMesh].mKey.has_value()) << "a body was filed under a key";
         }
 
-        /// **A want frees the row of its kind that has rested longest of those that surely hold it, and else the oldest
-        /// until its hole is given back** (`SceneDesc::evictFor`). Five textures of 8 bytes rest a tick apart, giving
-        /// back 32, 1000, 100, 64 and nought where a texture can take it: a hole of 64 is held by the second, in a
-        /// class past the hole's, before the third and fourth of its own class, which it rested before; then by the
-        /// third, the older of its class that holds it; then by the fourth, 64 holding 64. Two meshes rested a tick
-        /// apart with nothing to give back until their tight copies landed, 300 each, the later's first: the earlier
-        /// still goes first for a structure's 200, filed back by when it rested, and the textures stay, as they stay
-        /// once no mesh rests; and a hole of 65 no texture holds frees what rested longest, the two left, 16 bytes,
-        /// past which nothing rests.
-        TEST(RtxSceneDescTest, aWantFreesTheOldestRowOfItsKindThatSurelyHoldsItAndElseTheOldest)
+        /// **A slot built anew frees every row that rests**, of every table (`SceneDesc::releaseResting`): a mesh and a
+        /// texture residency stood, resting, are freed, and nothing rests after.
+        TEST(RtxSceneDescTest, everyRestingRowIsFreedForASlotBuiltAnew)
         {
             SceneIdentities identities;
             SceneDesc scene(identities);
-            std::vector<TextureIndex> slots;
-            for (const std::uint64_t fit : { 32u, 1000u, 100u, 64u, 0u })
-            {
-                const VFS::Path::Normalized name(std::format("textures/tx_{}.dds", slots.size()));
-                const TextureIndex slot = scene.textures().add(name);
-                scene.textures().stand(slot, 8, false, 0);
-                if (fit > 0)
-                    scene.textures().fit(slot, fit, 1);
-                scene.drop(scene.holdTexture(slot));
-                scene.compact();
-                slots.push_back(slot);
-            }
-
             const MeshIndex quad = Testing::addQuadMesh(scene);
-            const MeshIndex raised = Testing::addQuadMesh(scene, Testing::unitQuadAt(1.0f));
-            scene.standMesh(quad, 100);
-            scene.standMesh(raised, 100);
-            scene.clearArrivals();
+            scene.standMesh(quad, true);
             Testing::letGoMesh(scene, quad);
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->setFileName("textures/a.dds");
+            TextureHold held = scene.takeTexture(HoldTier::Shown, VFS::Path::NormalizedView("textures/a.dds"), *image);
+            const TextureIndex texture = held.get();
+            scene.standTexture(texture, true);
+            scene.drop(std::move(held));
             scene.compact();
-            Testing::letGoMesh(scene, raised);
-            scene.compact();
-            scene.fitMesh(raised, 300, 1);
-            scene.fitMesh(quad, 300, 1);
-            ASSERT_EQ(scene.getRestingBytes(), 5 * 8u + 200u);
+            ASSERT_EQ(scene.meshes().getResting().getCount(), 1u);
+            ASSERT_EQ(scene.textures().getResting().getCount(), 1u);
 
-            const auto live = [&] {
-                std::vector<TextureIndex> standing;
-                for (const TextureIndex slot : slots)
-                    if (scene.textures().isLive(slot))
-                        standing.push_back(slot);
-                return standing;
-            };
-            const RoomWant texture64{ .mWaiter = TextureIndex(0), .mHole = 64 };
-            EXPECT_EQ(scene.evictFor(std::span(&texture64, 1)), 8u);
-            EXPECT_EQ(live(), (std::vector{ slots[0], slots[2], slots[3], slots[4] }));
-            EXPECT_EQ(scene.evictFor(std::span(&texture64, 1)), 8u);
-            EXPECT_EQ(live(), (std::vector{ slots[0], slots[3], slots[4] }));
-            EXPECT_EQ(scene.evictFor(std::span(&texture64, 1)), 8u);
-            EXPECT_EQ(live(), (std::vector{ slots[0], slots[4] }));
-
-            const RoomWant structure{ .mWaiter = MeshIndex(0), .mHole = 200 };
-            EXPECT_EQ(scene.evictFor(std::span(&structure, 1)), 100u);
+            scene.releaseResting();
+            EXPECT_EQ(scene.meshes().getResting().getCount(), 0u);
+            EXPECT_EQ(scene.textures().getResting().getCount(), 0u);
             EXPECT_FALSE(scene.meshes().isLive(quad));
-            EXPECT_TRUE(scene.meshes().isLive(raised)) << "the mesh fitted first went first";
-            EXPECT_EQ(scene.evictFor(std::span(&structure, 1)), 100u);
-            EXPECT_FALSE(scene.meshes().isLive(raised));
-            EXPECT_EQ(live(), (std::vector{ slots[0], slots[4] })) << "a structure's want freed a texture";
-            EXPECT_EQ(scene.evictFor(std::span(&structure, 1)), 0u)
-                << "with no mesh resting, a structure frees nothing";
-            EXPECT_EQ(live(), (std::vector{ slots[0], slots[4] })) << "a structure's want freed a texture";
-
-            const RoomWant texture65{ .mWaiter = TextureIndex(0), .mHole = 65 };
-            EXPECT_EQ(scene.evictFor(std::span(&texture65, 1)), 16u);
-            EXPECT_TRUE(live().empty());
-            EXPECT_EQ(scene.getRestingBytes(), 0u);
-        }
-
-        /// **A want frees only a rest whose range starts at its alignment or a coarser one**: a freed range holds a
-        /// resource of its kind as large where it starts as aligned (`RoomWant::mAlignment`). Two textures rest a tick
-        /// apart, each giving back 100, the older starting at 256 and the later at 4096: a hole of 64 at 1024 frees the
-        /// later, which the older does not suit though it rested first; then one at 256 frees the older.
-        TEST(RtxSceneDescTest, aWantFreesOnlyARestWhoseRangeStartsAtItsAlignment)
-        {
-            SceneIdentities identities;
-            SceneDesc scene(identities);
-            std::vector<TextureIndex> slots;
-            for (const std::uint64_t alignment : { 256u, 4096u })
-            {
-                const VFS::Path::Normalized name(std::format("textures/tx_{}.dds", slots.size()));
-                const TextureIndex slot = scene.textures().add(name);
-                scene.textures().stand(slot, 8, false, 0);
-                scene.textures().fit(slot, 100, alignment);
-                scene.drop(scene.holdTexture(slot));
-                scene.compact();
-                slots.push_back(slot);
-            }
-
-            const RoomWant coarse{ .mWaiter = TextureIndex(0), .mHole = 64, .mAlignment = 1024 };
-            EXPECT_EQ(scene.evictFor(std::span(&coarse, 1)), 8u);
-            EXPECT_TRUE(scene.textures().isLive(slots[0])) << "the older rest starts finer than the want";
-            EXPECT_FALSE(scene.textures().isLive(slots[1]));
-
-            const RoomWant fine{ .mWaiter = TextureIndex(0), .mHole = 64, .mAlignment = 256 };
-            EXPECT_EQ(scene.evictFor(std::span(&fine, 1)), 8u);
-            EXPECT_FALSE(scene.textures().isLive(slots[0]));
+            EXPECT_FALSE(scene.textures().isLive(texture));
         }
 
         /// **Every table hands out its lowest free slot, however its slots were given back**
@@ -2253,8 +2158,8 @@ namespace Rtx
             SceneDesc scene(identities);
             const MeshIndex mesh = Testing::addQuadMesh(scene);
             const MaterialIndex material = scene.addMaterial(Material{});
-            MeshHold meshHold = scene.holdMesh(mesh);
-            MaterialHold materialHold = scene.holdMaterial(material);
+            MeshHold meshHold = scene.holdMesh(mesh, HoldTier::Shown);
+            MaterialHold materialHold = scene.holdMaterial(material, HoldTier::Shown);
 
             const PlacementIndex placed = scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
             EXPECT_EQ(scene.meshes().getHolds(mesh), 2u);
@@ -2276,7 +2181,7 @@ namespace Rtx
             EXPECT_TRUE(scene.isEmpty());
         }
 
-        static_assert(sizeof(MeshHold) == sizeof(MeshIndex), "a hold is the index it holds and nothing beside it");
+        static_assert(sizeof(MeshHold) <= 2 * sizeof(MeshIndex), "a hold is the index it holds and the tier it states");
 
         /// **A mesh or a pose handed a number that is not finite dies where it is handed over.** The
         /// mirror refuses such a vertex or morph offset and reads a normal, tangent or coordinate as none
@@ -2385,7 +2290,7 @@ namespace Rtx
             Testing::expectAssertDies(
                 [&identities] {
                     SceneDesc scene(identities);
-                    const MeshHold forgotten = scene.holdMesh(Testing::addQuadMesh(scene));
+                    const MeshHold forgotten = scene.holdMesh(Testing::addQuadMesh(scene), HoldTier::Shown);
                 },
                 "a hold on a scene row nothing gave back");
 
@@ -2393,8 +2298,8 @@ namespace Rtx
                 [&identities] {
                     SceneDesc scene(identities);
                     const MeshIndex mesh = Testing::addQuadMesh(scene);
-                    MeshHold kept = scene.holdMesh(mesh);
-                    kept = scene.holdMesh(mesh);
+                    MeshHold kept = scene.holdMesh(mesh, HoldTier::Shown);
+                    kept = scene.holdMesh(mesh, HoldTier::Shown);
                 },
                 "a hold written over while it still holds");
         }
@@ -2408,13 +2313,13 @@ namespace Rtx
             const MeshIndex mesh = Testing::addQuadMesh(scene);
             const MaterialIndex material = scene.addMaterial(Material{});
             scene.textures().add(VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
-            MeshHold meshHold = scene.holdMesh(mesh);
-            MaterialHold materialHold = scene.holdMaterial(material);
+            MeshHold meshHold = scene.holdMesh(mesh, HoldTier::Shown);
+            MaterialHold materialHold = scene.holdMaterial(material, HoldTier::Shown);
 
             const StructureRevision was = scene.getStructureRevision();
             scene.clearArrivals();
 
-            scene.drop(scene.holdMesh(mesh));
+            scene.drop(scene.holdMesh(mesh, HoldTier::Shown));
             EXPECT_EQ(scene.getStructureRevision(), was);
             EXPECT_TRUE(scene.materials().getWritten().empty());
             EXPECT_TRUE(scene.meshes().getFreed().empty()) << "a hold given back under another freed its row";
@@ -2594,7 +2499,7 @@ namespace Rtx
             const TextureIndex file = scene.textures().add(VFS::Path::NormalizedView("textures/tx_stone.dds"));
             ASSERT_EQ(file, TextureIndex(1));
 
-            scene.drop(scene.holdTexture(baked));
+            scene.drop(scene.holdTexture(baked, HoldTier::Shown));
 
             EXPECT_FALSE(scene.textures().isLive(baked)) << "nothing names it and it is still standing";
             EXPECT_EQ(scene.textures().getRows()[baked].mGroundOf, sNoRow);
@@ -2618,7 +2523,7 @@ namespace Rtx
             const TextureIndex gloss = scene.textures().addGround(MaterialIndex(2), TextureKind::GroundGloss);
             EXPECT_EQ(gloss, TextureIndex(3));
             EXPECT_EQ(scene.textures().getRows()[gloss].mEncoding, TextureEncoding::Data);
-            scene.drop(scene.holdTexture(gloss));
+            scene.drop(scene.holdTexture(gloss, HoldTier::Shown));
             EXPECT_EQ(scene.textures().addGround(MaterialIndex(2), TextureKind::GroundAlbedo), again)
                 << "the gloss's going took the albedo's entry with it";
         }
@@ -2652,13 +2557,62 @@ namespace Rtx
             EXPECT_EQ(sorted(scene.textures().getFreed()), (std::vector{ first })) << "and reported as going";
         }
 
+        /// **A row's tier is the best any hold on it states, and a texture's the best of the materials naming it**: a
+        /// material the walk remembers, held kept, keeps its texture kept; a placement wearing it shows it, and the
+        /// texture is shown; a picture's placement beside it forces both; the placements gone, both are kept again. A
+        /// material added and held by nothing yet keeps its textures kept, and its last drop gives them back from the
+        /// tier they stood at. A holder that reads a texture itself forces it.
+        TEST(RtxSceneDescTest, aRowsTierIsTheBestItsHoldsStateAndATexturesItsMaterials)
+        {
+            SceneIdentities identities;
+            SceneDesc scene(identities);
+            const TextureIndex texture = scene.textures().add(VFS::Path::NormalizedView("textures/tx_stone.dds"));
+            const MeshIndex mesh = Testing::addQuadMesh(scene);
+            const MaterialIndex material = scene.addMaterial(Material{ .mDiffuse = texture });
+            EXPECT_EQ(scene.materials().getTier(material), HoldTier::Unheld);
+            EXPECT_EQ(scene.textures().getTier(texture), HoldTier::Kept)
+                << "a material holds what it names from its add";
+
+            MeshHold remembered = scene.holdMesh(mesh, HoldTier::Kept);
+            MaterialHold known = scene.holdMaterial(material, HoldTier::Kept);
+            EXPECT_EQ(scene.textures().getHolds(texture), 1u) << "moved, not added: the material's one hold";
+            EXPECT_EQ(scene.textures().getTier(texture), HoldTier::Kept);
+
+            const PlacementIndex walked = scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
+            EXPECT_EQ(scene.meshes().getTier(mesh), HoldTier::Shown);
+            EXPECT_EQ(scene.materials().getTier(material), HoldTier::Shown);
+            EXPECT_EQ(scene.textures().getTier(texture), HoldTier::Shown);
+            EXPECT_EQ(scene.textures().getHolds(texture), 1u);
+
+            const PlacementIndex pictured
+                = scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material, .mTier = HoldTier::Forced });
+            EXPECT_EQ(scene.meshes().getTier(mesh), HoldTier::Forced);
+            EXPECT_EQ(scene.textures().getTier(texture), HoldTier::Forced);
+
+            scene.dropInstance(pictured, Stander::Walk);
+            EXPECT_EQ(scene.textures().getTier(texture), HoldTier::Shown);
+            scene.dropInstance(walked, Stander::Walk);
+            EXPECT_EQ(scene.meshes().getTier(mesh), HoldTier::Kept);
+            EXPECT_EQ(scene.textures().getTier(texture), HoldTier::Kept);
+
+            ReadingHold read = scene.holdReading(texture);
+            EXPECT_EQ(scene.textures().getTier(texture), HoldTier::Forced);
+            scene.drop(std::move(read));
+
+            scene.drop(std::move(known));
+            EXPECT_FALSE(scene.materials().isLive(material));
+            EXPECT_FALSE(scene.textures().isLive(texture)) << "the material's last drop gave back its texture's hold";
+            scene.drop(std::move(remembered));
+            EXPECT_TRUE(scene.isEmpty());
+        }
+
         /// A hold speaks for a texture no material can, and the slot goes when the hold does.
         TEST(RtxSceneDescTest, aHeldTextureGoesWhenTheHoldDoesAndNotBefore)
         {
             SceneIdentities identities;
             SceneDesc scene(identities);
             const TextureIndex sprite = scene.textures().add(VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
-            TextureHold held = scene.holdTexture(sprite);
+            TextureHold held = scene.holdTexture(sprite, HoldTier::Shown);
 
             // A material taken and let go of beside it, which names nothing, frees nothing of it.
             Testing::letGoMaterial(scene, scene.addMaterial(Material{}));

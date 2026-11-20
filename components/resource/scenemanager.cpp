@@ -291,6 +291,10 @@ namespace Resource
                 for (const osg::ref_ptr<osg::PrimitiveSet>& primitives : geometry.getPrimitiveSetList())
                     if (const osg::DrawElements* const elements = primitives->getDrawElements())
                         mBytes += elements->getTotalDataSize();
+                if (const osg::UserDataContainer* const user = geometry.getUserDataContainer())
+                    for (std::uint32_t at = 0; at < user->getNumUserObjects(); ++at)
+                        if (const auto* const derived = dynamic_cast<const DerivedBytes*>(user->getUserObject(at)))
+                            mBytes += derived->getBytes();
             }
         };
 
@@ -593,7 +597,7 @@ namespace Resource
     SceneManager::SceneManager(const VFS::Manager* vfs, Resource::ImageManager* imageManager,
         Resource::NifFileManager* nifFileManager, Resource::BgsmFileManager* bgsmFileManager,
         Resource::SptFileManager* sptFileManager, CacheBudget& budget)
-        : NodeResourceManager<std::string>(vfs, budget)
+        : BudgetedNodeResourceManager<std::string>(vfs, budget)
         , mShaderManager(new Shader::ShaderManager)
         , mSharedStateManager(new SharedStateManager)
         , mImageManager(imageManager)
@@ -685,7 +689,7 @@ namespace Resource
 
     bool SceneManager::checkLoaded(VFS::Path::NormalizedView name, double timeStamp)
     {
-        return mCache->checkInObjectCache(name, timeStamp);
+        return mCache->checkIn(name);
     }
 
     void SceneManager::setUpNormalsRTForStateSet(osg::StateSet* stateset, bool enabled)
@@ -1173,6 +1177,8 @@ namespace Resource
 
         // The file it was read from, on its root beside its hash, so what reads the scene can name the model.
         loaded->setUserValue(Misc::OsgUserValues::sFilePath, std::string(path.value()));
+        if (mModelDeriver != nullptr)
+            mModelDeriver->derive(*loaded);
         return loaded;
     }
 
@@ -1319,7 +1325,7 @@ namespace Resource
 
     void SceneManager::updateCache(double referenceTime)
     {
-        NodeResourceManager<std::string>::updateCache(referenceTime);
+        BudgetedNodeResourceManager<std::string>::updateCache(referenceTime);
 
         mSharedStateMutex.lock();
         mSharedStateManager->prune();
@@ -1361,7 +1367,7 @@ namespace Resource
 
     void SceneManager::clearCache()
     {
-        NodeResourceManager<std::string>::clearCache();
+        BudgetedNodeResourceManager<std::string>::clearCache();
 
         std::scoped_lock lock(mSharedStateMutex);
         mSharedStateManager->clearCache();

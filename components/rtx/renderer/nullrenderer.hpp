@@ -18,9 +18,11 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/scene/refusal.hpp>
 
+#include "framedescriber.hpp"
 #include "framesinflight.hpp"
 #include "guirenderer.hpp"
 #include "memoryreport.hpp"
+#include "nulldevice.hpp"
 #include "picturerenderer.hpp"
 #include "renderer.hpp"
 #include "sceneholder.hpp"
@@ -40,12 +42,26 @@ namespace Rtx
     public:
         explicit NullRenderer(const RendererOptions& options);
 
-        void setScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> textures) override;
-        void extendScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> arrived) override;
+        ArenaIndex arenaOf(SlotKind kind) const override { return mDevice.arenaOf(kind); }
+        std::optional<ContentPrice> priceImage(const ImageShape& shape) const override
+        {
+            return mDevice.priceImage(shape);
+        }
+        ContentPrice priceStructure(const StructureShape& shape) const override
+        {
+            return mDevice.priceStructure(shape);
+        }
+        bool standsStructures() const override { return mDevice.standsStructures(); }
+        ContentBudget openFrame(DeviceEvents& events) override { return mDevice.openFrame(events); }
+        DeviceEpoch handOver(SceneSlot slot, const SceneDesc& scene, std::span<const ResidencyOp> ops) override;
+        void acquireBlock(BlockIndex block, ArenaIndex arena, std::uint64_t bytes) override
+        {
+            mDevice.acquireBlock(block, arena, bytes);
+        }
+        void releaseBlock(BlockIndex block) override { mDevice.releaseBlock(block); }
+        void awaitBlocks() override { mDevice.awaitBlocks(); }
+        void standScene(SceneSlot slot, const SceneDesc& scene) override;
         SceneHeld describeHeld(SceneSlot slot) const override;
-        void takeAnswer(SceneSlot, DeviceAnswer&) override {}
-        std::optional<ArrivalRoom> getArrivalRoom(SceneSlot) const override { return std::nullopt; }
-        void placeScene(SceneSlot slot, const SceneDesc& scene) override;
         SceneSlot addViewScene() override;
         void dropViewScene(SceneSlot slot) override;
 
@@ -72,7 +88,7 @@ namespace Rtx
         void setBounceRays(std::uint32_t rays) override;
         JobProgress awaitKernels(KernelSet, std::chrono::milliseconds) override { return {}; }
         FrameTraced renderFrame(const FrameRequest& request) override;
-        void holdAir(const AirClock&) override {}
+        void holdAir(const AirClock& air) override { mDescriber.holdAir(air); }
         void skipFrame() override;
         std::uint64_t getFrameCount() const override { return mFrames; }
         std::optional<FrameResult> finishFrame() override;
@@ -86,13 +102,24 @@ namespace Rtx
         UpscalerInput getUpscalerInput() const override { return UpscalerInput::Filtered; }
         bool isValidating() const override { return false; }
         MemoryReport getMemoryReport() const override { return {}; }
-        std::uint64_t getSystemClaim() const override { return 0; }
+        MemoryPrices priceMemory() const override;
+        std::vector<CopyRate> measureCopies() override { return {}; }
+        std::optional<std::uint64_t> getSystemHeld() const override { return std::nullopt; }
+        void setSystemBound(std::optional<std::uint64_t>) override {}
         const SceneStats& getSceneStats() const override { return mStats; }
         void readPixels(std::vector<std::uint8_t>& pixels) override;
         void readDeepPixels(std::vector<std::uint16_t>& samples) override;
         std::optional<NotFiniteFrame> takeNotFiniteFrame() override { return std::nullopt; }
 
     private:
+        /// **What residency's operations land on**: a device of no card whose cap is past any content, which asserts
+        /// what a card would corrupt (`NullDevice`).
+        static constexpr std::uint64_t sCapBytes = std::uint64_t{ 1 } << 40;
+        NullDevice mDevice{ sCapBytes };
+
+        /// What a frame is described with, as a device's renderer describes it: the core's, which needs no API.
+        FrameDescriber mDescriber;
+
         /// What a GUI slot holds: whether it is handed out, and whether a trace into it left a copy,
         /// which stands, as a device's does, until the slot is dropped.
         struct GuiTexture

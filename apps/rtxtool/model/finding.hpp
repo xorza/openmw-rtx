@@ -3,10 +3,12 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -131,8 +133,23 @@ namespace RtxTool
         Finding* find(FindingKind kind, std::string_view detail);
         bool hasRoom(FindingKind kind) const;
 
+        /// A string table that is asked by a view, so a lookup builds no string.
+        struct DetailHash
+        {
+            using is_transparent = void;
+            std::size_t operator()(std::string_view detail) const noexcept
+            {
+                return std::hash<std::string_view>{}(detail);
+            }
+        };
+        using DetailIndex = std::unordered_map<std::string, std::uint32_t, DetailHash, std::equal_to<>>;
+
         Expectations mExpected;
         std::vector<Finding> mFindings;
+
+        /// Where each finding stands in `mFindings`, by its kind and then its detail: a finding met on every frame of
+        /// a long tour was a walk of the whole table each time.
+        std::array<DetailIndex, static_cast<std::size_t>(FindingKind::Count)> mIndex;
         std::size_t mFaults = 0;
         std::array<std::uint32_t, static_cast<std::size_t>(FindingKind::Count)> mDropped{};
     };
@@ -176,4 +193,20 @@ namespace RtxTool
     /// and detail once with how often and where it is placed, the block a `view`, a `shot` or a `bench` stands at
     /// under it; and the counts past the table's bound, by kind.
     std::string describeFindings(const FindingTable& table);
+
+    /// How many findings a table holds of each standing in the report: the faults, the costs and marks, and those
+    /// the content is known to meet.
+    struct FindingCounts
+    {
+        std::size_t mFaults = 0;
+        std::size_t mCosts = 0;
+        std::size_t mExpected = 0;
+
+        bool operator==(const FindingCounts& other) const = default;
+    };
+    FindingCounts countFindings(const FindingTable& table);
+
+    /// The counts as a line of the run's record (`recordHeaderLine`), `{"findings": …}`: what a tour's driver reads,
+    /// where it read the report's wording. A tour adds one after every leg, and the last stands.
+    std::string recordFindingsLine(const FindingCounts& counts);
 }

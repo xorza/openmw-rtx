@@ -1,7 +1,5 @@
-#include <chrono>
 #include <cstdint>
 #include <filesystem>
-#include <memory>
 
 #include <gtest/gtest.h>
 
@@ -39,12 +37,12 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/resource/sptfilemanager.hpp>
-#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
+#include <components/rtx/mirror/cells/predictedbands.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
+#include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
-#include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/testing/util.hpp>
 #include <components/vfs/manager.hpp>
@@ -62,6 +60,9 @@ namespace MWRender
         {
             bool standsGround(const osg::Vec2i&) const override { return false; }
             std::span<const Rtx::Placement> placementsIn(const osg::Vec2i&) const override { return {}; }
+            Rtx::PredictedBands& getPredictedBands() const override { return mBands; }
+
+            mutable Rtx::PredictedBands mBands;
         };
 
         struct TwoBodyFrame
@@ -130,7 +131,7 @@ namespace MWRender
         {
             TwoBodyFrame world;
             Rtx::SceneIdentities identities;
-            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr, identities);
+            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, identities);
             const osg::Matrixd view = osg::Matrixd::identity();
 
             const Rtx::ExtractionStats both = mirror.mirror(world.frame(1), view);
@@ -165,20 +166,20 @@ namespace MWRender
         {
             TwoBodyFrame world;
             Rtx::SceneIdentities identities;
-            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr, identities);
+            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, identities);
             const osg::Matrixd view = osg::Matrixd::identity();
 
             osg::ref_ptr<osg::Image> sheet = Rtx::Testing::makeImage("textures/sheet.dds", 2, 2);
-            mirror.getWalkContext().mContent.meanOf(*sheet);
+            std::ignore = mirror.getWalkContext().mContent.factsOf(*sheet);
 
             const Rtx::ExtractionStats first = mirror.mirror(world.frame(1), view);
-            EXPECT_EQ(first.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::TexelMean).mAsked, 1u)
+            EXPECT_EQ(first.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::FileFacts).mAsked, 1u)
                 << "what ran before the first walk was lost";
             EXPECT_EQ(first.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Shape).mAsked, 1u)
                 << "the one quad both bodies share";
 
             const Rtx::ExtractionStats second = mirror.mirror(world.frame(2), view);
-            EXPECT_EQ(second.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::TexelMean).mAsked, 0u) << "counted twice";
+            EXPECT_EQ(second.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::FileFacts).mAsked, 0u) << "counted twice";
             EXPECT_EQ(second.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Shape).mAsked, 0u);
 
             // A mirror goes standing nothing.
@@ -186,61 +187,34 @@ namespace MWRender
             mirror.mirror(world.frame(3), view);
         }
 
-        /// **The sea is prepared with the content, so the frame's thread finds its shape**: the frame asks
-        /// the store's memory alone, and the sea stands in no file a model's walk reads. A first session's
-        /// preparation folds and files it, a later one's reads its file, and a session that prepared
-        /// nothing finds it nowhere, though its file stands.
-        TEST(RtxWorldMirrorTest, theSeaIsPreparedSoTheFramesThreadFindsItsShape)
+        /// **The frame's thread asks the store nothing**: the sea, which stands in no model, is folded where the frame
+        /// reads it, its one ask no hit, and the store the mirror was made with is neither read nor written.
+        TEST(RtxWorldMirrorTest, theFramesThreadAsksTheStoreNothing)
         {
-            // Emptied first, as this binary's `main` appends no `FreshTestDirs`: a repeat's cold session
-            // found the store the first pass filled.
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             std::filesystem::remove_all(folder);
-            const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({});
-            Resource::ResourceSystem resources(vfs.get(), 5.0, nullptr);
             TwoBodyFrame world;
             world.mRoot->removeChildren(0, world.mRoot->getNumChildren());
             const osg::Matrixd view = osg::Matrixd::identity();
 
-            struct Session
-            {
-                Rtx::PassStats mLoading;
-                Rtx::PassStats mFrame;
-            };
-            const auto session = [&](bool prepared) {
-                ContentStore::Store store(folder, Rtx::sContentStorePolicy);
-                Rtx::SceneIdentities identities;
-                WorldMirror mirror(MWRender::MirrorKnobs{}, &store, nullptr, identities);
-                Session counted;
-                if (prepared)
-                {
-                    mirror.startPreparing(resources, {}, {}, 1);
-                    EXPECT_TRUE(mirror.awaitPreparing(std::chrono::milliseconds::zero()).isDone()) << "nothing to walk";
-                    counted.mLoading = mirror.finishPreparing().at(Rtx::ContentPassId::Shape);
-                }
-                world.mWorld.mWater.mEnabled = true;
-                counted.mFrame
-                    = mirror.mirror(world.frame(1), view).mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Shape);
+            ContentStore::Store store(folder, Rtx::sContentStorePolicy);
+            store.flush();
+            Rtx::SceneIdentities identities;
+            WorldMirror mirror(MWRender::MirrorKnobs{}, &store, identities);
+            world.mWorld.mWater.mEnabled = true;
+            const Rtx::PassStats frame
+                = mirror.mirror(world.frame(1), view).mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Shape);
+            EXPECT_EQ(frame.mAsked, 1u) << "the sea";
+            EXPECT_EQ(frame.mHits, 0u);
+            EXPECT_EQ(frame.mKeyBytes, 0u) << "a key made for no store";
 
-                // A mirror goes standing nothing.
-                world.mWorld.mWater.mEnabled = false;
-                mirror.mirror(world.frame(2), view);
-                return counted;
-            };
-
-            const Session cold = session(true);
-            EXPECT_EQ(cold.mLoading.mAsked, 1u);
-            EXPECT_EQ(cold.mLoading.mHits, 0u);
-            EXPECT_EQ(cold.mFrame.mAsked, 1u);
-            EXPECT_EQ(cold.mFrame.mHits, 1u) << "the frame folded what the preparation filed";
-
-            const Session warm = session(true);
-            EXPECT_EQ(warm.mLoading.mHits, 1u) << "the preparation did not read the sea's file";
-            EXPECT_EQ(warm.mFrame.mHits, 1u);
-
-            const Session unprepared = session(false);
-            EXPECT_EQ(unprepared.mFrame.mAsked, 1u);
-            EXPECT_EQ(unprepared.mFrame.mHits, 0u) << "the frame's thread reached the disk";
+            // A mirror goes standing nothing.
+            world.mWorld.mWater.mEnabled = false;
+            mirror.mirror(world.frame(2), view);
+            store.flush();
+            const ContentStore::Stats asked = store.getStats();
+            EXPECT_EQ(asked.mFound + asked.mMissed, 0u) << "the frame read the store";
+            EXPECT_EQ(asked.mWritten, 0u) << "the frame wrote the store";
         }
 
         /// **The player is the one thing a mirror leaves out on a question about the eye.** Every
@@ -251,7 +225,7 @@ namespace MWRender
         TEST(RtxWorldMirrorTest, thePlayerAndTheActorsAreWalkedWhereTheViewMaskKeepsThem)
         {
             Rtx::SceneIdentities identities;
-            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr, identities);
+            WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, identities);
 
             const osg::Node::NodeMask playing = mirror.getTraversalMask();
             EXPECT_NE(playing & Mask_Player, 0u) << "a game somebody is playing draws them";
@@ -291,7 +265,7 @@ namespace MWRender
 
             Rtx::SceneIdentities identities;
             const osg::Node::NodeMask mask
-                = WorldMirror(MWRender::MirrorKnobs{}, nullptr, nullptr, identities).getTraversalMask();
+                = WorldMirror(MWRender::MirrorKnobs{}, nullptr, identities).getTraversalMask();
 
             NifOsg::Loader::setHiddenNodeMask(told);
 

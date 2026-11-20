@@ -3,17 +3,28 @@
 ## Code
 
 - Remove the visibility limit.
-- Custom map notes plugin.
+
+- **The seam's structure, a proposal of its own** (the user's decision, 2026-11-20; found by the renderer's review):
+  - `MWRender::Renderer` holds seven responsibilities and state of its own: 22 of 55 virtuals have work in one
+    renderer, and the base reads settings and the wall clock and sleeps. The pacing (`awaitFrame`, `openFrame`,
+    `openNestedFrame`, `FramesAside`, the limiter) as a concrete pacer the engine owns; the factory calls and world
+    events stay. `RendererTest`'s wall clock and settings go with it.
+  - A renderer is made by ten ordered calls (`Engine::prepareEngine`, `RenderingManager`'s constructor), each guarded
+    by an assert, every state between two representable: what exists before the window in `RendererSpec`, resources
+    with the one call that needs them.
+  - A declined request has two sources, a virtual that does nothing and `RenderSupport`'s table keyed by strings: one
+    call that answers its refusal, and the chain's callers taking the post-processor from one accessor that carries
+    the reason beside the null.
+  - `RtxRenderer`'s phase rule is spelled two ways, and `updateTraversal` and `renderGui` take `Between` alone: named
+    expectations a caller kind.
 
 ## Open questions
 
 - **Whether a tour runs unsettled, as the game walks** (moved out of the tree-and-content-memory plan, 2026-11-18): a
-  settled walk waits on the frame for its nearest cell and its ground's bake (`CellSupply::waitForOne`, 111 ms of a
-  135 ms frame on the desk's Repack tour), which no player waits for. Decide by an A/B of worst frames and outruns on
-  the handheld, then fly the baseline again (`docs/research/2026-11-17-longest-frames.md`).
-
-- automate memleak detection
-- Upstream merge's app token: the exchange is copied from claude-code-action and undocumented (`.github/actions/app-token`). An app of our own (`actions/create-github-app-token`), or CI dispatched with the workflow's token?
+  settled walk waits on the frame for its nearest cell and its ground's bake (`CellSupply::awaitOwed`; 111 ms of a
+  135 ms frame on the desk's Repack tour before the table), which no player waits for, where the game waits under the
+  loading screen at a change of cells alone (`Renderer::standWhole`). Decide by an A/B of worst frames, pops and
+  crossings held on the handheld, then fly the baseline again (`docs/research/2026-11-17-longest-frames.md`).
 
 ## Performance
 
@@ -25,11 +36,9 @@
 
 - **The ring reads what can stand** (moved out of the tree-and-content-memory plan, 2026-11-18): the handheld's Repack
   tour at `b461faf024` loaded 27,004 `Nif`s, 8,828 of them again (33%), and 25,661 `Node`s, 7,494 again (29%). A
-  cell's references read as a prefix by radius, one band ahead of the size rule, with `CellRing` asking the reader to
-  go further as the cell nears. It needs each model's radius in the store's manifest before the model is read, and
-  `CellPlacer` adopting a cell in parts. Held by the count again, `repeat` and `shot`, and no outrun.
-
-- Bake distant land into one mesh.
+  cell's references read as a prefix by radius, one band ahead of the size rule, a cell's record in `CellTable` asking
+  the reader to go further as the cell nears. It needs each model's radius in the store's manifest before the model is
+  read, and `CellPlacer` adopting a cell in parts. Held by the count again, `repeat` and `shot`, and no pop.
 
 ## Prompts
 

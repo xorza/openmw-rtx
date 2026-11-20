@@ -43,6 +43,7 @@
 #include <components/rtx/mirror/cells/templatewalk.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
+#include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/meshtable.hpp>
 #include <components/sceneutil/extradata.hpp>
@@ -343,7 +344,7 @@ namespace Rtx::Testing
             root->addChild(makeQuad());
 
             ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
-            ThreadContent content(&store, ContentStore::Reach::Disk);
+            ThreadContent content(&store);
             TemplateWalk walk(nullptr);
             std::vector<StoredKey> keys;
             content.mPreprocessor.collectKeys(&keys);

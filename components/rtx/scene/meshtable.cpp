@@ -199,43 +199,21 @@ namespace Rtx
         return known->second;
     }
 
-    void MeshTable::stand(const MeshIndex mesh, const std::uint64_t structureBytes)
+    void MeshTable::setStanding(const MeshIndex mesh, const bool stands)
     {
-        assert(isLive(mesh) && "a mesh stood that the table does not hold");
-        MeshRange& range = rowAt(mesh);
-        // A device builds what arrived or waited, and a rebuild comes after everything that rests is freed, so nothing
-        // resting is built: the rest's bytes stay what each mesh rested with.
-        assert(!range.mRest.mResting && "a resting mesh's structure was built");
-        range.mStoodBytes = structureBytes;
-        // Loose until its copy lands, which gives back nothing a waiting structure takes.
-        range.mRest.mFit = 0;
+        assert((isLive(mesh) || rowAt(mesh).mRest.mResting) && "a mesh said to stand that the table holds no more");
+        rowAt(mesh).mStands = stands;
     }
 
-    void MeshTable::fit(const MeshIndex mesh, const std::uint64_t bytes, const std::uint64_t alignment)
+    void MeshTable::drop(DeformerTable& deformers, const MeshIndex mesh, const HoldTier tier)
     {
-        assert((isLive(mesh) || rowAt(mesh).mRest.mResting) && "a mesh the table does not hold fitted");
-        mResting.fit(mesh, bytes, alignment, placeOf());
-    }
-
-    bool MeshTable::releaseFitting(DeformerTable& deformers, const std::uint64_t hole, const std::uint64_t alignment)
-    {
-        settleResting();
-        const MeshIndex fitting = mResting.firstFitting(hole, alignment, placeOf());
-        if (fitting == sNoRow)
-            return false;
-        release(deformers, fitting);
-        return true;
-    }
-
-    void MeshTable::drop(DeformerTable& deformers, const MeshIndex mesh)
-    {
-        if (!dropRow(mesh))
+        if (!dropRow(mesh, tier))
             return;
 
         // **A static mesh the device stands whole rests** (`docs/architecture.md`, "One residency policy for the
         // content"); anything else goes now, a mesh the device has not stood among them.
         const MeshRange& range = rowAt(mesh);
-        if (range.mKey.has_value() && range.mStoodBytes > 0)
+        if (range.mKey.has_value() && range.mStands)
             rest(mesh);
         else
             release(deformers, mesh);
@@ -244,7 +222,7 @@ namespace Rtx
     void MeshTable::rest(const MeshIndex mesh)
     {
         const MeshRange& range = rowAt(mesh);
-        mResting.rest(mesh, range.mStoodBytes, placeOf());
+        mResting.rest(mesh, placeOf());
         mRestingGeometry.mVertices += range.mVertices.mCount;
         mRestingGeometry.mIndices += range.mIndices.mCount;
     }
@@ -252,18 +230,11 @@ namespace Rtx
     void MeshTable::wake(const MeshIndex mesh)
     {
         const MeshRange& range = rowAt(mesh);
-        mResting.wake(mesh, range.mStoodBytes, placeOf());
+        mResting.wake(mesh, placeOf());
         assert(mRestingGeometry.mVertices >= range.mVertices.mCount && "a wake past the vertices that rest");
         assert(mRestingGeometry.mIndices >= range.mIndices.mCount && "a wake past the indices that rest");
         mRestingGeometry.mVertices -= range.mVertices.mCount;
         mRestingGeometry.mIndices -= range.mIndices.mCount;
-    }
-
-    void MeshTable::releaseOldest(DeformerTable& deformers)
-    {
-        settleResting();
-        assert(mResting.first() != sNoRow && "the oldest freed where nothing rests");
-        release(deformers, mResting.first());
     }
 
     void MeshTable::release(DeformerTable& deformers, const MeshIndex mesh)
@@ -274,8 +245,7 @@ namespace Rtx
         if (range.mKey.has_value())
             mKeyIndex.erase(*range.mKey);
         range.mKey.reset();
-        range.mStoodBytes = 0;
-        range.mRest.mFit = 0;
+        range.mStands = false;
 
         // The allocators merge the room with whatever it touches, so a cell leaves as the one hole
         // it came as.
@@ -315,11 +285,10 @@ namespace Rtx
         note(mesh, SlotNews::Freed);
     }
 
-    void MeshTable::compact(const std::uint64_t clock)
+    void MeshTable::compact()
     {
         mDeformed.compact();
         mChanges.compact();
-        mClock = clock;
         settleResting();
     }
 

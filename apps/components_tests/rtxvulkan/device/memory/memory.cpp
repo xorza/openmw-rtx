@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -16,18 +15,16 @@
 
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/memorylimits.hpp>
-#include <components/misc/result.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/blockedbuffer.hpp>
-#include <components/rtxvulkan/device/memory/bufferusage.hpp>
+#include <components/rtxvulkan/device/memory/contentarena.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
-#include <components/rtxvulkan/device/memory/structurestorage.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
@@ -63,10 +60,9 @@ namespace Rtx
             DeviceMemory mMemory;
         };
 
-        /// A buffer's room as `use`, in memory that is `properties`, at `alignment` at least, bound —
-        /// or nothing where the allocator had none, which it says in the one way it says it.
-        std::optional<Bound> tryBind(const Device& device, const VkDeviceSize size,
-            const VkMemoryPropertyFlags properties, const MemoryUse use, const VkDeviceSize alignment = 1)
+        /// A buffer's room as `use`, in memory that is `properties`, at `alignment` at least, bound.
+        Bound bindAs(const Device& device, const VkDeviceSize size, const VkMemoryPropertyFlags properties,
+            const MemoryUse use, const VkDeviceSize alignment = 1)
         {
             const VkBufferCreateInfo create{
                 .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -81,15 +77,7 @@ namespace Rtx
 
             Bound bound;
             bound.mBuffer = Owned<VkBuffer, vkDestroyBuffer>::make(device, vkCreateBuffer, create, "vkCreateBuffer");
-            Result<DeviceMemory, MemoryRefusal> memory
-                = device.getMemory().tryTake(bound.mBuffer.get(), properties, alignment, use, "a test buffer");
-            if (!memory.isOk())
-            {
-                EXPECT_EQ(memory.error(), MemoryRefusal::NoRoom);
-                return std::nullopt;
-            }
-
-            bound.mMemory = std::move(memory.value());
+            bound.mMemory = device.getMemory().take(bound.mBuffer.get(), properties, alignment, use, "a test buffer");
             checkVk(device,
                 vkBindBufferMemory(
                     device.getHandle(), bound.mBuffer.get(), bound.mMemory.getHandle(), bound.mMemory.getOffset()),
@@ -98,10 +86,10 @@ namespace Rtx
             return bound;
         }
 
-        /// The same, as the frame's own memory, which is never refused.
+        /// The same, as essential memory.
         Bound bind(const Device& device, const VkDeviceSize size, const VkMemoryPropertyFlags properties)
         {
-            return std::move(*tryBind(device, size, properties, MemoryUse::Essential));
+            return bindAs(device, size, properties, MemoryUse::Essential);
         }
 
         /// **A device with no video memory is refused before anything is made on it**, so the
@@ -202,17 +190,15 @@ namespace Rtx
             constexpr VkDeviceSize sOwed = 4096;
             constexpr VkDeviceSize sSmall = 64;
 
-            for (const MemoryUse use : { MemoryUse::Essential, MemoryUse::Structure })
+            for (const MemoryUse use : { MemoryUse::Frame, MemoryUse::Essential })
             {
                 std::vector<Bound> held;
                 for (std::int32_t at = 0; at < 16; ++at)
                 {
-                    std::optional<Bound> bound
-                        = tryBind(device, sSmall, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use, sOwed);
-                    ASSERT_TRUE(bound.has_value());
-                    EXPECT_EQ(bound->mMemory.getOffset() % sOwed, 0u)
+                    Bound bound = bindAs(device, sSmall, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use, sOwed);
+                    EXPECT_EQ(bound.mMemory.getOffset() % sOwed, 0u)
                         << "a buffer started off the alignment its use owes, as use " << static_cast<std::int32_t>(use);
-                    held.push_back(std::move(*bound));
+                    held.push_back(std::move(bound));
                 }
             }
 
@@ -378,76 +364,50 @@ namespace Rtx
             EXPECT_LT(memory.getBlockCount(), grown) << "emptied blocks were kept";
         }
 
-        /// **Content's ceiling keeps room for the largest growth each use before it owes, not every owner's or a copy
-        /// of what they hold**: a blocked buffer opened owes its next block, and blocks it makes after change no
-        /// ceiling; a table made at a size owes twice that, its next growth, and made again at twice it owes four
-        /// times; let go of, it owes nothing. Each moves the structures' ceiling by what it takes the largest past the
-        /// one the device's own tables owe, `essential`; a table made larger than that moves it by all of its own past
-        /// it. The textures' ceiling stands under the structures' by the largest a structure storage owes, whatever the
-        /// tables owe.
-        TEST_F(RtxMemoryTest, contentsCeilingKeepsRoomForTheLargestGrowthEachUseBeforeItOwes)
+        /// **The arena's cap keeps room for the largest growth one essential owner owes, and the frame's reserve beyond
+        /// its targets** (`MemoryAllocator::getOwedOutside`, `ContentArena::capUnder`): a table made at a size owes
+        /// twice that, its next growth, and made again at twice it owes four times; let go of, it owes nothing. A
+        /// reserve exactly the targets owes nothing past the largest growth, and one two blocks past them lowers the
+        /// cap by those two blocks, nothing else moving.
+        TEST_F(RtxMemoryTest, theArenasCapKeepsRoomForTheLargestEssentialGrowthAndTheFramesReserve)
         {
             Device& device = getDevice();
             MemoryAllocator& memory = device.getMemory();
             memory.refreshBudget(device.getTimeline().getNext());
-            const VkDeviceSize base = memory.getCeiling(MemoryUse::Structure);
-            const VkDeviceSize ahead = memory.getCeiling(MemoryUse::Structure) - memory.getCeiling(MemoryUse::Texture);
-            const VkDeviceSize essential = memory.getLargestOwed(MemoryUse::Essential);
-            const VkDeviceSize storages = memory.getLargestOwed(MemoryUse::Structure);
-            EXPECT_EQ(ahead, storages) << "a storage's growth, beside the tables'";
-
-            constexpr std::uint32_t sBlock = 1024;
-            constexpr VkDeviceSize sBlockBytes = VkDeviceSize{ sBlock } * sizeof(std::uint32_t);
-            BlockedBuffer blocks(sBlock, sizeof(std::uint32_t));
-            blocks.open(device, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "owed blocks");
-            const VkDeviceSize opened = memory.getCeiling(MemoryUse::Structure);
-            EXPECT_EQ(base - opened, std::max(essential, sBlockBytes) - essential)
-                << "its next block, past the largest";
-            {
-                Batch batch(getPool());
-                blocks.reserve(batch, 3 * sBlock);
-                batch.flush();
-            }
-            EXPECT_EQ(memory.getCeiling(MemoryUse::Structure), opened) << "geometry that stands moved the ceiling";
+            const Testing::BudgetLimit roomy(memory, Testing::budgetForCap(device, VkDeviceSize{ 4 } << 30));
+            const VkDeviceSize essential = memory.getLargestOwed();
+            EXPECT_EQ(memory.report().mUses.mEssentialGrowth, essential);
 
             // Larger than any growth the device owes already, so its own is the largest.
-            const VkDeviceSize largest = std::max(essential, sBlockBytes);
-            const VkDeviceSize sized = std::max(VkDeviceSize{ 64 } * 1024, largest);
+            const VkDeviceSize sized = std::max(VkDeviceSize{ 1 } << 20, essential);
             {
                 GrowableBuffer table(device, BufferKind::DeviceLocal, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "owed table");
                 table.growTo(sized);
                 const VkDeviceSize made = table.get().getSize();
-                ASSERT_GT(2 * made, largest);
-                EXPECT_EQ(opened - memory.getCeiling(MemoryUse::Structure), 2 * made - largest)
-                    << "its next growth, past the largest before it";
+                ASSERT_GT(2 * made, essential);
+                EXPECT_EQ(memory.getLargestOwed(), 2 * made) << "its next growth, the largest";
                 table.outgrow(made + 1);
                 EXPECT_EQ(table.get().getSize(), 2 * made) << "a growth doubles";
-                EXPECT_EQ(opened - memory.getCeiling(MemoryUse::Structure), 4 * made - largest);
-                EXPECT_EQ(memory.getCeiling(MemoryUse::Structure) - memory.getCeiling(MemoryUse::Texture), storages)
-                    << "a storage's growth, whatever the table owes";
+                EXPECT_EQ(memory.getLargestOwed(), 4 * made);
             }
-            EXPECT_EQ(memory.getCeiling(MemoryUse::Structure), opened) << "a table let go of still owed";
-            EXPECT_EQ(memory.getCeiling(MemoryUse::Structure) - memory.getCeiling(MemoryUse::Texture), storages)
-                << "the structures owe what they owed";
+            EXPECT_EQ(memory.getLargestOwed(), essential) << "a table let go of still owed";
 
-            // **A structure takes the storages' free runs**: a storage of 4 MiB blocks with a megabyte handed out holds
-            // three free, the structures' room where no ceiling leaves any.
-            {
-                StructureStorage storage(sStructureStorageUsage, "free runs", VkDeviceSize{ 4 } << 20);
-                const Result<StructureRoom, MemoryRefusal> room = storage.take(device, VkDeviceSize{ 1 } << 20);
-                ASSERT_TRUE(room.isOk());
-                const Testing::BudgetLimit none(memory, 0);
-                EXPECT_EQ(memory.getRoom(MemoryUse::Structure), VkDeviceSize{ 3 } << 20);
-            }
-            {
-                const Testing::BudgetLimit none(memory, 0);
-                EXPECT_EQ(memory.getRoom(MemoryUse::Structure), 0u) << "a storage gone still says its free runs";
-            }
-
-            // What went is buried until the device is done with it: collected, so the tests after count no block of
-            // this one's.
-            blocks = BlockedBuffer(sBlock, sizeof(std::uint32_t));
-            EXPECT_EQ(memory.getCeiling(MemoryUse::Structure), base) << "a blocked buffer let go of still owed";
+            const Image target(MemoryUse::Frame, device,
+                ImageDescription{ .mWidth = 1024,
+                    .mHeight = 1024,
+                    .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                    .mUsage = VK_IMAGE_USAGE_STORAGE_BIT },
+                "frame target");
+            const VkDeviceSize frame = memory.getHeld(memory.getVideoHeap(), MemoryUse::Frame);
+            const VkDeviceSize reserve = memory.getFrameReserve();
+            memory.reserveFrame(frame);
+            EXPECT_EQ(memory.getOwedOutside(), essential) << "a reserve the targets fill owes nothing more";
+            const VkDeviceSize targeted = device.getContent().capUnder(memory);
+            memory.reserveFrame(frame + 2 * sContentBlockBytes);
+            EXPECT_EQ(memory.getOwedOutside(), essential + 2 * sContentBlockBytes);
+            EXPECT_EQ(targeted - device.getContent().capUnder(memory), 2 * sContentBlockBytes)
+                << "the reserve beyond the targets";
+            memory.reserveFrame(reserve);
             device.waitIdle();
             device.collectIdle();
         }
@@ -461,58 +421,33 @@ namespace Rtx
                     == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU);
         }
 
-        /// With no room left, content is refused and the frame's own memory is made.
-        ///
-        /// **Both ways content comes to new memory**: forty megabytes, more than half a block, is an allocation of its
-        /// own, and four kilobytes is a range of a block, which with every gap filled and every ceiling at nought has
-        /// nowhere to go. The same forty megabytes as the frame's are made where the ceilings say there is nothing.
-        /// **Each refusal is the last refused take**, its use, its bytes and its own memory or a block as asked, with
-        /// every content pool's figures beside it, none allocating past its blocks.
-        TEST_F(RtxMemoryTest, withNoRoomContentIsRefusedAndTheFramesOwnMemoryIsMade)
+        /// **A block of the arena is content's, counted as it is made and off as it goes, and essential memory is made
+        /// under a budget of nought**: a block of a megabyte in content's first type holds a megabyte as content and
+        /// moves no other use; given back at once, it holds nothing. The frame's tables are never refused.
+        TEST_F(RtxMemoryTest, anArenasBlockIsContentsAndEssentialMemoryIsMadeUnderABudgetOfNought)
         {
-            const Testing::NoRoomForContent full(getDevice());
             MemoryAllocator& memory = getDevice().getMemory();
-            VkPhysicalDeviceMemoryProperties properties{};
-            vkGetPhysicalDeviceMemoryProperties(getDevice().getPhysicalDevice().getHandle(), &properties);
-            const auto contentTypes = static_cast<std::uint32_t>(std::popcount(contentTypesOf(properties).mTypes));
+            const std::uint32_t heap = memory.getVideoHeap();
+            const auto held = [&] {
+                return std::array{ memory.getHeld(heap, MemoryUse::Frame), memory.getHeld(heap, MemoryUse::Essential),
+                    memory.getHeld(heap, MemoryUse::Content) };
+            };
+            const std::array before = held();
 
-            for (const VkDeviceSize size : { VkDeviceSize{ 40 } << 20, VkDeviceSize{ 4096 } })
-                for (const MemoryUse use : { MemoryUse::Structure, MemoryUse::Texture })
-                {
-                    const std::uint64_t refusedBefore = memory.getRefusedCount();
-                    EXPECT_FALSE(tryBind(getDevice(), size, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use).has_value())
-                        << size << " bytes were placed with no room for them";
-                    EXPECT_EQ(memory.getRefusedCount(), refusedBefore + 1);
-                    const std::optional<RefusedTake> refused = memory.getLastRefused();
-                    ASSERT_TRUE(refused.has_value());
-                    EXPECT_EQ(refused->mUse, use);
-                    EXPECT_GE(refused->mBytes, size) << "the driver's requirement is the size or past it";
-                    EXPECT_EQ(refused->mOwn, size > (VkDeviceSize{ 32 } << 20));
-                    EXPECT_EQ(refused->mPoolCount, contentTypes);
-                    for (const PoolRoom& pool : std::span(refused->mPools).first(refused->mPoolCount))
-                    {
-                        EXPECT_LE(pool.mAllocated, pool.mBlocks) << pool.mType;
-                        EXPECT_LE(pool.mLargestFree, pool.mBlocks - pool.mAllocated) << pool.mType;
-                    }
-                    EXPECT_NE(
-                        describe(*refused).find(std::string("no device memory for a ") + std::string(nameOf(use))),
-                        std::string::npos);
+            const auto type = static_cast<std::uint32_t>(std::countr_zero(memory.getContentTypes()));
+            std::optional<DeviceMemory> block = memory.takeBlock(type, VkDeviceSize{ 1 } << 20);
+            ASSERT_TRUE(block.has_value());
+            EXPECT_EQ(block->getSize(), VkDeviceSize{ 1 } << 20);
+            const std::array during = held();
+            EXPECT_EQ(during[2] - before[2], VkDeviceSize{ 1 } << 20);
+            EXPECT_EQ(during[1], before[1]) << "a block was counted as essential memory";
+            EXPECT_EQ(during[0], before[0]) << "a block was counted as the frame's";
+            memory.giveBlock(std::move(*block));
+            EXPECT_EQ(held()[2], before[2]) << "a block given back was still counted";
 
-                    // What each use held when it was refused, as the report says it now, nothing being made since.
-                    const MemoryUses now = memory.report().mUses;
-                    EXPECT_EQ(refused->mUses.mTextures, now.mTextures);
-                    EXPECT_EQ(refused->mUses.mStructures, now.mStructures);
-                    EXPECT_EQ(refused->mUses.mEssential, now.mEssential);
-                    EXPECT_EQ(refused->mUses.mTextureRoom, now.mTextureRoom);
-                    EXPECT_EQ(refused->mUses.mStructureRoom, now.mStructureRoom);
-                    EXPECT_NE(describe(*refused).find("; held by use: " + describeUses(now)), std::string::npos);
-                }
-
+            const Testing::BudgetLimit none(memory, 0);
             const Bound essential = bind(getDevice(), VkDeviceSize{ 40 } << 20, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
             EXPECT_NE(essential.mMemory.getHandle(), VK_NULL_HANDLE);
-            EXPECT_TRUE(
-                tryBind(getDevice(), 4096, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MemoryUse::Essential).has_value())
-                << "essential memory tried for was refused";
         }
 
         /// What each use holds is the size of each range it was given, counted as it is made and
@@ -523,140 +458,33 @@ namespace Rtx
             const std::uint32_t heap = memory.getVideoHeap();
 
             const auto held = [&] {
-                return std::array{ memory.getHeld(heap, MemoryUse::Essential),
-                    memory.getHeld(heap, MemoryUse::Structure), memory.getHeld(heap, MemoryUse::Texture) };
+                return std::array{ memory.getHeld(heap, MemoryUse::Frame), memory.getHeld(heap, MemoryUse::Essential) };
             };
             const std::array before = held();
-            const VkDeviceSize heldBefore = memory.getVideoBudget().mHeld;
 
             // What the driver asks for a megabyte, which is the size of the range the allocator hands
             // back for it: the allocator places at the requirement and never rounds the size.
-            std::optional<Bound> texture
-                = tryBind(getDevice(), 1 << 20, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MemoryUse::Texture);
-            ASSERT_TRUE(texture.has_value());
+            std::optional<Bound> table
+                = bindAs(getDevice(), 1 << 20, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MemoryUse::Essential);
             VkMemoryRequirements requirements{};
-            vkGetBufferMemoryRequirements(getDevice().getHandle(), texture->mBuffer.get(), &requirements);
+            vkGetBufferMemoryRequirements(getDevice().getHandle(), table->mBuffer.get(), &requirements);
 
             const std::array during = held();
-            EXPECT_EQ(during[2] - before[2], requirements.size);
-            EXPECT_EQ(memory.getVideoBudget().mHeld - heldBefore, requirements.size)
-                << "the heap's held memory is not the range: a new block counted whole, or a free range as held";
-            EXPECT_EQ(during[1], before[1]) << "a texture's range was counted as a structure's";
-            EXPECT_EQ(during[0], before[0]) << "a texture's range was counted as the frame's";
+            EXPECT_EQ(during[1] - before[1], requirements.size);
+            EXPECT_EQ(during[0], before[0]) << "a table's range was counted as the frame's";
 
-            const std::optional<Bound> structure
-                = tryBind(getDevice(), 1 << 20, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MemoryUse::Structure);
-            ASSERT_TRUE(structure.has_value());
-            EXPECT_EQ(held()[1] - before[1], requirements.size);
-            EXPECT_EQ(memory.getVideoBudget().mHeld - heldBefore, 2 * requirements.size);
+            const Bound target = bindAs(getDevice(), 1 << 20, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MemoryUse::Frame);
+            EXPECT_EQ(held()[0] - before[0], requirements.size);
 
             // Let go, the range is buried and stays counted until the graveyard gives it back. **The heap holds it no
-            // more**, buried or given back: what a rest freed is not use (`MemoryAllocator::getVideoBudget`).
-            texture.reset();
-            EXPECT_EQ(held()[2] - before[2], requirements.size) << "a range given back before any submit ran";
-            EXPECT_EQ(memory.getVideoBudget().mHeld - heldBefore, requirements.size)
-                << "a buried range was held beside the structure";
+            // more**, buried or given back: it goes back once its frames are done (`MemoryAllocator::getVideoBudget`).
+            const VkDeviceSize heldWith = memory.getVideoBudget().mHeld;
+            table.reset();
+            EXPECT_EQ(held()[1] - before[1], requirements.size) << "a range given back before any submit ran";
+            EXPECT_EQ(heldWith - memory.getVideoBudget().mHeld, requirements.size) << "a buried range was held";
             getDevice().waitIdle();
             getDevice().collectIdle();
-            EXPECT_EQ(held()[2], before[2]) << "a range given back was still counted";
-            EXPECT_EQ(memory.getVideoBudget().mHeld - heldBefore, requirements.size)
-                << "a range given back was held beside the structure";
-        }
-
-        /// Each use's room is what content's blocks have free and the whole blocks its ceiling leaves, and the ceiling
-        /// of each stands below the budget by the largest growth one owner of each use before it owes.
-        ///
-        /// **Hand-computed from the heap's own figures.** The budget is set to what the heap holds (the process's
-        /// memory outside the allocator counted once) plus the largest growth an essential table owes, plus three
-        /// blocks and a megabyte: the structures' ceiling is then three whole blocks above the heap, and the megabyte
-        /// keeps the division by a block off its edge. The textures' ceiling stands lower by what a structure storage
-        /// owes, whatever structures the device holds.
-        ///
-        /// **The frame's targets are owed their reserve and not themselves once more**: sixteen megabytes held and a
-        /// reserve of exactly that leave the three blocks; a reserve two blocks beyond it leaves one. **Content fits
-        /// to the byte**: under a budget that puts the textures' ceiling at what the process holds and keeps, its free
-        /// runs and what is buried left out, it fits, and a byte less, or a reserve a byte more, it does not.
-        TEST_F(RtxMemoryTest, eachUseStopsWhereTheUsesBeforeItCouldGrow)
-        {
-            MemoryAllocator& memory = getDevice().getMemory();
-            const std::uint32_t heap = memory.getVideoHeap();
-            constexpr VkDeviceSize block = VkDeviceSize{ 64 } << 20;
-
-            const VkPhysicalDeviceMemoryProperties& types = getDevice().getPhysicalDevice().getProperties().mMemory;
-            std::uint32_t type = 0;
-            while (type < types.memoryTypeCount
-                && (types.memoryTypes[type].heapIndex != heap
-                    || (types.memoryTypes[type].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == 0))
-                ++type;
-            ASSERT_LT(type, types.memoryTypeCount);
-            const VkMemoryAllocateInfo outsideInfo{
-                .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-                .pNext = nullptr,
-                .allocationSize = VkDeviceSize{ 8 } << 20,
-                .memoryTypeIndex = type,
-            };
-            const Owned<VkDeviceMemory, vkFreeMemory> outside = Owned<VkDeviceMemory, vkFreeMemory>::make(
-                getDevice(), vkAllocateMemory, outsideInfo, "vkAllocateMemory");
-
-            // The library reads the driver's figures again at a frame's start and keeps them until
-            // the next.
-            memory.refreshBudget(0);
-
-            const std::optional<Bound> structure = tryBind(
-                getDevice(), VkDeviceSize{ 48 } << 20, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MemoryUse::Structure);
-            ASSERT_TRUE(structure.has_value());
-            const Image target(MemoryUse::Frame, getDevice(),
-                ImageDescription{ .mWidth = 2048,
-                    .mHeight = 2048,
-                    .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
-                    .mUsage = VK_IMAGE_USAGE_STORAGE_BIT },
-                "frame target");
-            const VkDeviceSize frame = memory.getHeld(heap, MemoryUse::Frame);
-            ASSERT_GE(frame, VkDeviceSize{ 16 } << 20);
-            const VkDeviceSize reserve = memory.getFrameReserve();
-            memory.reserveFrame(frame);
-
-            // What content's blocks have free, which is the whole of the room where no ceiling is: the pools' for a
-            // texture, and for a structure the storages', of which this test makes none.
-            VkDeviceSize free = 0;
-            {
-                const Testing::BudgetLimit none(memory, 0);
-                free = memory.getRoom(MemoryUse::Texture);
-                EXPECT_EQ(memory.getRoom(MemoryUse::Structure), 0u) << "a structure takes no room of the pools'";
-            }
-
-            ASSERT_GE(memory.getHeld(heap, MemoryUse::Structure), VkDeviceSize{ 48 } << 20);
-            const VkDeviceSize essential = memory.getLargestOwed(MemoryUse::Essential);
-            const VkDeviceSize storage = memory.getLargestOwed(MemoryUse::Structure);
-            EXPECT_EQ(memory.report().mUses.mStructureGrowth, storage) << "the report says what a storage owes";
-            EXPECT_EQ(memory.report().mUses.mEssentialGrowth, essential);
-            const HeapUse heapNow = memory.report().mHeaps[heap];
-            ASSERT_GT(heapNow.mHeld - heapNow.mReserved, VkDeviceSize{ 1 } << 20)
-                << "no memory outside the allocator past the margin, so counting it twice would show nothing";
-
-            const VkDeviceSize above = 3 * block + (1 << 20);
-            const Testing::BudgetLimit limit(memory, Testing::budgetAbove(memory, MemoryUse::Structure, above));
-
-            EXPECT_EQ(memory.getRoom(MemoryUse::Structure), 3 * block);
-            EXPECT_EQ(
-                memory.getRoom(MemoryUse::Texture), free + (storage < above ? (above - storage) / block * block : 0));
-
-            memory.reserveFrame(frame + 2 * block);
-            EXPECT_EQ(memory.getRoom(MemoryUse::Structure), block) << "the reserve beyond the targets";
-
-            const VkDeviceSize atTheHeap = Testing::budgetAtContent(memory);
-            {
-                const Testing::BudgetLimit at(memory, atTheHeap);
-                EXPECT_TRUE(memory.contentFits()) << "content at the textures' ceiling was told it does not fit";
-                memory.reserveFrame(frame + 2 * block + 1);
-                EXPECT_FALSE(memory.contentFits()) << "a reserve a byte larger left content over its ceiling";
-                memory.reserveFrame(frame + 2 * block);
-            }
-            {
-                const Testing::BudgetLimit below(memory, atTheHeap - 1);
-                EXPECT_FALSE(memory.contentFits()) << "a budget a byte smaller left content over its ceiling";
-            }
-            memory.reserveFrame(reserve);
+            EXPECT_EQ(held()[1], before[1]) << "a range given back was still counted";
         }
     }
 }

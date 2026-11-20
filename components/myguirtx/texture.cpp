@@ -88,8 +88,10 @@ namespace MyGUIRtx
         release();
     }
 
-    void* Texture::lock(MyGUI::TextureUsage /*access*/)
+    void* Texture::lock(const MyGUI::TextureUsage access)
     {
+        // What a lock hands back is filled and never read: the texels stand on the device alone.
+        assert(access == MyGUI::TextureUsage::Write && "a texture locked to be read, which only writing is");
         assert(mNumElemBytes != 0 && "a texture locked before it was created");
         assert(!mLocked && "a texture locked twice");
 

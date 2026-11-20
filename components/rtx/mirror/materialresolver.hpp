@@ -7,7 +7,6 @@
 #include <functional>
 #include <optional>
 #include <span>
-#include <typeinfo>
 #include <vector>
 
 #include <boost/unordered/unordered_flat_map.hpp>
@@ -16,13 +15,15 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <components/rtx/common/classanswers.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/rowvector.hpp>
+#include <components/rtx/common/slots.hpp>
+#include <components/rtx/image/imagefacts.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
-#include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/texturetable.hpp>
@@ -54,9 +55,8 @@ namespace Rtx
         /// What the content said, or nothing where nothing did.
         std::optional<SurfaceDescription> mDescribed{};
 
-        /// What the diffuse map's texels say — read by the reader for the surfaces the answer
-        /// changes, a blended one, and left unset for every other. The reader answers it because
-        /// the walk over the texels is the reading's whole cost.
+        /// What the diffuse map's texels say — asked by the reader for the surfaces the answer
+        /// changes, a blended one, and left unset for every other, so the frame asks nothing of it.
         std::optional<ImageFacts> mDiffuseFacts{};
 
         /// What the normal map's texels say, for a surface whose normal map's alpha is a height: the
@@ -168,7 +168,6 @@ namespace Rtx
             mAnimated.reserve(animated);
             mWorns.reserve(animated);
             mFreeWorns.reserve(animated);
-            mUpdaterClasses.reserve(sCallbackClasses);
         }
 
         /// `Kept::getPastRoom`, of the materials, the textures and the animated chains.
@@ -197,8 +196,8 @@ namespace Rtx
             RefusedTakes mRefused;
             static_assert(sTextureEncodingCount * sTextureWrapCount <= 32, "a refusal bit per slot");
 
-            /// Its facts in the thread's cache, `ImageFactCache`, or null until a material asks.
-            ImageFacts* mFacts = nullptr;
+            /// Its facts (`ThreadContent::factsOf`), or null until a material asks.
+            const ImageFacts* mFacts = nullptr;
 
             /// A converted slot this image stands in beside another partner than the one its slot in
             /// `mSlots` was taken beside (`TextureRow::mPartner`): a diffuse paired with two classic
@@ -412,7 +411,7 @@ namespace Rtx
         /// What `image`'s texels say — `ImageFactCache::of`, found by the slot after the first ask.
         /// Asked only for a material the answer changes, because the first ask for a file walks its
         /// texels. Null for no image and for one `takeTexture` did not meet.
-        ImageFacts* takenFacts(const osg::Image* image);
+        const ImageFacts* takenFacts(const osg::Image* image);
 
         SceneDesc& mScene;
         const MirrorPass& mPass;
@@ -424,7 +423,7 @@ namespace Rtx
         /// What each animated material has worn, a row each (`HeldMaterial::mWorn`), and the rows
         /// a material that went gave back.
         RowVector<Worn, WornIndex> mWorns;
-        std::vector<WornIndex> mFreeWorns;
+        SlotPool<WornIndex> mFreeWorns;
 
         /// Which slot each image the walk has met stands in, so an animated material re-read every
         /// frame does not build four `VFS::Path::Normalized` strings a frame. The entry is a
@@ -436,11 +435,9 @@ namespace Rtx
         /// address would otherwise be handed the state set the first one's controllers were writing.
         Kept<boost::unordered_flat_map<Placed, Animated, ByPlacement, ByPlacement>> mAnimated{ mPass };
 
-        /// Whether a callback class is a state set's controller (`SceneUtil::StateSetUpdater`), by its
-        /// dynamic type, asked of each class once: `carriesUpdater`. By the type's identity, since
-        /// a class answers alike for every object of it.
-        static constexpr std::size_t sCallbackClasses = 64;
-        boost::unordered_flat_map<const std::type_info*, bool> mUpdaterClasses;
+        /// Whether a callback class is a state set's controller (`SceneUtil::StateSetUpdater`), asked of each class
+        /// once: `carriesUpdater`.
+        ClassAnswers<bool, 64> mUpdaterClasses;
 
         /// Whether either of `node`'s chains holds a state set's controller, by the classes of its
         /// callbacks (`mUpdaterClasses`).

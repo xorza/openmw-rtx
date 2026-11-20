@@ -10,7 +10,7 @@
 #include <components/esm/defs.hpp>
 #include <components/esm/position.hpp>
 #include <components/esm/util.hpp>
-#include <components/rtx/mirror/cells/cellring.hpp>
+#include <components/rtx/mirror/cells/cellstreamer.hpp>
 #include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/terrain/pagedcellref.hpp>
 
@@ -29,7 +29,7 @@ namespace MWRender
     }
 
     TracedGround::TracedGround(
-        const GroundSpec& spec, Resource::SceneManager& scenes, const std::uint32_t nodeMask, Rtx::CellRing& ring)
+        const GroundSpec& spec, Resource::SceneManager& scenes, const std::uint32_t nodeMask, Rtx::CellStreamer& ring)
         : mTerrain(spec.mSceneRoot, spec.mWorldRoot, spec.mStorage, scenes, *this, nodeMask, spec.mWorldspace)
         , mRing(ring)
     {
@@ -43,6 +43,11 @@ namespace MWRender
     std::span<const Rtx::Placement> TracedGround::placementsIn(const osg::Vec2i& cell) const
     {
         return mRing.placementsIn(cell);
+    }
+
+    Rtx::PredictedBands& TracedGround::getPredictedBands() const
+    {
+        return mRing.getPredictedBands();
     }
 
     bool TracedGround::enableReference(std::int32_t type, const MWWorld::ConstPtr& ptr, const bool enabled)
@@ -91,7 +96,9 @@ namespace MWRender
             Rtx::ReferencePlace{ .mPosition = position.asVec3(),
                 .mRotation = osg::Vec3f(position.rot[0], position.rot[1], position.rot[2]),
                 .mScale = now.getCellRef().getScale() },
-            standsAway(sameWorldspace, position, now.getCellRef().getPosition(), worldspace));
+            standsAway(sameWorldspace, position, now.getCellRef().getPosition(), worldspace)
+                ? Rtx::ReferenceStands::Away
+                : Rtx::ReferenceStands::InItsCell);
     }
 
     void TracedGround::setGate(const std::uint32_t gate, const Terrain::GateState state)

@@ -408,13 +408,14 @@ target_sources(
         device/memory/formats.cpp
         device/memory/growablebuffer.cpp
         device/memory/image.cpp
+        device/memory/chunksupply.cpp
+        device/memory/contentarena.cpp
         device/memory/imagearena.cpp
         device/memory/joinedblocks.cpp
         device/memory/memory.cpp
         device/memory/largestowed.cpp
         device/memory/owedgrowth.cpp
         device/memory/stagingring.cpp
-        device/memory/structurestorage.cpp
         device/memory/uploads.cpp
         device/physicaldevice.cpp
         device/pipelinecache.cpp
@@ -437,6 +438,7 @@ target_sources(
         display/tonepass.cpp
         framering.cpp
         frametracer.cpp
+        memorypricing.cpp
         gui/guidrawer.cpp
         gui/guipass.cpp
         gui/guitextures.cpp
@@ -518,8 +520,6 @@ target_sources(
                 device/memory/barriers.hpp
                 device/memory/batch.hpp
                 device/memory/blockedbuffer.hpp
-                device/memory/blocklist.hpp
-                device/memory/blockscoming.hpp
                 device/memory/buffer.hpp
                 device/memory/bufferusage.hpp
                 device/memory/descriptorsets.hpp
@@ -527,6 +527,8 @@ target_sources(
                 device/memory/frameslots.hpp
                 device/memory/growablebuffer.hpp
                 device/memory/image.hpp
+                device/memory/chunksupply.hpp
+                device/memory/contentarena.hpp
                 device/memory/imagearena.hpp
                 device/memory/imageuse.hpp
                 device/memory/joinedblocks.hpp
@@ -536,8 +538,6 @@ target_sources(
                 device/memory/referencealignment.hpp
                 device/memory/slottable.hpp
                 device/memory/stagingring.hpp
-                device/memory/structurestorage.hpp
-                device/memory/systemshare.hpp
                 device/memory/uploads.hpp
                 device/owned.hpp
                 device/physicaldevice.hpp
@@ -563,6 +563,7 @@ target_sources(
                 display/tonepass.hpp
                 framering.hpp
                 frametracer.hpp
+                memorypricing.hpp
                 gui/guidrawer.hpp
                 gui/guipass.hpp
                 gui/guitextures.hpp
@@ -590,7 +591,6 @@ target_sources(
                 scene/spritesource.hpp
                 scene/structurebuild.hpp
                 scene/toplevelpackpass.hpp
-                scene/whenroomless.hpp
                 shaders/shared/accumulate.h
                 shaders/shared/atrous.h
                 shaders/shared/bc7.h
@@ -678,6 +678,7 @@ target_sources(
                 trace/visibilitypass.hpp
                 trace/wavepass.hpp
                 upscale/dlssupscaler.hpp
+                upscale/featurebytes.hpp
                 upscale/fsrframe.hpp
                 upscale/fsrupscaler.hpp
                 upscale/noupscaler.hpp

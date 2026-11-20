@@ -4,6 +4,7 @@
 #include <exception>
 #include <utility>
 
+#include <components/rtx/common/holdtier.hpp>
 #include <components/rtx/common/index.hpp>
 
 namespace Rtx
@@ -23,6 +24,8 @@ namespace Rtx
     /// @tparam Row the table's row, which is what keeps a mesh's hold from being given back as a
     ///         material's.
     /// @tparam I its index (`RowIndex`).
+    ///
+    /// **It states its tier** (`HoldTier`), which its row is counted at while it stands and given back at.
     template <class Row, class I>
     class Hold
     {
@@ -39,6 +42,7 @@ namespace Rtx
 
         Hold(Hold&& other) noexcept
             : mIndex(std::exchange(other.mIndex, sNoRow))
+            , mTier(other.mTier)
         {
         }
 
@@ -46,6 +50,7 @@ namespace Rtx
         {
             assert((this == &other || mIndex == sNoRow) && "a hold written over while it still holds");
             mIndex = std::exchange(other.mIndex, sNoRow);
+            mTier = other.mTier;
             return *this;
         }
 
@@ -54,17 +59,22 @@ namespace Rtx
 
         bool empty() const { return mIndex == sNoRow; }
 
+        /// The tier it states.
+        HoldTier getTier() const { return mTier; }
+
     private:
         friend class SceneDesc;
 
-        explicit Hold(const I index)
+        Hold(const I index, const HoldTier tier)
             : mIndex(index)
+            , mTier(tier)
         {
         }
 
         I release() { return std::exchange(mIndex, sNoRow); }
 
         I mIndex = sNoRow;
+        HoldTier mTier = HoldTier::Unheld;
     };
 
     struct MeshRange;

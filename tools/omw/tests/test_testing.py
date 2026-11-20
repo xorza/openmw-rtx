@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from omw.testing import RUNS_ALONE, ctest_arguments, durations, least_alone
+from omw.testing import RUNS_ALONE, ctest_arguments, durations, least_alone, suite_seconds
 
 ROOT = Path("/checkout")
 FORK = frozenset({"apps/components_tests/rtx/environment/fogbuilder.cpp",
@@ -65,6 +65,11 @@ class DurationsTest(unittest.TestCase):
             {"name": "elsewhere", "time": "2s", "file": "/usr/include/gtest/gtest.h"},
         ]}]}
         self.assertEqual(durations(report, FORK, ROOT), {})
+
+    def test_a_suites_seconds_are_its_reports_whole_time_and_nought_where_it_states_none(self):
+        self.assertEqual(suite_seconds({"time": "31.25s", "testsuites": []}), 31.25)
+        self.assertEqual(suite_seconds({"time": "0.004s"}), 0.004)
+        self.assertEqual(suite_seconds({}), 0.0)
 
     def test_a_report_without_suites_has_no_cases(self):
         self.assertEqual(durations({"tests": 0}, FORK, ROOT), {})

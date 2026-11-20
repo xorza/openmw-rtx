@@ -150,6 +150,12 @@ namespace Rtx
 
     VkDeviceSize Buffer::bytesFor(const Device& device, const VkDeviceSize size, const VkBufferUsageFlags usage)
     {
+        return requirementsFor(device, size, usage).size;
+    }
+
+    VkMemoryRequirements Buffer::requirementsFor(
+        const Device& device, const VkDeviceSize size, const VkBufferUsageFlags usage)
+    {
         const VkBufferCreateInfo create = createInfoOf(std::max(size, VkDeviceSize{ 1 }), usage);
         const VkDeviceBufferMemoryRequirements asked{
             .sType = VK_STRUCTURE_TYPE_DEVICE_BUFFER_MEMORY_REQUIREMENTS,
@@ -160,7 +166,7 @@ namespace Rtx
             .sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2, .pNext = nullptr, .memoryRequirements = {}
         };
         vkGetDeviceBufferMemoryRequirements(device.getHandle(), &asked, &requirements);
-        return requirements.memoryRequirements.size;
+        return requirements.memoryRequirements;
     }
 
     Buffer Buffer::make(const MemoryUse use, const Device& device, const BufferKind kind, const VkDeviceSize size,
@@ -169,19 +175,6 @@ namespace Rtx
         Buffer made(device, kind, size, usage, name);
         made.bind(
             device.getMemory().take(made.mHandle.get(), propertiesOf(kind), alignmentOwedBy(device, usage), use, name));
-        return made;
-    }
-
-    Result<Buffer, MemoryRefusal> Buffer::tryMake(const MemoryUse use, const Device& device, const BufferKind kind,
-        const VkDeviceSize size, const VkBufferUsageFlags usage, const std::string_view name)
-    {
-        Buffer made(device, kind, size, usage, name);
-        Result<DeviceMemory, MemoryRefusal> memory = device.getMemory().tryTake(
-            made.mHandle.get(), propertiesOf(kind), alignmentOwedBy(device, usage), use, name);
-        if (!memory.isOk())
-            return Err{ memory.error() };
-
-        made.bind(std::move(memory.value()));
         return made;
     }
 
@@ -284,7 +277,8 @@ namespace Rtx
     {
         assert(!isEmpty() && "a copy out of a buffer nobody made");
 
-        assert(bytes <= mSize && bytes <= into.mSize && "a copy of more than either buffer holds");
+        assert(bytes <= mSize && "a copy of more than either buffer holds");
+        assert(bytes <= into.mSize && "a copy of more than either buffer holds");
 
         // Both ends, because a copy takes handles and an address names nothing: a host write over
         // either end while the copy is on the queue is the hazard `isIdle` is asked about.

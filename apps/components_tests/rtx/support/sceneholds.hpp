@@ -14,12 +14,12 @@ namespace Rtx::Testing
     /// with no holds, and the drop after which nothing holds it is the one way it goes.
     inline void letGoMesh(SceneDesc& scene, MeshIndex mesh)
     {
-        scene.drop(scene.holdMesh(mesh));
+        scene.drop(scene.holdMesh(mesh, HoldTier::Shown));
     }
 
     inline void letGoMaterial(SceneDesc& scene, MaterialIndex material)
     {
-        scene.drop(scene.holdMaterial(material));
+        scene.drop(scene.holdMaterial(material, HoldTier::Shown));
     }
 
     /// Holds a test takes on its scene's rows, given back when the test ends however it ends. An
@@ -47,9 +47,15 @@ namespace Rtx::Testing
         SceneHolds& operator=(const SceneHolds&) = delete;
 
         /// One hold more on each, answering the row, as a walk's identity takes one.
-        MeshIndex mesh(MeshIndex mesh) { return take(mMeshes, mScene.holdMesh(mesh)); }
-        MaterialIndex material(MaterialIndex material) { return take(mMaterials, mScene.holdMaterial(material)); }
-        TextureIndex texture(TextureIndex texture) { return take(mTextures, mScene.holdTexture(texture)); }
+        MeshIndex mesh(MeshIndex mesh) { return take(mMeshes, mScene.holdMesh(mesh, HoldTier::Shown)); }
+        MaterialIndex material(MaterialIndex material)
+        {
+            return take(mMaterials, mScene.holdMaterial(material, HoldTier::Shown));
+        }
+        TextureIndex texture(TextureIndex texture)
+        {
+            return take(mTextures, mScene.holdTexture(texture, HoldTier::Shown));
+        }
 
         /// Gives back the hold this took on a row, as its holder letting go would.
         void dropMesh(MeshIndex mesh) { give(mMeshes, mesh); }
