@@ -217,12 +217,6 @@ namespace MWRender
         /// Nought where the ground reaches no further than the cells the simulation has loaded.
         virtual float getGroundReach() const = 0;
 
-        /// Whether the grounds this makes hear what a visibility gate says (`Ground::setGate`),
-        /// which is whether the game builds the gates and keeps them up to date at all: the scripts
-        /// they are compiled from and the values they watch cost a frame nothing a renderer reads
-        /// where no ground listens.
-        virtual bool groundReadsGates() const { return false; }
-
         /// The node the game hangs the world under: the rasterizer's light manager, with the
         /// lighting method it draws with, or a plain group for a renderer that gathers lights on its
         /// own walk. The game names it, masks it and builds under it; it never asks which it got.
@@ -438,8 +432,9 @@ namespace MWRender
         /// writer `Engine` handed over.
         virtual void saveScreenshot() = 0;
 
-        /// The writer both renderers hand a captured frame to: `Engine`'s, alive for as long as the
-        /// renderer is. Handed over after construction, where upstream built it.
+        /// The writer both renderers hand a captured frame to: `Engine`'s, which stops it and lets it go before the
+        /// renderer, so nothing of the renderer's teardown may write. Handed over after construction, where upstream
+        /// built it.
         void setScreenshotWriter(SceneUtil::AsyncScreenCaptureOperation& writer);
 
         /// Between these two nothing is reading the scene graph, so it can be mutated. A renderer
@@ -574,7 +569,9 @@ namespace MWRender
         /// What `awaitFrame` sleeps in, made anew by `setFrameRateLimit`.
         Misc::FrameRateLimiter mLimiter{ std::chrono::steady_clock::duration::zero() };
         std::chrono::steady_clock::duration mLastHold{};
-        osg::ref_ptr<SceneUtil::AsyncScreenCaptureOperation> mScreenshotWriter;
+        /// Borrowed from `Engine`, which stops it and lets it go before the renderer: held here, it was the work
+        /// queue's last holder, and its threads joined after the ray tracer's members were gone.
+        SceneUtil::AsyncScreenCaptureOperation* mScreenshotWriter = nullptr;
         osg::ref_ptr<osg::Camera> mCamera;
         osg::ref_ptr<osg::FrameStamp> mFrameStamp;
         osg::ref_ptr<osg::Stats> mStats;

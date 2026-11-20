@@ -158,7 +158,6 @@ namespace MWRender
         std::unique_ptr<Ground> createGround(const GroundSpec& spec) noexcept override;
 
         float getGroundReach() const noexcept override;
-        bool groundReadsGates() const noexcept override { return true; }
         SDL_Window* getWindow() const noexcept override { return mWindow.get(); }
 
         /// Into the presentation, which the next frame's fit sizes the trace and the surface to.

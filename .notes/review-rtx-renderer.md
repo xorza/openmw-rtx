@@ -1081,34 +1081,6 @@ Files: `apps/openmw/mwrender/{renderer,renderingmanager,rendersupport}`, `apps/o
 `apps/openmw/mwgui/{loadingscreen,windowmanagerimp}`, `apps/openmw/mwworld/{worldimp,weather}`,
 `apps/openmw/mwrender/rtx/`, `components/settings/migration.cpp`, `.notes/UPSTREAM.md`.
 
-- [ ] `renderer.hpp:570`, `engine.cpp:376-398` — the seam's base holds a `ref_ptr` to the capture operation, the
-  work queue's last holder, so the work threads join after `RtxRenderer`'s members are gone. Target: a borrow, as
-  its own comment says.
-- [ ] `rtxrenderer.cpp:433-438,819`, `windowmanagerimp.cpp:1284,1332-1358` — a window resized under a loading
-  screen: the interface is laid out for one extent and drawn into another, and the map is asked for mid-load.
-  Target: window events during a load are recorded and applied at its end, in one place.
-- [ ] `rtxrenderer.cpp:696-705` — one refused setting drops every changed setting and the menu is not told.
-  Target: `applyChangedSettings` answers the declined keys and the settings window restores them.
-- [ ] `worldimp.cpp:826,3417`, `:874,897,3411` — a rest and a door into another worldspace are each told as two
-  cuts. Target: the world keeps one "cut since the last frame" and tells the renderer once.
-- [ ] **(upstream, approved)** `apps/openmw/mwrender/groundcover.cpp:233,428`, `groundcovershapes.{hpp,cpp}`,
-  `apps/openmw_tests/mwrender/groundcovershapes.cpp` — rasterizer-only code no started renderer calls, recorded as
-  needed by the ray tracer. Target: the two hunks return to upstream's text; the files and their record go.
-- [ ] `renderer.hpp:223`, `engine.cpp:234,652` — `groundReadsGates` branches upstream's `Engine` twice to spare an
-  unstarted renderer. Target: the gates are built always.
-- [ ] `components/settings/migration.cpp:38-45` — a shim for the fork's own older key, against the rule of no
-  backward compatibility. It goes.
-- [ ] Work nobody reads under the ray tracer: `loadingscreen.cpp:301-306` (stats a declined overlay would read),
-  `engine.cpp:695,785` (`shaders.yaml`), `windowmanagerimp.cpp:483,1060` (`PostProcessorHud`),
-  `rtx/rtxwindow.cpp:81-99` (four calls a frame once settled).
-- [ ] `components/misc/presentation.cpp:101-127`, `apps/launcher/graphicspage.cpp:460` — a resolution is parsed
-  back out of its caption. Target: the item carries the two numbers.
-- [ ] `.notes/UPSTREAM.md`: not recorded — the loop paced by `Renderer::openFrame`; the teleport's cut in
-  `World::updateWeather`; `WeatherManager` settling a `SkyState`; `LoadingScreen` without its traversals;
-  `LightSource`'s copy constructor; `CacheBudget::yieldTo`'s meaning; `filestdio.cpp` out of the build. Stale:
-  "`ToggleBorders` under the ray tracer" as a `support()` ask.
-- [ ] Tests: none constructs `GlRenderer` and its 4,213 lines; none tears an engine down before `prepareResources`;
-  `RendererTest` sleeps on the wall and writes `Settings::video()` because the base hides its clock.
 
 For the seam's own proposal, not planned here:
 
@@ -1157,6 +1129,11 @@ Files: `components/rtx/{common,scene,renderer,mirror}`, `apps/components_tests/r
 ## Changed
 
 Items that landed in another shape than their target, each with how and why.
+
+- Batch 11's refused setting: the registry's sanitizers hold both values the derivation refuses, so the refusal could
+  not come from the menu; the catch went, and a refusal there is a broken contract.
+- Batch 11's two cuts: the world tells them as before, and a cut with no frame since the last logs no empty stretch,
+  which was all a second cut did (`mLoss` keeps the greater).
 
 - Batch 10: the folder order reads the shared `.h` headers too, which put one of them back on quoted includes; the
   instruments' and the model's reach into the game's headers stays, since the records name `RunSetup`, the
@@ -1468,3 +1445,17 @@ Items judged and not done, each with the reason.
   record's test literal; a table is a rewrite of the writer and its tests.
 - Batch 10's GPU memory tests replaced by the core's: the device's memory tests left are end-to-end ones of the arena
   and the allocator, which the core's tests of the ledger do not reach.
+- Batch 8's `filestdio.cpp` deleted, and taken back: it is upstream's file, and deleting it is a change to upstream's
+  code nobody approved. Its leaving the build predates this work and is not in `UPSTREAM.md`, which the final report
+  names.
+- Batch 11's window events held through a load: the mismatch stands only at a native resolution and ends at the first
+  frame after the load, and the target is a queue in upstream's window manager the harness cannot drive; in
+  `.notes/ISSUES.md`.
+- Batch 11's unread work under the ray tracer: the loading screen's stats, `shaders.yaml` and the post-processor's
+  window are upstream's, read once or returning early, and skipping them branches the game on its renderer; the
+  window's four calls a frame are compares, and the surface's staleness is found by them.
+- Batch 11's resolution carried by the item: upstream parses the caption the same way; the fork only moved the parse
+  into a tested function, and item data widens the launcher's diff.
+- Batch 11's tests: `GlRenderer` needs a GL context the test binaries have none of, an engine torn down early needs a
+  whole engine, and `RendererTest`'s wall clock and settings are the pacer's and the presentation's, which the seam's
+  proposal moves; its tests go with it.

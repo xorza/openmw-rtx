@@ -652,7 +652,6 @@ target_sources(
         mwrender/glwindow.cpp
         mwrender/glworld.cpp
         mwrender/groundcover.cpp
-        mwrender/groundcovershapes.cpp
         mwrender/landmanager.cpp
         mwrender/localmap.cpp
         mwrender/luminancecalculator.cpp
@@ -744,7 +743,6 @@ target_sources(
                 mwrender/ground.hpp
                 mwrender/groundcover.hpp
                 mwrender/groundcoverdensity.hpp
-                mwrender/groundcovershapes.hpp
                 mwrender/landmanager.hpp
                 mwrender/localmap.hpp
                 mwrender/luminancecalculator.hpp

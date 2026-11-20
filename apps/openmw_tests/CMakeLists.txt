@@ -17,7 +17,6 @@ target_sources(
         mwrender/debugwalk.cpp
         mwrender/framesaside.cpp
         mwrender/frametimer.cpp
-        mwrender/groundcovershapes.cpp
         mwrender/localmap.cpp
         mwrender/pendingpaints.cpp
         mwrender/pixels.cpp

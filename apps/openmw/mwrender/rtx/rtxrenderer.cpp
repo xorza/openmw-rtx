@@ -60,7 +60,6 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/clock.hpp>
-#include <components/rtx/common/error.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
@@ -843,37 +842,28 @@ namespace MWRender
             return;
         const Crash::NoteScope noted("applying the settings the menu changed");
 
-        // What asks is somebody choosing from a menu, so a value the derivation refuses is reported
-        // and everything is left where it was.
-        std::optional<RtxSettings> settings;
-        try
-        {
-            settings = RtxSettings::derive(RtxSettingValues::fromRegistry());
-        }
-        catch (const Rtx::InputError& refused)
-        {
-            Log(Debug::Warning) << "Ray tracing kept the settings it had: " << refused.what();
-            return;
-        }
+        // **The registry's sanitizers hold every value the derivation refuses**, a harness's line's to break
+        // (`RtxSettingsTest`), so a refusal here is a broken contract and ends the process through `noexcept`.
+        const RtxSettings settings = RtxSettings::derive(RtxSettingValues::fromRegistry());
 
         // **A mode moves under the upscaler the renderer was made with**, and waits under none: the upscaler
         // the menu now names is the next start's.
         if (upscale && mRenderer->getProfile().mUpscaler != Rtx::UpscalerChoice::Off)
-            mUpscale = settings->mUpscale;
+            mUpscale = settings.mUpscale;
 
         // The ring, the air and the map follow the reach while the game runs. Handed over here and never
         // read by a frame, so every part of a frame stands in one world.
         if (reach)
-            mMirror.setReach(settings->mMirror.mReach);
+            mMirror.setReach(settings.mMirror.mReach);
 
         if (anisotropy)
-            mPending.mAnisotropy = settings->mAnisotropy;
+            mPending.mAnisotropy = settings.mAnisotropy;
         if (gamma)
-            mPending.mGamma = settings->mGamma;
+            mPending.mGamma = settings.mGamma;
         if (indirect)
-            mPending.mIndirectLighting = settings->mIndirectLighting;
+            mPending.mIndirectLighting = settings.mIndirectLighting;
         if (bounceRays)
-            mPending.mBounceRays = settings->mBounceRays;
+            mPending.mBounceRays = settings.mBounceRays;
     }
 
     MyGUI::ITexture& RtxRenderer::freezeFrame() noexcept
@@ -899,8 +889,13 @@ namespace MWRender
 
     void RtxRenderer::closeStretch()
     {
-        // How the stretch the cut ends ran, which a player's report reads beside where it went.
-        Log(Debug::Info) << "Frame times since the last cut: " << Rtx::describe(mStretchTimes.summarise());
+        // How the stretch the cut ends ran, which a player's report reads beside where it went. **A cut with no
+        // frame since the last says nothing**: a rest is told as the clock's skip and again as the hour's jump, and a
+        // door into another worldspace as the change and again as the teleport, all before one frame.
+        const Rtx::FrameTimeHistogram::Summary stretch = mStretchTimes.summarise();
+        if (stretch.mFrames == 0)
+            return;
+        Log(Debug::Info) << "Frame times since the last cut: " << Rtx::describe(stretch);
         mStretchTimes.clear();
     }
 

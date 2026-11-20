@@ -17,8 +17,7 @@ conflict here resolves by keeping the seam:
   is told to the player.
 - `CharacterPreview`, `LocalMap` and `GlobalMap` stand on the renderer's `OffscreenView` and `MapOverlay`; the
   post-processor's exterior flag comes from `GlWorld`.
-- `Renderer::support`, asked where the console, Lua and F2 would toggle what does nothing under the renderer, and
-  `ToggleBorders` under the ray tracer; a script's post-processing shader under a renderer that declines the chain loads
+- `Renderer::support`, asked where the console, Lua and F2 would toggle what does nothing under the renderer; a script's post-processing shader under a renderer that declines the chain loads
   by name and draws nothing, where it stopped at the null post-processor, and the chain lists empty
   (`RenderSupport::declinedSetting`; `load` and `getChain` in `postprocessingbindings.cpp`).
 - MyGUI's backend behind `MyGUIPlatform::GuiRenderManager` (`components/myguiplatform`), which `myguirtx` implements
@@ -28,7 +27,6 @@ conflict here resolves by keeping the seam:
 
 - the optimizer merges in child order, not address order;
 - an exterior map tile keeps its land where the quad tree did not build the chunk yet;
-- a groundcover plant stands under its model's own transforms, not inside them (`GroundcoverShapes`);
 - both renderers draw at `[Video] resolution x/y`, shown scaled into the window (`Misc::Presentation`), so the GUI, the
   projection, the pointer and Lua read one size; an upstream settings file's window size moves to the window on the
   first start.
@@ -70,7 +68,17 @@ conflict here resolves by keeping the seam:
 - One step the histories must hear: a reference moved with its physics placed outright is a jump (`World::moveObject`,
   `notifyJumped`), and the clock moved past the frame's step is a cut (`MWWorld::HourWatch`, once a frame where the
   weather updates). A rest or a wait is a cut (`RenderingManager::notifyTimeJumped`) where `World::advanceTime` told it
-  as a change of worldspace.
+  as a change of worldspace, and a teleport is one beside the weather's (`World::updateWeather`, `notifyCut`).
+- `OMW::Engine::go`'s loop paced by `Renderer::openFrame`, which holds the frame to the limit and answers the step the
+  wall measured, where the viewer and the engine's own limiter paced it.
+- `MWWorld::WeatherManager` settles a `MWRender::SkyState` (`getSkyState`) that both renderers read, where it set each
+  value on the rasterizer's sky.
+- `MWGui::LoadingScreen` draws through `Renderer::renderLoadingFrame`, without the viewer's event, update and rendering
+  traversals or the incremental compile's per-frame limits it saved and restored.
+- `SceneUtil::LightSource`'s copy constructor copies the source radius and takes the copy's own controller out of its
+  cloned callback chain.
+- `components/CMakeLists.txt` builds the platform's files for Windows and POSIX alone: upstream's
+  `components/platform/filestdio.cpp`, for any other system, stays in the tree unbuilt.
 - The loading screen's preparation (`Rtx::ContentPreparation` in `Renderer::prepareContent`):
   `ESMTerrain::Storage::getLayerInfo` public and `Store<ESM::LandTexture>`'s `begin` and `end`
   (`MWRender::contentLayers`), the `PreparingContent` label in six languages, and a note above it
@@ -114,7 +122,8 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   second by `Resource::MemoryArbiter`, which `ResourceSystem` owns and ticks on a thread of its own, from one reading of
   the system and the heap, whose free memory the system counts as the process's; `ResourceSystem::updateCache` and the
   preloader's `UpdateCacheItem` are upstream's text again (the user's yes, 2026-11-20), the tick off the preloader's
-  queue. An eviction keeps its value until the arbiter's tick destroys it (`BudgetedCache::destroyEvicted`), so an
+  queue. On a unified device the caches leave the device the room it claims (`CacheBudget::yieldTo`), told by the
+  arbiter's tick. An eviction keeps its value until the arbiter's tick destroys it (`BudgetedCache::destroyEvicted`), so an
   inserting thread, the frame's among them, destroys nothing; and `BudgetedObjectCache::update` stamps the cache in runs of
   256 entries, the lock let go between them. Approved with item 10 of the tree and content memory plan (2026-11-17).
 - `CellPreloader::preload` skips a cell while the caches stand past their budget with everything in use, counted as
