@@ -310,7 +310,15 @@ namespace Rtx
             EXPECT_EQ(world.mFeed.getAsked().back().mLevels, (LevelSpan{ .mFirst = 0, .mEnd = 2 }));
             EXPECT_EQ(countOps<DropImage>(world.mDevice.getLastOps()), 0u) << "what stood dropped before the raise";
 
-            world.frames(3);
+            // **The raise is one level step in view**, counted on the hand-over it stood on: `other` stood at its want
+            // all along.
+            std::uint32_t steps = world.mResidency.getReport().mLevelSteps;
+            for (std::uint32_t frame = 0; frame < 3; ++frame)
+            {
+                world.frame();
+                steps += world.mResidency.getReport().mLevelSteps;
+            }
+            EXPECT_EQ(steps, 1u);
             EXPECT_EQ(world.standingOf(shown), std::optional<std::uint8_t>(0));
             EXPECT_EQ(world.standingOf(other), std::optional<std::uint8_t>(0));
             EXPECT_TRUE(world.mResidency.getLedger().isConsistent());

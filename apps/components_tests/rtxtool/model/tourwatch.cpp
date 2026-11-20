@@ -199,6 +199,65 @@ namespace RtxTool
             EXPECT_EQ(find(watch.getTable(), FindingKind::StandInDrawn, "leg-2"), nullptr) << "counted from nothing";
         }
 
+        /// **A leg's streaming is judged as it showed**: a cell adopted inside the reach before the leg first stood
+        /// whole is the cut's, and the two after it are pops, placed at the first; of four measured frames, a demanded
+        /// mesh stood nothing on two and three textures rose a level on one; two crossings held 30 and 50 ms, placed at
+        /// the longer. Another leg counts from nothing.
+        TEST(RtxTourWatchTest, aLegsStreamingIsJudgedAsItShowed)
+        {
+            World world;
+            Places places;
+            TourWatch watch(1.0f / 60.0f, false, Expectations{});
+            const Stop leg = legOf("leg-1");
+            watch.begin(leg);
+
+            WatchFrame cut = world.frame(std::nullopt);
+            cut.mCellsAdoptedInReach = 5;
+            watch.frame(cut, places);
+            WatchFrame whole = world.frame(std::nullopt);
+            whole.mWhole = true;
+            whole.mHeldAtCrossingMs = 30.0;
+            watch.frame(whole, places);
+            WatchFrame popped = world.frame(std::nullopt);
+            popped.mCellsAdoptedInReach = 2;
+            popped.mHeldAtCrossingMs = 50.0;
+            watch.frame(popped, places);
+            for (const auto& [meshes, steps] :
+                { std::pair{ 0u, 0u }, std::pair{ 4u, 0u }, std::pair{ 1u, 3u }, std::pair{ 0u, 0u } })
+            {
+                WatchFrame frame = world.frame(10.0);
+                frame.mMeshesMissing = meshes;
+                frame.mLevelSteps = steps;
+                watch.frame(frame, places);
+            }
+            watch.endLeg(leg, BenchPlace{}, {}, places);
+
+            const Finding* const pop = find(watch.getTable(), FindingKind::Pop, "leg-1");
+            ASSERT_NE(pop, nullptr);
+            EXPECT_EQ(pop->mNote, "2 cells adopted inside the drawn reach after the leg stood whole");
+            EXPECT_EQ(pop->mPlace.mFrame, 3u);
+            const Finding* const late = find(watch.getTable(), FindingKind::LateStand, "leg-1");
+            ASSERT_NE(late, nullptr);
+            EXPECT_EQ(late->mNote, "2 of 4 measured frames drew a placement whose mesh stood nothing");
+            EXPECT_EQ(late->mPlace.mFrame, 5u);
+            const Finding* const step = find(watch.getTable(), FindingKind::LevelStep, "leg-1");
+            ASSERT_NE(step, nullptr);
+            EXPECT_EQ(step->mNote, "3 textures raised a level in view over the measured frames");
+            EXPECT_EQ(step->mPlace.mFrame, 6u);
+            const Finding* const held = find(watch.getTable(), FindingKind::HeldAtCrossing, "leg-1");
+            ASSERT_NE(held, nullptr);
+            EXPECT_EQ(held->mNote, "2 crossings held for their band, 80 ms in all");
+            EXPECT_EQ(held->mPlace.mFrame, 3u) << "the longer";
+
+            const Stop next = legOf("leg-2");
+            watch.begin(next);
+            WatchFrame again = world.frame(10.0);
+            again.mCellsAdoptedInReach = 1;
+            watch.frame(again, places);
+            watch.endLeg(next, BenchPlace{}, {}, places);
+            EXPECT_EQ(find(watch.getTable(), FindingKind::Pop, "leg-2"), nullptr) << "not yet whole in its own leg";
+        }
+
         /// **What the content gave that the renderer refused is a finding a refusal, by its kind, its name and why**,
         /// met once however many frames follow it, and so is a kernel that stored a value not finite, a leg that failed
         /// and the watcher's mark, each at the frame of its leg it was met on.

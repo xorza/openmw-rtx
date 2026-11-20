@@ -205,6 +205,10 @@ namespace Rtx
         /// The next live slot of what drains, lowest slab and slot first; none once nothing live is left in it.
         std::optional<Slot> nextToMove() const;
 
+        /// Gives the draining slab `slot` stands in back to its class, its free slots open again: a drain whose slots'
+        /// class has no room left elsewhere can never end, and its own free slots are room that class lacks.
+        void abandonDrain(Slot slot);
+
         SlotCounts count() const;
 
         /// Every slot in one state, and every count its sum: what a debug build and a test ask.

@@ -104,8 +104,9 @@ namespace Rtx
         std::uint32_t mLastHeld = 0;
         bool mLive = false;
 
-        /// Whether it stood as the last hand-over of its scene ended, which a change of is reported.
+        /// Whether it stood as the last hand-over of its scene ended, which a change of is reported, and at what level.
         bool mStoodReported = false;
+        std::optional<std::uint8_t> mLevelReported{};
     };
 
     /// A structure built loose, its tight size once the device answered it.
@@ -178,8 +179,17 @@ namespace Rtx
         /// Residents of a demanded tier the plan gives something that stand nothing yet, by why.
         MissingDemanded mMissingDemanded;
 
+        /// Textures of a demanded tier the hand-over raised from a level that stood to a finer one: each sharpened in
+        /// view, where it was drawn.
+        std::uint32_t mLevelSteps = 0;
+
         /// The blocks the device refused this frame, each asked again at the frame's close while the plan needs it.
         std::uint32_t mBlocksRefused = 0;
+
+        /// The drains this hand-over gave up, their slots' class out of room elsewhere, and whether one waited on
+        /// another scene's hand-over for a slot of that scene's.
+        std::uint32_t mDrainsAbandoned = 0;
+        bool mDrainWaitsOnScene = false;
 
         /// This frame's work.
         std::uint32_t mOpsIssued = 0;

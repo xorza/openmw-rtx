@@ -667,6 +667,15 @@ namespace Rtx
         return std::nullopt;
     }
 
+    void SlotLedger::abandonDrain(const Slot slot)
+    {
+        Slab& slab = slabOf(slot);
+        assert(slab.mState == SlabState::Draining && "a drain abandoned that was not draining");
+        slab.mState = SlabState::InClass;
+        if (!slab.mFree.empty())
+            mClasses[slab.mClass].mOpen.push_back(slot.mSlab);
+    }
+
     SlotCounts SlotLedger::count() const
     {
         SlotCounts counts;

@@ -647,6 +647,96 @@ namespace MWRender
         getResources().clearCache();
     }
 
+    void RtxRenderer::standWhole(const SceneFrame& frame, const WorldChanged& changed, Loading::Listener& listener)
+    {
+        mPhase.expect(Phase::Between);
+        const Crash::NoteScope noted("standing the world whole around where the cells changed");
+
+        // The eye where the change stands it, turned as the camera is: the player is moved there only after.
+        osg::Matrixd eye = osg::Matrixd::inverse(getCamera().getViewMatrix());
+        eye.setTrans(changed.mPosition);
+        const osg::Matrixd view = osg::Matrixd::inverse(eye);
+
+        // What is left to stand, nought once whole: the cells, the demanded residents standing nothing, and a hand-over
+        // that did more than place.
+        const auto cover = [&] {
+            advance(getFrameStamp().getSimulationTime());
+            FrameReport report;
+            coverFrame(frame, view, report);
+            if (report.isWhole())
+                return 0u;
+            return std::max(1u, report.mCellsToStand + report.mResidency.mMissingDemanded.total());
+        };
+
+        // **A crossing whose band stands returns with no frame shown**, and a cut that stands at once with none either.
+        std::uint32_t left = cover();
+        if (left == 0)
+            return;
+        const std::chrono::steady_clock::time_point began = std::chrono::steady_clock::now();
+
+        // **A wait that brings it no nearer ends**, said, rather than holding the game on a screen for good: what
+        // stands short of whole then is the harness's finding to name.
+        const std::uint32_t count = left;
+        std::uint32_t least = left;
+        std::chrono::steady_clock::time_point nearer = std::chrono::steady_clock::now();
+        bool gaveUp = false;
+        const Loading::ScopedLoad load(&listener);
+        awaitOnScreen(listener,
+            ScreenWaitAsk{ .mLabel = "#{OMWEngine:LoadingExterior}",
+                .mNote = {},
+                .mAwait =
+                    [&](const std::chrono::milliseconds patience) {
+                        const std::chrono::steady_clock::time_point until = std::chrono::steady_clock::now() + patience;
+                        do
+                        {
+                            left = cover();
+                            const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+                            if (left < least)
+                            {
+                                least = left;
+                                nearer = now;
+                            }
+                            gaveUp = left > 0 && now - nearer > sStandWholePatience;
+                        } while (left > 0 && !gaveUp && std::chrono::steady_clock::now() < until);
+                        return Rtx::JobProgress::of(count - std::min(left, count), count, left == 0 || gaveUp);
+                    },
+                .mQuits = [] { return MWBase::Environment::get().getStateManager()->hasQuitRequest(); } });
+        if (changed.mChange == WorldChange::Crossing)
+            mHeldAtCrossingMs = Rtx::since(began, std::chrono::steady_clock::now());
+        if (gaveUp)
+            Log(Debug::Warning) << "Ray tracing showed the world with " << left << " of it still to stand: "
+                                << std::chrono::duration_cast<std::chrono::seconds>(sStandWholePatience).count()
+                                << " s brought it no nearer";
+    }
+
+    void RtxRenderer::coverFrame(const SceneFrame& frame, const osg::Matrixd& view, FrameReport& report)
+    {
+        mPhase.step(Phase::Walking, Phase::Between);
+
+        // As a frame opens residency's: a settled run waits for every texel and block asked.
+        if (mMirror.getRing().isSettled())
+        {
+            mHands->flush();
+            mRenderer->awaitBlocks();
+        }
+        mResidency->openFrame(*mRenderer, *mHands);
+        mWalked.mFound = mMirror.mirror(frame, view);
+
+        mPhase.step(Phase::Placing, Phase::Walking);
+        if (mMirror.getScene().placements().getCounts().mPlaced > 0)
+            handOver(frame, report);
+        else
+        {
+            report.mCellsToStand = mMirror.getRing().getCellsToStand();
+            report.mResidency = mResidency->getReport();
+        }
+
+        mPhase.step(Phase::Tracing, Phase::Placing);
+        mRenderer->skipFrame();
+        mResidency->closeFrame(*mRenderer);
+        mPhase.step(Phase::Between, Phase::Tracing);
+    }
+
     void RtxRenderer::capture(osg::Image& image, std::int32_t width, std::int32_t height) noexcept
     {
         mPhase.expect(Phase::Between, Phase::Run);
@@ -1148,6 +1238,7 @@ namespace MWRender
         report.mSpend.at(Rtx::Timing::Present) = mTimer.takePresent();
 
         report.mWalked = mWalked;
+        report.mHeldAtCrossingMs = std::exchange(mHeldAtCrossingMs, std::nullopt);
 
         // Every traced frame, whether or not the device has answered for one yet, and the first
         // too, which a save or a skipped menu traces: the run counts the frames it traced, and

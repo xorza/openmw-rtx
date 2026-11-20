@@ -291,6 +291,27 @@ namespace Rtx
             EXPECT_EQ(*next, few[0]);
             EXPECT_EQ(ledger.getOwnerOf(*next), SlotOwner{ 100 });
 
+            // **A drain whose class lost its room elsewhere is given up**: the full chunk's nine free slots taken, the
+            // three have nowhere to go but their own slab's thirteen, which the drain closed to the class. Given up,
+            // those thirteen are the class's again; the nine given back, the same slab drains once more.
+            std::vector<Slot> taking;
+            taking.reserve(9);
+            for (std::uint32_t at = 0; at < 9; ++at)
+            {
+                taking.push_back(ledger.reserve(of, SlotOwner{ 200 + at }));
+                EXPECT_EQ(ledger.getBlockOf(taking.back()), full);
+            }
+            EXPECT_FALSE(ledger.hasRoom(of)) << "a draining slab's free slots are no class's";
+            ledger.abandonDrain(*next);
+            EXPECT_EQ(ledger.count().mSlabsDraining, 0u);
+            EXPECT_TRUE(ledger.hasRoom(of)) << "the given-up slab's thirteen";
+            EXPECT_TRUE(ledger.isConsistent());
+            for (const Slot slot : taking)
+                ledger.unreserve(slot);
+            const std::optional<Drain> again = ledger.drainFor(sImages, SlabTier::Small);
+            ASSERT_TRUE(again.has_value());
+            EXPECT_EQ(again->mSlab, few[0].mSlab);
+
             // **A slot left is not moved again** before the epoch it is read in is known: each of the three is the
             // next to move once, and once all three left, nothing is, nor must a drain move them.
             for (const Slot slot : few)

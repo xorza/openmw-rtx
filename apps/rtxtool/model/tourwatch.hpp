@@ -53,6 +53,15 @@ namespace RtxTool
         /// (`Rtx::ResidencyReport`).
         std::uint32_t mStandIns = 0;
         std::uint32_t mBelowWant = 0;
+
+        /// Cells the ring adopted inside the drawn reach (`Rtx::ExtractionStats::mCellsAdoptedInReach`), demanded
+        /// meshes standing nothing, and demanded textures the hand-over raised a level (`Rtx::ResidencyReport`).
+        std::uint32_t mCellsAdoptedInReach = 0;
+        std::uint32_t mMeshesMissing = 0;
+        std::uint32_t mLevelSteps = 0;
+
+        /// How long a crossing just before this frame held the game for its band, nothing where none did.
+        std::optional<double> mHeldAtCrossingMs{};
     };
 
     /// **How long a demanded texture may stand coarser than it wants before it is a finding**: two seconds of frames at
@@ -157,6 +166,33 @@ namespace RtxTool
         std::uint32_t mBelowWantRun = 0;
         std::uint32_t mBelowWantLongest = 0;
         std::optional<FindingPlace> mBelowWantAt;
+
+        /// How often something was met in the leg, and where first.
+        struct Met
+        {
+            FindingPlace mFirst;
+            std::uint32_t mCount = 0;
+        };
+
+        /// Counts `count` more of what `met` follows, placed at this frame where it is the first.
+        void note(std::optional<Met>& met, std::uint32_t count, FindingPlaces& places);
+
+        /// Whether a frame of the leg stood whole yet, past which a cell adopted inside the reach is a pop; the pops,
+        /// the measured frames a demanded mesh stood nothing on, and the textures raised in view.
+        bool mStoodWhole = false;
+        std::optional<Met> mPops;
+        std::optional<Met> mLateStands;
+        std::optional<Met> mLevelSteps;
+
+        /// The crossings held for their band: how many, how long in all, and the longest and where it was met.
+        struct Held
+        {
+            FindingPlace mWorst;
+            double mWorstMs = 0.0;
+            double mTotalMs = 0.0;
+            std::uint32_t mCount = 0;
+        };
+        std::optional<Held> mHeld;
 
         /// The leg's slow frames, the worst of them and where it stood.
         std::uint32_t mSlow = 0;

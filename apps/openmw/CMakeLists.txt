@@ -816,6 +816,7 @@ target_sources(
                 mwrender/water.hpp
                 mwrender/waterawaretransparentbin.hpp
                 mwrender/weaponanimation.hpp
+                mwrender/worldchange.hpp
 )
 
 target_sources(

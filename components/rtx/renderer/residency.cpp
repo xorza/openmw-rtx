@@ -370,6 +370,8 @@ namespace Rtx
         mReport.mBytesCopied = 0;
         mReport.mTrianglesBuilt = 0;
         mReport.mTightCopies = 0;
+        mReport.mDrainsAbandoned = 0;
+        mReport.mDrainWaitsOnScene = false;
         // **The plan is run again where an input moved**: the cap here; a row's tier, want or tenant as a scene is
         // handed over; a tight size, a shape or a failure above. What arrived or stood moves no input.
         if (mReport.mCapBytes != mBudget.mCapBytes)
@@ -1043,9 +1045,20 @@ namespace Rtx
             const ClassIndex of = mLedger.getClassOf(*moving);
             if (mSpent.mCopyBytes >= shares.mCopyBytes)
                 return;
-            if (owner.mScene != indexOf(scene) || !mLedger.hasRoom(of))
+            if (owner.mScene != indexOf(scene))
             {
                 mDrainStalled[static_cast<std::size_t>(mLedger.getArena(of))] = true;
+                mReport.mDrainWaitsOnScene = true;
+                return;
+            }
+            // **A drain whose class lost its room elsewhere is given up**, its slab's free slots open again: arrivals
+            // took the room it was chosen against, and a draining slab's own free slots are no class's, so it waited
+            // for good. The next drain is chosen against the room that stands.
+            if (!mLedger.hasRoom(of))
+            {
+                mLedger.abandonDrain(*moving);
+                mDrainStalled[static_cast<std::size_t>(mLedger.getArena(of))] = true;
+                ++mReport.mDrainsAbandoned;
                 return;
             }
             const Slot to = mLedger.reserve(of, mLedger.getOwnerOf(*moving));
@@ -1342,6 +1355,7 @@ namespace Rtx
         mReport.mOpsIssued += static_cast<std::uint32_t>(mOps.size());
         mReport.mSlots = mLedger.count();
 
+        std::uint32_t levelSteps = 0;
         for (std::uint32_t at = 0; at < scene.mTextures.size(); ++at)
         {
             TextureResident& texture = scene.mTextures[TextureIndex(at)];
@@ -1349,6 +1363,12 @@ namespace Rtx
             if (stands != texture.mStoodReported && texture.mLive)
                 mStandingChanges.push_back(StandingChange{ .mTexture = TextureIndex(at), .mStands = stands });
             texture.mStoodReported = stands;
+            const std::optional<std::uint8_t> level = texture.mLive ? standingLevelOf(texture) : std::nullopt;
+            levelSteps += isDemanded(texture.mTier) && level.has_value() && texture.mLevelReported.has_value()
+                    && *level < *texture.mLevelReported
+                ? 1u
+                : 0u;
+            texture.mLevelReported = level;
         }
         for (std::uint32_t at = 0; at < scene.mStructures.size(); ++at)
         {
@@ -1401,6 +1421,7 @@ namespace Rtx
         }
         mReport.mWaiting = waiting;
         mReport.mWaitingDemanded = demanded;
+        mReport.mLevelSteps = levelSteps;
         missing.mMeshesForRoom = mStructuresRoomless;
         missing.mMeshesForRoomLarge = mStructuresRoomlessLarge;
         mReport.mMissingDemanded = missing;

@@ -30,6 +30,7 @@ namespace Rtx
             &ExtractionStats::mDistantStatics,
             &ExtractionStats::mGroundCells,
             &ExtractionStats::mGroundcover,
+            &ExtractionStats::mCellsAdoptedInReach,
         };
     }
 

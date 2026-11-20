@@ -278,6 +278,8 @@ namespace Rtx
         // left, the ground's layers take the neutral texel and the models keep theirs, as the
         // ground gives way where the device's room runs out (`TextureArray::write`).
         mPlacer.holdCell(cell, mAround, mAdopter.getStats(), mHolds);
+        mAdopter.getStats().mCellsAdoptedInReach
+            += mAround.mWorld.mGrid.withinReach(cell.mCell, mAround.mEye, mAround.mReach) ? 1u : 0u;
         if (mAsked.has_value() && mAround.mWorld.mGrid.withinReach(cell.mCell, mAsked->mEye, mAsked->mBand))
         {
             ++mBandHeld;

@@ -70,6 +70,10 @@ namespace MWRender
         /// How many cells the walk left to stand, `Rtx::CellStreamer::getCellsToStand`.
         std::uint32_t mCellsToStand = 0;
 
+        /// How long a crossing since the frame before held the game on the loading screen for its band
+        /// (`RtxRenderer::standWhole`), nothing where none did.
+        std::optional<double> mHeldAtCrossingMs{};
+
         /// What residency planned, issued and held as the world was handed over (`Rtx::Residency::getReport`): its
         /// demanded residents that stand nothing yet among it.
         Rtx::ResidencyReport mResidency{};

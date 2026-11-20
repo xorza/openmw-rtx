@@ -57,8 +57,20 @@ namespace RtxTool
         mBelowWantRun = 0;
         mBelowWantLongest = 0;
         mBelowWantAt.reset();
+        mStoodWhole = false;
+        mPops.reset();
+        mLateStands.reset();
+        mLevelSteps.reset();
+        mHeld.reset();
         mSlowWorstMs = 0.0;
         mSlowWorst.reset();
+    }
+
+    void TourWatch::note(std::optional<Met>& met, const std::uint32_t count, FindingPlaces& places)
+    {
+        if (!met.has_value())
+            met = Met{ .mFirst = places.read(mLeg, mFrame, mAir), .mCount = 0 };
+        met->mCount += count;
     }
 
     void TourWatch::add(const FindingKind kind, const std::string_view detail, FindingPlaces& places, const double ms)
@@ -121,6 +133,25 @@ namespace RtxTool
             && std::ranges::find(mCovered, *frame.mStandingColumn) == mCovered.end())
             mCovered.push_back(*frame.mStandingColumn);
 
+        // **A pop is a cell that came in where it could be seen**, once the leg stood whole: the frames a cut opens
+        // with are the wait's.
+        if (mStoodWhole && frame.mCellsAdoptedInReach > 0)
+            note(mPops, frame.mCellsAdoptedInReach, places);
+        mStoodWhole = mStoodWhole || frame.mWhole;
+        if (frame.mHeldAtCrossingMs.has_value())
+        {
+            if (!mHeld.has_value() || *frame.mHeldAtCrossingMs > mHeld->mWorstMs)
+            {
+                const Held before = mHeld.value_or(Held{});
+                mHeld = Held{ .mWorst = places.read(mLeg, mFrame, mAir),
+                    .mWorstMs = *frame.mHeldAtCrossingMs,
+                    .mTotalMs = before.mTotalMs,
+                    .mCount = before.mCount };
+            }
+            mHeld->mTotalMs += *frame.mHeldAtCrossingMs;
+            ++mHeld->mCount;
+        }
+
         const std::optional<ClosedSpan>& measured = frame.mMeasured;
         if (!measured.has_value())
             return;
@@ -132,6 +163,10 @@ namespace RtxTool
                 mStandInFirst = places.read(mLeg, mFrame, mAir);
             mStandInsMost = std::max(mStandInsMost, frame.mStandIns);
         }
+        if (frame.mMeshesMissing > 0)
+            note(mLateStands, 1, places);
+        if (frame.mLevelSteps > 0)
+            note(mLevelSteps, frame.mLevelSteps, places);
         mBelowWantRun = frame.mBelowWant > 0 ? mBelowWantRun + 1 : 0;
         if (mBelowWantRun > mBelowWantLongest)
         {
@@ -189,6 +224,24 @@ namespace RtxTool
             mTable.add(FindingKind::BelowWant, mLeg, *mBelowWantAt,
                 FindingMet{ .mNote = std::format("a demanded texture below its want for {} measured frames on end",
                                 mBelowWantLongest) });
+
+        if (mPops.has_value())
+            mTable.add(FindingKind::Pop, mLeg, mPops->mFirst,
+                FindingMet{ .mNote = std::format(
+                                "{} cells adopted inside the drawn reach after the leg stood whole", mPops->mCount) });
+        if (mLateStands.has_value())
+            mTable.add(FindingKind::LateStand, mLeg, mLateStands->mFirst,
+                FindingMet{ .mNote = std::format("{} of {} measured frames drew a placement whose mesh stood nothing",
+                                mLateStands->mCount, mMeasured) });
+        if (mLevelSteps.has_value())
+            mTable.add(FindingKind::LevelStep, mLeg, mLevelSteps->mFirst,
+                FindingMet{ .mNote = std::format(
+                                "{} textures raised a level in view over the measured frames", mLevelSteps->mCount) });
+        if (mHeld.has_value())
+            mTable.add(FindingKind::HeldAtCrossing, mLeg, mHeld->mWorst,
+                FindingMet{ .mMs = mHeld->mWorstMs,
+                    .mNote = std::format(
+                        "{} crossings held for their band, {:.0f} ms in all", mHeld->mCount, mHeld->mTotalMs) });
 
         if (!mPaced && mSlow > 0 && mSlowWorst.has_value())
         {

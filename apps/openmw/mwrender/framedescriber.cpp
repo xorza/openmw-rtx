@@ -113,6 +113,30 @@ namespace MWRender
         return *mFrame;
     }
 
+    const SceneFrame& FrameDescriber::describeStill(const FrameSources& sources)
+    {
+        assert(!mDescribed && "a still frame described while the frame described spans the jumps");
+        mWorld = describeWorld(sources);
+        mEye = sources.mEye;
+        mEye.mProjectionMatrix = mProjection;
+        mEye.mProjectionShift = mProjectionShift;
+
+        mFrame.emplace(SceneFrame{
+            .mScene = sources.mScene,
+            .mWhen = sources.mWhen,
+            .mSky = MWBase::Environment::get().getWorld()->getSkyState(),
+            .mPrecipitation = sources.mPrecipitation,
+            .mWorld = mWorld,
+            .mEye = mEye,
+            .mTerrain = sources.mTerrain,
+            .mObjectStorage = sources.mObjectStorage,
+            .mDeltaTime = 0.0f,
+            .mPaused = true,
+            .mJumped = {},
+        });
+        return *mFrame;
+    }
+
     const SceneFrame& FrameDescriber::get() const
     {
         assert(mFrame.has_value() && "a frame is described before it is drawn");

@@ -44,6 +44,10 @@ namespace RtxTool
             { FindingKind::Starved, "starved", false, FindingPlaced::First },
             { FindingKind::StandInDrawn, "stand-in", false, FindingPlaced::First },
             { FindingKind::BelowWant, "below-want", false, FindingPlaced::First },
+            { FindingKind::Pop, "pop", true, FindingPlaced::First },
+            { FindingKind::LateStand, "late-stand", false, FindingPlaced::First },
+            { FindingKind::LevelStep, "level-step", false, FindingPlaced::First },
+            { FindingKind::HeldAtCrossing, "held-at-crossing", false, FindingPlaced::Worst },
             { FindingKind::Mark, "mark", false, FindingPlaced::First },
         } };
 

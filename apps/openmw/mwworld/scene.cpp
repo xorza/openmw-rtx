@@ -380,6 +380,7 @@ namespace MWWorld
         {
             changeCellGrid(mChangeCellGridRequest->mPosition, mChangeCellGridRequest->mCellIndex,
                 mChangeCellGridRequest->mChangeEvent);
+            mRendering.standWhole(MWRender::WorldChange::Crossing, mChangeCellGridRequest->mPosition);
             mChangeCellGridRequest.reset();
         }
 
@@ -1018,6 +1019,8 @@ namespace MWWorld
 
         mCellLoaded = true;
 
+        mRendering.standWhole(MWRender::WorldChange::Cut, position.asVec3());
+
         if (useFading)
             MWBase::Environment::get().getWindowManager()->fadeScreenIn(0.5);
 
@@ -1036,6 +1039,7 @@ namespace MWWorld
 
         changeCellGrid(position.asVec3(),
             ESM::ExteriorCellLocation(cellIndex.x(), cellIndex.y(), current.getCell()->getWorldSpace()), changeEvent);
+        mRendering.standWhole(MWRender::WorldChange::Cut, position.asVec3());
 
         changePlayerCell(current, position, adjustPlayerPos);
 

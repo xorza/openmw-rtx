@@ -203,7 +203,7 @@ namespace RtxTool
                 "  residency at most   ops 30   uploaded 16.0 MiB   copied 4.0 MiB   below want 0   stand-ins 5   "
                 "meshes missing 1   starved 2 textures 0 meshes   slots 70 live 6 retiring   held 512.0 MiB under a "
                 "cap of "
-                "800.0 MiB at the least   blocks refused 0\n");
+                "800.0 MiB at the least   blocks refused 0   drains given up 0, waiting on another scene 0 frames\n");
         }
 
         /// **The ring by distance, what stands of what it holds**, only the distances holding a placement, the last
@@ -476,7 +476,7 @@ namespace RtxTool
                     R"("chainsFoundWhole": 54, "cancelled": 66}, "residency": {"frames": 1, "opsIssued": 81, )"
                     R"("bytesUploaded": 82, "bytesCopied": 83, "belowWant": 84, "standIns": 85, )"
                     R"("meshesMissing": 86, "starvedTextures": 87, "starvedStructures": 88, "slotsLive": 89, )"
-                    R"("slotsRetiring": 90, "bytesHeld": 91, "capBytesLeast": 92, "blocksRefused": 0}, "game": {"loadedCells": 63, )"
+                    R"("slotsRetiring": 90, "bytesHeld": 91, "capBytesLeast": 92, "blocksRefused": 0, "drainsAbandoned": 0, "drainWaitFrames": 0}, "game": {"loadedCells": 63, )"
                     R"("preloadedCells": 64, )"
                     R"("starvedLooks": 65})"),
                 std::string::npos)

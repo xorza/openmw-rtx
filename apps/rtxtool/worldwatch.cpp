@@ -58,6 +58,10 @@ namespace RtxTool
                 .count(),
             .mStandIns = report.mResidency.mMissingDemanded.textures(),
             .mBelowWant = report.mResidency.mBelowWant,
+            .mCellsAdoptedInReach = report.mWalked.mFound.mCellsAdoptedInReach,
+            .mMeshesMissing = report.mResidency.mMissingDemanded.mMeshes,
+            .mLevelSteps = report.mResidency.mLevelSteps,
+            .mHeldAtCrossingMs = report.mHeldAtCrossingMs,
         };
     }
 

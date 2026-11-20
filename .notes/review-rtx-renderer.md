@@ -1085,10 +1085,6 @@ Files: `components/rtx/mirror/cells/` (all), `components/rtx/mirror/sceneextract
   and tier, and the pump called from a covered frame come with the items below that need them.
 - [ ] `cellring.cpp:358-380` — the adoption's budget is a count. Target: steps of bounded cost under the frame's
   share, resumable inside a cell (`AdoptCursor`); under a covered frame, a time slice in the settled order.
-- [ ] `mirror/sceneextractor.cpp:718-719` — the ring can stand only inside the extractor's walk. Target: the pump
-  is called by the walk and by a covered frame alike.
-- [ ] `cells/prepared.hpp:243`, `cells/held.cpp:54` — a lent model keeps its packed streams for as long as a cell
-  names it. Target: the reader lets them go as the frame reports the model adopted.
 - [ ] One room leg flown after land legs on the handheld says whether the land resting indoors is the rooms' 21
   against 51 ms.
 - [ ] A hidden cell asks its textures by its distance from its own band's centre (`cellplacer.cpp:612-617` asks by
@@ -1096,21 +1092,9 @@ Files: `components/rtx/mirror/cells/` (all), `components/rtx/mirror/sceneextract
 - [ ] `TracedTerrain::preload` registers a band and returns; `createView` answers the band's hold
   (`tracedterrain.hpp:93-95`). The list between the preload worker and the frame is the streamer's, locked, bounded
   by upstream's views.
-- [ ] **(upstream, approved)** `apps/openmw/mwworld/scene.cpp`: `mRendering.standWhole(kind, position, listener)`
-  at three places, each stating its kind: `Scene::update` after the deferred grid change (line 381), `Crossing`;
-  `changeToExteriorCell` after its `changeCellGrid` (line 1037) and the end of `changeToInteriorCell`, `Cut`.
-  `RenderingManager::standWhole` forwards to `Renderer::standWhole`, empty for the rasterizer. `changeEvent` is not
-  the kind: a walk sets it as a teleport does. Cost: a conflict with an upstream edit at any of the three.
 - [ ] `vulkanrenderer.cpp` (`createTargets`) — a change of mode makes its targets at once, and content settles under
   the new cap in the frames after it. Target: the new mode's reserve is stated, content settles under it in covered
   frames, then the targets are made, and with them NGX's feature after its room.
-- [ ] `RtxRenderer::standWhole` and the covered frame: `Between → Walking → Placing → Gui → Between`, a phase
-  sequence of its own; a world event from the run's hook is staged between frames by the harness
-  (`apps/rtxtool/stager.cpp:223`), so `standWhole` is entered from `Between` alone.
-- [ ] `FrameReport::isWhole` is the two predicates; `mCellsToStand`, `mImagesPending` and the upload's kind are
-  what they report. It sees what it does not today: a mesh not built, a texture below its plan, a composite not
-  baked.
-- [ ] Findings `Pop`, `LateStand`, `LevelStep`, and the cost `HeldAtCrossing` (model, tests, the expectation files).
 - [ ] Tests: a world change while a cell is read; the eye indoors; a cell entering and leaving the grid, "never both,
   never neither" frame by frame; a band whose view goes; `standWhole` over `NullRenderer`, by kind; the bound on cells
   read ahead.
@@ -1330,6 +1314,21 @@ Files: `components/rtx/{common,scene,renderer,mirror}`, `apps/components_tests/r
 
 Items that landed in another shape than their target, each with how and why.
 
+- Batch 7's findings: `LateStand` counts the measured frames a demanded mesh stood nothing on, since a texture that
+  stands nothing draws the stand-in and is `StandInDrawn`'s already; `Pop` is a fault from the leg's first whole frame
+  on, so a cut's own frames are the wait's; `LevelStep` and `HeldAtCrossing` are costs.
+- Batch 7's wholeness keeps `FrameReport::isWhole` as no cell of the band to stand and no demanded resident standing
+  nothing, in place of `Residency::isSettled`: a mesh not built and a composite not baked are among what stands
+  nothing already, and a texture below its plan draws what stands below it, which `LevelStep` counts. Settled on the
+  handheld's tight cap, a raise was always on its way somewhere, and every wait would run to its patience.
+
+- Batch 7's covered frame (`RtxRenderer::coverFrame`) walks the whole graph and the ring from the change's position,
+  hands over and skips the trace, through the frame's own phases (`Walking`, `Placing`, `Tracing`) and not a sequence
+  of its own; the pump is the walk's, so the ring needs no second way in. `standWhole` loops it under
+  `awaitOnScreen`, opening a `ScopedLoad` only where the first frame is not whole, and shows the world after
+  `RtxRenderer::sStandWholePatience` of no progress, said. Each covered frame advances the frame stamp, which moves the
+  foliage's phase in the shots of the views that wait.
+
 - Batch 7's streamer: `CellTable` is the one table under the reader's monitor, a cell's two reads its two stages, and
   `CellSupply` stays as the thread's owner over it (see the decision). The bands, the tiers and `Adopting`'s cursor
   are left to the items that need them; the eye's band is the one band.
@@ -1511,3 +1510,7 @@ Items judged and not done, each with the reason.
 - Batch 7's re-ask on a change of the field of view: it recomputes each held cell's cone once and each ask's step by
   an addition and a floor, and asks a material again only where its step moves; the game changes the field of view
   through its settings and scripts, not frame by frame.
+- Batch 7's packed streams let go as the frame adopts a model: a model the frame lets go of whole, while a cell read
+  and not yet adopted names it, is adopted again from streams the reader has let go of, so the frame would pack it
+  on the frame or the reader would race the frame to fill them again; the 20–52 MiB on the desk's Repack legs do not
+  pay for either route.

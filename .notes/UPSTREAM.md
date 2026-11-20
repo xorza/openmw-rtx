@@ -79,6 +79,11 @@ conflict here resolves by keeping the seam:
   models without programs; `SceneManager::letGo` and `GenericResourceManager::removeFromCache`, so the preparation lets
   go of a model, its NIF, its images and their shared state as the last job reading them ends.
 - `components/settings` naming the core's `Upscale` and `MAX_BOUNCE_RAYS`, which `[RTX]` stores and sanitizes.
+- The world's wholeness, asked where the cells change (the user's yes, 2026-11-20): `Scene::update` after the grid
+  change a walk requested (`WorldChange::Crossing`), `Scene::changeToExteriorCell` after its grid change and
+  `Scene::changeToInteriorCell` before it fades in (`WorldChange::Cut`), each through
+  `RenderingManager::standWhole` to `Renderer::standWhole`, empty for the rasterizer: the ray tracer stands its world
+  apart from the graph, and nothing pops in after a change only where it waits for it there.
 
 **How content is loaded** (`docs/architecture.md`, "Loading"), kept in the fork rather than offered upstream; a merge
 that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves against it:

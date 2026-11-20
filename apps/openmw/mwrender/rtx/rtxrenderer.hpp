@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -193,6 +194,11 @@ namespace MWRender
         /// A step of its own on the loading screen, where the kernels are not all made by the time
         /// the content is read: `Rtx::Renderer::awaitKernels`; and the content's preparation beside it.
         void prepareContent(const MWWorld::ESMStore& store, Loading::Listener& listener) override;
+        void standWhole(const SceneFrame& frame, const WorldChanged& changed, Loading::Listener& listener) override;
+
+        /// How long a wait for the world to stand whole goes on bringing it no nearer before the world is shown as it
+        /// stands: the harness's own patience for a stop's world (`RtxTool::sStallMs`).
+        static constexpr std::chrono::seconds sStandWholePatience{ 10 };
 
         void capture(osg::Image& image, std::int32_t width, std::int32_t height) noexcept override;
         void saveScreenshot() noexcept override;
@@ -320,6 +326,11 @@ namespace MWRender
         /// `since` is how long the frame before this one stood for, or nothing on the first.
         void traceWorld(
             const SceneFrame& frame, const osg::Matrixd& view, FrameReport& report, std::optional<double> since);
+
+        /// One frame under a cover: the world walked from `view` and handed over, residency's frame opened and closed,
+        /// and no trace and no present. What `standWhole` loops, the frame stamp advanced before each, so the ring
+        /// adopts on every one.
+        void coverFrame(const SceneFrame& frame, const osg::Matrixd& view, FrameReport& report);
 
         /// Waits the frame behind out and reads what the device answered for it, into the report.
         void finishBehind(FrameReport& report);
@@ -474,6 +485,9 @@ namespace MWRender
         /// What the host said the next traced frame's past is worth, `notifyCut` and
         /// `notifyWorldspaceChanged`, kept until a frame traces the world and spends it.
         Rtx::HistoryLoss mLoss = Rtx::HistoryLoss::None;
+
+        /// How long the last crossing held the game for its band, until the next traced frame's report says so.
+        std::optional<double> mHeldAtCrossingMs;
 
         /// The worldspace the crash catcher was last told the player is in, so a load's every cell tells it once.
         ESM::RefId mWorldspace;

@@ -31,6 +31,7 @@
 #include "ground.hpp"
 #include "rendermode.hpp"
 #include "rendersupport.hpp"
+#include "worldchange.hpp"
 
 namespace osg
 {
@@ -415,6 +416,12 @@ namespace MWRender
         /// screen the content is read under, handed the content rather than reaching for it. The
         /// rasterizer compiles as it draws and has nothing to wait for.
         virtual void prepareContent(const MWWorld::ESMStore& store, Loading::Listener& listener) {}
+
+        /// **Holds the game until the world around `changed.mPosition` stands whole**, where the cells changed: what a
+        /// frame would show of it stands, so nothing pops in after the change. `frame` is the world as it stands,
+        /// still. It waits under `listener`'s screen only where it has to wait at all, and a crossing whose band
+        /// already stands returns with no frame. The rasterizer draws what the graph holds and waits on nothing.
+        virtual void standWhole(const SceneFrame& frame, const WorldChanged& changed, Loading::Listener& listener) {}
 
         /// One frame of the loading screen, at the rate the screen is drawn at, opened as
         /// `openNestedFrame` opens one.

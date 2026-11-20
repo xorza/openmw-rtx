@@ -29,6 +29,10 @@ namespace RtxTool
         /// The blocks the device refused over the place's frames.
         std::uint32_t mBlocksRefused = 0;
 
+        /// The drains given up over the place's frames, and the frames a drain waited on another scene's hand-over.
+        std::uint32_t mDrainsAbandoned = 0;
+        std::uint32_t mDrainWaitFrames = 0;
+
         /// The least cap any frame stood under, nought for none taken.
         std::uint64_t mCapBytesLeast = 0;
 
@@ -50,6 +54,8 @@ namespace RtxTool
             mSlotsRetiring = std::max(mSlotsRetiring, report.mSlots.mSlotsRetiring);
             mBytesHeld = std::max(mBytesHeld, report.mSlots.mBytesHeld);
             mBlocksRefused += report.mBlocksRefused;
+            mDrainsAbandoned += report.mDrainsAbandoned;
+            mDrainWaitFrames += report.mDrainWaitsOnScene ? 1u : 0u;
             mCapBytesLeast = mFrames == 0 ? report.mCapBytes : std::min(mCapBytesLeast, report.mCapBytes);
             ++mFrames;
         }

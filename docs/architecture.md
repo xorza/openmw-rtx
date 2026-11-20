@@ -281,6 +281,12 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
   list re-sent whole as the eye moved, the lists handed over and the takes counted between them, kept in step by hand.
 - **The reader runs at most `CellTable::sReadAheadMost` reads ahead of the frame**, a read nearer than every one waiting
   taken past it, so a settled walk's wait for its nearest cell is never a wait for room. Refused: a reader let read a whole band ahead of a frame that adopts one cell a frame.
+- **The world is whole before a frame shows it** (`Renderer::standWhole`), asked at the three places upstream's
+  `Scene` changes the cells: the ray tracer loops covered frames from the change's position — the walk, the hand-over,
+  no trace — until nothing of the band is left to stand and no demanded resident stands nothing, under the loading
+  screen only where the first frame is not whole, so a crossing whose band stands shows no screen. A wait that brings
+  it no nearer for ten seconds shows the world, said. Refused: the preload worker blocking until the ring stands,
+  which waits on the main thread with nothing between them; a timed hold.
 - **A cell's ground is held `Shown` inside the band a load waits on and `Kept` past it, and indoors the land rests**:
   the grounds held `Kept` and the reader's wants withdrawn, so the plan keeps the exterior while it fits beside a
   room and gives its room to the room where it does not. Refused: the ring's whole hold live beside a room nothing of

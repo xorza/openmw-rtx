@@ -86,6 +86,10 @@ namespace Rtx
         std::uint32_t mGroundCells = 0;
         std::uint32_t mGroundcover = 0;
 
+        /// Cells the ring adopted inside the drawn reach this walk: each stood its ground and its statics on a frame
+        /// that could show them, which a shown frame does as a pop.
+        std::uint32_t mCellsAdoptedInReach = 0;
+
         ExtractionStats& operator+=(const ExtractionStats& other);
     };
 
