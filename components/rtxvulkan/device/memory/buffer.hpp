@@ -97,6 +97,10 @@ namespace Rtx
         /// driver asks of it, which is what the allocator counts it at.
         static VkDeviceSize bytesFor(const Device& device, VkDeviceSize size, VkBufferUsageFlags usage);
 
+        /// What the device asks of the memory a buffer of `size` bytes and `usage` is bound to: its size there, its
+        /// alignment and the kinds of memory it takes, asked without making one.
+        static VkMemoryRequirements requirementsFor(const Device& device, VkDeviceSize size, VkBufferUsageFlags usage);
+
         /// `make`, as essential memory, for each kind by name.
         static Buffer deviceLocal(
             const Device& device, VkDeviceSize size, VkBufferUsageFlags usage, std::string_view name);

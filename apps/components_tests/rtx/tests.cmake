@@ -76,6 +76,7 @@ target_sources(
         rtx/renderer/framedescriber.cpp
         rtx/renderer/frameimage.cpp
         rtx/renderer/frametimehistogram.cpp
+        rtx/renderer/memoryprices.cpp
         rtx/renderer/memoryreport.cpp
         rtx/renderer/notfinite.cpp
         rtx/renderer/nullrenderer.cpp
@@ -319,6 +320,7 @@ target_sources(
         rtxvulkan/frame/notfinitekeep.cpp
         rtxvulkan/framering.cpp
         rtxvulkan/frames.cpp
+        rtxvulkan/memorypricing.cpp
         rtxvulkan/gui/guipass.cpp
         rtxvulkan/gui/guitextures.cpp
         rtxvulkan/pipeline/computepipeline.cpp

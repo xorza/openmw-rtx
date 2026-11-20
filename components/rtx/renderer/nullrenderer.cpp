@@ -213,6 +213,26 @@ namespace Rtx
         return finishFrame();
     }
 
+    MemoryPrices NullRenderer::priceMemory() const
+    {
+        // No device charges anything over the texels: each texture at its texels' bytes, up to a side of 4096, and
+        // no structure priced, as none is built.
+        MemoryPrices prices;
+        for (const TextureFormat format : sPricedFormats)
+            for (std::uint32_t side = 1; side <= 4096; side *= 2)
+            {
+                const std::uint64_t bytes = chainTexelBytes(format, side);
+                prices.mTextures.push_back(TexturePrice{ .mFormat = format,
+                    .mSide = side,
+                    .mLevels = chainLevels(side),
+                    .mTexelBytes = bytes,
+                    .mBytes = bytes,
+                    .mAlignment = 1,
+                    .mKinds = 0 });
+            }
+        return prices;
+    }
+
     std::string NullRenderer::describeDevice() const
     {
         return "no device: the null renderer, which keeps every promise and draws nothing";

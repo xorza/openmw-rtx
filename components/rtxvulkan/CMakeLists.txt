@@ -437,6 +437,7 @@ target_sources(
         display/tonepass.cpp
         framering.cpp
         frametracer.cpp
+        memorypricing.cpp
         gui/guidrawer.cpp
         gui/guipass.cpp
         gui/guitextures.cpp
@@ -563,6 +564,7 @@ target_sources(
                 display/tonepass.hpp
                 framering.hpp
                 frametracer.hpp
+                memorypricing.hpp
                 gui/guidrawer.hpp
                 gui/guipass.hpp
                 gui/guitextures.hpp

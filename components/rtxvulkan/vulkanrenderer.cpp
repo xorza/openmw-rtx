@@ -33,6 +33,7 @@
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/denoiserimage.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
+#include <components/rtx/renderer/memoryprices.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/renderer/verticalsync.hpp>
@@ -70,6 +71,8 @@
 #include <components/rtxvulkan/trace/visibilitypass.hpp>
 #include <components/rtxvulkan/upscale/dlssapplication.hpp>
 #include <components/rtxvulkan/upscale/upscaler.hpp>
+
+#include "memorypricing.hpp"
 
 namespace Rtx
 {
@@ -613,6 +616,11 @@ namespace Rtx
     std::uint64_t VulkanRenderer::getSystemClaim() const
     {
         return mDevice.getMemory().getSystemClaim();
+    }
+
+    MemoryPrices VulkanRenderer::priceMemory() const
+    {
+        return Rtx::priceMemory(mDevice);
     }
 
     MemoryReport VulkanRenderer::getMemoryReport() const

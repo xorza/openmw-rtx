@@ -43,6 +43,7 @@
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
+#include <components/rtx/renderer/memoryprices.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/world/weather.hpp>
 #include <components/rtxvulkan/createrenderer.hpp>
@@ -221,6 +222,8 @@ namespace RtxTool
                     .mRun = { .mValidation = validation },
                 });
                 Debug::getRawStdout() << renderer->describeDevice() << '\n';
+                if (command.mLine.mPrices)
+                    Debug::getRawStdout() << '\n' << Rtx::describe(renderer->priceMemory());
                 return ExitStatus::Passed;
             }
             catch (const Rtx::Unsupported& obstacle)

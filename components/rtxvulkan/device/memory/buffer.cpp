@@ -150,6 +150,12 @@ namespace Rtx
 
     VkDeviceSize Buffer::bytesFor(const Device& device, const VkDeviceSize size, const VkBufferUsageFlags usage)
     {
+        return requirementsFor(device, size, usage).size;
+    }
+
+    VkMemoryRequirements Buffer::requirementsFor(
+        const Device& device, const VkDeviceSize size, const VkBufferUsageFlags usage)
+    {
         const VkBufferCreateInfo create = createInfoOf(std::max(size, VkDeviceSize{ 1 }), usage);
         const VkDeviceBufferMemoryRequirements asked{
             .sType = VK_STRUCTURE_TYPE_DEVICE_BUFFER_MEMORY_REQUIREMENTS,
@@ -160,7 +166,7 @@ namespace Rtx
             .sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2, .pNext = nullptr, .memoryRequirements = {}
         };
         vkGetDeviceBufferMemoryRequirements(device.getHandle(), &asked, &requirements);
-        return requirements.memoryRequirements.size;
+        return requirements.memoryRequirements;
     }
 
     Buffer Buffer::make(const MemoryUse use, const Device& device, const BufferKind kind, const VkDeviceSize size,

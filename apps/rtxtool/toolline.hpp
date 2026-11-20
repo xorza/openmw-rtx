@@ -258,6 +258,9 @@ namespace RtxTool
 
         bool mShaderSource = false;
         bool mFolders = false;
+
+        /// `info --prices`: what the device charges for what content stands in, after the device's report.
+        bool mPrices = false;
         std::filesystem::path mResources;
 
         /// `--out`, or nothing for a folder named after the verb.

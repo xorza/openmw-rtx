@@ -31,6 +31,7 @@
 #include "framesinflight.hpp"
 #include "framezone.hpp"
 #include "guirenderer.hpp"
+#include "memoryprices.hpp"
 #include "memoryreport.hpp"
 #include "picturerenderer.hpp"
 #include "shaderset.hpp"
@@ -704,6 +705,10 @@ namespace Rtx
         /// What the renderer has taken from each of the device's memory heaps. Walks every
         /// allocation, so asked once at a place and never once a frame.
         virtual MemoryReport getMemoryReport() const = 0;
+
+        /// What the device charges for what content stands in (`MemoryPrices`): asked of the driver, a few hundred
+        /// questions and nothing made, so once and never on a frame.
+        virtual MemoryPrices priceMemory() const = 0;
 
         /// What the device claims of the host's caches, where its memory is the system's: memory it gave back lately
         /// and is likely to take again, which the caches leave it (`Resource::CacheBudget::yieldTo`); nought where the

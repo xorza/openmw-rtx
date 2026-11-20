@@ -359,6 +359,11 @@ namespace RtxTool
             "`config <path>` and `data <path>`, and quit, before any device: the answer `Files` gives "
             "on this system, which the driver's `setup` and `game` read rather than restating");
 
+        option({ Verb::Info }, "prices", bpo::bool_switch(),
+            "after the device, print what it charges for what content stands in: each kind of memory, what a texture "
+            "of each format and side asks with its whole chain, what a mesh's structure asks by its triangles, and "
+            "how many allocations may stand; the figures content's memory is cut up by");
+
         option(sFramed, "filter",
             bpo::value<bool>()
                 ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mDenoise)
@@ -938,6 +943,7 @@ namespace RtxTool
         ToolLine line;
         line.mShaderSource = on("shader-source");
         line.mFolders = on("folders");
+        line.mPrices = on("prices");
         line.mResources = variables["resources"].as<Files::MaybeQuotedPath>();
         if (named("out"))
             line.mOut = std::filesystem::path(text("out"));
