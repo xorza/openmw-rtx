@@ -175,7 +175,8 @@ namespace Rtx
             TextureArray textures(device, setup, layout, passes, rooms, sFiles);
             setup.flush();
             device.waitIdle();
-            pool.getStaging().releaseThrough(device.getTimeline().getKnownFinished());
+            const std::uint64_t finished = device.getTimeline().getKnownFinished();
+            pool.getStaging().releaseThrough(finished, finished);
 
             Testing::TestTexture large;
             Testing::paintLevels(large, 2048, 2048, 1, "large");

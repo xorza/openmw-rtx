@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <span>
 #include <thread>
 #include <vector>
@@ -13,6 +14,7 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
+#include <components/rtxvulkan/device/memory/stagingring.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 
 namespace Rtx
@@ -335,6 +337,25 @@ namespace Rtx
             EXPECT_EQ(blocks(), 2u);
             pool.getStaging().shed(2 * sStagingBlock, later);
             EXPECT_EQ(blocks(), 2u) << "a shed let go of what the ring keeps";
+        }
+
+        /// **A block an idle queue frees cools from what the timeline has passed, not from the value it was freed
+        /// through**: an idle queue frees everything, through a value past every submit, and a block stamped with that
+        /// value read as cooled at once, so the frame after a crossing gave back the staging the next arrival took
+        /// again. Given back under five and freed through everything as of seven, it stays for `sStagingIdleSubmits`
+        /// less one after seven, and goes at `sStagingIdleSubmits` after.
+        TEST_F(RtxBatchTest, aBlockAnIdleQueueFreesCoolsFromWhatTheTimelineHasPassed)
+        {
+            StagingRing ring;
+            const std::size_t block = ring.take(getDevice(), 1);
+            ring.give(block, 5);
+            ring.releaseThrough(std::numeric_limits<std::uint64_t>::max(), 7);
+            ASSERT_EQ(ring.getBlockCount(), 1u);
+
+            ring.shed(0, 7 + sStagingIdleSubmits - 1);
+            EXPECT_EQ(ring.getBlockCount(), 1u) << "a block shed before it cooled";
+            ring.shed(0, 7 + sStagingIdleSubmits);
+            EXPECT_EQ(ring.getBlockCount(), 0u) << "a cooled block stayed";
         }
     }
 }

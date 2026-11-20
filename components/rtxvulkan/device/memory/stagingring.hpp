@@ -55,8 +55,11 @@ namespace Rtx
         /// Gives a block back, read until the timeline has passed `readUntil`.
         void give(std::size_t block, std::uint64_t readUntil) { mRetiring.hold(readUntil, block); }
 
-        /// Every block given back under a value at or below `finished` is free again.
-        void releaseThrough(std::uint64_t finished);
+        /// Every block given back under a value at or below `through` is free again, as of `finished`, the value
+        /// the timeline is known to have passed, which `shed` cools it from. **Two values**: an idle queue frees what
+        /// was given back under a value no submit signalled yet, by a `through` past every value, and a block stamped
+        /// with that read as cooled the moment it was freed.
+        void releaseThrough(std::uint64_t through, std::uint64_t finished);
 
         /// Lets go of the free blocks past the `keep` bytes the smallest of them hold together,
         /// burying each as a buffer is buried: after a load, the one stretch whose staging no frame

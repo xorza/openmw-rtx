@@ -139,6 +139,8 @@ namespace Rtx
         /// read idle once this one ran, though the recording runs after it. A batch is not counted: the
         /// interface keeps one open across frames by design (`GuiTextures`) and names what it reads only
         /// when it is handed over.
+        ///
+        /// The deferred batches are retired under the value returned, here and nowhere else.
         std::uint64_t submitWithDeferred(VkCommandBuffer commands, std::span<const VkSemaphoreSubmitInfo> waits,
             std::span<const VkSemaphoreSubmitInfo> signals);
 
