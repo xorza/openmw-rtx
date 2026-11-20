@@ -28,7 +28,7 @@ namespace Rtx
         const Result<TextureData, std::string> read
             = describeImage(texels, TextureEncoding::Data, scratch.mLevels, scratch.mTexels);
 
-        ContentStore::Digest digest("file", 1);
+        ContentStore::Digest digest("file", sFileKeyVersion);
         digest.add(read.isOk());
         if (!read.isOk())
         {

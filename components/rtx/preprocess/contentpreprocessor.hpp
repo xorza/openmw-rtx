@@ -1,5 +1,8 @@
 #pragma once
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <stop_token>
 #include <vector>
@@ -29,6 +32,20 @@ namespace osg
 
 namespace Rtx
 {
+    /// **Every pass's version, by its id**: what stands for the passes as a whole wherever all of them decide an
+    /// answer, as a preparation's signature does (`ContentPreparation::signatureOf`). A pass with no entry here does
+    /// not compile, where a list written out at its reader left one out.
+    inline constexpr std::array<std::uint32_t, sContentPassCount> sContentPassVersions = [] {
+        std::array<std::uint32_t, sContentPassCount> versions{};
+        const auto state
+            = [&]<ContentPass... Pass>() { ((versions[static_cast<std::size_t>(Pass::sPass)] = Pass::sVersion), ...); };
+        state.operator()<ShapePass, SolidReach, TexelMean, AlphaSpan, ChainPass, SpecularKind, ConversionPass>();
+        return versions;
+    }();
+
+    static_assert(std::ranges::none_of(sContentPassVersions, [](const std::uint32_t version) { return version == 0; }),
+        "a pass whose version nothing states: every `ContentPassId` is in `sContentPassVersions`");
+
     /// What an ask of a stored pass wants: the output, from the store or a run, or only that the
     /// store holds it — a preparation's ask, which reads no entry the store holds, and hands the store
     /// what a run made, the output left emptied where its codec takes it whole.

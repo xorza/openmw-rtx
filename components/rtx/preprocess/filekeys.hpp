@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/contentstore/key.hpp>
 
 namespace osg
@@ -10,6 +12,10 @@ namespace osg
 namespace Rtx
 {
     struct TexelScratch;
+
+    /// The version a file's key is made under (`hashFile`): up whenever the key of the same texels changes, which
+    /// files every pass's output of every file apart from the older ones.
+    inline constexpr std::uint32_t sFileKeyVersion = 1;
 
     /// **The key of a file's texels, every image pass's input as its key states it** (`docs/architecture.md`, "A
     /// file is keyed once, where its texels are first read"): its format, its count of levels, and each level's

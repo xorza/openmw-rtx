@@ -29,7 +29,6 @@
 #include <components/rtx/mirror/surfacedescription.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
-#include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texelreads.hpp>
 #include <components/rtx/preprocess/texture/chainadmission.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
@@ -204,13 +203,11 @@ namespace Rtx
 
     std::uint64_t ContentPreparation::signatureOf(const PreparationSetup& setup)
     {
+        // Every pass's version and the file key's, so whichever of them moves leaves no model standing: written out
+        // pass by pass, the list left `SolidReach` and the file key out.
         ContentStore::Digest digest("preparation", TemplateWalk::sVersion);
-        digest.add(ShapePass::sVersion);
-        digest.add(TexelMean::sVersion);
-        digest.add(AlphaSpan::sVersion);
-        digest.add(ChainPass::sVersion);
-        digest.add(SpecularKind::sVersion);
-        digest.add(ConversionPass::sVersion);
+        digest.add(std::span<const std::uint32_t>(sContentPassVersions));
+        digest.add(sFileKeyVersion);
         digest.add(setup.mMask);
         digest.add(setup.mAutoMaps.mNormalMaps);
         digest.add(std::span<const char>(setup.mAutoMaps.mNormalMapPattern));
