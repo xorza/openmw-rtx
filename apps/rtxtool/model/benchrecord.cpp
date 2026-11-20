@@ -229,10 +229,10 @@ namespace RtxTool
             return std::format(
                 R"({{"frames": {}, "opsIssued": {}, "bytesUploaded": {}, "bytesCopied": {}, "belowWant": {}, )"
                 R"("standIns": {}, "meshesMissing": {}, "starvedTextures": {}, "starvedStructures": {}, )"
-                R"("slotsLive": {}, "slotsRetiring": {}, "bytesHeld": {}, "capBytesLeast": {}}})",
+                R"("slotsLive": {}, "slotsRetiring": {}, "bytesHeld": {}, "capBytesLeast": {}, "blocksRefused": {}}})",
                 most.mFrames, most.mOpsIssued, most.mBytesUploaded, most.mBytesCopied, most.mBelowWant, most.mStandIns,
                 most.mMeshesMissing, most.mStarvedTextures, most.mStarvedStructures, most.mSlotsLive,
-                most.mSlotsRetiring, most.mBytesHeld, most.mCapBytesLeast);
+                most.mSlotsRetiring, most.mBytesHeld, most.mCapBytesLeast, most.mBlocksRefused);
         }
 
         std::string asJson(const Arrivals& arrivals)
@@ -482,10 +482,11 @@ namespace RtxTool
         return std::format(
             "  residency at most   ops {}   uploaded {:.1f} MiB   copied {:.1f} MiB   below want {}   "
             "stand-ins {}   meshes missing {}   starved {} textures {} meshes   slots {} live {} "
-            "retiring   held {:.1f} MiB under a cap of {:.1f} MiB at the least\n",
+            "retiring   held {:.1f} MiB under a cap of {:.1f} MiB at the least   blocks refused {}\n",
             most.mOpsIssued, Rtx::mebibytes(most.mBytesUploaded), Rtx::mebibytes(most.mBytesCopied), most.mBelowWant,
             most.mStandIns, most.mMeshesMissing, most.mStarvedTextures, most.mStarvedStructures, most.mSlotsLive,
-            most.mSlotsRetiring, Rtx::mebibytes(most.mBytesHeld), Rtx::mebibytes(most.mCapBytesLeast));
+            most.mSlotsRetiring, Rtx::mebibytes(most.mBytesHeld), Rtx::mebibytes(most.mCapBytesLeast),
+            most.mBlocksRefused);
     }
 
     std::string describeTexelReads(const Rtx::TexelReads& reads)

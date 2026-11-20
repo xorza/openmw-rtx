@@ -26,6 +26,9 @@ namespace RtxTool
         std::uint32_t mSlotsRetiring = 0;
         std::uint64_t mBytesHeld = 0;
 
+        /// The blocks the device refused over the place's frames.
+        std::uint32_t mBlocksRefused = 0;
+
         /// The least cap any frame stood under, nought for none taken.
         std::uint64_t mCapBytesLeast = 0;
 
@@ -46,6 +49,7 @@ namespace RtxTool
             mSlotsLive = std::max(mSlotsLive, report.mSlots.mSlotsLive);
             mSlotsRetiring = std::max(mSlotsRetiring, report.mSlots.mSlotsRetiring);
             mBytesHeld = std::max(mBytesHeld, report.mSlots.mBytesHeld);
+            mBlocksRefused += report.mBlocksRefused;
             mCapBytesLeast = mFrames == 0 ? report.mCapBytes : std::min(mCapBytesLeast, report.mCapBytes);
             ++mFrames;
         }

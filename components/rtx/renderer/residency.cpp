@@ -300,6 +300,7 @@ namespace Rtx
             mLedger.blockArrived(block);
         for (const BlockIndex block : mEvents.mBlocksRefused)
             mLedger.blockRefused(block);
+        mReport.mBlocksRefused = static_cast<std::uint32_t>(mEvents.mBlocksRefused.size());
 
         for (const TightSize& tight : mEvents.mTightSizes)
         {

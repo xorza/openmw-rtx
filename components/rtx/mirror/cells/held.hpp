@@ -111,6 +111,13 @@ namespace Rtx
         std::uint32_t mAt = 0;
     };
 
+    /// Where a gated placement or lamp stands in its cell, as `ReferenceSpot` names one by its reference.
+    struct GateSpot
+    {
+        std::uint32_t mGate = 0;
+        std::uint32_t mAt = 0;
+    };
+
     /// One lamp's light the ring may stand: what `CellPlacer::place` builds a light from on every
     /// walk, and what the game says of the lamp.
     struct HeldLight
@@ -202,6 +209,11 @@ namespace Rtx
         /// and not every row of every cell held.
         std::vector<ReferenceSpot> mByReference;
 
+        /// Every gated placement and lamp by its gate, sorted by the gate and then by where it is met, so a gate's word
+        /// reaches the few rows behind it: a story's step tells a thousand gates on one frame, which each walked every
+        /// placement of every cell held.
+        std::vector<GateSpot> mByGate;
+
         /// Empties it for the next cell, keeping the room every list grew.
         void reuse()
         {
@@ -214,7 +226,7 @@ namespace Rtx
             assert(std::none_of(mAsks.begin(), mAsks.end(), [](const RingAsk& ask) { return ask.mStep.has_value(); })
                 && "a cell reused with its asks still standing");
             reuseKeeping(*this, &HeldCell::mPlacements, &HeldCell::mPlaces, &HeldCell::mModels, &HeldCell::mLights,
-                &HeldCell::mByReference, &HeldCell::mGround, &HeldCell::mAsks);
+                &HeldCell::mByReference, &HeldCell::mByGate, &HeldCell::mGround, &HeldCell::mAsks);
         }
     };
 

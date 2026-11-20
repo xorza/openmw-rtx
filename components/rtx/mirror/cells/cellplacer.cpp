@@ -100,8 +100,15 @@ namespace Rtx
             mGates.resize(gate + 1, Terrain::GateState::Unknown);
         mGates[gate] = state;
 
-        changeReferencesWhere(
-            [&](const ReferenceState& reference) { return reference.mGate == gate; }, [](ReferenceState&) {});
+        for (HeldCell& cell : mCells)
+        {
+            const auto [first, last] = std::ranges::equal_range(cell.mByGate, gate, std::less<>{}, &GateSpot::mGate);
+            for (const GateSpot& spot : std::ranges::subrange(first, last))
+                if (spot.mAt < cell.mPlacements.size())
+                    restand(cell.mPlacements[spot.mAt], spot.mAt < cell.mShown, mPlaced);
+            // Nothing to restand of a lamp: `place` builds every lamp's light again on every walk, and reads the gate
+            // then.
+        }
     }
 
     void CellPlacer::setNightDay(const NightDayMode mode)
@@ -464,6 +471,18 @@ namespace Rtx
             });
         std::ranges::sort(held.mByReference, [](const ReferenceSpot& left, const ReferenceSpot& right) {
             return left.mRefNum < right.mRefNum || (left.mRefNum == right.mRefNum && left.mAt < right.mAt);
+        });
+
+        held.mByGate.clear();
+        for (std::size_t at = 0; at < held.mPlacements.size(); ++at)
+            if (const std::uint32_t gate = held.mPlacements[at].mState.mGate; gate != Terrain::sNoGate)
+                held.mByGate.push_back(GateSpot{ .mGate = gate, .mAt = static_cast<std::uint32_t>(at) });
+        for (std::size_t at = 0; at < held.mLights.size(); ++at)
+            if (const std::uint32_t gate = held.mLights[at].mState.mGate; gate != Terrain::sNoGate)
+                held.mByGate.push_back(
+                    GateSpot{ .mGate = gate, .mAt = static_cast<std::uint32_t>(held.mPlacements.size() + at) });
+        std::ranges::sort(held.mByGate, [](const GateSpot& left, const GateSpot& right) {
+            return left.mGate < right.mGate || (left.mGate == right.mGate && left.mAt < right.mAt);
         });
 
         // Where the game moved one before this cell was held. Nothing stands yet, so this only

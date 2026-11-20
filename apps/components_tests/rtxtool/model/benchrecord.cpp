@@ -203,7 +203,7 @@ namespace RtxTool
                 "  residency at most   ops 30   uploaded 16.0 MiB   copied 4.0 MiB   below want 0   stand-ins 5   "
                 "meshes missing 1   starved 2 textures 0 meshes   slots 70 live 6 retiring   held 512.0 MiB under a "
                 "cap of "
-                "800.0 MiB at the least\n");
+                "800.0 MiB at the least   blocks refused 0\n");
         }
 
         /// **The ring by distance, what stands of what it holds**, only the distances holding a placement, the last
@@ -470,14 +470,15 @@ namespace RtxTool
                 << json;
             EXPECT_NE(json.find(content), std::string::npos) << json;
             EXPECT_NE(
-                json.find(R"(, "texelReads": {"file": 47, "fileBytes": 51, )"
-                          R"("partner": 48, "partnerBytes": 52, "preparation": 49, "preparationBytes": 53, )"
-                          R"("chainsFoundWhole": 54, "cancelled": 66}, "residency": {"frames": 1, "opsIssued": 81, )"
-                          R"("bytesUploaded": 82, "bytesCopied": 83, "belowWant": 84, "standIns": 85, )"
-                          R"("meshesMissing": 86, "starvedTextures": 87, "starvedStructures": 88, "slotsLive": 89, )"
-                          R"("slotsRetiring": 90, "bytesHeld": 91, "capBytesLeast": 92}, "game": {"loadedCells": 63, )"
-                          R"("preloadedCells": 64, )"
-                          R"("starvedLooks": 65})"),
+                json.find(
+                    R"(, "texelReads": {"file": 47, "fileBytes": 51, )"
+                    R"("partner": 48, "partnerBytes": 52, "preparation": 49, "preparationBytes": 53, )"
+                    R"("chainsFoundWhole": 54, "cancelled": 66}, "residency": {"frames": 1, "opsIssued": 81, )"
+                    R"("bytesUploaded": 82, "bytesCopied": 83, "belowWant": 84, "standIns": 85, )"
+                    R"("meshesMissing": 86, "starvedTextures": 87, "starvedStructures": 88, "slotsLive": 89, )"
+                    R"("slotsRetiring": 90, "bytesHeld": 91, "capBytesLeast": 92, "blocksRefused": 0}, "game": {"loadedCells": 63, )"
+                    R"("preloadedCells": 64, )"
+                    R"("starvedLooks": 65})"),
                 std::string::npos)
                 << json;
         }

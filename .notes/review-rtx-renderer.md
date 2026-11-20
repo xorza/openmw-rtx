@@ -1108,8 +1108,6 @@ Files: `components/rtx/mirror/cells/` (all), `components/rtx/mirror/sceneextract
   what they report. It sees what it does not today: a mesh not built, a texture below its plan, a composite not
   baked.
 - [ ] Findings `Pop`, `LateStand`, `LevelStep`, and the cost `HeldAtCrossing` (model, tests, the expectation files).
-- [ ] `cellplacer.cpp:107-133,96-105` — `setNightDay` and each `setGate` walk every placement of every held cell.
-  Target: a short index a cell of the placements a switch or a gate touches; gate changes applied in one pass.
 - [ ] `cellplacer.cpp:904-917` — every lamp of every shown cell is made again each walk. Target: the still ones
   made at adoption.
 - [ ] `cellplacer.cpp:815-822` — a change of the field of view re-asks every material of every held cell. Target:
@@ -1470,6 +1468,9 @@ Items that landed in another shape than their target, each with how and why.
   frames and the place's most. `OverBudget` and `LedgerDrift` wait for batch 8, which gives a frame the driver's usage
   and the arena's held bytes beside it: the leg's end is the one moment the harness reads the driver now, and a
   finding judged on one sample a leg would repeat the defect batch 2 named.
+- A held cell indexes its gated rows by gate (`HeldCell::mByGate`), so a gate's word reaches the rows behind it and
+  each of a story step's thousand gates costs a search a cell; the gates stay told one at a time, as the game tells
+  them, the semantics unchanged. The day-night mode still walks every placement: it moves at a door or a dawn.
 - A ground composite waiting to be made holds its layers at its own tier (`Residency::syncTextures`): a layer held at
   the cache's tier alone can be dropped under a tight cap, which leaves the composite waiting for good.
 - **A drain that could not move a slot this hand-over is no drain**: `ensureRoom` wants the transit chunk as though

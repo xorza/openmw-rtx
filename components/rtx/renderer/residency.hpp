@@ -178,6 +178,9 @@ namespace Rtx
         /// Residents of a demanded tier the plan gives something that stand nothing yet, by why.
         MissingDemanded mMissingDemanded;
 
+        /// The blocks the device refused this frame, each asked again at the frame's close while the plan needs it.
+        std::uint32_t mBlocksRefused = 0;
+
         /// This frame's work.
         std::uint32_t mOpsIssued = 0;
         std::uint64_t mBytesUploaded = 0;
