@@ -72,10 +72,11 @@ namespace Rtx
 
         /// The game holds the reference at `place` now: moved, turned or scaled, as a script swings a street lantern in
         /// the wind and a save keeps where it swung to. Its placements and its lamp's light stand there from now on, in
-        /// the cells held at once and in the cells not yet held, and nowhere where `away`, moved into another cell than
-        /// the content's, which is the game's to show once loaded. Upstream's paging leaves such a reference out of the
-        /// distance altogether. The size rule keeps reading the content's scale, which the radius was sorted by.
-        void moveReference(ESM::RefNum refnum, const ReferencePlace& place, bool away);
+        /// the cells held at once and in the cells not yet held, and nowhere where it stands away, moved into another
+        /// cell than the content's, which is the game's to show once loaded. Upstream's paging leaves such a reference
+        /// out of the distance altogether. The size rule keeps reading the content's scale, which the radius was sorted
+        /// by.
+        void moveReference(ESM::RefNum refnum, const ReferencePlace& place, ReferenceStands stands);
 
         /// What a visibility gate says of the references behind it, for the cells no one has
         /// loaded: stand, stand not, or stand by what the game says of each. Applied to the cells

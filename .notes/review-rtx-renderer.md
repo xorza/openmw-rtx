@@ -1108,12 +1108,6 @@ Files: `components/rtx/mirror/cells/` (all), `components/rtx/mirror/sceneextract
   what they report. It sees what it does not today: a mesh not built, a texture below its plan, a composite not
   baked.
 - [ ] Findings `Pop`, `LateStand`, `LevelStep`, and the cost `HeldAtCrossing` (model, tests, the expectation files).
-- [ ] `cellplacer.cpp:904-917` — every lamp of every shown cell is made again each walk. Target: the still ones
-  made at adoption.
-- [ ] `cellplacer.cpp:815-822` — a change of the field of view re-asks every material of every held cell. Target:
-  the ask's step is derived from a quantity that does not follow a zoom, or the re-ask is measured and kept.
-- [ ] `SceneExtractor::walk(…, CellRing*, bool falls)`, `readModel(path, bool groundcover)`,
-  `onTheWay(cell, bool grass)`, `moveReference(…, bool away)` — flags select behaviour. Target: an enum each.
 - [ ] Tests: a world change while a cell is read; the eye indoors; a cell entering and leaving the grid, "never both,
   never neither" frame by frame; a band whose view goes; `standWhole` over `NullRenderer`, by kind; the bound on cells
   read ahead.
@@ -1504,3 +1498,9 @@ Items judged and not done, each with the reason.
   findings name what starved, drew a stand-in or stood below its want, on every machine a tour flies. A replay would
   answer the same questions offline from a second statement of residency's inputs, a record format that drifts as the
   plan and the scene's tables change; `SlotLayout` and the shares are tuned from the tours' figures instead.
+- Batch 7's still lamps made at adoption: a lamp's light is a handful of products of its record at the walk's hour
+  (`makeLight`), and the scene's light list is filled anew every walk either way; the still ones kept would be a
+  second list beside the lamps, kept in step with every gate's and script's word on them.
+- Batch 7's re-ask on a change of the field of view: it recomputes each held cell's cone once and each ask's step by
+  an addition and a floor, and asks a material again only where its step moves; the game changes the field of view
+  through its settings and scripts, not frame by frame.

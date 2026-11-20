@@ -640,7 +640,7 @@ namespace Rtx
     ExtractionStats SceneExtractor::extract(
         const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame)
     {
-        return walk(node, transform, anchor, frame, nullptr, false);
+        return walk(node, transform, anchor, frame, nullptr, Placed::Standing);
     }
 
     ExtractionStats SceneExtractor::extractWorld(
@@ -648,7 +648,7 @@ namespace Rtx
     {
         assert(ring.adoptsThrough(*this) && "a ring made on another extractor adopts into its scene");
 
-        return walk(root, osg::Matrixf::identity(), anchor, frame, &ring, false);
+        return walk(root, osg::Matrixf::identity(), anchor, frame, &ring, Placed::Standing);
     }
 
     ExtractionStats SceneExtractor::extractPrecipitation(
@@ -657,18 +657,18 @@ namespace Rtx
         if (fall == nullptr)
             return {};
 
-        return walk(*fall, osg::Matrixf::translate(eye), anchor, frame, nullptr, true);
+        return walk(*fall, osg::Matrixf::translate(eye), anchor, frame, nullptr, Placed::Falling);
     }
 
     SceneExtractor::WalkGuard::WalkGuard(
-        MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, const bool falls, FrozenRoots& frozen)
+        MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, const Placed placed, FrozenRoots& frozen)
         : mPass(pass)
         , mPhase(phase)
         , mFrozen(frozen)
     {
         mPhase.step(Phase::Walking, Phase::Between);
         mPass.mStats = &stats;
-        mPass.mFalls = falls;
+        mPass.mFalls = placed == Placed::Falling;
     }
 
     SceneExtractor::WalkGuard::~WalkGuard()
@@ -682,10 +682,10 @@ namespace Rtx
     }
 
     ExtractionStats SceneExtractor::walk(const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor,
-        std::size_t frame, CellRing* const ring, const bool falls)
+        std::size_t frame, CellRing* const ring, const Placed placed)
     {
         ExtractionStats stats;
-        const WalkGuard walking(mPass, mPhase, stats, falls, mFrozen);
+        const WalkGuard walking(mPass, mPhase, stats, placed, mFrozen);
 
         // Before anything is placed, so a walk that threw has still marked the scene: what it
         // stamped before the throw is standing, and the sweep is owed for the rest.

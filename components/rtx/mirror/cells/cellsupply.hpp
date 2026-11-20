@@ -173,18 +173,25 @@ namespace Rtx
         /// `CellReader::measure` as the thread last finished a cell, under the lock.
         ReaderMemory mMeasured;
 
+        /// What of a cell the thread reads: its references, or its groundcover.
+        enum class Read : std::uint8_t
+        {
+            Cell,
+            Grass,
+        };
+
         /// A cell or a cell's grass the thread handed over, and how many takes the frame had made by
         /// then: it reaches the ring with the next take, so an ask made before that take names it
         /// still.
         struct Handed
         {
             osg::Vec2i mCell;
-            bool mGrass = false;
+            Read mRead = Read::Cell;
             std::uint64_t mTakes = 0;
         };
 
-        /// Whether `cell`, of the kind `grass` says, is on its way already.
-        bool onTheWay(const osg::Vec2i& cell, bool grass) const;
+        /// Whether `read` of `cell` is on its way already.
+        bool onTheWay(const osg::Vec2i& cell, Read read) const;
 
         /// Whether a newer ask replaced the one being read, taking what the frame gave back as it
         /// looks. On the thread.

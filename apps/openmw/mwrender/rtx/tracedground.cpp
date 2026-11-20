@@ -91,7 +91,9 @@ namespace MWRender
             Rtx::ReferencePlace{ .mPosition = position.asVec3(),
                 .mRotation = osg::Vec3f(position.rot[0], position.rot[1], position.rot[2]),
                 .mScale = now.getCellRef().getScale() },
-            standsAway(sameWorldspace, position, now.getCellRef().getPosition(), worldspace));
+            standsAway(sameWorldspace, position, now.getCellRef().getPosition(), worldspace)
+                ? Rtx::ReferenceStands::Away
+                : Rtx::ReferenceStands::InItsCell);
     }
 
     void TracedGround::setGate(const std::uint32_t gate, const Terrain::GateState state)

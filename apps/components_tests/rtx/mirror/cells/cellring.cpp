@@ -990,9 +990,9 @@ namespace Rtx::Testing
                 .mScale = 1.0f };
             // Moved twice before its cell is held, and the second move is the one it stands at: a
             // reference no held cell holds is searched for once, and its cell finds it as it is held.
-            mRing.moveReference(
-                ESM::RefNum{ 7, 0 }, ReferencePlace{ .mPosition = far, .mRotation = {}, .mScale = 2.0f }, false);
-            mRing.moveReference(ESM::RefNum{ 7, 0 }, swung, false);
+            mRing.moveReference(ESM::RefNum{ 7, 0 },
+                ReferencePlace{ .mPosition = far, .mRotation = {}, .mScale = 2.0f }, ReferenceStands::InItsCell);
+            mRing.moveReference(ESM::RefNum{ 7, 0 }, swung, ReferenceStands::InItsCell);
             start();
 
             const ExtractionStats filled = fill();
@@ -1005,7 +1005,7 @@ namespace Rtx::Testing
             EXPECT_NEAR(stood.z(), swung.mPosition.z() + sLanternAnchor.z(), 1e-3f);
             EXPECT_GT((stood - (far + sLanternAnchor)).length(), 50.0f) << "where the content puts it";
 
-            mRing.moveReference(ESM::RefNum{ 7, 0 }, swung, true);
+            mRing.moveReference(ESM::RefNum{ 7, 0 }, swung, ReferenceStands::Away);
             const ExtractionStats away = walk(mWalked++);
             EXPECT_EQ(away.mLights, 0u) << "moved into another cell";
             EXPECT_EQ(away.mDistantStatics, 0u) << "and its model with it";
@@ -1315,8 +1315,8 @@ namespace Rtx::Testing
             // lantern: it stands where the game holds it, at once and on the walk after, the
             // template's lift scaled on top, `1000 + 5 * 4`.
             const osg::Vec3f lifted(3.5f * sCellSize, 0.5f * sCellSize, 1000.0f);
-            mRing.moveReference(
-                ESM::RefNum{ 4, 0 }, ReferencePlace{ .mPosition = lifted, .mRotation = {}, .mScale = 4.0f }, false);
+            mRing.moveReference(ESM::RefNum{ 4, 0 },
+                ReferencePlace{ .mPosition = lifted, .mRotation = {}, .mScale = 4.0f }, ReferenceStands::InItsCell);
             EXPECT_EQ(heights(standing()), (std::vector<float>{ 105.0f, 210.0f, 525.0f, 1020.0f }));
             EXPECT_EQ(walk(mWalked++).mDistantStatics, 5u) << "moved, and still standing";
             EXPECT_EQ(heights(standing()), (std::vector<float>{ 105.0f, 210.0f, 525.0f, 1020.0f }));
@@ -1325,7 +1325,7 @@ namespace Rtx::Testing
             mRing.moveReference(ESM::RefNum{ 4, 0 },
                 ReferencePlace{
                     .mPosition = lifted + osg::Vec3f(sCellSize, 0.0f, 0.0f), .mRotation = {}, .mScale = 4.0f },
-                true);
+                ReferenceStands::Away);
             EXPECT_EQ(heights(standing()), trees({ 1, 2, 5 }));
 
             // The world is cleared: what two scripts kept out and what the game blacklisted or moved

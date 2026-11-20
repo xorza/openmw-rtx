@@ -108,15 +108,15 @@ namespace Rtx
         /// path. Refused, with no part and `PreparedModel::mRefused` saying why, where the template describes a mesh
         /// this renderer cannot take.
         ///
-        /// **Read as groundcover where `groundcover` says**, and filed apart from the same file read as a static:
+        /// **Read as groundcover where `use` says**, and filed apart from the same file read as a static:
         /// upstream's groundcover states an alpha test of 128 / 255 with no blend over every model it draws, because
         /// MGE's content states no alpha it can be trusted with (`MWRender::Groundcover`). Each such reading says so
         /// (`MaterialReading::mGroundcover`), and the frame keys it apart from a static's material.
-        PreparedModel* readModel(VFS::Path::NormalizedView path, bool groundcover);
+        PreparedModel* readModel(VFS::Path::NormalizedView path, ModelUse use);
 
         /// `readModel` for a reference: null where it stands nothing, no model or one with no part,
         /// and the model's refusal added to `refusals` where it has one.
-        PreparedModel* readStanding(VFS::Path::NormalizedView path, bool groundcover, std::vector<Refusal>& refusals);
+        PreparedModel* readStanding(VFS::Path::NormalizedView path, ModelUse use, std::vector<Refusal>& refusals);
 
         /// Appends a reference of `model` to `models` and `refs`, the model lent once to the list
         /// however many of its references stand: what a cell's statics and its grass both keep.
@@ -154,12 +154,12 @@ namespace Rtx
         Spares<PreparedTexture> mTextures;
 
         /// What a model is filed under: its path, and whether it was read as groundcover.
-        using ModelKey = std::pair<std::string_view, bool>;
+        using ModelKey = std::pair<std::string_view, ModelUse>;
 
         /// What the two tables are ordered by: the path each is filed under.
         struct PathOf
         {
-            ModelKey operator()(const PreparedModel* held) const { return { held->mPath, held->mGroundcover }; }
+            ModelKey operator()(const PreparedModel* held) const { return { held->mPath, held->mUse }; }
             std::string_view operator()(const PreparedTexture* held) const { return held->mPath.value(); }
         };
 

@@ -278,13 +278,21 @@ namespace Rtx
             Walking,
         };
 
+        /// Whether what a walk places stands or falls, as the precipitation's does (`MirrorPass::mFalls`).
+        enum class Placed : std::uint8_t
+        {
+            Standing,
+            Falling,
+        };
+
         /// The pass opened for one walk and closed however the walk ends: the counts pointer back to null, the falls
         /// flag cleared, no reference's record left open and the phase back to `Between`, on the ordinary return and on
         /// a throw alike. A resolver reached after a walk that threw would otherwise count into an unwound local.
         class WalkGuard
         {
         public:
-            WalkGuard(MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, bool falls, FrozenRoots& frozen);
+            WalkGuard(
+                MirrorPass& pass, Stepped<Phase>& phase, ExtractionStats& stats, Placed placed, FrozenRoots& frozen);
             ~WalkGuard();
 
             WalkGuard(const WalkGuard&) = delete;
@@ -386,7 +394,7 @@ namespace Rtx
         /// What the three walks are, differing only in whether the ring's geometry is asked for
         /// and whether what is placed falls.
         ExtractionStats walk(const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor,
-            std::size_t frame, CellRing* ring, bool falls);
+            std::size_t frame, CellRing* ring, Placed placed);
 
         /// The maps a frozen root's keys are held in, handed to `mFrozen` at each call.
         FrozenRoots::Holders frozenHolders() { return { mPlacements, mMeshes, mMaterials, mReleased }; }

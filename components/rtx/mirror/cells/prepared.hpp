@@ -45,6 +45,14 @@ namespace Rtx
 {
     /// Where a reference stands, as the content places it or the game holds it now: what a clone's
     /// transform is composed of (`transformOf`).
+    /// Where a moved reference stands against the cell its content placed it in: there, or away in another, which the
+    /// game shows once that cell is loaded (`CellPlacer::moveReference`).
+    enum class ReferenceStands : std::uint8_t
+    {
+        InItsCell,
+        Away,
+    };
+
     struct ReferencePlace
     {
         osg::Vec3f mPosition;
@@ -217,15 +225,22 @@ namespace Rtx
     /// packed as the scene copies it, keyed and bounded, and the images they name. Owned by the reader and lent to
     /// every cell that names it, once per cell (`Lent` counts them); refilled for the next model once every hold is
     /// back. Flat, one buffer per attribute, because a cell names hundreds of models of a handful of parts each.
+    /// What a model is read as: a reference's, or groundcover's, with the alpha test upstream's groundcover states over
+    /// every model it draws (`CellReader::readModel`).
+    enum class ModelUse : std::uint8_t
+    {
+        Reference,
+        Groundcover,
+    };
+
     struct PreparedModel : Lent
     {
         /// The corrected path the model was read under, which is what the reader finds it by
-        /// beside `mGroundcover`.
+        /// beside `mUse`.
         std::string mPath;
 
-        /// Whether it was read as groundcover, with the alpha test upstream's groundcover states
-        /// over every model it draws (`CellReader::readModel`).
-        bool mGroundcover = false;
+        /// What it was read as.
+        ModelUse mUse = ModelUse::Reference;
 
         /// Held, because every part's drawable and state set are the template's own.
         osg::ref_ptr<const osg::Node> mTemplate;

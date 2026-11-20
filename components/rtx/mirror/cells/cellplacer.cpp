@@ -63,8 +63,9 @@ namespace Rtx
         changeReference(refnum, [](ReferenceState& state) { state.mBlacklisted = true; });
     }
 
-    void CellPlacer::moveReference(const ESM::RefNum refnum, const ReferencePlace& place, const bool away)
+    void CellPlacer::moveReference(const ESM::RefNum refnum, const ReferencePlace& place, const ReferenceStands stands)
     {
+        const bool away = stands == ReferenceStands::Away;
         auto at = std::lower_bound(mMoved.begin(), mMoved.end(), refnum,
             [](const Moved& known, ESM::RefNum asked) { return known.mRefNum < asked; });
         const bool known = at != mMoved.end() && at->mRefNum == refnum;

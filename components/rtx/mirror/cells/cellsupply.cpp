@@ -168,10 +168,10 @@ namespace Rtx
             });
     }
 
-    bool CellSupply::onTheWay(const osg::Vec2i& cell, const bool grass) const
+    bool CellSupply::onTheWay(const osg::Vec2i& cell, const Read read) const
     {
         return std::any_of(mOnTheWay.begin(), mOnTheWay.end(),
-            [&](const Handed& handed) { return handed.mCell == cell && handed.mGrass == grass; });
+            [&](const Handed& handed) { return handed.mCell == cell && handed.mRead == read; });
     }
 
     bool CellSupply::superseded()
@@ -194,7 +194,7 @@ namespace Rtx
             if (stop.stop_requested() || superseded())
                 return;
 
-            if (onTheWay(cell, true))
+            if (onTheWay(cell, Read::Grass))
                 continue;
 
             const Crash::NoteScope noted("reading the groundcover of the cell {}, {}", cell.x(), cell.y());
@@ -204,7 +204,7 @@ namespace Rtx
             mMonitor.hand([&] {
                 mDoneGrass.push_back(&made);
                 mMeasured = measured;
-                mOnTheWay.push_back(Handed{ .mCell = cell, .mGrass = true, .mTakes = mTakes });
+                mOnTheWay.push_back(Handed{ .mCell = cell, .mRead = Read::Grass, .mTakes = mTakes });
             });
         }
 
@@ -213,7 +213,7 @@ namespace Rtx
             if (stop.stop_requested() || superseded())
                 return;
 
-            if (onTheWay(cell, false))
+            if (onTheWay(cell, Read::Cell))
                 continue;
 
             const Crash::NoteScope noted("reading the cell {}, {}", cell.x(), cell.y());
@@ -223,7 +223,7 @@ namespace Rtx
             mMonitor.hand([&] {
                 mDone.push_back(&made);
                 mMeasured = measured;
-                mOnTheWay.push_back(Handed{ .mCell = cell, .mTakes = mTakes });
+                mOnTheWay.push_back(Handed{ .mCell = cell, .mRead = Read::Cell, .mTakes = mTakes });
             });
         }
     }

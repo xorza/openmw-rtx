@@ -101,7 +101,7 @@ namespace Rtx
         /// cells the frame is placing.
         void setReferenceEnabled(ESM::RefNum refnum, bool enabled);
         void blacklistReference(ESM::RefNum refnum);
-        void moveReference(ESM::RefNum refnum, const ReferencePlace& place, bool away);
+        void moveReference(ESM::RefNum refnum, const ReferencePlace& place, ReferenceStands stands);
         void forgetReferences();
 
         /// `CellPlacer::setGate`, over the cells held, between frames as the three above are.
