@@ -124,6 +124,10 @@ namespace Rtx
         VkDeviceSize getSize(VkBuffer block) const;
 
     private:
+        /// **The most blocks the ring stands at once**: each is at least `sStagingBlock`, so 512 of them are 4 GiB
+        /// staged, past every frame's share and every loading screen's; more is a block nothing gave back.
+        static constexpr std::size_t sBlocksMost = 512;
+
         std::vector<Buffer> mBlocks;
         Retiring<std::size_t> mRetiring;
         std::vector<std::size_t> mSpare;

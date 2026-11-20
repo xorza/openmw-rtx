@@ -106,13 +106,6 @@ namespace Rtx
         /// Takes `scratch`, the images `declareScratch` declared as an arena placed them.
         void place(const ArenaRun& scratch);
 
-        /// Lets every image go, until the next `resize`.
-        void release()
-        {
-            mImages = {};
-            mScratch = {};
-        }
-
         /// Says every history is worthless, until each filter next runs.
         void reset() { mTurns.reset(); }
 

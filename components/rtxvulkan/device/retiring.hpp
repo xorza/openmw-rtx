@@ -55,8 +55,14 @@ namespace Rtx
         Held& at(const std::size_t index) { return mHeld[(mFirst + index) % mHeld.size()]; }
         const Held& at(const std::size_t index) const { return mHeld[(mFirst + index) % mHeld.size()]; }
 
+        /// **The most a ring holds at once**: what two frames in flight retire, a scene's whole tables and every
+        /// slot a drain moves among them, stands in the low thousands; past this a frame retired without a submit
+        /// ever passing, which is a bug.
+        static constexpr std::size_t sHeldMost = std::size_t{ 1 } << 16;
+
         void grow()
         {
+            assert(mHeld.size() < sHeldMost && "a ring held past its bound: a stamp no submit passes");
             std::vector<Held> larger(std::max<std::size_t>(16, mHeld.size() * 2));
             for (std::size_t index = 0; index < mCount; ++index)
                 larger[index] = std::move(at(index));

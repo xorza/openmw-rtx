@@ -162,8 +162,10 @@ namespace Rtx
         Owned<VkCommandPool, vkDestroyCommandPool> mHandle;
         OwnedBy mThread;
 
-        /// Recorded and ended, waiting for the next submit to carry them first.
+        /// Recorded and ended, waiting for the next submit to carry them first: a frame's uploads and builds, a
+        /// handful, `sDeferredMost` at the most.
         std::vector<VkCommandBuffer> mDeferred;
+        static constexpr std::size_t sDeferredMost = 256;
 
         /// What the recording thread was doing as each of `mDeferred` was deferred, where submits
         /// are watched and empty otherwise.

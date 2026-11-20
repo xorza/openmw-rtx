@@ -117,9 +117,9 @@ namespace Rtx
     bool Presenter::wantsResize(const VkExtent2D extent)
     {
         // Whatever the extent: a lost surface is made again by the rebuild alone.
-        if (mLost)
+        if (mFit == Fit::Lost)
             return true;
-        if (!mStale && extent.width == mAsked.width && extent.height == mAsked.height)
+        if (mFit == Fit::Matches && extent.width == mAsked.width && extent.height == mAsked.height)
             return false;
 
         switch (mSwapchain.getSurfaceState())
@@ -131,7 +131,7 @@ namespace Rtx
                 // swapchain of none is invalid usage, and rebuilding once a frame against a surface
                 // that will not take one is a rebuild a minimised game would pay for as long as it
                 // stayed minimised. The staleness stands, so the window coming back rebuilds then.
-                mStale = true;
+                mFit = Fit::Stale;
                 return false;
             case SurfaceState::Lost:
                 surfaceLost();
@@ -143,18 +143,17 @@ namespace Rtx
     void Presenter::rebuild(const VkExtent2D extent)
     {
         const Crash::NoteScope noted("rebuilding the swapchain at {}x{}{}", extent.width, extent.height,
-            mLost ? " on a surface made again" : "");
+            mFit == Fit::Lost ? " on a surface made again" : "");
         if (extent.width != mAsked.width || extent.height != mAsked.height)
-        {
-            mSuboptimalRebuilt = false;
-            mSuboptimalSaid = false;
-        }
+            mSuboptimal = Suboptimal::None;
         mAsked = extent;
-        if (mLost)
+        if (mFit == Fit::Lost)
             remakeSurface(extent);
         else
             remake(extent);
-        mStale = false;
+        // A surface lost again on the way stays lost; a stale one matches the swapchain made.
+        if (mFit == Fit::Stale)
+            mFit = Fit::Matches;
     }
 
     void Presenter::suboptimal()
@@ -162,15 +161,15 @@ namespace Rtx
         // **One rebuild an extent, and then the image as it is.** A driver that answers suboptimal
         // after a fresh rebuild at the same extent — Mesa's X11 copy path — would rebuild on every
         // frame, draining the queue each time, for a picture it shows all the same.
-        if (!mSuboptimalRebuilt)
+        if (mSuboptimal == Suboptimal::None)
         {
-            mSuboptimalRebuilt = true;
-            mStale = true;
+            mSuboptimal = Suboptimal::Rebuilt;
+            mFit = Fit::Stale;
             return;
         }
-        if (!mSuboptimalSaid)
+        if (mSuboptimal == Suboptimal::Rebuilt)
         {
-            mSuboptimalSaid = true;
+            mSuboptimal = Suboptimal::Said;
             Log(Debug::Info) << "Swapchain: the surface answers suboptimal after a rebuild at " << mAsked.width << "x"
                              << mAsked.height << ", and is shown as it is";
         }
@@ -180,7 +179,7 @@ namespace Rtx
     {
         if (mRemade)
             deviceFailed("the window's surface was lost again before a frame was shown on the one made after it");
-        mLost = true;
+        mFit = Fit::Lost;
     }
 
     void Presenter::remakeSurface(const VkExtent2D extent)
@@ -197,7 +196,7 @@ namespace Rtx
             deviceFailed("the device's queue does not present to the window's surface made again");
         Log(Debug::Warning) << "The window's surface was lost and was made again";
 
-        mLost = false;
+        mFit = Fit::Matches;
         mRemade = true;
         if (!mSwapchain.renew(extent))
             surfaceLost();
@@ -218,14 +217,14 @@ namespace Rtx
 
     std::optional<Presenter::Taken> Presenter::take()
     {
-        if (mLost)
+        if (mFit == Fit::Lost)
             return std::nullopt;
 
         // The window was hidden when the swapchain was last made, and the staleness carries the
         // rebuild to the frame it comes back on.
         if (!mSwapchain.isMade())
         {
-            mStale = true;
+            mFit = Fit::Stale;
             return std::nullopt;
         }
 
@@ -243,7 +242,7 @@ namespace Rtx
             case Acquired::Image:
                 break;
             case Acquired::Stale:
-                mStale = true;
+                mFit = Fit::Stale;
                 return std::nullopt;
             case Acquired::NotYet:
                 return std::nullopt;
@@ -366,7 +365,7 @@ namespace Rtx
                 suboptimal();
                 break;
             case Presented::Stale:
-                mStale = true;
+                mFit = Fit::Stale;
                 break;
             case Presented::Lost:
                 surfaceLost();

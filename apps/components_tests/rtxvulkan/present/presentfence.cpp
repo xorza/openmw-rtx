@@ -33,9 +33,10 @@ namespace Rtx
             fresh.settle(device, "a fence no present was handed", 1'000'000ull);
 
             // A present that failed ahead of the queue, or one the queue refused: nothing will
-            // signal the fence, which `arm` left unsignalled, and nothing waits for it.
-            for (const VkResult refused :
-                { VK_ERROR_OUT_OF_HOST_MEMORY, VK_ERROR_OUT_OF_DEVICE_MEMORY, VK_ERROR_DEVICE_LOST })
+            // signal the fence, which `arm` left unsignalled, and nothing waits for it. The full-screen exclusive
+            // mode's loss is among them, its extension never enabled here.
+            for (const VkResult refused : { VK_ERROR_OUT_OF_HOST_MEMORY, VK_ERROR_OUT_OF_DEVICE_MEMORY,
+                     VK_ERROR_DEVICE_LOST, VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT })
             {
                 PresentFence fence(device);
                 fence.arm(device);
@@ -45,8 +46,8 @@ namespace Rtx
 
             // Each answer the specification counts as enqueued owes the wait, which a signal ends,
             // and leaves the fence free for the next `arm` once settled.
-            for (const VkResult enqueued : { VK_SUCCESS, VK_SUBOPTIMAL_KHR, VK_ERROR_OUT_OF_DATE_KHR,
-                     VK_ERROR_SURFACE_LOST_KHR, VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT })
+            for (const VkResult enqueued :
+                { VK_SUCCESS, VK_SUBOPTIMAL_KHR, VK_ERROR_OUT_OF_DATE_KHR, VK_ERROR_SURFACE_LOST_KHR })
             {
                 PresentFence fence(device);
                 const VkFence handle = fence.arm(device);

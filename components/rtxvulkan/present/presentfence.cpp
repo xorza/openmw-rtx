@@ -40,10 +40,11 @@ namespace Rtx
 
     void PresentFence::answered(const VkResult result)
     {
-        // What the specification counts as enqueued: success, a suboptimal surface, and the three
-        // errors that reject a present after the queue took it, whose wait still runs and whose
-        // fence is still signalled. Any other answer queued nothing.
+        // What the specification counts as enqueued: success, a suboptimal surface, and the errors that reject a
+        // present after the queue took it, whose wait still runs and whose fence is still signalled; the full-screen
+        // exclusive mode's loss is a third only where its extension is enabled, which it never is here. Any other
+        // answer queued nothing.
         mOwed = result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR
-            || result == VK_ERROR_SURFACE_LOST_KHR || result == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT;
+            || result == VK_ERROR_SURFACE_LOST_KHR;
     }
 }

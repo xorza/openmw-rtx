@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <tuple>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -47,6 +48,8 @@ namespace MyGUIRtx
             Texture unmade("unmade", renderer, nullptr);
             Rtx::Testing::expectAssertDies(
                 [&] { unmade.lock(MyGUI::TextureUsage::Write); }, "a texture locked before it was created");
+            Rtx::Testing::expectAssertDies([&] { std::ignore = unmade.lock(MyGUI::TextureUsage::Read); },
+                "a texture locked to be read, which only writing is");
             Rtx::Testing::expectAssertDies([&] { unmade.unlock(); }, "a texture unlocked that was not locked");
         }
 

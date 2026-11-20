@@ -29,6 +29,7 @@ namespace Rtx
             return block;
         }
 
+        assert(mBlocks.size() < sBlocksMost && "staging blocks past their bound: what no submit gave back");
         mBlocks.push_back(std::move(made));
         return mBlocks.size() - 1;
     }

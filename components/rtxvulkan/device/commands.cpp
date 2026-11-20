@@ -28,9 +28,9 @@ namespace Rtx
     namespace
     {
         /// Waits for what `poll` answers for — `VK_SUCCESS` once done, `VK_NOT_READY` while it runs, an
-        /// error where the asking failed — and logs how long `what` ran to its end or failure, and at every
-        /// doubling past a quarter of a second while it runs, with what `where` says of the queue. **No
-        /// longer than any wait on the device**, `sPatience`, past which it ends as one that never answered.
+        /// error where the asking failed, which ends as a device that failed — and logs how long `what` ran to its
+        /// end, and at every doubling past a quarter of a second while it runs, with what `where` says of the queue.
+        /// **No longer than any wait on the device**, `sPatience`, past which it ends as one that never answered.
         template <class Poll, class Where>
         void watchToItsEnd(const std::string& what, Poll poll, Where where)
         {
@@ -46,11 +46,11 @@ namespace Rtx
                     Log(Debug::Info) << what << " ran in " << ran.count() << " ms";
                     return;
                 }
+                // **A watch that failed is a device that failed**, as every other wait on it is: a batch counted as run
+                // here would be given back while the queue may still read it.
                 if (status != VK_NOT_READY)
-                {
-                    Log(Debug::Error) << what << ": " << resultName(status) << " after " << ran.count() << " ms";
-                    return;
-                }
+                    deviceFailed(what + ": " + std::string(resultName(status)) + " after " + std::to_string(ran.count())
+                        + " ms" + where());
                 if (ran >= std::chrono::nanoseconds(sPatience))
                     deviceFailed(timedOut(what.c_str(), sPatience) + where());
                 if (ran >= reportAt)
@@ -81,6 +81,7 @@ namespace Rtx
         mThread.check();
         close(commands);
         checkVk(mDevice, vkEndCommandBuffer(commands), "vkEndCommandBuffer");
+        assert(mDeferred.size() < sDeferredMost && "recordings deferred past their bound: no submit carried them");
         mDeferred.push_back(commands);
         if (mDevice.watchesSubmits())
             mDeferredNotes.emplace_back(Crash::ownNote());

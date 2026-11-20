@@ -1092,13 +1092,6 @@ display,gui}`, `frametracer`, `picturetracer`, `vulkanrenderer`, `components/myg
 - [ ] `device/memory/batch.hpp:86-91`, `gui/guitextures.cpp:146-158` — "stamped for the next submit" is false for a
   batch open across one, which `GuiTextures` patches by hand. Target: a long-lived batch stamps at hand-over, or the
   type refuses to stay open.
-- [ ] `device/retiring.hpp:58-65`, `commands.hpp:161`, `stagingring.cpp:21` — three queues with no stated limit.
-  Target: each asserts its bound.
-- [ ] `device/memory/image.hpp:134-136` — `Image::waitIdle` has no caller, and six hand-outs stamp `mRead` for it.
-  It goes.
-- [ ] `device/commands.cpp:49-53` — a watched submit that fails is logged and counted as run. Target: it is
-  reported failed.
-- [ ] `present/presenter.hpp:205-219` — five flags. Target: one enum and the suboptimal latch.
 - [ ] `vulkanrenderer.cpp:81-100` and each owner's `bytesAt` — the frame's reserve is a second composition of what
   `createTargets` makes, held equal by three tests. Target: an owner states one list of descriptions an extent and
   mode; its constructor makes from it and the reserve sums it, as `FsrUpscaler::Targets` does.
@@ -1126,12 +1119,6 @@ display,gui}`, `frametracer`, `picturetracer`, `vulkanrenderer`, `components/myg
   four things. Target: `make(extent)`, `place(run)`, `release()`.
 - [ ] `trace/spritebin.cpp:47-65`, `gui/guidrawer.cpp:59`, `display/displaychain.cpp:242` — device allocations that
   can land on a frame. Target: the sprite tables sized from the scene's counts at hand-over.
-- [ ] Dead: `DenoiseHistory::release()`, `Ngx::OptimalSettings::mMin/mMax`, `PresentFence`'s
-  `VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT`. `myguirtx/texture.cpp:91-104` ignores a lock's access: a contract
-  on `Write`. `sharedtexture.hpp:41`, `paintedmirror.hpp:35` hold a `ref_ptr` to a source their headers say the
-  caller owns: a reference.
-- [ ] `docs/architecture.md:561` describes an `auto` upscaler that falls back to FSR; the code has none. The
-  document is corrected.
 - [ ] Tests: the graveyard has none of its own (an off-thread burial, the buried count); a shed after an idle
   collect; `device/readstamp.cpp:69` and `slottable.cpp:413` release a held submit from a thread that sleeps;
   `present/presenter.cpp:251` asserts a wall time.
@@ -1248,6 +1235,16 @@ Files: `components/rtx/{common,scene,renderer,mirror}`, `apps/components_tests/r
 ## Changed
 
 Items that landed in another shape than their target, each with how and why.
+
+- Batch 9's presenter: `Fit` (matches, stale, lost) and the `Suboptimal` latch in place of four flags, and
+  `mRemade` stays a flag of its own, a fact beside the fit. A watched submit that fails ends as a device that failed,
+  with no test, since no test can lose a device; the retiring ring, the deferred recordings and the staging blocks
+  each assert a stated bound.
+
+- Batch 9's dead code: `DenoiseHistory::release`, NGX's range and the exclusive mode's loss go, and a GUI texture's
+  lock is held to writing. `SharedTexture` keeps its `ref_ptr`: a picture decoded for the interface is held by the
+  mirror alone (`MyGUIPlatform::shareTexture`), so its header was wrong and now says so; `PaintedMirror` keeps its
+  own beside it, its callers' pictures their members.
 
 - Batch 8's caches: `BudgetedObjectCache` is the fork's, its budget a reference; upstream's `GenericObjectCache` is
   upstream's text but for what the lint asks of it, and counts no loads or reloads again, so

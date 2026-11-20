@@ -576,7 +576,8 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
 - **`DisplayChain`**: bloom, exposure, glare, tone, debug lines. The glare fader and Night-Eye's lift come after the
   curve, as the rasterizer adds them, with `[Video] gamma`; the GUI draws after it.
 - **`Upscaler` is FSR's passes from AMD's headers or DLSS Ray Reconstruction** through the driver's NGX and the player's
-  library: `auto` takes RR where every fact holds and falls back to FSR; an explicit `dlss` refused fails the start.
+  library, chosen by `[RTX] upscaler` (`off`, `fsr` by default, `dlss`); a `dlss` refused fails the start. Refused:
+  an `auto` that falls back, which would choose for the player what a setting states.
 - **DLSS means Ray Reconstruction**; Super Resolution is gone, as the RR guide says where RR runs SR does not.
 - **RR's guides come from one pass**, as RTX Remix hands them, and it traces at the extents NGX gives the mode.
 - **What a move makes again is one answer, `FrameTracer::movesTo`**, handed to the renderer, the chain and FSR.
