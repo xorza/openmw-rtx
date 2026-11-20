@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <mutex>
 #include <string>
@@ -12,6 +13,14 @@
 
 namespace Rtx
 {
+    /// A content file's stamp, and the time it was last written, which a record of it is held against
+    /// (`SourceIndex::find`).
+    struct FileStamp
+    {
+        std::uint64_t mStamp = 0;
+        std::filesystem::file_time_type mModified{};
+    };
+
     /// What stands for a content file's version without reading it: the game's answers out of the
     /// virtual file system, the archive or folder that holds the file and its time (`ContentPreparation`).
     /// A stamp that moves is a file read again; one that lies costs a preparation it skipped, and
@@ -22,7 +31,7 @@ namespace Rtx
         virtual ~FileStamps() = default;
 
         /// `path`'s stamp, or nought where nothing stands at it. Safe from any thread.
-        virtual std::uint64_t stampOf(VFS::Path::NormalizedView path) = 0;
+        virtual FileStamp stampOf(VFS::Path::NormalizedView path) = 0;
     };
 
     /// Another's stamps, each path's asked of it once and kept: a preparation names a file under many
@@ -37,7 +46,7 @@ namespace Rtx
         {
         }
 
-        std::uint64_t stampOf(VFS::Path::NormalizedView path) override;
+        FileStamp stampOf(VFS::Path::NormalizedView path) override;
 
     private:
         /// A map a `std::string_view` finds an entry of with no string made.
@@ -49,6 +58,6 @@ namespace Rtx
 
         FileStamps& mSource;
         std::mutex mMutex;
-        std::unordered_map<std::string, std::uint64_t, NameHash, std::equal_to<>> mKept;
+        std::unordered_map<std::string, FileStamp, NameHash, std::equal_to<>> mKept;
     };
 }

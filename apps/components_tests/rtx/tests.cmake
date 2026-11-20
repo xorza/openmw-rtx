@@ -72,6 +72,7 @@ target_sources(
         rtx/preprocess/passversions.cpp
         rtx/preprocess/shape/creasesplit.cpp
         rtx/preprocess/shape/shapefold.cpp
+        rtx/preprocess/sourceindex.cpp
         rtx/renderer/framedescriber.cpp
         rtx/renderer/frameimage.cpp
         rtx/renderer/frametimehistogram.cpp

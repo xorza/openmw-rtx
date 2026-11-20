@@ -82,7 +82,7 @@ namespace Rtx
             for (const std::string& name : names)
             {
                 digest.add(std::span<const char>(name));
-                digest.add(stamps.stampOf(VFS::Path::NormalizedView(name.c_str())));
+                digest.add(stamps.stampOf(VFS::Path::NormalizedView(name.c_str())).mStamp);
             }
             return digest.getKey().mHash[0];
         }

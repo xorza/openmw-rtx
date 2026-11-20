@@ -2,7 +2,7 @@
 
 namespace Rtx
 {
-    std::uint64_t KeptStamps::stampOf(const VFS::Path::NormalizedView path)
+    FileStamp KeptStamps::stampOf(const VFS::Path::NormalizedView path)
     {
         const std::string_view name = path.value();
         {
@@ -13,7 +13,7 @@ namespace Rtx
 
         // Asked outside the lock, so the threads stamp side by side; two that ask one path at once
         // both ask it, and keep the one stamp.
-        const std::uint64_t stamp = mSource.stampOf(path);
+        const FileStamp stamp = mSource.stampOf(path);
         const std::scoped_lock lock(mMutex);
         mKept.emplace(name, stamp);
         return stamp;

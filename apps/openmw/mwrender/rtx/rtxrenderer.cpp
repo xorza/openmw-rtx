@@ -87,6 +87,7 @@
 
 #include "classmasks.hpp"
 #include "contentmodels.hpp"
+#include "headersources.hpp"
 #include "rtxsettings.hpp"
 #include "rtxsupport.hpp"
 #include "screenwait.hpp"
@@ -318,15 +319,17 @@ namespace MWRender
         // The device keeps a texture's copy, and the host its texels only until the device has it: what the renderer
         // asks of a file is derived where a loader first reads it.
         // Held first, so a manager handed again is taken back from before it is handed the derivation, not after.
+        mDerivesHeaders.reset();
+        mHeaderSources = std::make_unique<HeaderSources>(*resources.getVFS(), *mDerivation,
+            mContentStore != nullptr ? std::optional(mContentStore->getDirectory() / "sources.index") : std::nullopt);
         mDerivesHeaders.reset(resources.getImageManager());
-        resources.getImageManager()->setModelImages(Resource::ModelImages::Headers,
-            [derivation = mDerivation.get()](const osg::Image& texels) { return derivation->derive(texels); });
+        resources.getImageManager()->setModelImages(Resource::ModelImages::Headers, mHeaderSources.get());
         setAutoMaps(scene);
     }
 
     void RtxRenderer::TakesDerivationBack::operator()(Resource::ImageManager* const images) const noexcept
     {
-        images->setModelImages(Resource::ModelImages::Texels, {});
+        images->setModelImages(Resource::ModelImages::Texels, nullptr);
     }
 
     void RtxRenderer::setAutoMaps(Resource::SceneManager& scene)

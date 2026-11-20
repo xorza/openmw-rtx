@@ -4,6 +4,7 @@
 #include <latch>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -41,6 +42,27 @@
 namespace
 {
     using namespace testing;
+
+    /// A deriver that knows what a test hands it of every file, and counts each read it is handed.
+    class CountedDeriver final : public Resource::HeaderDeriver
+    {
+    public:
+        Resource::HeaderLookup find(VFS::Path::NormalizedView) override
+        {
+            return Resource::HeaderLookup{ .mFound = mKnown, .mStamp = 7 };
+        }
+
+        osg::ref_ptr<const osg::Referenced> derive(const Read& read) override
+        {
+            EXPECT_EQ(read.mStamp, 7u) << "the stamp `find` answered";
+            mDerived.fetch_add(1);
+            return mCarried;
+        }
+
+        std::optional<Resource::HeaderFound> mKnown;
+        osg::ref_ptr<const osg::Referenced> mCarried = new osg::Referenced;
+        std::atomic<std::uint32_t> mDerived = 0;
+    };
 
     TEST(ResourceResourceSystem, scenemanager_getinstance_should_be_thread_safe)
     {
@@ -142,9 +164,9 @@ namespace
         EXPECT_FALSE(Resource::isHeader(*texels)) << "texels, where models keep them";
         EXPECT_EQ(texels->getTotalSizeInBytesIncludingMipmaps(), 48u);
 
-        const osg::ref_ptr<const osg::Referenced> carried = new osg::Referenced;
-        images.setModelImages(Resource::ModelImages::Headers,
-            [&](const osg::Image&) { return osg::ref_ptr<const osg::Referenced>(carried); });
+        CountedDeriver deriver;
+        const osg::ref_ptr<const osg::Referenced>& carried = deriver.mCarried;
+        images.setModelImages(Resource::ModelImages::Headers, &deriver);
         const osg::ref_ptr<osg::Image> header = images.getModelImage(path);
         ASSERT_TRUE(Resource::isHeader(*header));
         EXPECT_EQ(header->data(), nullptr);
@@ -179,6 +201,53 @@ namespace
         EXPECT_EQ(images.getModelImage(VFS::Path::NormalizedView("textures/none.dds")), images.getWarningImage());
     }
 
+    /// **A file the deriver knows is a header with no read of it**: the shape it answers, 16 by 4 in DXT5 with two
+    /// levels at offset 64, stands on the header as handed, carrying what was derived, and nothing is read or derived;
+    /// a file it does not know is read and derived, the shape the file's.
+    TEST(ResourceResourceSystem, a_file_the_deriver_knows_is_a_header_with_no_read)
+    {
+        TestingOpenMW::VFSTestFile file(Rtx::Testing::ddsDxt1(8, 8, 3, 0x55));
+        constexpr VFS::Path::NormalizedView known("textures/known.dds");
+        constexpr VFS::Path::NormalizedView unknown("textures/unknown.dds");
+        const std::unique_ptr<VFS::Manager> vfs
+            = TestingOpenMW::createTestVFS({ { known, &file }, { unknown, &file } });
+        const ToUTF8::Utf8Encoder encoder(ToUTF8::WINDOWS_1252);
+        Resource::ResourceSystem resources(vfs.get(), 1.0, &encoder.getStatelessEncoder());
+        Resource::ImageManager& images = *resources.getImageManager();
+
+        CountedDeriver deriver;
+        const Resource::HeaderShape shape{ .mWidth = 16,
+            .mHeight = 4,
+            .mDepth = 1,
+            .mInternalFormat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT,
+            .mPixelFormat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT,
+            .mDataType = GL_UNSIGNED_BYTE,
+            .mPacking = 1,
+            .mRowLength = 0,
+            .mOrigin = osg::Image::TOP_LEFT,
+            .mMipmaps = { 64 } };
+        const osg::ref_ptr<const osg::Referenced> derived = new osg::Referenced;
+        deriver.mKnown = Resource::HeaderFound{ .mShape = shape, .mDerived = derived };
+        images.setModelImages(Resource::ModelImages::Headers, &deriver);
+
+        const osg::ref_ptr<osg::Image> header = images.getModelImage(known);
+        ASSERT_TRUE(Resource::isHeader(*header));
+        EXPECT_EQ(Resource::shapeOf(*header), shape);
+        EXPECT_EQ(header->getFileName(), known.value());
+        EXPECT_EQ(&static_cast<const Resource::ImageHeader&>(*header).derived<osg::Referenced>(), derived.get());
+        EXPECT_EQ(deriver.mDerived.load(), 0u) << "a known file derived";
+        EXPECT_EQ(resources.getCacheBudget().getHeld(), 0u) << "a known file read";
+
+        deriver.mKnown.reset();
+        const osg::ref_ptr<osg::Image> read = images.getModelImage(unknown);
+        ASSERT_TRUE(Resource::isHeader(*read));
+        EXPECT_EQ(read->s(), 8);
+        EXPECT_EQ(read->getNumMipmapLevels(), 3u);
+        EXPECT_EQ(deriver.mDerived.load(), 1u);
+        EXPECT_EQ(resources.getCacheBudget().getHeld(), 48u) << "the file read for its header";
+        images.setModelImages(Resource::ModelImages::Texels, nullptr);
+    }
+
     /// **A file eight loaders meet at once is derived once** (`ImageManager::getModelImage`): each takes the one
     /// header, and the deriver ran for one of them, the others waiting on its load or finding its header filed.
     TEST(ResourceResourceSystem, a_file_loaders_meet_at_once_is_derived_once)
@@ -189,11 +258,8 @@ namespace
         const ToUTF8::Utf8Encoder encoder(ToUTF8::WINDOWS_1252);
         Resource::ResourceSystem resources(vfs.get(), 1.0, &encoder.getStatelessEncoder());
         Resource::ImageManager& images = *resources.getImageManager();
-        std::atomic<std::uint32_t> derived = 0;
-        images.setModelImages(Resource::ModelImages::Headers, [&](const osg::Image&) {
-            derived.fetch_add(1);
-            return osg::ref_ptr<const osg::Referenced>(new osg::Referenced);
-        });
+        CountedDeriver deriver;
+        images.setModelImages(Resource::ModelImages::Headers, &deriver);
 
         constexpr std::size_t sLoaders = 8;
         std::latch start(sLoaders);
@@ -207,7 +273,7 @@ namespace
                     headers[at] = images.getModelImage(path);
                 });
         }
-        EXPECT_EQ(derived.load(), 1u) << "a file derived by more than one loader";
+        EXPECT_EQ(deriver.mDerived.load(), 1u) << "a file derived by more than one loader";
         for (const osg::ref_ptr<osg::Image>& header : headers)
             EXPECT_EQ(header, headers[0]) << "two headers of one file";
         ASSERT_NE(headers[0], nullptr);

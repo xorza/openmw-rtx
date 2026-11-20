@@ -31,7 +31,6 @@
 #include <apps/openmw/mwworld/cell.hpp>
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/weather.hpp>
-#include <components/contentstore/key.hpp>
 #include <components/contentstore/store.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/refid.hpp>
@@ -56,7 +55,6 @@
 #include <components/rtx/mirror/released.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/prepare/contentpreparation.hpp>
-#include <components/rtx/prepare/filestamps.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
@@ -80,6 +78,7 @@
 #include "classmasks.hpp"
 #include "mirrorknobs.hpp"
 #include "tracedgroundcover.hpp"
+#include "vfsstamps.hpp"
 
 namespace MWRender
 {
@@ -110,33 +109,6 @@ namespace MWRender
 
         private:
             Resource::SceneManager& mScenes;
-        };
-
-        /// A file's stamp as the virtual file system holds it: the archive or folder that holds it and
-        /// its time, so a file a later folder shadows, an archive rebuilt and a loose file written each
-        /// move it (`Rtx::FileStamps`).
-        class VfsStamps final : public Rtx::FileStamps
-        {
-        public:
-            explicit VfsStamps(const VFS::Manager& vfs)
-                : mVfs(vfs)
-            {
-            }
-
-            std::uint64_t stampOf(VFS::Path::NormalizedView path) override
-            {
-                if (!mVfs.exists(path))
-                    return 0;
-                const std::string archive = mVfs.getArchive(VFS::Path::Normalized(path));
-                const auto time = mVfs.getLastModified(path).time_since_epoch().count();
-                ContentStore::Digest digest("stamp", 1);
-                digest.add(std::span<const char>(archive));
-                digest.add(time);
-                return digest.getKey().mHash[0];
-            }
-
-        private:
-            const VFS::Manager& mVfs;
         };
 
         /// Which child the ring's day-night switches show: the game's mode, whose value is the

@@ -679,6 +679,7 @@ target_sources(
         mwrender/rtx/contentmodels.cpp
         mwrender/rtx/debugwalk.cpp
         mwrender/rtx/framereader.cpp
+        mwrender/rtx/headersources.cpp
         mwrender/rtx/frametimer.cpp
         mwrender/rtx/rippleemitters.cpp
         mwrender/rtx/rtxbackend.cpp
@@ -696,6 +697,7 @@ target_sources(
         mwrender/rtx/tracedterrain.cpp
         mwrender/rtx/traceclocks.cpp
         mwrender/rtx/tracedview.cpp
+        mwrender/rtx/vfsstamps.cpp
         mwrender/rtx/viewqueue.cpp
         mwrender/rtx/worldmirror.cpp
         mwrender/sceneframe.cpp
@@ -777,6 +779,7 @@ target_sources(
                 mwrender/rtx/framereader.hpp
                 mwrender/rtx/framereport.hpp
                 mwrender/rtx/frametimer.hpp
+                mwrender/rtx/headersources.hpp
                 mwrender/rtx/mirrorknobs.hpp
                 mwrender/rtx/pendingpaints.hpp
                 mwrender/rtx/rippleemitters.hpp
@@ -795,6 +798,7 @@ target_sources(
                 mwrender/rtx/tracedterrain.hpp
                 mwrender/rtx/traceclocks.hpp
                 mwrender/rtx/tracedview.hpp
+                mwrender/rtx/vfsstamps.hpp
                 mwrender/rtx/viewqueue.hpp
                 mwrender/rtx/viewschedule.hpp
                 mwrender/rtx/worldmirror.hpp

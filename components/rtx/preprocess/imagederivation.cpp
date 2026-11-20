@@ -24,7 +24,7 @@ namespace Rtx
         assert(mFree.size() == mMade && "a derivation outlived by one still deriving");
     }
 
-    osg::ref_ptr<const osg::Referenced> ImageDerivation::derive(const osg::Image& texels)
+    osg::ref_ptr<const HeaderDerived> ImageDerivation::derive(const osg::Image& texels)
     {
         std::unique_ptr<ContentPreprocessor> preprocessor;
         {
@@ -42,7 +42,7 @@ namespace Rtx
             preprocessor = std::make_unique<ContentPreprocessor>(mStore, ContentStore::Reach::Disk);
 
         // From the texels in hand, before the manager makes the header: the read is this one.
-        const osg::ref_ptr<const osg::Referenced> derived = new HeaderDerived(preprocessor->derive(texels));
+        const osg::ref_ptr<const HeaderDerived> derived = new HeaderDerived(preprocessor->derive(texels));
         // **The scratch given back after each**, which a pool of idle preprocessors would otherwise hold for the
         // session at the largest file each met.
         preprocessor->letGoTexelScratch();

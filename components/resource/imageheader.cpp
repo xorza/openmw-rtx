@@ -11,19 +11,32 @@
 
 namespace Resource
 {
-    ImageHeader::ImageHeader(
-        const osg::Image& pixels, ImageManager& source, osg::ref_ptr<const osg::Referenced> derived)
+    HeaderShape shapeOf(const osg::Image& image)
+    {
+        return HeaderShape{ .mWidth = image.s(),
+            .mHeight = image.t(),
+            .mDepth = image.r(),
+            .mInternalFormat = image.getInternalTextureFormat(),
+            .mPixelFormat = image.getPixelFormat(),
+            .mDataType = image.getDataType(),
+            .mPacking = image.getPacking(),
+            .mRowLength = image.getRowLength(),
+            .mOrigin = image.getOrigin(),
+            .mMipmaps = image.getMipmapLevels() };
+    }
+
+    ImageHeader::ImageHeader(const HeaderShape& shape, const std::string& fileName, ImageManager& source,
+        osg::ref_ptr<const osg::Referenced> derived)
         : mSource(&source)
         , mDerived(std::move(derived))
     {
-        assert(!pixels.getFileName().empty() && "a header of an image no file names, which nothing can read again");
-        setFileName(pixels.getFileName());
+        assert(!fileName.empty() && "a header of an image no file names, which nothing can read again");
+        setFileName(fileName);
         // No texels, and nothing to delete: the size, the format and the levels' offsets describe the file's.
-        setImage(pixels.s(), pixels.t(), pixels.r(), pixels.getInternalTextureFormat(), pixels.getPixelFormat(),
-            pixels.getDataType(), nullptr, osg::Image::NO_DELETE, static_cast<std::int32_t>(pixels.getPacking()),
-            pixels.getRowLength());
-        setMipmapLevels(pixels.getMipmapLevels());
-        setOrigin(pixels.getOrigin());
+        setImage(shape.mWidth, shape.mHeight, shape.mDepth, shape.mInternalFormat, shape.mPixelFormat, shape.mDataType,
+            nullptr, osg::Image::NO_DELETE, static_cast<std::int32_t>(shape.mPacking), shape.mRowLength);
+        setMipmapLevels(shape.mMipmaps);
+        setOrigin(shape.mOrigin);
     }
 
     ImageHeader::ImageHeader(const ImageHeader& copy, const osg::CopyOp& op)

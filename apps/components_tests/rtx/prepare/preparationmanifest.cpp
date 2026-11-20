@@ -90,19 +90,19 @@ namespace Rtx
         {
             struct Counted final : FileStamps
             {
-                std::uint64_t stampOf(VFS::Path::NormalizedView path) override
+                FileStamp stampOf(VFS::Path::NormalizedView path) override
                 {
                     ++mAsked;
-                    return path.value().size() + 40;
+                    return FileStamp{ .mStamp = path.value().size() + 40 };
                 }
                 std::size_t mAsked = 0;
             };
             Counted source;
             KeptStamps kept(source);
-            EXPECT_EQ(kept.stampOf(VFS::Path::NormalizedView("textures/a.dds")), 54u);
-            EXPECT_EQ(kept.stampOf(VFS::Path::NormalizedView("textures/a.dds")), 54u);
-            EXPECT_EQ(kept.stampOf(VFS::Path::NormalizedView("meshes/b.nif")), 52u);
-            EXPECT_EQ(kept.stampOf(VFS::Path::NormalizedView("textures/a.dds")), 54u);
+            EXPECT_EQ(kept.stampOf(VFS::Path::NormalizedView("textures/a.dds")).mStamp, 54u);
+            EXPECT_EQ(kept.stampOf(VFS::Path::NormalizedView("textures/a.dds")).mStamp, 54u);
+            EXPECT_EQ(kept.stampOf(VFS::Path::NormalizedView("meshes/b.nif")).mStamp, 52u);
+            EXPECT_EQ(kept.stampOf(VFS::Path::NormalizedView("textures/a.dds")).mStamp, 54u);
             EXPECT_EQ(source.mAsked, 2u);
         }
 
@@ -184,7 +184,7 @@ namespace Rtx
         /// Every file stamped `mStamp`, which a test moves to say a file changed.
         struct FixedStamps final : FileStamps
         {
-            std::uint64_t stampOf(VFS::Path::NormalizedView) override { return mStamp; }
+            FileStamp stampOf(VFS::Path::NormalizedView) override { return FileStamp{ .mStamp = mStamp }; }
             std::uint64_t mStamp = 5;
         };
 
@@ -238,7 +238,7 @@ namespace Rtx
         {
             struct Install final : FileStamps
             {
-                std::uint64_t stampOf(VFS::Path::NormalizedView) override { return mStamp; }
+                FileStamp stampOf(VFS::Path::NormalizedView) override { return FileStamp{ .mStamp = mStamp }; }
                 std::uint64_t mStamp = 0;
             };
             Install stamps;

@@ -99,10 +99,10 @@ namespace Rtx
                 return std::exchange(mLetGo, {});
             }
 
-            std::uint64_t stampOf(VFS::Path::NormalizedView path) override
+            FileStamp stampOf(VFS::Path::NormalizedView path) override
             {
                 const auto found = mStamps.find(std::string(path.value()));
-                return found != mStamps.end() ? found->second : 1;
+                return FileStamp{ .mStamp = found != mStamps.end() ? found->second : 1 };
             }
 
             std::map<std::string, std::uint64_t> mStamps;

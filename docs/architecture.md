@@ -152,6 +152,13 @@ What the game reads from files (`components/resource`), changed for the handheld
   which reads the file to key what the store holds; facts made at a material's first ask, which read the file again
   once the texels went; four fact passes, four entries a file, each read at its own ask, which the first read asks
   anyway; a preprocessor a thread (`thread_local`), global state no owner bounds.
+- **A file whose stamp stands is a header with no read of it** (`Rtx::SourceIndex`, `MWRender::HeaderSources`): every
+  source texture's shape and derivation are kept by its path and its stamp in one file beside the store, so a session
+  whose files stood as they were reads none of them to load a model, as Git's index answers a file whose stat stands.
+  A record of a file no older than the index's own write is not trusted, as Git treats a racily clean entry
+  ([racy-git](https://git-scm.com/docs/racy-git)), and a file is stamped before it is read. Refused: the records in
+  the preparation's manifest, which the preparation writes whole while the loaders file as they read; a key of the
+  file's bytes, which reads them.
 - **Residency plans every texture, and the device stands what it is told** (`Rtx::Residency`, `ResidencyDevice`),
   by the user's decision: a texture's level follows its want, its tier and the arena's cap, the least protected and the
   most bytes lowered first, each to a floor of 64 texels a side, as Unreal's streamer takes a level off the textures

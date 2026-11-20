@@ -92,6 +92,7 @@ namespace MyGUIRtx
 
 namespace MWRender
 {
+    class HeaderSources;
     class TracedView;
     enum class ViewKind;
 
@@ -512,6 +513,10 @@ namespace MWRender
 
         /// Whether a camera the builder refused has already been reported (`refuseEye`).
         bool mComplained = false;
+
+        /// The headers the image manager is handed (`HeaderSources`), made with the resources: their records written
+        /// as they go, after the image manager has taken them back (`mDerivesHeaders`).
+        std::unique_ptr<HeaderSources> mHeaderSources;
 
         /// Takes the header derivation back from the image manager it was handed to.
         struct TakesDerivationBack

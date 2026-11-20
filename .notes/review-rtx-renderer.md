@@ -1109,9 +1109,6 @@ Files: `components/rtx/preprocess/` (all), `components/rtx/prepare/`, `component
 `components/resource/{imagemanager,imageheader}`, `components/rtx/mirror/{meshreader,meshresolver}`,
 `apps/openmw/mwrender/rtx/{worldmirror,contentmodels}`, `components/detournavigator/navmeshtilestore.cpp`.
 
-- [ ] `SourceIndex` in the preparation's manifest, as specified; `ImageManager::getModelImage` makes a header from
-  a record whose stamp holds (`components/resource/imagemanager.cpp:224-250`). A record newer than the manifest's
-  write is not trusted. The read of every source texture a session ends.
 - [ ] **(upstream, approved)** `components/resource/scenemanager.{hpp,cpp}` — a model deriver beside
   `ImageManager::setModelImages`' header deriver, called once a template after its load and before any other thread
   sees it. `Rtx::ModelDerivation` finds or makes each drawable's fold and keeps it on the drawable; `geometryBytes`
@@ -1514,6 +1511,10 @@ Items that landed in another shape than their target, each with how and why.
   the images that hold their own texels, which a model embeds and no header derives; `ImageDerivation` keeps lending
   its preprocessors, since one made a load would allocate its passes at every file a loader reads. A store kind is a
   number apart from the pass's place (`sStoreKinds`), so the made chains kept their kind.
+- `SourceIndex` is a file of its own beside the store, not the preparation's manifest: the loaders file records as
+  they read, on their own threads, while the preparation writes its manifest whole on its own. The deriver is an
+  interface (`Resource::HeaderDeriver::find`, `derive`) that `MWRender::HeaderSources` stands behind, its records
+  keyed by path and stamp, four a path, a month unnamed dropped, and a file stamped before it is read.
 - The store's refusal reads the delete's answer and says a failed one, but still deletes by path: naming the digest
   it refused changes `Store::discard`, which the navigator's tile store calls from an upstream file this item was not
   approved for. A late refusal over a fresh write of the same key costs that entry's miss at the next ask.

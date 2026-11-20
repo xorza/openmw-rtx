@@ -192,6 +192,7 @@ openmw_rtx_layer(
         preprocess/shape/pockettree.cpp
         preprocess/shape/shapefold.cpp
         preprocess/shape/shapepass.cpp
+        preprocess/sourceindex.cpp
         preprocess/texelreads.cpp
         preprocess/texture/chainadmission.cpp
         preprocess/texture/chainpass.cpp
@@ -215,6 +216,7 @@ openmw_rtx_layer(
         preprocess/shape/probetable.hpp
         preprocess/shape/shapefold.hpp
         preprocess/shape/shapepass.hpp
+        preprocess/sourceindex.hpp
         preprocess/texelreads.hpp
         preprocess/texture/chainadmission.hpp
         preprocess/texture/chainpass.hpp
