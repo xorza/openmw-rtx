@@ -79,13 +79,10 @@ namespace Rtx
         std::vector<Entry> entriesOf(std::string_view model) const;
 
         /// The digest of `model`'s entry whose files stand as they did when it was walked, and whose every
-        /// entry its walk made `store` holds: a shape read whole into the store's memory, where the frame,
-        /// which reaches nothing else, finds it (`ContentStore::Reach::Memory`); every other entry by its file
-        /// (`ContentStore::holds`, one `stat` an entry, which stamps it). Nothing where no entry stands. Safe
-        /// from any thread while nothing files an entry.
-        /// @param scratch what a shape is read into, the caller's to keep.
+        /// entry its walk made `store` holds by its file (`ContentStore::holds`, one trailer read an entry). Nothing
+        /// where no entry stands. Safe from any thread while nothing files an entry.
         std::optional<std::uint64_t> standingDigest(
-            std::string_view model, FileStamps& stamps, ContentStore::Store& store, Misc::ByteBuffer& scratch) const;
+            std::string_view model, FileStamps& stamps, ContentStore::Store& store) const;
 
         /// Files `entry` under `model`, named on `day`: over the entry of its digest where `model` has one, and
         /// beside its others, the least recently named dropped past `sEntriesPerModelMost`.

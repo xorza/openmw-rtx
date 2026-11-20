@@ -207,10 +207,9 @@ namespace RtxTool
             const ContentStore::Stats& store = *walked.mStore;
             out
                 += (std::format("  store   {:>7} found, {:>7} missed, {:>7} written, {:>7} dropped, "
-                                "{:>7} refused, {:>7} stamped, {:>7} stale, {:>7} outdated, {:>7} past the memory's "
-                                "caps\n",
-                    store.mFound, store.mMissed, store.mWritten, store.mDropped, store.mRefused, store.mStamped,
-                    store.mStale, store.mOutdated, store.mUnheldInMemory));
+                                "{:>7} refused, {:>7} stale, {:>7} outdated\n",
+                    store.mFound, store.mMissed, store.mWritten, store.mDropped, store.mRefused, store.mStale,
+                    store.mOutdated));
         }
 
         if (walked.mAgain.has_value())

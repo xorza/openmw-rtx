@@ -27,7 +27,7 @@ namespace Rtx
     struct TextureHands::Hand
     {
         explicit Hand(ContentStore::Store* store)
-            : mContent(store, ContentStore::Reach::Disk, ChainRuns::WithinMemory)
+            : mContent(store, ChainRuns::WithinMemory)
         {
         }
 

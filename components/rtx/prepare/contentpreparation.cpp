@@ -15,7 +15,6 @@
 #include <components/contentstore/store.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/misc/bytebuffer.hpp>
 #include <components/misc/hash.hpp>
 #include <components/misc/result.hpp>
 #include <components/platform/heap.hpp>
@@ -46,7 +45,7 @@ namespace Rtx
     struct ContentPreparation::Hand
     {
         explicit Hand(ContentStore::Store& store)
-            : mContent(&store, ContentStore::Reach::Disk)
+            : mContent(&store)
             , mWalk(nullptr)
         {
         }
@@ -57,9 +56,6 @@ namespace Rtx
         PreparedModel mModel;
         std::vector<std::string> mFiles;
         std::vector<StoredKey> mKeys;
-
-        /// What a stored shape is read into as its model is found standing (`standingDigest`).
-        Misc::ByteBuffer mStood;
 
         /// Its number among the threads, which the dispatcher knows it by.
         std::size_t mIndex = 0;
@@ -352,8 +348,7 @@ namespace Rtx
         hand.mFiles.clear();
         hand.mMet.clear();
         hand.mMetBytes = 0;
-        if (const std::optional<std::uint64_t> stood
-            = mManifest.standingDigest(nameOf(at), mStamps, mStore, hand.mStood))
+        if (const std::optional<std::uint64_t> stood = mManifest.standingDigest(nameOf(at), mStamps, mStore))
         {
             mStood[at] = stood;
             return;

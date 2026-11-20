@@ -23,7 +23,7 @@ namespace Rtx
     struct ModelDerivation::Hand
     {
         explicit Hand(ContentStore::Store* store)
-            : mContent(store, ContentStore::Reach::Disk)
+            : mContent(store)
         {
         }
 

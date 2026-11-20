@@ -1,7 +1,5 @@
-#include <chrono>
 #include <cstdint>
 #include <filesystem>
-#include <memory>
 
 #include <gtest/gtest.h>
 
@@ -39,7 +37,6 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/resource/sptfilemanager.hpp>
-#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
@@ -186,67 +183,34 @@ namespace MWRender
             mirror.mirror(world.frame(3), view);
         }
 
-        /// **The sea is prepared with the content, so the frame's thread finds its shape**: the frame asks
-        /// the store's memory alone, and the sea stands in no file a model's walk reads. A first session's
-        /// preparation folds and files it, a later one's reads its file, and a session that prepared
-        /// nothing finds it nowhere, though its file stands.
-        TEST(RtxWorldMirrorTest, theSeaIsPreparedSoTheFramesThreadFindsItsShape)
+        /// **The frame's thread asks the store nothing**: the sea, which stands in no model, is folded where the frame
+        /// reads it, its one ask no hit, and the store the mirror was made with is neither read nor written.
+        TEST(RtxWorldMirrorTest, theFramesThreadAsksTheStoreNothing)
         {
-            // Emptied first, as this binary's `main` appends no `FreshTestDirs`: a repeat's cold session
-            // found the store the first pass filled.
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             std::filesystem::remove_all(folder);
-            const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({});
-            Resource::ResourceSystem resources(vfs.get(), 5.0, nullptr);
             TwoBodyFrame world;
             world.mRoot->removeChildren(0, world.mRoot->getNumChildren());
             const osg::Matrixd view = osg::Matrixd::identity();
 
-            struct Session
-            {
-                Rtx::PassStats mLoading;
-                Rtx::PassStats mFrame;
-            };
-            const auto session = [&](bool prepared) {
-                ContentStore::Store store(folder, Rtx::sContentStorePolicy);
-                Rtx::SceneIdentities identities;
-                WorldMirror mirror(MWRender::MirrorKnobs{}, &store, identities);
-                Session counted;
-                if (prepared)
-                {
-                    mirror.startPreparing(resources, {}, {}, 1);
-                    EXPECT_TRUE(mirror.awaitPreparing(std::chrono::milliseconds::zero()).isDone()) << "nothing to walk";
-                    counted.mLoading = mirror.finishPreparing().at(Rtx::ContentPassId::Shape);
-                    // The store waited out, as a start waits it out under its screen before its first frame.
-                    std::uint32_t asks = 0;
-                    while (!mirror.awaitStored(std::chrono::milliseconds(1)).isDone() && ++asks < 60000)
-                    {
-                    }
-                    EXPECT_LT(asks, 60000u) << "the store never took what the preparation handed it";
-                }
-                world.mWorld.mWater.mEnabled = true;
-                counted.mFrame
-                    = mirror.mirror(world.frame(1), view).mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Shape);
+            ContentStore::Store store(folder, Rtx::sContentStorePolicy);
+            store.flush();
+            Rtx::SceneIdentities identities;
+            WorldMirror mirror(MWRender::MirrorKnobs{}, &store, identities);
+            world.mWorld.mWater.mEnabled = true;
+            const Rtx::PassStats frame
+                = mirror.mirror(world.frame(1), view).mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Shape);
+            EXPECT_EQ(frame.mAsked, 1u) << "the sea";
+            EXPECT_EQ(frame.mHits, 0u);
+            EXPECT_EQ(frame.mKeyBytes, 0u) << "a key made for no store";
 
-                // A mirror goes standing nothing.
-                world.mWorld.mWater.mEnabled = false;
-                mirror.mirror(world.frame(2), view);
-                return counted;
-            };
-
-            const Session cold = session(true);
-            EXPECT_EQ(cold.mLoading.mAsked, 1u);
-            EXPECT_EQ(cold.mLoading.mHits, 0u);
-            EXPECT_EQ(cold.mFrame.mAsked, 1u);
-            EXPECT_EQ(cold.mFrame.mHits, 1u) << "the frame folded what the preparation filed";
-
-            const Session warm = session(true);
-            EXPECT_EQ(warm.mLoading.mHits, 1u) << "the preparation did not read the sea's file";
-            EXPECT_EQ(warm.mFrame.mHits, 1u);
-
-            const Session unprepared = session(false);
-            EXPECT_EQ(unprepared.mFrame.mAsked, 1u);
-            EXPECT_EQ(unprepared.mFrame.mHits, 0u) << "the frame's thread reached the disk";
+            // A mirror goes standing nothing.
+            world.mWorld.mWater.mEnabled = false;
+            mirror.mirror(world.frame(2), view);
+            store.flush();
+            const ContentStore::Stats asked = store.getStats();
+            EXPECT_EQ(asked.mFound + asked.mMissed, 0u) << "the frame read the store";
+            EXPECT_EQ(asked.mWritten, 0u) << "the frame wrote the store";
         }
 
         /// **The player is the one thing a mirror leaves out on a question about the eye.** Every

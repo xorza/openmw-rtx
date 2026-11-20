@@ -28,9 +28,8 @@ namespace Rtx
     {
         /// @param store the process's store, or null for none (`ContentCache`).
         /// @param reach where this thread's asks may reach in it: memory alone on the frame's.
-        explicit ThreadContent(
-            ContentStore::Store* store = nullptr, ContentStore::Reach reach = ContentStore::Reach::Memory)
-            : mPreprocessor(store, reach)
+        explicit ThreadContent(ContentStore::Store* store = nullptr)
+            : mPreprocessor(store)
         {
         }
 

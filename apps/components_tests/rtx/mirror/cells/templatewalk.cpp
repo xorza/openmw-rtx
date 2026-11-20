@@ -344,7 +344,7 @@ namespace Rtx::Testing
             root->addChild(makeQuad());
 
             ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
-            ThreadContent content(&store, ContentStore::Reach::Disk);
+            ThreadContent content(&store);
             TemplateWalk walk(nullptr);
             std::vector<StoredKey> keys;
             content.mPreprocessor.collectKeys(&keys);

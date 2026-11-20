@@ -271,8 +271,8 @@ namespace MWRender
             Log(Debug::Info) << "Rtx: the content store found " << store.mFound << " entries and missed "
                              << store.mMissed << ", held " << store.mHeld << " of " << store.mHeld + store.mUnheld
                              << " asked whether it held them; wrote " << store.mWritten << ", dropped "
-                             << store.mDropped << ", refused " << store.mRefused << ", stamped " << store.mStamped
-                             << " and swept " << store.mStale << " temporaries";
+                             << store.mDropped << ", refused " << store.mRefused << ", and swept " << store.mStale
+                             << " temporaries and " << store.mOutdated << " outdated entries";
         }
     }
 

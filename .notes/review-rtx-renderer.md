@@ -1109,19 +1109,6 @@ Files: `components/rtx/preprocess/` (all), `components/rtx/prepare/`, `component
 `components/resource/{imagemanager,imageheader}`, `components/rtx/mirror/{meshreader,meshresolver}`,
 `apps/openmw/mwrender/rtx/{worldmirror,contentmodels}`, `components/detournavigator/navmeshtilestore.cpp`.
 
-- [ ] **(upstream, approved)** `components/resource/scenemanager.{hpp,cpp}` — a model deriver beside
-  `ImageManager::setModelImages`' header deriver, called once a template after its load and before any other thread
-  sees it. `Rtx::ModelDerivation` finds or makes each drawable's fold and keeps it on the drawable; `geometryBytes`
-  counts it. About ten lines upstream.
-- [ ] `components/rtx/mirror/meshreader.cpp:641`, `cells/templatewalk.cpp` — a fold the store's memory lacks is made
-  on the frame, and its write dropped, every session; the reader and the walk are two readers of a fold. Target: both
-  read it off the drawable; a drawable with none is a request to a worker and stands when it returns; `Reach` goes.
-  Read first: that a deformed drawable's clone shares the source geometry the fold is kept on
-  (`components/sceneutil/clone.cpp:52-66`).
-- [ ] `components/contentstore/store.cpp:605-617` and its callers — the store's memory (`mResident`, `Holding`,
-  `mAtAnySize`, `mStamped`, `StampTask`, `ranks`), `PreparationManifest::standingDigest`'s read of every shape at a
-  start (`preparationmanifest.cpp:256`), and `prepareSea` (`worldmirror.cpp:254`) have no reader once the frame asks
-  nothing. They go.
 - [ ] `pp/texture/chainadmission.cpp:16`, `worldmirror.cpp:240` — play's chain misses are admitted a chain against
   the system's free memory, each hand alone, and the preparation's budget is read once. Target: one sum over the
   hands against a figure the arbiter derives (batch 8; the system's own until then).
@@ -1515,12 +1502,16 @@ Items that landed in another shape than their target, each with how and why.
   they read, on their own threads, while the preparation writes its manifest whole on its own. The deriver is an
   interface (`Resource::HeaderDeriver::find`, `derive`) that `MWRender::HeaderSources` stands behind, its records
   keyed by path and stamp, four a path, a month unnamed dropped, and a file stamped before it is read.
-- The store's refusal reads the delete's answer and says a failed one, but still deletes by path: naming the digest
-  it refused changes `Store::discard`, which the navigator's tile store calls from an upstream file this item was not
-  approved for. A late refusal over a fresh write of the same key costs that entry's miss at the next ask.
-- The store's sweep of outdated versions is asked by its owner's `Policy::mVersions`, the ray tracer's stating
-  `sContentPassVersions`; the navigator's tile store states none, its policy standing in an upstream file this item
-  was not approved for, so its outdated tiles stay until a change there is.
+- The store's refusal reads the delete's answer and says a failed one, but still deletes by path: a late refusal over
+  a fresh write of the same key costs that entry's miss at the next ask, where naming the digest would carry it
+  through every owner's `discard`.
+- The model deriver is some thirty lines upstream, not ten: what a deriver keeps is counted through an interface of
+  `Resource`'s own (`DerivedBytes`), since `geometryBytes` cannot name the renderer's fold. A kept fold is held against
+  the key of what a read reads, and **a clone whose parts the game moves folds itself where it is read**, on the frame
+  for an actor, rather than as a request to a worker: a template cannot know the moves an animation adds, and the
+  frame's folds came to 86 shapes and 4.9 ms over the frames at `seyda-neen-ship` in the debug build, against the
+  222 MiB of shapes the store's memory held for them. The navigator's tile store is the fork's own file, so its calls
+  dropped the reach and it states its version to the store's sweep.
 - Batch 5's moves out of a draining slab took the same slot again until the copy share ran out: a slot given back
   stayed live until the hand-over's epoch was known. It now leaves the ledger at once (`SlotLedger::leave`), which
   the handheld's Repack tour found, an assert in debug and a GPU timer never written in release.

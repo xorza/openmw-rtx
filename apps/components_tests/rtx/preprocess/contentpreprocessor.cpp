@@ -244,9 +244,10 @@ namespace Rtx
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             {
                 ContentStore::Store store(folder, sContentStorePolicy);
-                ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+                ContentPreprocessor content(&store);
                 std::vector<std::uint32_t> kept;
                 foldCard(content, kept);
+                store.flush();
                 kept.clear();
                 EXPECT_TRUE(foldCard(content, kept).mSheet);
                 EXPECT_EQ(kept, (std::vector<std::uint32_t>{ 0, 1, 2, 0, 2, 3 }));
@@ -257,7 +258,7 @@ namespace Rtx
             }
 
             ContentStore::Store next(folder, sContentStorePolicy);
-            ContentPreprocessor reader(&next, ContentStore::Reach::Disk);
+            ContentPreprocessor reader(&next);
             std::vector<std::uint32_t> kept;
             EXPECT_TRUE(foldCard(reader, kept).mSheet);
             EXPECT_EQ(kept, (std::vector<std::uint32_t>{ 0, 1, 2, 0, 2, 3 }));
@@ -450,9 +451,8 @@ namespace Rtx
         constexpr std::uint64_t sFinestKeyBytes = sizeof(ContentStore::Key);
 
         /// **A pass the store keeps is found again**: the facts asked twice through a store are run once and found
-        /// once, keyed both times on what they read, and answer the same, one entry written; and a later session's
-        /// frame thread, whose reach is memory alone, finds them in a store made on the same folder, which held them
-        /// from its start.
+        /// once, keyed both times on what they read, and answer the same, one entry written; and a later session finds
+        /// them in a store made on the same folder.
         TEST(RtxContentPreprocessorTest, aStoredPassIsFoundAgainInThisSessionAndTheNext)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
@@ -461,8 +461,9 @@ namespace Rtx
             const MeanTexel direct = meanTexel(*describeFinest(*painted, scratch), scratch);
             {
                 ContentStore::Store store(folder, sContentStorePolicy);
-                ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+                ContentPreprocessor content(&store);
                 const ImageFacts run = content.facts(*painted);
+                store.flush();
                 const ImageFacts found = content.facts(*painted);
                 EXPECT_EQ(run.mMean.mColour, direct.mColour);
                 EXPECT_EQ(found.mMean.mColour, direct.mColour);
@@ -482,7 +483,7 @@ namespace Rtx
 
             ContentStore::Store next(folder, sContentStorePolicy);
             next.flush();
-            ContentPreprocessor frame(&next, ContentStore::Reach::Memory);
+            ContentPreprocessor frame(&next);
             const ImageFacts found = frame.facts(*painted);
             EXPECT_EQ(found.mMean.mColour, direct.mColour);
             EXPECT_EQ(found.mMean.mAlpha, direct.mAlpha);
@@ -499,13 +500,13 @@ namespace Rtx
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
             const ChainPass::Input input{ .mImage = *painted, .mEncoding = TextureEncoding::Normal };
-            ContentPreprocessor alone(nullptr, ContentStore::Reach::Disk);
+            ContentPreprocessor alone(nullptr);
             const std::optional<MadeChain> made = Testing::chainOf(alone, input);
             ASSERT_TRUE(made.has_value());
             ASSERT_FALSE(made->mBytes.empty());
             {
                 ContentStore::Store store(folder, sContentStorePolicy);
-                ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+                ContentPreprocessor content(&store);
                 ASSERT_TRUE(content.prepareChain(input));
                 const PassStats stats = content.takeStats().at(ContentPassId::Chain);
                 EXPECT_EQ(stats.mHits, 0u) << "the store lacked it, so it ran";
@@ -513,7 +514,7 @@ namespace Rtx
             }
 
             ContentStore::Store next(folder, sContentStorePolicy);
-            ContentPreprocessor content(&next, ContentStore::Reach::Disk);
+            ContentPreprocessor content(&next);
             ASSERT_TRUE(content.prepareChain(input));
             EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 1u) << "a stored ask read what it made";
 
@@ -596,14 +597,15 @@ namespace Rtx
             digest.add(hashFile(*painted, scratch));
             const Misc::ByteBuffer broken{ std::byte{ 1 }, std::byte{ 2 }, std::byte{ 3 } };
             store.write(ContentStore::Filed{ .mKey = digest.getKey(),
-                            .mKind = storeKindOf(ContentPassId::FileFacts),
-                            .mVersion = FileFactsPass::sVersion,
-                            .mPayload = broken,
-                            .mSegmentEnds = {} },
-                ContentStore::Reach::Disk);
+                .mKind = storeKindOf(ContentPassId::FileFacts),
+                .mVersion = FileFactsPass::sVersion,
+                .mPayload = broken,
+                .mSegmentEnds = {} });
+            store.flush();
 
-            ContentPreprocessor content(&store, ContentStore::Reach::Memory);
+            ContentPreprocessor content(&store);
             const ImageFacts first = content.facts(*painted);
+            store.flush();
             const ImageFacts second = content.facts(*painted);
             EXPECT_EQ(second.mMean.mColour, first.mMean.mColour);
             EXPECT_EQ(second.mMean.mAlpha, first.mMean.mAlpha);
@@ -615,8 +617,8 @@ namespace Rtx
             store.flush();
             Misc::ByteBuffer filed;
             ContentStore::Store next(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
-            ASSERT_TRUE(next.read(digest.getKey(), storeKindOf(ContentPassId::FileFacts), FileFactsPass::sVersion,
-                ContentStore::Reach::Disk, filed));
+            ASSERT_TRUE(
+                next.read(digest.getKey(), storeKindOf(ContentPassId::FileFacts), FileFactsPass::sVersion, filed));
             EXPECT_EQ(filed.size(), 32u) << "the broken file stood";
         }
 
@@ -660,15 +662,16 @@ namespace Rtx
                 ContentStore::Store store(
                     TestingOpenMW::currentTestDirPath() / ("store" + std::to_string(at)), sContentStorePolicy);
                 store.write(ContentStore::Filed{ .mKey = digest.getKey(),
-                                .mKind = storeKindOf(ContentPassId::Shape),
-                                .mVersion = ShapePass::sVersion,
-                                .mPayload = payload,
-                                .mSegmentEnds = {} },
-                    ContentStore::Reach::Disk);
-                ContentPreprocessor content(&store, ContentStore::Reach::Memory);
+                    .mKind = storeKindOf(ContentPassId::Shape),
+                    .mVersion = ShapePass::sVersion,
+                    .mPayload = payload,
+                    .mSegmentEnds = {} });
+                store.flush();
+                ContentPreprocessor content(&store);
                 std::vector<std::uint32_t> run;
                 foldCard(content, run);
                 EXPECT_EQ(run, (std::vector<std::uint32_t>{ 0, 1, 2, 0, 2, 3 })) << misfit.mName;
+                store.flush();
                 foldCard(content, run);
                 EXPECT_EQ(run, (std::vector<std::uint32_t>{ 0, 1, 2, 0, 2, 3 })) << misfit.mName;
                 const PassStats stats = content.takeStats().at(ContentPassId::Shape);
@@ -709,7 +712,7 @@ namespace Rtx
 
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             ContentStore::Store store(folder, sContentStorePolicy);
-            ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+            ContentPreprocessor content(&store);
             TexelScratch scratch;
             ContentStore::Digest digest(sContentPasses.name(ContentPassId::Chain), ChainPass::sVersion);
             digest.add(hashFile(*single, scratch));
@@ -738,7 +741,7 @@ namespace Rtx
             Misc::ByteBuffer madeBytes;
             const std::byte* buffer = nullptr;
             {
-                ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+                ContentPreprocessor content(&store);
                 PooledChain made;
                 ASSERT_TRUE(content.chain(input, 0, pool, {}, made));
                 EXPECT_EQ(made.mForm, ChainForm::Bc7);
@@ -753,7 +756,7 @@ namespace Rtx
 
             ContentStore::Store next(folder, sContentStorePolicy);
             next.flush();
-            ContentPreprocessor content(&next, ContentStore::Reach::Disk);
+            ContentPreprocessor content(&next);
             PooledChain found;
             ASSERT_TRUE(content.chain(input, 0, pool, {}, found));
             EXPECT_EQ(found.mForm, ChainForm::Bc7);
@@ -815,15 +818,14 @@ namespace Rtx
                 MadeChain{ .mForm = ChainForm::Bc7, .mBytes = Misc::ByteBuffer(std::size_t{ 200 } << 10) }, payload);
             ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
             store.write(ContentStore::Filed{ .mKey = digest.getKey(),
-                            .mKind = storeKindOf(ContentPassId::Chain),
-                            .mVersion = ChainPass::sVersion,
-                            .mPayload = payload,
-                            .mSegmentEnds = {} },
-                ContentStore::Reach::Disk);
+                .mKind = storeKindOf(ContentPassId::Chain),
+                .mVersion = ChainPass::sVersion,
+                .mPayload = payload,
+                .mSegmentEnds = {} });
             store.flush();
 
             BufferPool pool(std::size_t{ 1 } << 20);
-            ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+            ContentPreprocessor content(&store);
             PooledChain made;
             ASSERT_TRUE(content.chain(input, 0, pool, {}, made));
             EXPECT_EQ(made.mForm, ChainForm::Bc7);
@@ -877,20 +879,20 @@ namespace Rtx
                 ContentStore::Store store(
                     TestingOpenMW::currentTestDirPath() / ("store" + std::to_string(at)), sContentStorePolicy);
                 store.write(ContentStore::Filed{ .mKey = digest.getKey(),
-                                .mKind = storeKindOf(ContentPassId::Chain),
-                                .mVersion = ChainPass::sVersion,
-                                .mPayload = payload,
-                                .mSegmentEnds = {} },
-                    ContentStore::Reach::Disk);
-                ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+                    .mKind = storeKindOf(ContentPassId::Chain),
+                    .mVersion = ChainPass::sVersion,
+                    .mPayload = payload,
+                    .mSegmentEnds = {} });
+                store.flush();
+                ContentPreprocessor content(&store);
                 for (std::int32_t ask = 0; ask < 2; ++ask)
                 {
                     const std::optional<MadeChain> made = Testing::chainOf(content, input);
                     ASSERT_TRUE(made.has_value()) << misfit.mName;
                     EXPECT_EQ(made->mForm, ChainForm::Bc7) << misfit.mName;
                     EXPECT_EQ(made->mBytes.size(), 112u) << misfit.mName;
+                    store.flush();
                 }
-                store.flush();
                 const PassStats stats = content.takeStats().at(ContentPassId::Chain);
                 EXPECT_EQ(stats.mAsked, 2u) << misfit.mName;
                 EXPECT_EQ(stats.mHits, 1u) << misfit.mName << ": the second, from the run's output";
@@ -934,7 +936,7 @@ namespace Rtx
         TEST(RtxContentCacheTest, aKeptShapeIsHandedBackWhole)
         {
             ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
-            ContentCache cache(&store, ContentStore::Reach::Disk);
+            ContentCache cache(&store);
             const ShapePass::Input input{ .mPositions = sCard, .mTriangles = sDoubled, .mSplits = true };
             const ContentStore::Key key{ .mHash = { 1, 2 } };
 
@@ -945,6 +947,7 @@ namespace Rtx
             std::vector<std::uint32_t> sources;
             const ShapePass::Output output{ .mKept = kept, .mNormals = normals, .mSources = sources };
             cache.keep<ShapePass>(key, input, output);
+            store.flush();
 
             std::vector<std::uint32_t> foundKept;
             std::vector<osg::Vec3f> foundNormals;

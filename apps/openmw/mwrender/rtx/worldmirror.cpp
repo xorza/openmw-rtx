@@ -51,7 +51,6 @@
 #include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
-#include <components/rtx/mirror/nodekind.hpp>
 #include <components/rtx/mirror/released.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/prepare/contentpreparation.hpp>
@@ -166,7 +165,7 @@ namespace MWRender
     WorldMirror::WorldMirror(
         const MirrorKnobs& knobs, ContentStore::Store* const store, Rtx::SceneIdentities& identities)
         : mStore(store)
-        , mWalk{ .mContent{ store, ContentStore::Reach::Memory } }
+        , mWalk{ .mContent{} }
         , mScene(identities, Rtx::sWorldRoom)
         , mKnobs(knobs)
         , mExtractor(mScene, mWalk, Rtx::sWorldExtractorRoom, Rtx::HoldTier::Shown)
@@ -220,20 +219,6 @@ namespace MWRender
             if (!available.has_value())
                 return std::nullopt;
             return *available - std::min(*available, sPreparationReserve);
-        }
-
-        /// What reading `sea` through the disk cost: its shape found in `store` or folded and filed there,
-        /// and held in the store's memory either way. As the frame's walk reads it, standing in no model.
-        Rtx::ContentStats prepareSea(ContentStore::Store& store, const osg::Geometry& sea)
-        {
-            Rtx::ContentPreprocessor content(&store, ContentStore::Reach::Disk);
-            Rtx::MeshReader reader;
-            Rtx::MeshReading reading;
-            [[maybe_unused]] const Result<Rtx::MeshRead, std::string> read
-                = reader.read(content, Rtx::readDrawable(sea, Rtx::NodeKind::Other, {}), nullptr, reading);
-            assert(read.isOk() && "the sea's own plane does not read");
-            assert(read.value() == Rtx::MeshRead::Triangles && "the sea's own plane holds no triangle");
-            return content.takeStats();
         }
     }
 
@@ -290,10 +275,7 @@ namespace MWRender
         if (!mPreparing->mRun.finish())
             Log(Debug::Warning) << "The content's preparation could not write its manifest";
 
-        // The sea as well: no file holds it so no model's walk reads it, and the frame's thread, whose asks
-        // reach the store's memory alone, folded it again every session.
-        Rtx::ContentStats stats = mPreparing->mRun.getStats();
-        stats += prepareSea(*mStore, *mSea->getChild(0)->asGeometry());
+        const Rtx::ContentStats stats = mPreparing->mRun.getStats();
 
         // The wall against the threads' CPU says whether they waited, and the passes say on what the CPU went.
         const Rtx::PreparationTimes times = mPreparing->mRun.getTimes();

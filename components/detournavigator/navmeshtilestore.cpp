@@ -25,7 +25,8 @@ namespace DetourNavigator
         /// The store's one kind: a tile.
         constexpr std::uint32_t sTileKind = 0;
 
-        constexpr ContentStore::Policy sTilePolicy{ .mKindCount = 1, .mHolding = std::nullopt };
+        constexpr std::array<std::uint32_t, 1> sTileVersions{ NavMeshTileStore::sTileVersion };
+        constexpr ContentStore::Policy sTilePolicy{ .mKindCount = 1, .mVersions = sTileVersions };
 
         /// The most an LZ4 block expands by: a literal run of one byte and a match of 255 at a time.
         constexpr std::size_t sLz4ExpansionMost = 255;
@@ -119,7 +120,7 @@ namespace DetourNavigator
     std::unique_ptr<PreparedNavMeshData> NavMeshTileStore::read(const ContentStore::Key& key)
     {
         Misc::ByteBuffer payload;
-        if (!mStore.read(key, sTileKind, sTileVersion, ContentStore::Reach::Disk, payload))
+        if (!mStore.read(key, sTileKind, sTileVersion, payload))
             return nullptr;
 
         // The payload is what this store wrote, its digest checked, so a payload that does not read is one a
@@ -154,18 +155,17 @@ namespace DetourNavigator
 
     bool NavMeshTileStore::holds(const ContentStore::Key& key)
     {
-        return mStore.holds(key, sTileKind, ContentStore::Reach::Disk);
+        return mStore.holds(key, sTileKind);
     }
 
     void NavMeshTileStore::write(const ContentStore::Key& key, const PreparedNavMeshData& data)
     {
         const std::vector<std::byte> packed = Misc::compress(serialize(data));
         mStore.write(ContentStore::Filed{ .mKey = key,
-                         .mKind = sTileKind,
-                         .mVersion = sTileVersion,
-                         .mPayload = Misc::ByteBuffer(packed.begin(), packed.end()),
-                         .mSegmentEnds = {} },
-            ContentStore::Reach::Disk);
+            .mKind = sTileKind,
+            .mVersion = sTileVersion,
+            .mPayload = Misc::ByteBuffer(packed.begin(), packed.end()),
+            .mSegmentEnds = {} });
     }
 
     void NavMeshTileStore::flush()

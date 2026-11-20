@@ -347,14 +347,16 @@ filled on the loading screen (`research/2026-11-08-normal-map-chains.md`).
   level, its form's byte last, so a range of its levels can be read and checked alone, as KTX 2 indexes its levels.
   Refused: the kind read off each file's trailer at the start; one digest over the payload, which a ranged read
   cannot check.
-- **One store, in a component of its own**, which any owner may hold one of, with its kinds and residency stated by the
-  owner (`ContentStore::Policy`).
+- **One store, in a component of its own**, which any owner may hold one of, with its kinds and their versions stated
+  by the owner (`ContentStore::Policy`).
 - **The navigator's tiles in the content store** (`DetourNavigator::NavMeshTileStore`), by the user's decision, shared
   by every profile: a tile is keyed by everything Recast builds it from by value, so whatever moves a triangle keys a
   new tile, and a version a test holds stands for the code. Refused: SQLite; a key of model paths and transforms, which
   read one pose back for every pose (`research/2026-11-10-navmesh-cache.md`).
-- **The frame reaches the store's memory alone** (`ContentStore::Reach`), so no frame waits on the disk. Refused: a file
-  read on the frame's thread.
+- **The frame asks the store nothing, and the store holds nothing in memory**: what a frame needs of the content rides
+  what it reads, a fold on its geometry and the facts on its header, so every ask is a loader's and reaches the disk.
+  Refused: the store's memory for the frame, which held every shape at any size and the newest small entries, 222 MiB
+  of shapes and 87 MiB of the rest on the Fullrest Repack, loaded at every start; a file read on the frame's thread.
 - **No size cap**, by the user's decision: an evicted entry is one play computes.
 - **Every normal and data map's chain is rebuilt, and a colour file keeps its own**, by the user's decision: data maps'
   shipped chains are often wrong below level 0, colour chains rarely.

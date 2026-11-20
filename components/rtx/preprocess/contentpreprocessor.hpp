@@ -59,24 +59,10 @@ namespace Rtx
         return versions;
     }();
 
-    /// The ray tracer's store: a pass a kind, held in memory where small, so the frame's thread finds a
-    /// fact without a wait on the disk, and a shape at any size, since a shape the frame misses it folds and
-    /// splits again, about 140 large ones a session at the ship, 58 ms of frames.
-    ///
-    /// **512 MiB held**: the largest content measured, the Fullrest Repack, reaches 222 MiB of shapes on the frame and
-    /// a store's small entries came to 87 MiB; twice their sum, for the larger lists to come. **2^20 entries held and
-    /// 2^20 keys stamped**: ten times the files a large content list's store holds, its writes included. The tables'
-    /// buckets at these caps cost some 16 MiB under libstdc++ and 32 MiB under MSVC's, which keeps two pointers a
-    /// bucket; sized by the bytes alone, the held table took 2^24 buckets for the 9,586,980 entries of no payload
-    /// they could hold, 80 MiB and 272 MiB.
+    /// The ray tracer's store: a kind a pass, each at its version, and nothing held in memory: a geometry carries its
+    /// fold (`ModelFold`) and a header its facts, so the frame asks the store for nothing.
     inline constexpr ContentStore::Policy sContentStorePolicy{
         .mKindCount = sStoreKindCount,
-        .mHolding = ContentStore::Holding{
-            .mAtAnySize = std::uint64_t{ 1 } << storeKindOf(ContentPassId::Shape),
-            .mResidentBytesMost = std::size_t{ 512 } << 20,
-            .mResidentCountMost = std::size_t{ 1 } << 20,
-            .mStampedMost = std::size_t{ 1 } << 20,
-        },
         .mVersions = sStoreKindVersions,
     };
 
@@ -116,8 +102,7 @@ namespace Rtx
         ///        computes every ask.
         /// @param reach where this thread's asks may reach in it.
         /// @param runs which chains and conversions it makes where the store holds none.
-        explicit ContentPreprocessor(ContentStore::Store* store = nullptr,
-            ContentStore::Reach reach = ContentStore::Reach::Memory, ChainRuns runs = ChainRuns::Always);
+        explicit ContentPreprocessor(ContentStore::Store* store = nullptr, ChainRuns runs = ChainRuns::Always);
 
         ContentPreprocessor(const ContentPreprocessor&) = delete;
         ContentPreprocessor& operator=(const ContentPreprocessor&) = delete;

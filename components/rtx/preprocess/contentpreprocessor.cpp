@@ -95,40 +95,20 @@ namespace Rtx
         if (!opened.has_value())
             return false;
 
-        // **The form's byte, the last segment, first**: it says what the levels are laid as. An entry the store holds
-        // in memory is one segment, read whole, its form the last byte.
+        // **The form's byte, the last segment, first**: it says what the levels are laid as, a segment each before it.
         const std::uint32_t segments = opened->getSegmentCount();
-        const auto entryBytes = static_cast<std::size_t>(opened->endOf(segments - 1));
-        const bool whole = segments == 1 && entryBytes > 1;
         const std::uint32_t last = segments - 1;
         std::array<std::byte, 1> form{};
-        const std::size_t payloadBytes = entryBytes;
-        std::optional<PooledBuffer> buffer;
-        if (whole)
+        if (opened->endOf(last) - opened->startOf(last) != form.size())
         {
-            // **Checked against the file's layouts before a buffer is taken for it**: an entry is untrusted, and one
-            // that fills no form's layout would otherwise size a take.
-            const bool fillsAForm = std::ranges::any_of(
-                std::array{ ChainForm::Stands, ChainForm::Bc7, ChainForm::Own }, [&](const ChainForm form) {
-                    return fillsLayout(Pass::madeLayout(input, form), form, payloadBytes - 1);
-                });
-            if (!fillsAForm)
-            {
-                mCache.discard<Pass>(key);
-                return false;
-            }
-            buffer = pool.take(payloadBytes, stop);
-            if (!buffer.has_value() || !mCache.readSegments(*opened, 0, 1, buffer->bytes()))
-                return false;
-            form[0] = buffer->bytes().back();
-            buffer->truncate(payloadBytes - 1);
+            mCache.discard<Pass>(key);
+            return false;
         }
-        else if (opened->endOf(last) - opened->startOf(last) != form.size()
-            || !mCache.readSegments(*opened, last, 1, form))
+        if (!mCache.readSegments(*opened, last, 1, form))
             return false;
 
         const auto stored = std::to_integer<std::uint8_t>(form[0]);
-        const std::size_t levelBytes = payloadBytes - 1;
+        const auto levelBytes = static_cast<std::size_t>(opened->startOf(last));
         if (stored > static_cast<std::uint8_t>(ChainForm::Own)
             || !fillsLayout(
                 Pass::madeLayout(input, static_cast<ChainForm>(stored)), static_cast<ChainForm>(stored), levelBytes))
@@ -142,16 +122,15 @@ namespace Rtx
         made.mFirst = 0;
         if (levelBytes == 0)
             return true;
-        if (!whole)
-        {
-            // **A segment a level, read from the first asked**, the finer ones left on the disk: a texture planned
-            // coarser than its file reads none of what it leaves out. Its last level at the most.
-            const std::uint32_t from = std::min<std::uint32_t>(first, last - 1);
-            buffer = pool.take(static_cast<std::size_t>(opened->endOf(last - 1) - opened->startOf(from)), stop);
-            if (!buffer.has_value() || !mCache.readSegments(*opened, from, last - from, buffer->bytes()))
-                return false;
-            made.mFirst = static_cast<std::uint8_t>(from);
-        }
+
+        // **A segment a level, read from the first asked**, the finer ones left on the disk: a texture planned coarser
+        // than its file reads none of what it leaves out. Its last level at the most.
+        const std::uint32_t from = std::min<std::uint32_t>(first, last - 1);
+        std::optional<PooledBuffer> buffer
+            = pool.take(static_cast<std::size_t>(opened->endOf(last - 1) - opened->startOf(from)), stop);
+        if (!buffer.has_value() || !mCache.readSegments(*opened, from, last - from, buffer->bytes()))
+            return false;
+        made.mFirst = static_cast<std::uint8_t>(from);
         made.mBytes = std::move(*buffer);
         return true;
     }
@@ -256,9 +235,8 @@ namespace Rtx
         return runPooled(mConversion, input, first, pool, stop, made);
     }
 
-    ContentPreprocessor::ContentPreprocessor(
-        ContentStore::Store* const store, const ContentStore::Reach reach, const ChainRuns runs)
-        : mCache(store, reach)
+    ContentPreprocessor::ContentPreprocessor(ContentStore::Store* const store, const ChainRuns runs)
+        : mCache(store)
         , mChainRuns(runs)
     {
     }

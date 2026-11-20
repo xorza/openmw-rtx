@@ -23,7 +23,7 @@ namespace ContentStore
 {
     namespace
     {
-        constexpr Policy sPolicy{ .mKindCount = 1, .mHolding = std::nullopt };
+        constexpr Policy sPolicy{ .mKindCount = 1 };
         constexpr Key sKey{ { 0x0123456789abcdefull, 0xfedcba9876543210ull } };
 
         /// An entry's tail: its one segment's record, 24 bytes whose first eight are the segment's end, and its
@@ -37,10 +37,8 @@ namespace ContentStore
         std::filesystem::path writeEntry(const std::filesystem::path& folder)
         {
             Store store(folder, sPolicy);
-            store.write(
-                Filed{
-                    .mKey = sKey, .mKind = 0, .mVersion = 1, .mPayload = Misc::ByteBuffer(5000), .mSegmentEnds = {} },
-                Reach::Disk);
+            store.write(Filed{
+                .mKey = sKey, .mKind = 0, .mVersion = 1, .mPayload = Misc::ByteBuffer(5000), .mSegmentEnds = {} });
             store.flush();
             return store.pathOf(sKey, 0);
         }
@@ -77,7 +75,7 @@ namespace ContentStore
             ASSERT_EQ(std::filesystem::file_size(path), past + sTailBytes);
 
             Store store(folder, sPolicy);
-            EXPECT_FALSE(store.open(sKey, 0, 1, Reach::Disk).has_value());
+            EXPECT_FALSE(store.open(sKey, 0, 1).has_value());
             EXPECT_FALSE(std::filesystem::exists(path));
             EXPECT_EQ(store.getStats().mRefused, 1u);
         }
@@ -94,13 +92,13 @@ namespace ContentStore
             std::filesystem::permissions(path, std::filesystem::perms::none);
 
             Store store(folder, sPolicy);
-            EXPECT_FALSE(store.open(sKey, 0, 1, Reach::Disk).has_value());
+            EXPECT_FALSE(store.open(sKey, 0, 1).has_value());
             EXPECT_TRUE(std::filesystem::exists(path));
             EXPECT_EQ(store.getStats().mRefused, 0u);
             EXPECT_EQ(store.getStats().mMissed, 1u);
 
             std::filesystem::permissions(path, std::filesystem::perms::owner_all);
-            EXPECT_TRUE(store.open(sKey, 0, 1, Reach::Disk).has_value()) << "the entry stands for the next ask";
+            EXPECT_TRUE(store.open(sKey, 0, 1).has_value()) << "the entry stands for the next ask";
         }
     }
 }

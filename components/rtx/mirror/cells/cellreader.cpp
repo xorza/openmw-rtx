@@ -91,7 +91,7 @@ namespace Rtx
         , mGroundcover(world.mGroundcover)
         , mStatics(world.mStatics)
         , mGround(*Crash::notNull(world.mGround, "a reader of a world with no land"), world.mWorldspace)
-        , mComputed(world.mStore, ContentStore::Reach::Disk)
+        , mComputed(world.mStore)
         , mWalk(world.mAbove)
         , mCollector(mStorage.makeCollector())
     {

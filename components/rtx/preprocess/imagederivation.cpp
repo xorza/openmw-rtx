@@ -39,7 +39,7 @@ namespace Rtx
                 ++mMade;
         }
         if (preprocessor == nullptr)
-            preprocessor = std::make_unique<ContentPreprocessor>(mStore, ContentStore::Reach::Disk);
+            preprocessor = std::make_unique<ContentPreprocessor>(mStore);
 
         // From the texels in hand, before the manager makes the header: the read is this one.
         const osg::ref_ptr<const HeaderDerived> derived = new HeaderDerived(preprocessor->derive(texels));
