@@ -1087,8 +1087,6 @@ Files: `components/rtx/mirror/cells/` (all), `components/rtx/mirror/sceneextract
 {rtxrenderer,worldmirror,tracedterrain,framereport}`, `apps/openmw/mwrender/{renderer.hpp,renderingmanager}`,
 `apps/openmw/mwworld/scene.cpp`, `apps/rtxtool/{stager,session}`, `apps/rtxtool/model/`.
 
-- [ ] `cellring.cpp:358-380` — the adoption's budget is a count. Target: steps of bounded cost under the frame's
-  share, resumable inside a cell (`AdoptCursor`); under a covered frame, a time slice in the settled order.
 - [ ] One room leg flown after land legs on the handheld says whether the land resting indoors is the rooms' 21
   against 51 ms.
 
@@ -1305,6 +1303,11 @@ Files: `components/rtx/{common,scene,renderer,mirror}`, `apps/components_tests/r
 
 Items that landed in another shape than their target, each with how and why.
 
+- Batch 7's wait stands the drawn reach and not the band: a covered frame counts the reach's cells left to stand
+  (`CellStreamer::getCellsToShow`), and a ground is held `Shown` inside the reach and `Hidden` in the band past it, so
+  the rim the band reads ahead is no demanded resident. Waiting out the band held every crossing of the handheld's
+  flight, its update's p99 from 47 to 118 ms on its first leg.
+
 - Batch 7's tests: the bound on reads ahead, a read whose band left while in hand, the eye indoors, a predicted band
   that goes, the tiers and the findings each have a test; a world change while a cell is read and the cells the game
   takes into its grid stood by one of the two were held already; `standWhole` over a renderer stands no backend in a
@@ -1519,3 +1522,7 @@ Items judged and not done, each with the reason.
 - Batch 7's targets made after content settles under a new mode's reserve: the frame's targets are essential and
   are made first, the set a mode leaves going before the new is made, and content's cap follows what stands outside it
   on the next frame; a settle under covered frames would hold a menu's change of mode for the same end.
+- Batch 7's adoption cut into resumable steps (`AdoptCursor`): on the handheld's Repack legs the walk, which holds a
+  cell's whole adoption, ran at a p99 of 4–16 ms against a median of 2–6 ms, under frame medians of 18–64 ms the card
+  sets; steps would split a cost that stays inside the frame's own tail, at the price of a cell held half adopted
+  across frames, which the placer's every check assumes never is.

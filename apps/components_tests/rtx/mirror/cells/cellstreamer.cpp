@@ -1728,10 +1728,12 @@ namespace Rtx::Testing
             EXPECT_FALSE(mRing.standsGround(osg::Vec2i(4, 4))) << "a held cell past the reach";
             EXPECT_FALSE(mRing.standsGround(osg::Vec2i(6, 0)));
 
-            // **A ground is held `Shown` inside the band a load waits on and `Kept` past it**: (4, 4) at
-            // `sqrt(3.5² + 3.5²) ≈ 4.95` cells is past the reach of four and inside the band of five.
+            // **A ground is held `Shown` inside the drawn reach, `Hidden` in the band past it and `Kept` past that**:
+            // (4, 4) at `sqrt(3.5² + 3.5²) ≈ 4.95` cells is past the reach of four and inside the band of five, and
+            // the cells to show are none.
             EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(0, 0)), HoldTier::Shown);
-            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(4, 4)), HoldTier::Shown);
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(4, 4)), HoldTier::Hidden);
+            EXPECT_EQ(mRing.getCellsToShow(), 0u);
 
             mAround.mReach += sCellSize;
             walk(mWalked++);
@@ -1739,16 +1741,18 @@ namespace Rtx::Testing
             EXPECT_GT(outer, 0u) << "the grown band asked for nothing";
             EXPECT_EQ(mRing.getHeldCellCount(), sPreparedCells + 1) << "and its walk adopted nothing new";
             EXPECT_TRUE(mRing.standsGround(osg::Vec2i(4, 4))) << "24.5 against 25 now";
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(4, 4)), HoldTier::Shown) << "inside the grown reach";
 
             // The grown band's nearest new cells are `sqrt(4.5² + 2.5²) ≈ 5.15` cells out, the first by the cell's
-            // order (-5, -3): adopted inside the band of six, then past the band of five and inside the six it keeps.
-            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(-5, -3)), HoldTier::Shown);
+            // order (-5, -3): adopted past the reach of five inside the band of six, then past the band of five and
+            // inside the six it keeps.
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(-5, -3)), HoldTier::Hidden);
             mAround.mReach -= sCellSize;
             walk(mWalked++);
             EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(-5, -3)), HoldTier::Kept);
             mAround.mReach += sCellSize;
             walk(mWalked++);
-            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(-5, -3)), HoldTier::Shown);
+            EXPECT_EQ(mRing.getGroundTier(osg::Vec2i(-5, -3)), HoldTier::Hidden);
 
             mAround.mExterior = false;
             walk(mWalked++);

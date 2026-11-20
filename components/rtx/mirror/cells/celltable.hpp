@@ -94,6 +94,18 @@ namespace Rtx
         std::vector<osg::Vec3f> mPredicted;
 
         bool operator==(const CellTarget& other) const = default;
+
+        /// Whether a band wants `cell` read, and whether one keeps it: what the table and the placer let go of by.
+        bool wants(const osg::Vec2i& cell) const { return within(cell, mBand); }
+        bool keeps(const osg::Vec2i& cell) const { return within(cell, mKept); }
+
+        /// The same of its groundcover, about the eye alone.
+        bool wantsGrass(const osg::Vec2i& cell) const { return nearEye(cell, mGrassBand); }
+        bool keepsGrass(const osg::Vec2i& cell) const { return nearEye(cell, mGrassKept); }
+
+        /// Whether `cell` is within `radius` of the eye, and of the eye or a predicted centre.
+        bool nearEye(const osg::Vec2i& cell, float radius) const;
+        bool within(const osg::Vec2i& cell, float radius) const;
     };
 
     /// What a retarget let go of that the frame knew: each still read and never adopted, the frame's holds on its

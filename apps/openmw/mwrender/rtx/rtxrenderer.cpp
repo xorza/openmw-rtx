@@ -664,9 +664,10 @@ namespace MWRender
             advance(getFrameStamp().getSimulationTime());
             report = FrameReport{};
             coverFrame(frame, view, report);
-            if (report.isWhole())
+            const std::uint32_t lacking = report.mCellsToShow + report.mResidency.mMissingDemanded.total();
+            if (lacking == 0 && report.mUpload.mKind == Rtx::SceneUpload::Kind::Placed)
                 return 0u;
-            return std::max(1u, report.mCellsToStand + report.mResidency.mMissingDemanded.total());
+            return std::max(1u, lacking);
         };
 
         // **A crossing whose band stands returns with no frame shown**, and a cut that stands at once with none either.
@@ -708,10 +709,10 @@ namespace MWRender
         {
             const Rtx::MissingDemanded& missing = report.mResidency.mMissingDemanded;
             Log(Debug::Warning) << std::format(
-                "Ray tracing showed the world with {} cells to stand, {} textures standing nothing ({} asked, {} come "
+                "Ray tracing showed the world with {} cells to show, {} textures standing nothing ({} asked, {} come "
                 "and waiting for room, {} files, {} bakes and {} composites not asked, {} made with no room) and {} "
                 "meshes ({} with no room) and a {} hand-over: {} s brought it no nearer",
-                report.mCellsToStand, missing.textures(), missing.mAsked, missing.mArrived, missing.mUnaskedFiles,
+                report.mCellsToShow, missing.textures(), missing.mAsked, missing.mArrived, missing.mUnaskedFiles,
                 missing.mUnaskedBakes, missing.mUnaskedComposites, missing.mUnaskedForRoom, missing.mMeshes,
                 missing.mMeshesForRoom, report.mUpload.mKind == Rtx::SceneUpload::Kind::Placed ? "placing" : "building",
                 std::chrono::duration_cast<std::chrono::seconds>(sStandWholePatience).count());
@@ -739,6 +740,8 @@ namespace MWRender
             report.mCellsToStand = mMirror.getRing().getCellsToStand();
             report.mResidency = mResidency->getReport();
         }
+
+        report.mCellsToShow = mMirror.getRing().getCellsToShow();
 
         mPhase.step(Phase::Tracing, Phase::Placing);
         mRenderer->skipFrame();

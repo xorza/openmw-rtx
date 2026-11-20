@@ -84,6 +84,11 @@ namespace Rtx
         /// not.
         std::uint32_t getCellsToStand() const;
 
+        /// How many cells of the drawn reach the last walk left unheld: what a frame shows the world without, which the
+        /// world's wait under the loading screen waits out (`MWRender::RtxRenderer::standWhole`). The band past the
+        /// reach streams on behind it, hidden.
+        std::uint32_t getCellsToShow() const;
+
         /// Whether a cell under the square from `low` to `high`, world units on the plane, is in the
         /// band the last walk asked over and not yet held: a picture of the ground there taken now
         /// shows the cell's objects on nothing. False where the last walk stood nothing.
@@ -168,8 +173,8 @@ namespace Rtx
         /// band's tier, and counts the eye's band's cells against what the placer holds.
         void retarget(const CellTarget& target);
 
-        /// The tier a cell's ground is held at under the last target: `Shown` in the eye's band, `Hidden` in a
-        /// predicted band, `Kept` past both.
+        /// The tier a cell's ground is held at under the last target: `Shown` in the drawn reach, `Hidden` in a band
+        /// past it, the eye's or a predicted one, `Kept` past every band.
         HoldTier tierOf(const osg::Vec2i& cell) const;
 
         /// Forgets the target with the band's counts made from it, for a walk that stands nothing:

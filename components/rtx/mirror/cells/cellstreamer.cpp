@@ -90,6 +90,16 @@ namespace Rtx
         mSettled = settled;
     }
 
+    std::uint32_t CellStreamer::getCellsToShow() const
+    {
+        if (!mAsked.has_value())
+            return 0;
+        std::uint32_t lacking = 0;
+        mAsked->mGrid.forEachCellWithin(
+            mAsked->mEye, mAround.mReach, [&](const osg::Vec2i& cell) { lacking += mPlacer.holds(cell) ? 0u : 1u; });
+        return lacking;
+    }
+
     std::uint32_t CellStreamer::getCellsToStand() const
     {
         // **Counted against the band and not against the ask**, which names what was missing when
@@ -210,12 +220,8 @@ namespace Rtx
         // What the table let go of standing, by the same rule; what the band holds is what a load waits on.
         const CellGrid& grid = target.mGrid;
         mPlacer.dropUnless(
-            [&](const HeldCell& cell) { return grid.withinReach(cell.mCell, target.mEye, target.mKept); },
-            [&](const HeldCell& cell) { letGo(cell); });
-        mPlacer.dropGrassUnless(
-            [&](const HeldGrass& held) {
-                return target.mGrassKept > 0.0f && grid.withinReach(held.mCell, target.mEye, target.mGrassKept);
-            },
+            [&](const HeldCell& cell) { return target.keeps(cell.mCell); }, [&](const HeldCell& cell) { letGo(cell); });
+        mPlacer.dropGrassUnless([&](const HeldGrass& held) { return target.keepsGrass(held.mCell); },
             [&](const HeldGrass& held) { letGo(held.mModels); });
         mPlacer.retierGrounds([&](const osg::Vec2i& cell) { return tierOf(cell); });
 
@@ -237,12 +243,9 @@ namespace Rtx
     HoldTier CellStreamer::tierOf(const osg::Vec2i& cell) const
     {
         assert(mAsked.has_value() && "a ground's tier asked with no band");
-        const CellGrid& grid = mAsked->mGrid;
-        if (grid.withinReach(cell, mAsked->mEye, mAsked->mBand))
+        if (mAsked->nearEye(cell, mAround.mReach))
             return HoldTier::Shown;
-        const bool predicted = std::ranges::any_of(mAsked->mPredicted,
-            [&](const osg::Vec3f& centre) { return grid.withinReach(cell, centre, mAsked->mBand); });
-        return predicted ? HoldTier::Hidden : HoldTier::Kept;
+        return mAsked->wants(cell) ? HoldTier::Hidden : HoldTier::Kept;
     }
 
     void CellStreamer::adoptRead(const std::size_t frame)

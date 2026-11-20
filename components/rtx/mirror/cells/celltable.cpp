@@ -167,27 +167,28 @@ namespace Rtx
         }
     }
 
+    bool CellTarget::nearEye(const osg::Vec2i& cell, const float radius) const
+    {
+        return radius > 0.0f && mGrid.withinReach(cell, mEye, radius);
+    }
+
+    bool CellTarget::within(const osg::Vec2i& cell, const float radius) const
+    {
+        return nearEye(cell, radius)
+            || (radius > 0.0f && std::ranges::any_of(mPredicted, [&](const osg::Vec3f& centre) {
+                   return mGrid.withinReach(cell, centre, radius);
+               }));
+    }
+
     void CellTable::retarget(const CellTarget& target, CellReturns& back, CellsDropped& dropped)
     {
         mTarget = target;
         const CellGrid& grid = target.mGrid;
-        const auto within = [&](const osg::Vec2i& cell, const float radius) {
-            return radius > 0.0f && grid.withinReach(cell, target.mEye, radius);
-        };
-        const auto predicted = [&](const osg::Vec2i& cell, const float radius) {
-            return radius > 0.0f && std::ranges::any_of(target.mPredicted, [&](const osg::Vec3f& centre) {
-                return grid.withinReach(cell, centre, radius);
-            });
-        };
-        const auto inBand
-            = [&](const osg::Vec2i& cell) { return within(cell, target.mBand) || predicted(cell, target.mBand); };
-
         for (CellRecord& record : mRecords)
         {
-            relax(record.mCellStage, inBand(record.mCell),
-                within(record.mCell, target.mKept) || predicted(record.mCell, target.mKept), back, dropped.mCells);
-            relax(record.mGrassStage, within(record.mCell, target.mGrassBand), within(record.mCell, target.mGrassKept),
-                back, dropped.mGrass);
+            relax(record.mCellStage, target.wants(record.mCell), target.keeps(record.mCell), back, dropped.mCells);
+            relax(record.mGrassStage, target.wantsGrass(record.mCell), target.keepsGrass(record.mCell), back,
+                dropped.mGrass);
         }
         std::erase_if(mRecords, [](const CellRecord& record) {
             return std::holds_alternative<Unwanted>(record.mCellStage)
@@ -199,8 +200,8 @@ namespace Rtx
         std::ranges::sort(mRecords, byCell);
         mFresh.clear();
         const auto meet = [&](const osg::Vec2i& cell) {
-            const bool wanted = inBand(cell);
-            const bool grass = within(cell, target.mGrassBand);
+            const bool wanted = target.wants(cell);
+            const bool grass = target.wantsGrass(cell);
             const auto record = std::lower_bound(mRecords.begin(), mRecords.end(), cell,
                 [](const CellRecord& held, const osg::Vec2i& asked) { return held.mCell < asked; });
             if (record != mRecords.end() && record->mCell == cell)
@@ -231,8 +232,8 @@ namespace Rtx
 
         for (CellRecord& record : mRecords)
         {
-            const bool eyeBand = within(record.mCell, target.mBand);
-            const bool predictedBand = !eyeBand && predicted(record.mCell, target.mBand);
+            const bool eyeBand = target.nearEye(record.mCell, target.mBand);
+            const bool predictedBand = !eyeBand && target.wants(record.mCell);
             float away = grid.distanceSquaredTo(record.mCell, target.mEye);
             if (predictedBand)
                 for (const osg::Vec3f& centre : target.mPredicted)

@@ -70,6 +70,10 @@ namespace MWRender
         /// How many cells the walk left to stand, `Rtx::CellStreamer::getCellsToStand`.
         std::uint32_t mCellsToStand = 0;
 
+        /// How many cells of the drawn reach the walk left to stand, `Rtx::CellStreamer::getCellsToShow`: set by a
+        /// covered frame alone, whose wait it is.
+        std::uint32_t mCellsToShow = 0;
+
         /// How long a crossing since the frame before held the game on the loading screen for its band
         /// (`RtxRenderer::standWhole`), nothing where none did.
         std::optional<double> mHeldAtCrossingMs{};

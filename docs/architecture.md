@@ -283,8 +283,10 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
   taken past it, so a settled walk's wait for its nearest cell is never a wait for room. Refused: a reader let read a whole band ahead of a frame that adopts one cell a frame.
 - **The world is whole before a frame shows it** (`Renderer::standWhole`), asked at the three places upstream's
   `Scene` changes the cells: the ray tracer loops covered frames from the change's position — the walk, the hand-over,
-  no trace — until nothing of the band is left to stand and no demanded resident stands nothing, under the loading
-  screen only where the first frame is not whole, so a crossing whose band stands shows no screen. A wait that brings
+  no trace — until no cell of the drawn reach is left to stand and no demanded resident stands nothing, under the
+  loading screen only where the first frame is not whole, so a crossing whose reach stands shows no screen; the band
+  past the reach streams on behind it, hidden. Refused: waiting out the band, which held every crossing of a flight
+  for the rim it reads ahead. A wait that brings
   it no nearer for ten seconds shows the world, said. Refused: the preload worker blocking until the ring stands,
   which waits on the main thread with nothing between them; a timed hold.
 - **Ahead by upstream's predictions, hidden until in reach**: a view the preloader holds is a slot of
@@ -292,8 +294,8 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
   wants a band of cells around each centre after the eye's, holds their ground `Hidden` and asks their materials from
   the nearest centre, so the land arrives whole. The view's reset or going is upstream's own word that the position
   is predicted no more. Refused: blocking the preload worker until the band stands.
-- **A cell's ground is held `Shown` inside the band a load waits on, `Hidden` in a predicted band and `Kept` past
-  both, and indoors the land rests**:
+- **A cell's ground is held `Shown` inside the drawn reach, `Hidden` in a band past it, the eye's or a predicted
+  one, and `Kept` past every band, and indoors the land rests**:
   the grounds held `Kept` and the reader's wants withdrawn, so the plan keeps the exterior while it fits beside a
   room and gives its room to the room where it does not. Refused: the ring's whole hold live beside a room nothing of
   it is drawn in.
