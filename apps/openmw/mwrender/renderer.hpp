@@ -101,17 +101,25 @@ namespace MWRender
     class RenderingManager;
     struct SceneFrame;
 
-    /// What a renderer is given to exist. The rasterizer reads none of it: its shaders come
-    /// through the resource system's shader path and it compiles nothing it keeps.
+    /// What a renderer is given to exist, all of it known before the window is.
     struct RendererSpec
     {
-        /// Where a renderer keeps what it compiled: regenerable, so the cache directory.
-        std::filesystem::path mCachePath;
+        /// The host's clock: what time it is and how long the frame now open stands for, which outlives the renderer.
+        /// The ray tracer stamps what it says, which is what makes a stated step a run that repeats.
+        Misc::LoopClock& mClock;
+
+        /// `[Video] framerate limit`, in frames a second, or nought for none: the launcher's, not offered while the
+        /// game runs.
+        float mFrameRateLimit = 0.0f;
+
+        /// Where a renderer keeps what it compiled: regenerable, so the cache directory. The rasterizer compiles
+        /// nothing it keeps.
+        std::filesystem::path mCachePath{};
 
         /// Where the player's own local data is, and where the game's own files are: the folders a renderer
         /// looks in for a library the player installs beside the game, as an upscaler's runtime.
-        std::filesystem::path mUserLocalData;
-        std::filesystem::path mGameFiles;
+        std::filesystem::path mUserLocalData{};
+        std::filesystem::path mGameFiles{};
     };
 
     class Renderer;
@@ -288,16 +296,6 @@ namespace MWRender
         /// drops the techniques scripts enabled. From `LuaManager::clear`.
         virtual void forgetScriptState() {}
 
-        /// The host's clock: what time it is and how long the frame now open stands for. Handed
-        /// over once, before the first frame, and outlives this. The ray tracer stamps what this
-        /// says, which is what makes a stated step a run that repeats.
-        void setLoopClock(Misc::LoopClock& clock) { mPacer.setClock(clock); }
-
-        /// `[Video] framerate limit`, in frames a second, or nought for none. Once, beside the
-        /// clock and before the first frame: the setting is the launcher's and is not offered while
-        /// the game runs. The one route the limit reaches a renderer by.
-        void setFrameRateLimit(float limit) { mPacer.setFrameRateLimit(limit, std::chrono::steady_clock::now()); }
-
         /// Holds the game in the frame-rate limit until the next frame may begin, and says how long
         /// the last one stood for on the wall. Once per loop, before input is read, because what is
         /// read after this is what the frame shows. Answers the limit's own length for a frame it
@@ -317,7 +315,7 @@ namespace MWRender
         /// same nought.
         float openNestedFrame();
 
-        /// What `setFrameRateLimit` handed over, nought before it has: what the loading screen holds
+        /// The spec's frame-rate limit (`RendererSpec::mFrameRateLimit`): what the loading screen holds
         /// its own rate under. The main menu's video paces a thread of its own by the environment's
         /// copy, as upstream's does.
         float getFrameRateLimit() const { return mPacer.getFrameRateLimit(); }
@@ -479,8 +477,9 @@ namespace MWRender
             float scalingFactor, VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath) = 0;
 
     protected:
-        /// Out of line with the destructor, so a subclass needs none of what the handles point at.
-        Renderer();
+        /// Paced by the spec's clock and limit from the start. Out of line with the destructor, so a subclass needs
+        /// none of what the handles point at.
+        explicit Renderer(const RendererSpec& spec);
 
         /// `attachWorld`'s hook. A throw attaches nothing. `released` is the queue the game releases
         /// its own objects through, off the frame thread, which a renderer that lets go of what the
@@ -513,7 +512,7 @@ namespace MWRender
         /// through it. Asserts that it has.
         Resource::ResourceSystem& getResources() const;
 
-        /// What `setLoopClock` handed over. Asserts that it has.
+        /// The spec's clock (`RendererSpec::mClock`).
         const Misc::LoopClock& getLoopClock() const { return mPacer.getClock(); }
 
         /// How long the last `awaitFrame` held the game in the limiter.

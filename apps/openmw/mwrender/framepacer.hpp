@@ -21,17 +21,16 @@ namespace MWRender
         using Duration = std::chrono::steady_clock::duration;
         using TimePoint = std::chrono::steady_clock::time_point;
 
-        /// The host's clock, handed over once before the first frame, which outlives this.
-        void setClock(Misc::LoopClock& clock) { mClock = &clock; }
+        /// Paces frames by `clock`, the host's, which outlives this, at `frameRateLimit` frames a second, nought
+        /// for none, made at `now`: the first frame's deadline is a period on from it.
+        FramePacer(Misc::LoopClock& clock, float frameRateLimit, TimePoint now);
 
-        /// What `setClock` handed over. Asserts that it has.
-        const Misc::LoopClock& getClock() const;
+        FramePacer(const FramePacer&) = delete;
+        FramePacer& operator=(const FramePacer&) = delete;
+        ~FramePacer() = default;
 
-        /// `[Video] framerate limit`, in frames a second, or nought for none, set at `now`: the first frame's
-        /// deadline is a period on from it.
-        void setFrameRateLimit(float limit, TimePoint now);
+        const Misc::LoopClock& getClock() const { return mClock; }
 
-        /// What `setFrameRateLimit` handed over, nought before it has.
         float getFrameRateLimit() const { return mFrameRateLimit; }
 
         /// What a hold at a moment waits, and what the frame before it stood for.
@@ -73,12 +72,12 @@ namespace MWRender
         AsideSpan takeAtWorldFrame() { return mAside.takeAtWorldFrame(); }
 
     private:
-        Misc::LoopClock* mClock = nullptr;
-        float mFrameRateLimit = 0.0f;
+        Misc::LoopClock& mClock;
+        float mFrameRateLimit;
 
         /// One frame at the limit, nought for none, and the deadline the last hold kept.
-        Duration mPeriod{};
-        TimePoint mLastDue = std::chrono::steady_clock::now();
+        Duration mPeriod;
+        TimePoint mLastDue;
         Duration mLastHold{};
 
         FramesAside mAside;

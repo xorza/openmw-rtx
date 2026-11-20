@@ -122,7 +122,8 @@ namespace MWRender
     }
 
     RtxRenderer::RtxRenderer(const RendererSpec& spec, const RtxSetup* const run, const RunSetup& setup)
-        : mRun(run != nullptr ? run->mRun : mPlayed)
+        : Renderer(spec)
+        , mRun(run != nullptr ? run->mRun : mPlayed)
         , mInterface(setup.mInterface)
         , mKernels(setup.mKernels)
         , mWindow(RtxWindow::hasDisplay() ? std::optional(surfaceFlagsOf(setup.mBackend)) : std::nullopt,

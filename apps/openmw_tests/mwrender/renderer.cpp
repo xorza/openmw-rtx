@@ -63,6 +63,12 @@ namespace MWRender
         class RecordingRenderer final : public Renderer
         {
         public:
+            /// Paced by `clock`, which outlives it, at `frameRateLimit`, nought for none.
+            explicit RecordingRenderer(Misc::LoopClock& clock, const float frameRateLimit = 0.0f)
+                : Renderer(RendererSpec{ .mClock = clock, .mFrameRateLimit = frameRateLimit })
+            {
+            }
+
             /// Whether the world was to be drawn, at each `applyWorldShown`.
             /// What each `applyWorldShown` left a frame to draw: the world's view mask, or nothing under
             /// a cover.
@@ -144,7 +150,8 @@ namespace MWRender
                 "Wireframe Rendering -> not available under this renderer: no wireframe here")
                 << "what the console says in place of a state";
 
-            RecordingRenderer renderer;
+            Misc::LoopClock wall;
+            RecordingRenderer renderer(wall);
             renderer.processChangedSettings({ { "Water", "refraction" }, { "Water", "shader" }, { "RTX", "upscale" },
                 { "Camera", "field of view" } });
             renderer.processChangedSettings({ { "Water", "refraction" }, { "RTX", "upscale" } });
@@ -163,7 +170,8 @@ namespace MWRender
         {
             constexpr std::uint32_t hidden = ~sToggleWorldMask;
 
-            RecordingRenderer renderer;
+            Misc::LoopClock wall;
+            RecordingRenderer renderer(wall);
             EXPECT_EQ(renderer.worldViewMask(), ~0u);
 
             renderer.showWorld(false);
@@ -201,7 +209,6 @@ namespace MWRender
         {
             using Clock = std::chrono::steady_clock;
 
-            RecordingRenderer renderer;
             const auto limit = std::chrono::duration_cast<Clock::duration>(std::chrono::duration<float>(1.0f / 200.0f));
 
             // The first frame after the limit was set, which nothing before it can have made late (a second
@@ -209,7 +216,8 @@ namespace MWRender
             // making and the frame, never by a number of milliseconds: the limiter measures from its making,
             // and an ASan runner held a frame 3.6 ms whose limiter it had made 1.4 ms before.
             const Clock::time_point made = Clock::now();
-            renderer.setFrameRateLimit(200.0f);
+            Misc::LoopClock wall;
+            RecordingRenderer renderer(wall, 200.0f);
             const Clock::time_point began = Clock::now();
             const Clock::duration stood = renderer.awaitFrame();
             const Clock::time_point ended = Clock::now();
@@ -221,14 +229,14 @@ namespace MWRender
             // **No limit is no sleep, and the wall is what stood**, bounded by the clock read around
             // the two frames and never by a number of milliseconds, which a loaded runner passes:
             // the limiter measures between its two reads, and both fall inside these.
-            renderer.setFrameRateLimit(0.0f);
+            RecordingRenderer free(wall);
             const Clock::time_point before = Clock::now();
-            renderer.awaitFrame();
+            static_cast<void>(free.awaitFrame());
             const Clock::time_point between = Clock::now();
-            const Clock::duration free = renderer.awaitFrame();
+            const Clock::duration stoodFree = free.awaitFrame();
             const Clock::time_point after = Clock::now();
-            EXPECT_LE(free, after - before) << "what stood is the wall between the frames, and not a limit";
-            EXPECT_LE(renderer.getLastHold(), after - between) << "nothing held it past its own call";
+            EXPECT_LE(stoodFree, after - before) << "what stood is the wall between the frames, and not a limit";
+            EXPECT_LE(free.getLastHold(), after - between) << "nothing held it past its own call";
         }
 
         /// **A hidden window's interface frame draws nothing and ends as a drawn one does**: with the
@@ -236,19 +244,17 @@ namespace MWRender
         /// is numbered right whether or not the window is shown.
         TEST(RendererTest, aHiddenGuiFrameDrawsNothingAndAdvancesAsADrawnOne)
         {
-            RecordingRenderer renderer;
+            Misc::LoopClock wall;
+            RecordingRenderer renderer(wall);
             const osg::ref_ptr<osg::Camera> camera = new osg::Camera;
             const osg::ref_ptr<osg::FrameStamp> stamp = new osg::FrameStamp;
             const osg::ref_ptr<osg::Stats> stats = new osg::Stats("renderer test");
             renderer.adopt(*camera, *stamp, *stats);
             stamp->setSimulationTime(12.5);
-            Misc::LoopClock wall;
-            renderer.setLoopClock(wall);
-
-            renderer.openNestedFrame();
+            static_cast<void>(renderer.openNestedFrame());
             renderer.renderGuiFrame();
             EXPECT_EQ(renderer.mGuiDrawn, 1u);
-            renderer.openNestedFrame();
+            static_cast<void>(renderer.openNestedFrame());
             renderer.skipGuiFrame();
             EXPECT_EQ(renderer.mGuiDrawn, 1u) << "a hidden window's frame drew the interface";
             EXPECT_EQ(renderer.mAdvanced, (std::vector<double>{ 12.5, 12.5 }));
@@ -261,7 +267,8 @@ namespace MWRender
         {
             Settings::video().mResolutionX.set(0);
             Settings::video().mResolutionY.set(0);
-            RecordingRenderer renderer;
+            Misc::LoopClock wall;
+            RecordingRenderer renderer(wall);
 
             renderer.presentIn(osg::Vec2i(1920, 1080));
             renderer.presentIn(osg::Vec2i(1920, 1080));
@@ -305,7 +312,8 @@ namespace MWRender
         /// over it. A moved-from attachment detaches nothing.
         TEST(RendererTest, aWorldIsDetachedOnceByWhateverEndsItsAttachment)
         {
-            RecordingRenderer renderer;
+            Misc::LoopClock wall;
+            RecordingRenderer renderer(wall);
             UnbuiltWorld unbuilt;
             const osg::ref_ptr<osg::Group> root = new osg::Group;
             SceneUtil::UnrefQueue queue;
@@ -388,10 +396,11 @@ namespace MWRender
                 };
             };
 
+            Misc::LoopClock wall;
             const std::unique_ptr<Renderer> started = startRenderer(
-                [&asked]() -> std::unique_ptr<Renderer> {
+                [&asked, &wall]() -> std::unique_ptr<Renderer> {
                     ++asked;
-                    return std::make_unique<RecordingRenderer>();
+                    return std::make_unique<RecordingRenderer>(wall);
                 },
                 logs);
             EXPECT_NE(started, nullptr);

@@ -23,19 +23,15 @@ namespace MWRender
         }
     }
 
-    const Misc::LoopClock& FramePacer::getClock() const
+    FramePacer::FramePacer(Misc::LoopClock& clock, const float frameRateLimit, const TimePoint now)
+        : mClock(clock)
+        , mFrameRateLimit(frameRateLimit)
+        , mPeriod(frameRateLimit > 0.0f
+                  ? std::chrono::duration_cast<Duration>(std::chrono::duration<float>(1.0f / frameRateLimit))
+                  : Duration::zero())
+        , mLastDue(now)
     {
-        assert(mClock != nullptr && "a frame before the host's clock was handed over");
-        return *mClock;
-    }
-
-    void FramePacer::setFrameRateLimit(const float limit, const TimePoint now)
-    {
-        assert(limit >= 0.0f && "a negative frame-rate limit, which the setting's sanitizer refuses");
-        mFrameRateLimit = limit;
-        mPeriod = limit > 0.0f ? std::chrono::duration_cast<Duration>(std::chrono::duration<float>(1.0f / limit))
-                               : Duration::zero();
-        mLastDue = now;
+        assert(frameRateLimit >= 0.0f && "a negative frame-rate limit, which the setting's sanitizer refuses");
     }
 
     FramePacer::HoldPlan FramePacer::planHold(const TimePoint now)
@@ -65,30 +61,26 @@ namespace MWRender
 
     double FramePacer::openLoop(const Duration stood, const TimePoint now)
     {
-        assert(mClock != nullptr && "a frame before the host's clock was handed over");
-
-        mClock->advance(secondsStood(stood));
+        mClock.advance(secondsStood(stood));
         mAside.openLoop(now);
-        return mClock->getStep();
+        return mClock.getStep();
     }
 
     float FramePacer::openNested(const Duration stood, const TimePoint now)
     {
-        assert(mClock != nullptr && "a frame before the host's clock was handed over");
-
         mAside.openNested(now);
 
         // **A clock that states its step counts the loop's frames and no others.** How many
         // loading frames a run draws is the wall's answer, and a clock stepped by them would age
         // the resource caches differently in two runs of one build. Such a frame stands for nothing
         // of the world's.
-        if (mClock->getStatedStep().has_value())
+        if (mClock.getStatedStep().has_value())
         {
-            mClock->hold();
+            mClock.hold();
             return 0.0f;
         }
 
-        mClock->advance(secondsStood(stood));
-        return static_cast<float>(mClock->getStep());
+        mClock.advance(secondsStood(stood));
+        return static_cast<float>(mClock.getStep());
     }
 }

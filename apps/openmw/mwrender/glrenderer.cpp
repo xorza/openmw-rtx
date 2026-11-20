@@ -156,7 +156,8 @@ namespace
 namespace MWRender
 {
     GlRenderer::GlRenderer(const RendererSpec& spec)
-        : mSelectDepthFormatOperation(new SceneUtil::SelectDepthFormatOperation())
+        : Renderer(spec)
+        , mSelectDepthFormatOperation(new SceneUtil::SelectDepthFormatOperation())
         , mSelectColorFormatOperation(new SceneUtil::Color::SelectColorFormatOperation())
     {
         mViewer = new osgViewer::Viewer;

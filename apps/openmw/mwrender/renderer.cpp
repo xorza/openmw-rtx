@@ -51,7 +51,10 @@ namespace MWRender
             renderer->detachWorld();
     }
 
-    Renderer::Renderer() = default;
+    Renderer::Renderer(const RendererSpec& spec)
+        : mPacer(spec.mClock, spec.mFrameRateLimit, std::chrono::steady_clock::now())
+    {
+    }
 
     Renderer::~Renderer()
     {

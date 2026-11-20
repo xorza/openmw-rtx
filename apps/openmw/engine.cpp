@@ -697,8 +697,15 @@ void OMW::Engine::go()
     // Create encoder
     mEncoder = std::make_unique<ToUTF8::Utf8Encoder>(mEncoding);
 
+    // The clock every frame is measured by, made once here and read by the renderer from now on:
+    // a host that states a step makes a run that repeats itself, and the played game follows the
+    // wall.
+    mClock = Misc::LoopClock(mHost != nullptr ? mHost->getFrameStep() : std::nullopt);
+
     // Decided once, before the window exists
-    const MWRender::RendererSpec spec{ .mCachePath = mCfgMgr.getCachePath(),
+    const MWRender::RendererSpec spec{ .mClock = mClock,
+        .mFrameRateLimit = Settings::video().mFramerateLimit,
+        .mCachePath = mCfgMgr.getCachePath(),
         .mUserLocalData = mCfgMgr.getUserLocalDataPath(),
         .mGameFiles = mCfgMgr.getLocalPath() };
     if (mHost != nullptr)
@@ -708,16 +715,9 @@ void OMW::Engine::go()
             [&spec] { return MWRender::createRenderer(MWRender::RendererKind::RayTraced, spec); },
             mCfgMgr.getLogPath());
 
-    // The clock every frame is measured by, made once here and read by the renderer from now on:
-    // a host that states a step makes a run that repeats itself, and the played game follows the
-    // wall.
-    mClock = Misc::LoopClock(mHost != nullptr ? mHost->getFrameStep() : std::nullopt);
-    mRenderer->setLoopClock(mClock);
-
     setWindowIcon();
 
     mEnvironment.setFrameRateLimit(Settings::video().mFramerateLimit);
-    mRenderer->setFrameRateLimit(Settings::video().mFramerateLimit);
 
     prepareEngine();
 

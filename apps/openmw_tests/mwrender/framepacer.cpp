@@ -18,15 +18,14 @@ namespace MWRender
         TEST(MWRenderFramePacerTest, aLoopFrameStepsAWallClockByWhatStoodAndAStatedOneByItsStep)
         {
             const FramePacer::TimePoint now{};
-            FramePacer pacer;
             Misc::LoopClock wall;
-            pacer.setClock(wall);
-            EXPECT_EQ(pacer.openLoop(10ms, now), 0.01);
-            EXPECT_EQ(pacer.openLoop(300ms, now), 0.2) << "a stall steps the world by 200 ms and no more";
+            FramePacer paced(wall, 0.0f, now);
+            EXPECT_EQ(paced.openLoop(10ms, now), 0.01);
+            EXPECT_EQ(paced.openLoop(300ms, now), 0.2) << "a stall steps the world by 200 ms and no more";
 
             Misc::LoopClock stated(1.0f / 60.0f);
-            pacer.setClock(stated);
-            EXPECT_EQ(pacer.openLoop(300ms, now), static_cast<double>(1.0f / 60.0f));
+            FramePacer stepped(stated, 0.0f, now);
+            EXPECT_EQ(stepped.openLoop(300ms, now), static_cast<double>(1.0f / 60.0f));
             EXPECT_EQ(stated.getNow(), static_cast<double>(1.0f / 60.0f));
         }
 
@@ -36,16 +35,15 @@ namespace MWRender
         TEST(MWRenderFramePacerTest, aNestedFrameStepsAWallClockAndHoldsAStatedOne)
         {
             const FramePacer::TimePoint now{};
-            FramePacer pacer;
             Misc::LoopClock wall;
-            pacer.setClock(wall);
-            EXPECT_EQ(pacer.openNested(20ms, now), 0.02f);
+            FramePacer paced(wall, 0.0f, now);
+            EXPECT_EQ(paced.openNested(20ms, now), 0.02f);
             EXPECT_EQ(wall.getStep(), 0.02);
 
             Misc::LoopClock stated(1.0f / 60.0f);
-            pacer.setClock(stated);
-            static_cast<void>(pacer.openLoop(0ms, now));
-            EXPECT_EQ(pacer.openNested(20ms, now), 0.0f);
+            FramePacer stepped(stated, 0.0f, now);
+            static_cast<void>(stepped.openLoop(0ms, now));
+            EXPECT_EQ(stepped.openNested(20ms, now), 0.0f);
             EXPECT_EQ(stated.getStep(), 0.0) << "whatever reads the step inside the nested frame reads nought";
             EXPECT_EQ(stated.getNow(), static_cast<double>(1.0f / 60.0f)) << "and the time stays";
         }
@@ -55,9 +53,8 @@ namespace MWRender
         TEST(MWRenderFramePacerTest, theInterfacesFramesBetweenTwoWorldFramesReachTheSecond)
         {
             const FramePacer::TimePoint start{};
-            FramePacer pacer;
             Misc::LoopClock wall;
-            pacer.setClock(wall);
+            FramePacer pacer(wall, 0.0f, start);
             static_cast<void>(pacer.openLoop(0ms, start));
             static_cast<void>(pacer.openNested(0ms, start + 2ms));
             pacer.endNested(start + 7ms, FramesAside::NestedEnd::Drawn);
@@ -77,9 +74,8 @@ namespace MWRender
         TEST(MWRenderFramePacerTest, aHoldWaitsToADeadlineAPeriodAfterTheLastAndALateFrameStartsAgain)
         {
             const FramePacer::TimePoint start{};
-            FramePacer pacer;
-            EXPECT_EQ(pacer.getFrameRateLimit(), 0.0f) << "no limit before one is set";
-            pacer.setFrameRateLimit(200.0f, start);
+            Misc::LoopClock wall;
+            FramePacer pacer(wall, 200.0f, start);
             EXPECT_EQ(pacer.getFrameRateLimit(), 200.0f);
             const auto period = std::chrono::duration_cast<FramePacer::Duration>(std::chrono::duration<float>(0.005f));
 
@@ -94,9 +90,14 @@ namespace MWRender
             expect(13ms, period - 1ms, period, "the schedule again from the late frame");
             expect(19ms, period - 2ms, period, "a late wake moved no deadline");
 
-            pacer.setFrameRateLimit(0.0f, start);
-            expect(3ms, 0ms, 3ms, "no limit: nothing waits");
-            expect(10ms, 0ms, 7ms, "and what stood is what passed since the last");
+            FramePacer unlimited(wall, 0.0f, start);
+            for (const auto& [at, stood, what] : { std::tuple{ 3ms, 3ms, "no limit: nothing waits" },
+                     std::tuple{ 10ms, 7ms, "and what stood is what passed since the last" } })
+            {
+                const FramePacer::HoldPlan plan = unlimited.planHold(start + at);
+                EXPECT_EQ(plan.mWait, FramePacer::Duration::zero()) << what;
+                EXPECT_EQ(plan.mStood, FramePacer::Duration(stood)) << what;
+            }
         }
     }
 }

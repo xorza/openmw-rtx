@@ -75,6 +75,15 @@ The one interface the game talks to. Read its header first.
   references drop off the frame thread.
 - **One presentation** (`Misc::Presentation`): each renderer draws at `[Video] resolution` and shows it scaled into the
   window; the GUI, the projection, the pointer and Lua read the frame from it.
+- **A request answers its own refusal** (`functionKey`, `reloadShaders`, `setLiveShaderReload`): the call does the work
+  or says why not, so a renderer cannot both decline a request and take it. Modes and settings keep `RenderSupport`'s
+  declaration, which the settings window and the launcher read to offer only what is honoured. Refused: a
+  post-processor accessor carrying the reason beside the null, which reaches its 29 upstream callers.
+- **The frames are paced by `FramePacer`, which the renderer holds**: deadlines a period apart, as upstream's limiter
+  schedules, held by SDL's precise delay, and the host's clock and limit given in `RendererSpec`, so no renderer
+  stands without them. Refused: the engine owning the pacer, which threads it through upstream's `WindowManager`,
+  `LoadingScreen` and `RenderingManager`; the traversal root, the resources and the screenshot writer in the spec too,
+  which reorders upstream's `Engine::prepareEngine`.
 
 The game describes each frame as a `SceneFrame` in the content's own numbers; `FrameDescriber` collects the fork's facts
 so `RenderingManager` stays upstream's. Pictures away from the eye (the local map, the doll, the world map) are seam
