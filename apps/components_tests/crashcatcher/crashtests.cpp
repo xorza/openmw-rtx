@@ -69,12 +69,12 @@ namespace CrashTests
                 // **A thread past the note table is counted**, and the crash's summary says how many:
                 // the main thread and 70 more, of which the table's 64 slots hold 64.
                 { "note-table-full", "Crash: ", raised.mFault, "7 threads found the note table full", true, crashed },
-                { "hang", "Hang: no frame for", {}, "Hang: frames again after", true, draws },
+                { "hang", "Hang: no frame for", {}, "W] Hang: frames again after", true, draws },
                 { "slow-end", "", {}, "crash-tests lived on", false },
                 { "hang-after-pause", "Hang: no frame for", {}, "crash-tests lived on", true, draws },
-                { "recovers-before-end", "Hang: no frame for", {}, "Hang: the game drew again before End was answered",
-                    true, draws },
-                { "ends-before-end", "Hang: no frame for", {}, "Hang: the game ended before End was answered", true,
+                { "recovers-before-end", "Hang: no frame for", {},
+                    "W] Hang: the game drew again before End was answered", true, draws },
+                { "ends-before-end", "Hang: no frame for", {}, "W] Hang: the game ended before End was answered", true,
                     draws },
                 { .mName = "fatal-error",
                     .mHeadline = "",
@@ -496,6 +496,10 @@ namespace CrashTests
                     return "no summary in the log";
                 if (!first->starts_with(mode.mHeadline))
                     return "the summary begins \"" + *first + "\", not \"" + std::string(mode.mHeadline) + "\"";
+                // An error in the log, as the game's own are, where a hang the game recovers from is a warning.
+                if (const std::string& stamped = lines[static_cast<std::size_t>(first - said.begin())];
+                    stamped.find(" E] ") == std::string::npos)
+                    return "the summary is not logged as an error: " + stamped;
                 if (!mode.mRaised.empty()
                     && std::none_of(mode.mRaised.begin(), mode.mRaised.end(),
                         [&](std::string_view raised) { return first->find(raised) != std::string::npos; }))

@@ -1,3 +1,4 @@
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -16,6 +17,8 @@
 #include <components/crashcatcher/crashmonitorarguments.hpp>
 #include <components/crashcatcher/crashmonitorlog.hpp>
 #include <components/crashcatcher/crashpage.hpp>
+#include <components/crashcatcher/crashsessionend.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
 #include <components/testing/util.hpp>
@@ -193,28 +196,34 @@ namespace
         std::filesystem::remove(fallback);
 
         Crash::MonitorLog monitor(game);
-        monitor.write({ "before the log" });
+        monitor.write(Debug::Info, { "before the log" });
         EXPECT_FALSE(std::filesystem::exists(log));
         EXPECT_EQ(monitor.path(), std::filesystem::path());
 
         ASSERT_TRUE(game.setLogPath(Files::pathToUnicodeString(log)));
         EXPECT_EQ(monitor.path(), log);
-        monitor.write({ "Crash: first", "Crash: second" });
-        monitor.write({ "Hang: third" });
+        monitor.write(Debug::Error, { "Crash: first", "Crash: second" });
+        monitor.write(Debug::Warning, { "Hang: third" });
         EXPECT_EQ(monitor.finish(fallback), 0u);
         EXPECT_EQ(monitor.path(), log) << "the game named its log, which stays the log";
         EXPECT_FALSE(std::filesystem::exists(fallback));
 
+        // `[hh:mm:ss.mmm L] `: the level's letter at 14, as the game's log marks its own lines, each line of an entry
+        // with its entry's.
         std::ifstream file(log);
         std::vector<std::string> said;
+        std::string letters;
         for (std::string line; std::getline(file, line);)
         {
-            ASSERT_GT(line.size(), 15u);
+            ASSERT_GT(line.size(), 17u);
             EXPECT_EQ(line.substr(0, 1), "[");
-            EXPECT_EQ(line.substr(13, 3), " E]");
+            EXPECT_EQ(line.substr(13, 1), " ");
+            EXPECT_EQ(line.substr(15, 2), "] ");
+            letters += line[14];
             said.push_back(line.substr(17));
         }
         EXPECT_EQ(said, (std::vector<std::string>{ "before the log", "Crash: first", "Crash: second", "Hang: third" }));
+        EXPECT_EQ(letters, "IEEW");
     }
 
     /// **A game that never named its log leaves the monitor's lines in a file of its own**, which
@@ -232,7 +241,7 @@ namespace
         }
 
         Crash::MonitorLog monitor(game);
-        monitor.write({ "Crash: before any log" });
+        monitor.write(Debug::Error, { "Crash: before any log" });
         EXPECT_EQ(monitor.finish(fallback), 0u);
         EXPECT_EQ(monitor.path(), fallback);
 
@@ -258,15 +267,15 @@ namespace
             ASSERT_NE(game.get(), nullptr);
             ASSERT_TRUE(game.setLogPath(Files::pathToUnicodeString(folder)));
             Crash::MonitorLog monitor(game);
-            monitor.write({ "Crash: first" });
-            monitor.write({ "Crash: second", "Crash: third" });
+            monitor.write(Debug::Error, { "Crash: first" });
+            monitor.write(Debug::Error, { "Crash: second", "Crash: third" });
             EXPECT_EQ(monitor.finish(folder / "own.txt"), 2u) << "two entries, refused";
         }
         {
             const Crash::SharedPage game = Crash::SharedPage::create(id + 1);
             ASSERT_NE(game.get(), nullptr);
             Crash::MonitorLog monitor(game);
-            monitor.write({ "Crash: before any log" });
+            monitor.write(Debug::Error, { "Crash: before any log" });
             EXPECT_EQ(monitor.finish(folder / "nowhere" / "own.txt"), 1u);
             EXPECT_EQ(monitor.path(), std::filesystem::path()) << "no file was opened, so none is the log";
         }
@@ -275,7 +284,7 @@ namespace
             ASSERT_NE(game.get(), nullptr);
             Crash::MonitorLog monitor(game);
             for (std::size_t entry = 0; entry <= Crash::MonitorLog::sMostWaiting; ++entry)
-                monitor.write({ "Crash: entry " + std::to_string(entry) });
+                monitor.write(Debug::Error, { "Crash: entry " + std::to_string(entry) });
             const std::filesystem::path own = folder / "own.txt";
             EXPECT_EQ(monitor.finish(own), 1u) << "the one past the bound";
 
@@ -300,7 +309,7 @@ namespace
 
         {
             Crash::MonitorLog monitor(game);
-            monitor.write({ "Crash package: the last line" });
+            monitor.write(Debug::Error, { "Crash package: the last line" });
         }
 
         std::ifstream file(log);
@@ -308,5 +317,43 @@ namespace
         ASSERT_TRUE(std::getline(file, line));
         EXPECT_EQ(line.substr(17), "Crash package: the last line");
         EXPECT_FALSE(std::getline(file, line)) << "one line, one write";
+    }
+
+    /// **The monitor's last line says how the session ended, at the level the end is**: an end reached with nothing to
+    /// report is information, one reached with a code or a report a warning, and every end the game never reached an
+    /// error, its exit said where the system names one.
+    TEST(CrashSessionEndTest, theLastLineSaysTheEndAtItsLevel)
+    {
+        struct Case
+        {
+            Crash::SessionEndFacts mFacts;
+            Debug::Level mLevel;
+            std::string_view mText;
+        };
+        const std::array cases{
+            Case{ { .mReachedEnd = 0, .mExit = std::nullopt, .mReports = 0, .mReported = false }, Debug::Info,
+                "The game reached its end with exit code 0, and the session left 0 reports" },
+            Case{ { .mReachedEnd = 1, .mExit = std::nullopt, .mReports = 0, .mReported = false }, Debug::Warning,
+                "The game reached its end with exit code 1, and the session left 0 reports" },
+            // A hang's dump, and a game that went on to quit.
+            Case{ { .mReachedEnd = 0, .mExit = std::nullopt, .mReports = 1, .mReported = false }, Debug::Warning,
+                "The game reached its end with exit code 0, and the session left 1 report" },
+            // The end word wins over an exit the system names, which a game past its end may still have.
+            Case{ { .mReachedEnd = 0, .mExit = "SIGSEGV", .mReports = 0, .mReported = false }, Debug::Info,
+                "The game reached its end with exit code 0, and the session left 0 reports" },
+            Case{ { .mReachedEnd = std::nullopt, .mExit = "SIGSEGV", .mReports = 1, .mReported = true }, Debug::Error,
+                "The game ended with SIGSEGV before reaching its end, and the session left 1 report" },
+            Case{ { .mReachedEnd = std::nullopt, .mExit = std::nullopt, .mReports = 2, .mReported = true },
+                Debug::Error, "The game ended before reaching its end, and the session left 2 reports" },
+            Case{ {}, Debug::Error,
+                "The game ended without reaching its end and left no report: the system or another program ended it" },
+        };
+        for (const Case& expected : cases)
+        {
+            SCOPED_TRACE(expected.mText);
+            const Crash::SessionEnd end = Crash::describeSessionEnd(expected.mFacts);
+            EXPECT_EQ(end.mLevel, expected.mLevel);
+            EXPECT_EQ(end.mText, expected.mText);
+        }
     }
 }

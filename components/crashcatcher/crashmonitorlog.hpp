@@ -8,6 +8,8 @@
 #include <thread>
 #include <vector>
 
+#include <components/debug/debuglog.hpp>
+
 namespace Crash
 {
     class SharedPage;
@@ -35,9 +37,10 @@ namespace Crash
         MonitorLog(const MonitorLog&) = delete;
         MonitorLog& operator=(const MonitorLog&) = delete;
 
-        /// Queues `lines` as one entry, written in one write so that a line the game logs meanwhile
-        /// lands before them or after them and never between two of them.
-        void write(const std::vector<std::string>& lines);
+        /// Queues `lines` as one entry, each marked with `level`'s letter as the game's log marks its own, written in
+        /// one write so that a line the game logs meanwhile lands before them or after them and never between two of
+        /// them.
+        void write(Debug::Level level, const std::vector<std::string>& lines);
 
         /// **Once the game is gone**: what waits goes to the game's log, or where the game never named
         /// one, to `fallback`, which is the log from then on. Waits for it, for a few seconds at the

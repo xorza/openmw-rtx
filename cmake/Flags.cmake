@@ -86,9 +86,12 @@ endforeach()
 # (`RTLD_NEXT`), went past it to the C library's, whose threads AddressSanitizer did not know when they were joined.
 # Folding is `safe`, which leaves alone what may have its address compared. Every symbol is bound at load
 # (`-z now`), so lld's default RELRO makes the whole GOT read-only, beside its default non-executable stack.
+# **A SHA-1 build ID, which lld writes only when asked** where GNU ld writes one by default: Crashpad files a dump's
+# module under it and `dump_syms` the symbols, and without it the two disagree. SHA-1 over lld's `fast`, which is 8
+# bytes and pads Breakpad's 16 with zeros.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(CMAKE_LINKER_TYPE LLD)
-    set(openmw_link_flags "-Wl,--gc-sections -Wl,-z,now")
+    set(openmw_link_flags "-Wl,--gc-sections -Wl,-z,now -Wl,--build-id=sha1")
     if(OPENMW_SANITIZER)
         string(APPEND openmw_link_flags " -shared-libsan -frtlib-add-rpath")
     else()

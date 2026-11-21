@@ -26,6 +26,7 @@
 #include <snapshot/thread_snapshot.h>
 #include <util/misc/uuid.h>
 
+#include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/userhome.hpp>
 
@@ -212,7 +213,7 @@ namespace Crash
         if (!failure.empty())
         {
             text = std::string(unsummarised) + ": " + failure;
-            mParts.mLog.write({ text });
+            mParts.mLog.write(Debug::Error, { text });
             text += '\n';
             mParts.mReports.setLast(LastReport{ std::string(unsummarised), { std::string(unsummarised) } });
         }
@@ -270,7 +271,7 @@ namespace Crash
 
         std::vector<std::string> lines;
         summarise(facts, lines, SummaryReaders{});
-        mParts.mLog.write(lines);
+        mParts.mLog.write(Debug::Error, lines);
 
         const std::optional<std::filesystem::path> home = Platform::userHome();
         const SummaryReaders anybody{

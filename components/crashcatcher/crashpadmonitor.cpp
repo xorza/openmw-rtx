@@ -35,6 +35,7 @@
 #include <util/file/file_writer.h>
 #include <util/misc/uuid.h>
 
+#include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/localtime.hpp>
 #include <components/platform/process.hpp>
@@ -48,6 +49,7 @@
 #include "crashpadmonitorsystem.hpp"
 #include "crashpadsummarysource.hpp"
 #include "crashpage.hpp"
+#include "crashsessionend.hpp"
 #include "crashsummary.hpp"
 
 namespace Crash
@@ -182,7 +184,8 @@ namespace Crash
         /// never answered, and nothing was ended.
         void sayEndedFirst(MonitorState& monitor)
         {
-            monitor.mLog.write({ "Hang: the game ended before End was answered, and nothing was ended" });
+            monitor.mLog.write(
+                Debug::Warning, { "Hang: the game ended before End was answered, and nothing was ended" });
         }
 
         /// Ends the game where it still stands where it stood when the player was asked: the box
@@ -193,7 +196,8 @@ namespace Crash
             const bool gone = watchEnded(monitor) || monitor.mGame.isGone();
             if (!gone && std::atomic_ref(monitor.mPage.get()->mFrames).load() != request.mStalledAt)
             {
-                monitor.mLog.write({ "Hang: the game drew again before End was answered, and goes on" });
+                monitor.mLog.write(
+                    Debug::Warning, { "Hang: the game drew again before End was answered, and goes on" });
                 return;
             }
 
@@ -206,7 +210,7 @@ namespace Crash
                     sayEndedFirst(monitor);
                     return;
                 case Monitor::Ending::Failed:
-                    monitor.mLog.write({ "Hang: the monitor could not end the game" });
+                    monitor.mLog.write(Debug::Error, { "Hang: the monitor could not end the game" });
                     return;
             }
         }
@@ -251,7 +255,8 @@ namespace Crash
                     = hangs.wake(HangWake{ .mNow = now, .mFrames = frames, .mLimitSeconds = limit, .mHeld = held });
 
                 if (const HangEnded* const ended = std::get_if<HangEnded>(&answer))
-                    monitor.mLog.write({ "Hang: frames again after " + std::to_string(ended->mSeconds) + " seconds" });
+                    monitor.mLog.write(
+                        Debug::Warning, { "Hang: frames again after " + std::to_string(ended->mSeconds) + " seconds" });
 
                 const HangFound* const found = std::get_if<HangFound>(&answer);
                 if (found == nullptr)
@@ -259,8 +264,9 @@ namespace Crash
 
                 const bool dumped = dumpHang(monitor, summary, found->mSeconds);
                 if (!dumped)
-                    monitor.mLog.write({ "Hang: no frame for " + std::to_string(found->mSeconds)
-                        + " seconds, and no dump of it could be written" });
+                    monitor.mLog.write(Debug::Error,
+                        { "Hang: no frame for " + std::to_string(found->mSeconds)
+                            + " seconds, and no dump of it could be written" });
                 // The dump held the game still, which is no stall of the game's own.
                 hangs.wake(HangWake{ .mNow = std::chrono::steady_clock::now(),
                     .mFrames = frames,
@@ -285,20 +291,21 @@ namespace Crash
             const SessionPackage package = writeSessionPackage(folder, monitor.mApplication, monitor.mLog.path(), dumps,
                 Platform::localTime(std::time(nullptr)).value_or(std::tm{}));
 
-            std::vector<std::string> lines;
-            lines.reserve(package.mMissing.size());
-            for (const std::filesystem::path& missing : package.mMissing)
-                lines.push_back("Crash package: " + Files::pathToUnicodeString(missing)
+            std::vector<std::string> missing;
+            missing.reserve(package.mMissing.size());
+            for (const std::filesystem::path& file : package.mMissing)
+                missing.push_back("Crash package: " + Files::pathToUnicodeString(file)
                     + " is not on disk, and the package goes without it");
+            if (!missing.empty())
+                monitor.mLog.write(Debug::Warning, missing);
             if (!package.mFailure.empty())
-                lines.push_back("Crash package: none, " + package.mFailure);
+                monitor.mLog.write(Debug::Error, { "Crash package: none, " + package.mFailure });
             if (!package.mZip.empty())
             {
                 const std::string named = Files::pathToUnicodeString(package.mZip);
-                lines.push_back("Crash package: " + named);
+                monitor.mLog.write(Debug::Error, { "Crash package: " + named });
                 std::cerr << monitor.mApplication << ": the crash report is " << named << '\n';
             }
-            monitor.mLog.write(lines);
             return package.mZip;
         }
 
@@ -409,7 +416,8 @@ namespace Crash
                 if (monitor.mReportsOpen->LookUpCrashReport(id, &report) == crashpad::CrashReportDatabase::kNoError)
                     dumps.emplace_back(report.file_path.value());
                 else
-                    monitor.mLog.write({ "Crash package: the database holds no report " + id.ToString() });
+                    monitor.mLog.write(
+                        Debug::Error, { "Crash package: the database holds no report " + id.ToString() });
             }
             return dumps;
         }
@@ -447,7 +455,8 @@ namespace Crash
             std::string_view said = std::string_view(text).substr(start);
             while (!said.empty() && (said.back() == '\n' || said.back() == '\r'))
                 said.remove_suffix(1);
-            sCrashpadLog->write({ "Crashpad: " + std::string(said) });
+            sCrashpadLog->write(
+                severity == logging::LOG_WARNING ? Debug::Warning : Debug::Error, { "Crashpad: " + std::string(said) });
             return false;
         }
 
@@ -472,20 +481,17 @@ namespace Crash
         };
 
         /// The monitor's last line on the session: how the game ended and how many reports it left.
-        std::string describeEnd(MonitorState& monitor, std::size_t reports, bool reported)
+        SessionEnd describeEnd(MonitorState& monitor, std::size_t reports, bool reported)
         {
-            const std::string left
-                = ", and the session left " + std::to_string(reports) + (reports == 1 ? " report" : " reports");
-            if (const std::optional<std::int32_t> code = monitor.mPage.getEnd())
-                return "The game reached its end with exit code " + std::to_string(*code) + left;
-            if (const std::optional<std::uint32_t> code = monitor.mGame.exitCode())
-                return "The game ended with " + Monitor::describeExitCode(*code) + " before reaching its end" + left;
-            if (reported)
-                return "The game ended before reaching its end" + left;
-            // **An end no handler inside the game saw**, which only the missing word says: an
-            // out-of-memory kill, or another process's `SIGKILL`.
-            return "The game ended without reaching its end and left no report: the system or another program "
-                   "ended it";
+            const std::optional<std::int32_t> reachedEnd = monitor.mPage.getEnd();
+            // Asked only where the game never reached its end, which says the rest.
+            const std::optional<std::uint32_t> code = reachedEnd.has_value() ? std::nullopt : monitor.mGame.exitCode();
+            return describeSessionEnd({
+                .mReachedEnd = reachedEnd,
+                .mExit = code.has_value() ? std::optional(Monitor::describeExitCode(*code)) : std::nullopt,
+                .mReports = reports,
+                .mReported = reported,
+            });
         }
     }
 
@@ -542,7 +548,7 @@ namespace Crash
                 if (std::holds_alternative<HandlerOverdue>(request))
                 {
                     overdue = true;
-                    monitor.mLog.write(
+                    monitor.mLog.write(Debug::Error,
                         { "Crash: Crashpad's handler did not end within " + std::to_string(sLastResort.count())
                             + " seconds of the game, and the monitor ends without it" });
                     break;
@@ -582,8 +588,9 @@ namespace Crash
             const bool unwritten = monitor.mUnwritten.load(std::memory_order_acquire)
                 || (!session.mCrashed && code.has_value() && Monitor::isCrashCode(*code));
             if (unwritten)
-                monitor.mLog.write({ "Crash: the game crashed, and no dump of it could be written" });
-            monitor.mLog.write({ describeEnd(monitor, session.mIds.size(), session.mCrashed || unwritten) });
+                monitor.mLog.write(Debug::Error, { "Crash: the game crashed, and no dump of it could be written" });
+            const SessionEnd end = describeEnd(monitor, session.mIds.size(), session.mCrashed || unwritten);
+            monitor.mLog.write(end.mLevel, { end.mText });
 
             // Before the package, which holds the log: where the game never named one, the monitor's
             // lines go to a file of its own beside the reports, which the package then holds.

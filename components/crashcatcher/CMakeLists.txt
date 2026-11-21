@@ -12,6 +12,7 @@ target_sources(
         crashmonitorrequests.cpp
         crashpackage.cpp
         crashpage.cpp
+        crashsessionend.cpp
         crashsummary.cpp
     PUBLIC
         FILE_SET HEADERS
@@ -29,6 +30,7 @@ target_sources(
                 crashpadmonitorsystem.hpp
                 crashpadsummarysource.hpp
                 crashpage.hpp
+                crashsessionend.hpp
                 crashsummary.hpp
                 crashuncaught.hpp
 )

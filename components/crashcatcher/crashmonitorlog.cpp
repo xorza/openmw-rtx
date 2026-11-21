@@ -19,14 +19,35 @@ namespace Crash
 {
     namespace
     {
-        std::string stamp()
+        /// The letter the game's log marks a line of `level` with.
+        constexpr char letterOf(Debug::Level level)
+        {
+            switch (level)
+            {
+                case Debug::Error:
+                    return 'E';
+                case Debug::Warning:
+                    return 'W';
+                case Debug::Info:
+                    return 'I';
+                case Debug::Verbose:
+                    return 'V';
+                case Debug::Debug:
+                    return 'D';
+                case Debug::All:
+                    return '*';
+            }
+            return '*';
+        }
+
+        std::string stamp(Debug::Level level)
         {
             const auto now = std::chrono::system_clock::now();
             const std::tm local = Platform::localTime(std::chrono::system_clock::to_time_t(now)).value_or(std::tm{});
             const auto milliseconds
                 = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000;
-            return std::format("[{:02}:{:02}:{:02}.{:03} E] ", local.tm_hour, local.tm_min, local.tm_sec,
-                static_cast<std::int32_t>(milliseconds));
+            return std::format("[{:02}:{:02}:{:02}.{:03} {}] ", local.tm_hour, local.tm_min, local.tm_sec,
+                static_cast<std::int32_t>(milliseconds), letterOf(level));
         }
     }
 
@@ -46,9 +67,9 @@ namespace Crash
         mThread.join();
     }
 
-    void MonitorLog::write(const std::vector<std::string>& lines)
+    void MonitorLog::write(Debug::Level level, const std::vector<std::string>& lines)
     {
-        const std::string at = stamp();
+        const std::string at = stamp(level);
         std::string block;
         for (const std::string& line : lines)
             block += at + line + '\n';

@@ -15,9 +15,11 @@ from omw.package import (
     RELEASE_IMAGE,
     WINDOWS_LIBRARIES,
     _archive_windows,
+    _ready_linux_programs,
     archive_stem,
     ShippedLibraries,
     archive,
+    build_id,
     container_command,
     executables_in,
     glibc_versions,
@@ -43,6 +45,51 @@ class GlibcTest(unittest.TestCase):
         self.assertEqual(max(glibc_versions(listed)), GLIBC_FLOOR)
         self.assertGreater(max(glibc_versions(listed + "(GLIBC_2.34) pthread_yield\n")), GLIBC_FLOOR)
         self.assertEqual(glibc_versions(""), set())
+
+
+class BuildIdTest(unittest.TestCase):
+    CRASHPAD = ("Displaying notes found in: .note.crashpad.info\n"
+                "  Owner                Data size \tDescription\n"
+                "  Crashpad             0x00000008\tUnknown note type: (0x4f464e49)\n"
+                "   description data: 84 bf 78 08 00 00 00 00 \n")
+
+    @staticmethod
+    def gnu(hex_id: str) -> str:
+        return ("Displaying notes found in: .note.gnu.build-id\n"
+                "  Owner                Data size \tDescription\n"
+                f"  GNU                  0x{len(hex_id) // 2:08x}\tNT_GNU_BUILD_ID (unique build ID bitstring)\n"
+                f"    Build ID: {hex_id}\n")
+
+    def test_a_build_id_of_16_bytes_or_more_is_read_and_a_shorter_one_or_none_is_not(self):
+        sha1 = "308fad3a18c1ac006c4b049cf3aa6755164c2b7f"
+        self.assertEqual(build_id(self.CRASHPAD + self.gnu(sha1)), sha1)
+        # 16 bytes, the most a Breakpad module ID takes, and the least that fills it.
+        self.assertEqual(build_id(self.gnu(sha1[:32])), sha1[:32])
+        # lld's `fast`, 8 bytes, which a dump pads with zeros.
+        self.assertIsNone(build_id(self.gnu(sha1[:16])))
+        # 26.11.3's programs: Crashpad's note and no build ID.
+        self.assertIsNone(build_id(self.CRASHPAD))
+        self.assertIsNone(build_id(""))
+
+    def test_a_program_without_a_build_id_is_refused_by_name_before_anything_is_stripped(self):
+        programs = [Path("/dist/openmw"), Path("/dist/openmw-launcher"), Path("/dist/openmw-wizard")]
+        notes = {"openmw": self.gnu("308fad3a18c1ac006c4b049cf3aa6755164c2b7f"), "openmw-launcher": self.CRASHPAD,
+                 "openmw-wizard": self.gnu("308fad3a18c1ac00")}
+
+        def answer(command: list) -> str:
+            return "(GLIBC_2.28) fcntl64\n" if command[0] == "objdump" else notes[Path(command[-1]).name]
+
+        with (patch("omw.package.require", side_effect=lambda name, _why: name),
+              patch("omw.package.executables_in", return_value=programs),
+              patch("omw.package.output", side_effect=answer), patch("omw.package.run") as run):
+            with self.assertRaises(Refusal) as refused:
+                _ready_linux_programs(Path("/dist"))
+            self.assertIn(": openmw-launcher, openmw-wizard;", str(refused.exception))
+            run.assert_not_called()
+
+            notes["openmw-launcher"] = notes["openmw-wizard"] = notes["openmw"]
+            self.assertEqual(_ready_linux_programs(Path("/dist")), programs)
+            run.assert_called_once_with(["strip", *programs])
 
 
 class ReleaseBaseTest(unittest.TestCase):

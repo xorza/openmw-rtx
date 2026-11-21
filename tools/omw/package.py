@@ -109,6 +109,14 @@ def glibc_versions(objdump: str) -> set[tuple[int, ...]]:
             for found in re.findall(r"\bGLIBC_([0-9]+(?:\.[0-9]+)+)\b", objdump)}
 
 
+def build_id(notes: str) -> str | None:
+    """The GNU build ID `readelf -n` lists, as hex, or nothing where there is none or it holds fewer than the 16 bytes a
+    Breakpad module ID is made of: Crashpad writes a dump's module ID from it, and a shorter one or none comes out as
+    zeros there, which no symbols are filed under."""
+    found = re.search(r"\bBuild ID: ([0-9a-f]+)\b", notes)
+    return found.group(1) if found and len(found.group(1)) >= 32 else None
+
+
 def os_release(text: str) -> dict[str, str]:
     """The fields of an `/etc/os-release`, their quotes taken off."""
     fields = {}
@@ -348,15 +356,19 @@ def _archive_linux_tools(build: Build, name: str) -> None:
 
 
 def _ready_linux_programs(folder: Path) -> list[Path]:
-    """The programs directly in `folder`, held to the release base's glibc and stripped by the host's `strip`: the
-    build ID stays, which a dump is matched to its symbols by."""
+    """The programs directly in `folder`, held to the release base's glibc and to a build ID each, and stripped by the
+    host's `strip`: the build ID stays, which a dump is matched to its symbols by."""
     strip = require("strip", "the executables carry the release build's debug information: binutils")
     objdump = require("objdump", "the executables' glibc symbol versions are read off them: binutils")
+    readelf = require("readelf", "the executables' build IDs are read off them: binutils")
     installed = executables_in(folder)
     asked = max(glibc_versions(output([objdump, "-T", *installed])), default=(0,))
     if asked > GLIBC_FLOOR:
         raise Refusal(f"the programs ask glibc {'.'.join(map(str, asked))}, newer than the release base's "
                       f"{'.'.join(map(str, GLIBC_FLOOR))}: build the archive on AlmaLinux 8")
+    if unnamed := [program.name for program in installed if build_id(output([readelf, "-n", program])) is None]:
+        raise Refusal(f"the programs carry no build ID of 16 bytes or more, which a crash dump names its module by: "
+                      f"{', '.join(unnamed)}; the link asks lld for one (`cmake/Flags.cmake`)")
     run([strip, *installed])
     return installed
 
