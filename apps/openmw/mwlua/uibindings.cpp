@@ -9,6 +9,8 @@
 #include <utility>
 #include <vector>
 
+#include <glm/ext/vector_float2.hpp>
+
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/inputmanager.hpp>
 #include <apps/openmw/mwbase/windowmanager.hpp>
@@ -23,6 +25,7 @@
 #include <components/lua_ui/registerscriptsettings.hpp>
 #include <components/lua_ui/resources.hpp>
 #include <components/lua_ui/util.hpp>
+#include <components/misc/convert.hpp>
 #include <components/misc/finitevalues.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
@@ -104,11 +107,13 @@ namespace MWLua
             };
             api["getCursorMode"] = []() { return MWBase::Environment::get().getInputManager()->getCursorMode(); };
             api["setCursorPosition"] = [luaManager = context.mLuaManager](const Misc::FiniteVec2f& position) {
-                luaManager->addAction(
-                    [position] { MWBase::Environment::get().getInputManager()->setCursorPosition(position); });
+                luaManager->addAction([position = Misc::Convert::toOsg(glm::vec2(position))] {
+                    MWBase::Environment::get().getInputManager()->setCursorPosition(position);
+                });
             };
-            api["getCursorPosition"]
-                = []() { return MWBase::Environment::get().getInputManager()->getCursorPosition(); };
+            api["getCursorPosition"] = []() -> glm::vec2 {
+                return Misc::Convert::toGlm(MWBase::Environment::get().getInputManager()->getCursorPosition());
+            };
             api["setCursorVisible"] = [luaManager = context.mLuaManager](bool visible) {
                 luaManager->addAction(
                     [visible] { MWBase::Environment::get().getWindowManager()->setCursorVisible(visible); });
@@ -331,11 +336,11 @@ namespace MWLua
                 if (data.mPath.empty())
                     throw std::logic_error("Invalid texture path");
                 sol::object offset = LuaUtil::getFieldOrNil(options, "offset");
-                if (offset.is<osg::Vec2f>())
-                    data.mOffset = offset.as<osg::Vec2f>();
+                if (offset.is<glm::vec2>())
+                    data.mOffset = offset.as<glm::vec2>();
                 sol::object size = LuaUtil::getFieldOrNil(options, "size");
-                if (size.is<osg::Vec2f>())
-                    data.mSize = size.as<osg::Vec2f>();
+                if (size.is<glm::vec2>())
+                    data.mSize = size.as<glm::vec2>();
                 return luaManager->uiResourceManager()->registerTexture(std::move(data));
             };
 
@@ -351,10 +356,10 @@ namespace MWLua
 
                 sol::object size = LuaUtil::getFieldOrNil(options, "size");
                 sol::object hotspot = LuaUtil::getFieldOrNil(options, "hotspot");
-                if (!size.is<osg::Vec2f>() || !hotspot.is<osg::Vec2f>())
+                if (!size.is<glm::vec2>() || !hotspot.is<glm::vec2>())
                     throw std::logic_error("Cursor size and hotspot must be vectors");
-                data.mSize = size.as<osg::Vec2f>();
-                data.mHotspot = hotspot.as<osg::Vec2f>();
+                data.mSize = size.as<glm::vec2>();
+                data.mHotspot = hotspot.as<glm::vec2>();
                 data.mPersistent = menu;
 
                 sol::optional<Misc::FiniteDouble> rotation = options.get<sol::optional<Misc::FiniteDouble>>("rotation");
@@ -367,20 +372,19 @@ namespace MWLua
                 }
 
                 auto integral = [](float value) { return std::isfinite(value) && std::floor(value) == value; };
-                if (!integral(data.mSize.x()) || !integral(data.mSize.y()) || !integral(data.mHotspot.x())
-                    || !integral(data.mHotspot.y()) || data.mSize.x() <= 0 || data.mSize.y() <= 0
-                    || data.mHotspot.x() < 0 || data.mHotspot.y() < 0 || data.mHotspot.x() >= data.mSize.x()
-                    || data.mHotspot.y() >= data.mSize.y())
+                if (!integral(data.mSize.x) || !integral(data.mSize.y) || !integral(data.mHotspot.x)
+                    || !integral(data.mHotspot.y) || data.mSize.x <= 0 || data.mSize.y <= 0 || data.mHotspot.x < 0
+                    || data.mHotspot.y < 0 || data.mHotspot.x >= data.mSize.x || data.mHotspot.y >= data.mSize.y)
                     throw std::logic_error("Invalid cursor size or hotspot");
-                if (data.mSize.x() > sMaxCursorSize || data.mSize.y() > sMaxCursorSize)
+                if (data.mSize.x > sMaxCursorSize || data.mSize.y > sMaxCursorSize)
                     throw std::logic_error("Cursor size cannot exceed 128 pixels");
 
                 auto cursor = luaManager->uiResourceManager()->registerCursor(std::move(data));
                 luaManager->addAction([cursor] {
                     MWBase::Environment::get().getWindowManager()->createLuaCursor(cursor->mName,
-                        std::string(cursor->mPath), static_cast<std::int32_t>(cursor->mSize.x()),
-                        static_cast<std::int32_t>(cursor->mSize.y()), static_cast<std::int32_t>(cursor->mHotspot.x()),
-                        static_cast<std::int32_t>(cursor->mHotspot.y()), -cursor->mRotation * 180.0 / std::numbers::pi);
+                        std::string(cursor->mPath), static_cast<std::int32_t>(cursor->mSize.x),
+                        static_cast<std::int32_t>(cursor->mSize.y), static_cast<std::int32_t>(cursor->mHotspot.x),
+                        static_cast<std::int32_t>(cursor->mHotspot.y), -cursor->mRotation * 180.0 / std::numbers::pi);
                 });
                 return cursor;
             };
@@ -402,7 +406,7 @@ namespace MWLua
                                              ->getRenderer()
                                              .getPresentation()
                                              .mFrame;
-                return osg::Vec2f(static_cast<float>(frame.x()), static_cast<float>(frame.y()));
+                return glm::vec2(static_cast<float>(frame.x()), static_cast<float>(frame.y()));
             };
 
             api["_getAllUiModes"] = [](sol::this_state thisState) {

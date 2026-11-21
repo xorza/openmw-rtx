@@ -18,6 +18,7 @@
 #include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/detournavigator/agentbounds.hpp>
 #include <components/lua/luastate.hpp>
+#include <components/misc/convert.hpp>
 #include <components/misc/finitevalues.hpp>
 #include <components/settings/values.hpp>
 
@@ -388,7 +389,7 @@ namespace MWLua
                 = MWBase::Environment::get().getWorld()->getPathfindingAgentBounds(o.ptr());
             sol::table result(thisState, sol::create);
             result["shapeType"] = agentBounds.mShapeType;
-            result["halfExtents"] = agentBounds.mHalfExtents;
+            result["halfExtents"] = Misc::Convert::toGlm(agentBounds.mHalfExtents);
             return result;
         };
         actor["isInActorsProcessingRange"] = [](const Object& o) {

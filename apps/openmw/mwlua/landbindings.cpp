@@ -18,6 +18,7 @@
 #include <components/esm/util.hpp>
 #include <components/esmterrain/storage.hpp>
 #include <components/lua/luastate.hpp>
+#include <components/misc/convert.hpp>
 
 #include "context.hpp"
 #include "object.hpp"
@@ -77,12 +78,13 @@ namespace MWLua
         sol::state_view lua = context.sol();
         sol::table landApi(lua, sol::create);
 
-        landApi["getHeightAt"] = [](const osg::Vec3f& pos, const sol::object& cellOrId) {
+        landApi["getHeightAt"] = [](const glm::vec3& pos, const sol::object& cellOrId) {
             ESM::RefId worldspace = worldspaceAt(cellOrId);
-            return MWBase::Environment::get().getWorld()->getTerrainHeightAt(pos, worldspace);
+            return MWBase::Environment::get().getWorld()->getTerrainHeightAt(Misc::Convert::toOsg(pos), worldspace);
         };
 
-        landApi["getTextureAt"] = [lua = lua](const osg::Vec3f& pos, const sol::object& cellOrId) {
+        landApi["getTextureAt"] = [lua = lua](const glm::vec3& posIn, const sol::object& cellOrId) {
+            const osg::Vec3f pos = Misc::Convert::toOsg(posIn);
             sol::variadic_results values;
             const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
             const MWWorld::Store<ESM::Land>& landStore = store.get<ESM::Land>();

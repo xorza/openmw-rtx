@@ -4,6 +4,7 @@ target_sources(
     PRIVATE
         main.cpp
         model/world/testinfocollection.cpp
+        model/world/testscripttext.cpp
         model/world/testuniversalid.cpp
 )
 target_link_libraries(

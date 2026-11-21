@@ -31,6 +31,7 @@ target_sources(
         esm/variant.cpp
         esm3/readerscache.cpp
         esm3/testcstringids.cpp
+        esm3/testesmreader.cpp
         esm3/testesmwriter.cpp
         esm3/testinfoorder.cpp
         esm3/testsaveload.cpp
@@ -64,7 +65,9 @@ target_sources(
         misc/monitor.cpp
         misc/presentation.cpp
         misc/progressreporter.cpp
+        misc/testconvertglm.cpp
         misc/testendianness.cpp
+        misc/testglmexperimental.cpp
         misc/testmathutil.cpp
         misc/testresourcehelpers.cpp
         misc/teststringops.cpp

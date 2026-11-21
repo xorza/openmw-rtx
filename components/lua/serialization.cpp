@@ -3,11 +3,11 @@
 #include <cstddef>
 #include <cstdint>
 
-#include <osg/Matrixf>
-#include <osg/Quat>
-#include <osg/Vec2f>
-#include <osg/Vec3f>
-#include <osg/Vec4f>
+#include <glm/ext/matrix_float4x4.hpp>
+#include <glm/ext/quaternion_float.hpp>
+#include <glm/ext/vector_float2.hpp>
+#include <glm/ext/vector_float3.hpp>
+#include <glm/ext/vector_float4.hpp>
 
 #include <components/misc/color.hpp>
 #include <components/misc/endianness.hpp>
@@ -148,48 +148,56 @@ namespace LuaUtil
     {
         void serializeUserdata(BinaryData& out, const sol::userdata& data, const UserdataSerializer* customSerializer)
         {
-            if (data.is<osg::Vec2f>())
+            // Wire format is byte-identical to the pre-glm version. osg::Matrixf and glm::mat4
+            // share the same 16-float memory image (osg row-major storage of a row-vector
+            // transformation lands at the same positions as glm column-major storage of the
+            // equivalent column-vector transformation), so writing glm's memory positions
+            // 0..15 produces the same bytes the previous osg impl wrote. Same story for the
+            // quat's four floats.
+            if (data.is<glm::vec2>())
             {
                 appendType(out, SerializedType::VEC2);
-                osg::Vec2f v = data.as<osg::Vec2f>();
-                appendValue<double>(out, v.x());
-                appendValue<double>(out, v.y());
+                glm::vec2 v = data.as<glm::vec2>();
+                appendValue<double>(out, v.x);
+                appendValue<double>(out, v.y);
                 return;
             }
-            if (data.is<osg::Vec3f>())
+            if (data.is<glm::vec3>())
             {
                 appendType(out, SerializedType::VEC3);
-                osg::Vec3f v = data.as<osg::Vec3f>();
-                appendValue<double>(out, v.x());
-                appendValue<double>(out, v.y());
-                appendValue<double>(out, v.z());
+                glm::vec3 v = data.as<glm::vec3>();
+                appendValue<double>(out, v.x);
+                appendValue<double>(out, v.y);
+                appendValue<double>(out, v.z);
                 return;
             }
             if (data.is<TransformM>())
             {
                 appendType(out, SerializedType::TRANSFORM_M);
-                osg::Matrixf matrix = data.as<TransformM>().mM;
+                const glm::mat4 matrix = data.as<TransformM>().mM;
                 for (std::int32_t i = 0; i < 4; i++)
                     for (std::int32_t j = 0; j < 4; j++)
-                        appendValue<double>(out, matrix(i, j));
+                        appendValue<double>(out, matrix[i][j]);
                 return;
             }
             if (data.is<TransformQ>())
             {
                 appendType(out, SerializedType::TRANSFORM_Q);
-                osg::Quat quat = data.as<TransformQ>().mQ;
-                for (std::int32_t i = 0; i < 4; i++)
-                    appendValue<double>(out, quat[i]);
+                const glm::quat quat = data.as<TransformQ>().mQ;
+                appendValue<double>(out, quat.x);
+                appendValue<double>(out, quat.y);
+                appendValue<double>(out, quat.z);
+                appendValue<double>(out, quat.w);
                 return;
             }
-            if (data.is<osg::Vec4f>())
+            if (data.is<glm::vec4>())
             {
                 appendType(out, SerializedType::VEC4);
-                osg::Vec4f v = data.as<osg::Vec4f>();
-                appendValue<double>(out, v.x());
-                appendValue<double>(out, v.y());
-                appendValue<double>(out, v.z());
-                appendValue<double>(out, v.w());
+                glm::vec4 v = data.as<glm::vec4>();
+                appendValue<double>(out, v.x);
+                appendValue<double>(out, v.y);
+                appendValue<double>(out, v.z);
+                appendValue<double>(out, v.w);
                 return;
             }
             if (data.is<Misc::Color>())
@@ -319,7 +327,7 @@ namespace LuaUtil
                 {
                     auto x = static_cast<float>(getValue<double>(binaryData));
                     auto y = static_cast<float>(getValue<double>(binaryData));
-                    sol::stack::push<osg::Vec2f>(lua, osg::Vec2f(x, y));
+                    sol::stack::push<glm::vec2>(lua, glm::vec2(x, y));
                     return;
                 }
                 case SerializedType::VEC3:
@@ -327,24 +335,25 @@ namespace LuaUtil
                     auto x = static_cast<float>(getValue<double>(binaryData));
                     auto y = static_cast<float>(getValue<double>(binaryData));
                     auto z = static_cast<float>(getValue<double>(binaryData));
-                    sol::stack::push<osg::Vec3f>(lua, osg::Vec3f(x, y, z));
+                    sol::stack::push<glm::vec3>(lua, glm::vec3(x, y, z));
                     return;
                 }
                 case SerializedType::TRANSFORM_M:
                 {
-                    osg::Matrixf mat;
+                    glm::mat4 mat;
                     for (std::int32_t i = 0; i < 4; i++)
                         for (std::int32_t j = 0; j < 4; j++)
-                            mat(i, j) = static_cast<float>(getValue<double>(binaryData));
+                            mat[i][j] = static_cast<float>(getValue<double>(binaryData));
                     sol::stack::push<TransformM>(lua, asTransform(mat));
                     return;
                 }
                 case SerializedType::TRANSFORM_Q:
                 {
-                    osg::Quat q;
-                    for (std::int32_t i = 0; i < 4; i++)
-                        q[i] = getValue<double>(binaryData);
-                    sol::stack::push<TransformQ>(lua, asTransform(q));
+                    const auto x = static_cast<float>(getValue<double>(binaryData));
+                    const auto y = static_cast<float>(getValue<double>(binaryData));
+                    const auto z = static_cast<float>(getValue<double>(binaryData));
+                    const auto w = static_cast<float>(getValue<double>(binaryData));
+                    sol::stack::push<TransformQ>(lua, asTransform(glm::quat(w, x, y, z)));
                     return;
                 }
                 case SerializedType::VEC4:
@@ -353,7 +362,7 @@ namespace LuaUtil
                     auto y = static_cast<float>(getValue<double>(binaryData));
                     auto z = static_cast<float>(getValue<double>(binaryData));
                     auto w = static_cast<float>(getValue<double>(binaryData));
-                    sol::stack::push<osg::Vec4f>(lua, osg::Vec4f(x, y, z, w));
+                    sol::stack::push<glm::vec4>(lua, glm::vec4(x, y, z, w));
                     return;
                 }
                 case SerializedType::COLOR:

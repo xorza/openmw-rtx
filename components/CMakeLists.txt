@@ -1625,6 +1625,7 @@ target_link_libraries(
         Base64
         smhasher
         rgbcx
+        glm::glm
         ICU::uc
         ICU::i18n
         ICU::data
