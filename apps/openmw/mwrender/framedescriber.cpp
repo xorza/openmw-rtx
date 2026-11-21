@@ -7,6 +7,7 @@
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwworld/cell.hpp>
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/datetimemanager.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
@@ -18,7 +19,37 @@
 
 namespace MWRender
 {
-    WorldState FrameDescriber::describeWorld(const FrameSources& sources) const
+    FramePlace placeOf(const MWWorld::Cell& cell)
+    {
+        if (cell.isExterior())
+            return FramePlace{ .mLocation = Location::Exterior, .mRoom = std::nullopt };
+        const auto& mood = cell.getMood();
+        return FramePlace{
+            .mLocation = cell.isQuasiExterior() ? Location::QuasiExterior : Location::Interior,
+            .mRoom = cell.isQuasiExterior() ? std::nullopt
+                                            : std::optional(ESM::Cell::AMBIstruct{
+                                                  .mAmbient = mood.mAmbiantColor,
+                                                  .mSunlight = mood.mDirectionalColor,
+                                                  .mFog = mood.mFogColor,
+                                                  .mFogDensity = mood.mFogDensity,
+                                              }),
+        };
+    }
+
+    namespace
+    {
+        /// Where the world stands: the player's cell, and a room with no facts where the player stands in none, as
+        /// in the main menu.
+        FramePlace placeOfPlayer()
+        {
+            const MWWorld::Ptr& player = MWMechanics::getPlayer();
+            if (!player.isInCell())
+                return FramePlace{ .mLocation = Location::Interior, .mRoom = std::nullopt };
+            return placeOf(*player.getCell()->getCell());
+        }
+    }
+
+    WorldState FrameDescriber::describeWorld(const FrameSources& sources, const FramePlace& place) const
     {
         // Not `const`: `getTimeManager` is not.
         MWBase::World& simulation = *MWBase::Environment::get().getWorld();
@@ -40,25 +71,12 @@ namespace MWRender
         described.mSkyShown = mSkyShown;
         described.mMoonRed = mMoonRed;
 
-        described.mLocation = simulation.isCellExterior() ? Location::Exterior
-            : simulation.isCellQuasiExterior()            ? Location::QuasiExterior
-                                                          : Location::Interior;
-
-        // **A room's facts, read off the cell the player stands in.** The weather system stops the
-        // moment they step inside, so everything it settled for the sky is the last outdoor
-        // hour's, bar the sun `configureAmbient` pointed. The ray tracer lights a room from the
-        // record alone.
-        const MWWorld::Ptr& player = MWMechanics::getPlayer();
-        if (described.mLocation == Location::Interior && player.isInCell())
-        {
-            const auto& mood = player.getCell()->getCell()->getMood();
-            described.mRoom = ESM::Cell::AMBIstruct{
-                .mAmbient = mood.mAmbiantColor,
-                .mSunlight = mood.mDirectionalColor,
-                .mFog = mood.mFogColor,
-                .mFogDensity = mood.mFogDensity,
-            };
-        }
+        // **The place is the one the frame stands in**, handed in: the player's cell for a frame drawn, and for a wait
+        // the cell its change arrived in, whatever the scene has moved yet. The weather system stops the moment the
+        // player steps inside, so everything it settled for the sky is the last outdoor hour's, bar the sun
+        // `configureAmbient` pointed.
+        described.mLocation = place.mLocation;
+        described.mRoom = place.mRoom;
 
         described.mWater = mWater;
         described.mUnderwater = mWater.isUnderwater(sources.mEyePosition);
@@ -66,7 +84,7 @@ namespace MWRender
             = { sources.mFog.getFogColor(false), sources.mFog.getFogStart(false), sources.mFog.getFogEnd(false) };
         described.mWaterFog
             = { sources.mFog.getFogColor(true), sources.mFog.getFogStart(true), sources.mFog.getFogEnd(true) };
-        described.mPlayerPosition = player.getRefData().getPosition().asVec3();
+        described.mPlayerPosition = MWMechanics::getPlayer().getRefData().getPosition().asVec3();
 
         described.mGameHour = simulation.getTimeStamp().getHour();
         if (Settings::game().mDayNightSwitches)
@@ -83,7 +101,7 @@ namespace MWRender
 
     const SceneFrame& FrameDescriber::describe(const FrameSources& sources)
     {
-        mWorld = describeWorld(sources);
+        mWorld = describeWorld(sources, placeOfPlayer());
         mEye = sources.mEye;
         mEye.mProjectionMatrix = mProjection;
         mEye.mProjectionShift = mProjectionShift;
@@ -113,10 +131,10 @@ namespace MWRender
         return *mFrame;
     }
 
-    const SceneFrame& FrameDescriber::describeStill(const FrameSources& sources)
+    const SceneFrame& FrameDescriber::describeStill(const FrameSources& sources, const MWWorld::CellStore& destination)
     {
         assert(!mDescribed && "a still frame described while the frame described spans the jumps");
-        mWorld = describeWorld(sources);
+        mWorld = describeWorld(sources, placeOf(*destination.getCell()));
         mEye = sources.mEye;
         mEye.mProjectionMatrix = mProjection;
         mEye.mProjectionShift = mProjectionShift;

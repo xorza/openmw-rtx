@@ -522,9 +522,12 @@ namespace MWRender
         mRenderer.describeFrame(mFrame.describe(frameSources()));
     }
 
-    void RenderingManager::standWhole(const WorldChange change, const osg::Vec3f& position)
+    void RenderingManager::standWhole(
+        const WorldChange change, const MWWorld::CellStore& destination, const osg::Vec3f& position)
     {
-        mRenderer.standWhole(mFrame.describeStill(frameSources()),
+        assert(MWBase::Environment::get().getWorld()->isCellExterior() == destination.isExterior()
+            && "the scene stands in the cell its change arrived in");
+        mRenderer.standWhole(mFrame.describeStill(frameSources(), destination),
             WorldChanged{ .mChange = change, .mPosition = position },
             *MWBase::Environment::get().getWindowManager()->getLoadingScreen());
     }

@@ -77,6 +77,7 @@ namespace DetourNavigator
 
 namespace MWWorld
 {
+    class CellStore;
     class GroundcoverStore;
     class Cell;
     class WeatherStore;
@@ -246,8 +247,10 @@ namespace MWRender
         void describeFrame();
         void renderFrame();
 
-        /// `Renderer::standWhole`, over the world as it stands, still, under the window manager's loading screen.
-        void standWhole(WorldChange change, const osg::Vec3f& position);
+        /// `Renderer::standWhole`, over the world as it stands, still, under the window manager's loading screen, once
+        /// the scene stands in `destination`: the frame is described from the scene's cell, and one still the cell
+        /// left described a room's world going outdoors, whose cells the ray tracer then stood after the wait.
+        void standWhole(WorldChange change, const MWWorld::CellStore& destination, const osg::Vec3f& position);
 
         Animation* getAnimation(const MWWorld::Ptr& ptr);
         const Animation* getAnimation(const MWWorld::ConstPtr& ptr) const;

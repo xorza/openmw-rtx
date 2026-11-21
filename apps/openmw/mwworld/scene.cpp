@@ -380,7 +380,9 @@ namespace MWWorld
         {
             changeCellGrid(mChangeCellGridRequest->mPosition, mChangeCellGridRequest->mCellIndex,
                 mChangeCellGridRequest->mChangeEvent);
-            mRendering.standWhole(MWRender::WorldChange::Crossing, mChangeCellGridRequest->mPosition);
+            mRendering.standWhole(MWRender::WorldChange::Crossing,
+                mWorld.getWorldModel().getExterior(mChangeCellGridRequest->mCellIndex),
+                mChangeCellGridRequest->mPosition);
             mChangeCellGridRequest.reset();
         }
 
@@ -1019,7 +1021,7 @@ namespace MWWorld
 
         mCellLoaded = true;
 
-        mRendering.standWhole(MWRender::WorldChange::Cut, position.asVec3());
+        mRendering.standWhole(MWRender::WorldChange::Cut, cell, position.asVec3());
 
         if (useFading)
             MWBase::Environment::get().getWindowManager()->fadeScreenIn(0.5);
@@ -1039,9 +1041,11 @@ namespace MWWorld
 
         changeCellGrid(position.asVec3(),
             ESM::ExteriorCellLocation(cellIndex.x(), cellIndex.y(), current.getCell()->getWorldSpace()), changeEvent);
-        mRendering.standWhole(MWRender::WorldChange::Cut, position.asVec3());
-
+        // **After the player's cell moves**, as `changeToInteriorCell` waits: the wait describes the world from the
+        // scene's cell, and the cell left, a room or none at all on a game's first load, stood no exterior cell before
+        // the first frame.
         changePlayerCell(current, position, adjustPlayerPos);
+        mRendering.standWhole(MWRender::WorldChange::Cut, current, position.asVec3());
 
         if (changeEvent)
             MWBase::Environment::get().getWindowManager()->fadeScreenIn(0.5);

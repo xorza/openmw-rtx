@@ -32,8 +32,25 @@ namespace Terrain
     class World;
 }
 
+namespace MWWorld
+{
+    class Cell;
+    class CellStore;
+}
+
 namespace MWRender
 {
+    /// Where a frame stands: outdoors, a room under a sky or a room, with a room's facts off its record.
+    struct FramePlace
+    {
+        Location mLocation = Location::Interior;
+        std::optional<ESM::Cell::AMBIstruct> mRoom;
+    };
+
+    /// A cell's place: outdoors, a room under a sky, or a room, with a room's facts off its record. The ray tracer
+    /// lights a room from the record alone.
+    FramePlace placeOf(const MWWorld::Cell& cell);
+
     class FogManager;
     class Precipitation;
 
@@ -130,16 +147,18 @@ namespace MWRender
         /// Describes this frame off `sources` and the facts kept here, and keeps it until the next.
         const SceneFrame& describe(const FrameSources& sources);
 
-        /// The world as it stands, still and carrying no jump, for a wait under the loading screen
-        /// (`Renderer::standWhole`): the step and the jumps stay for the next `describe`, whose frame is drawn.
-        const SceneFrame& describeStill(const FrameSources& sources);
+        /// The world as it stands in `destination`, still and carrying no jump, for a wait under the loading screen
+        /// (`Renderer::standWhole`): the place is the cell the change arrived in and never the scene's, so the wait
+        /// stands the cells of where it goes however its caller has moved the scene. The step and the jumps stay for
+        /// the next `describe`, whose frame is drawn.
+        const SceneFrame& describeStill(const FrameSources& sources, const MWWorld::CellStore& destination);
 
         /// The frame `describe` last made. Asserts that it has.
         const SceneFrame& get() const;
 
     private:
         /// See `WorldState` in sceneframe.hpp.
-        WorldState describeWorld(const FrameSources& sources) const;
+        WorldState describeWorld(const FrameSources& sources, const FramePlace& place) const;
 
         WaterState mWater;
         float mSunVisibility = 0.f;

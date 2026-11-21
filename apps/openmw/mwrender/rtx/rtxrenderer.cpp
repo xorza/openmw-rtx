@@ -665,7 +665,7 @@ namespace MWRender
         expectEngineCall();
         const Crash::NoteScope noted("standing the world whole around where the cells changed");
 
-        // The eye where the change stands it, turned as the camera is: the player is moved there only after.
+        // The eye where the change stands it, turned as the camera is.
         osg::Matrixd eye = osg::Matrixd::inverse(getCamera().getViewMatrix());
         eye.setTrans(changed.mPosition);
         const osg::Matrixd view = osg::Matrixd::inverse(eye);
@@ -689,6 +689,10 @@ namespace MWRender
 
         // **A crossing whose band stands returns with no frame shown**, and a cut that stands at once with none either.
         std::uint32_t left = cover();
+        // An outdoor change's walk asks for its cells: with none asked there is nothing to show by the count, and the
+        // world came in a cell a frame after the wait, as a change described from the room it left did.
+        assert((frame.mWorld.mLocation != Location::Exterior || mMirror.getRing().asks())
+            && "a wait outdoors whose walk asked for no cells");
         if (left == 0)
             return;
         const std::chrono::steady_clock::time_point began = std::chrono::steady_clock::now();

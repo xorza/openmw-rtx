@@ -90,6 +90,11 @@ namespace Rtx
         /// `HoldTier::Shown`. The band past the reach streams on behind it, hidden.
         std::uint32_t getCellsToShow(HoldTier through) const;
 
+        /// Whether the last walk asked the reader for a band, which a walk outdoors with a reader does and one indoors
+        /// or with no world to read does not: a count of cells to show is nought for want of an ask as well as for a
+        /// band that stands.
+        bool asks() const { return mAsked.has_value(); }
+
         /// Whether a cell under the square from `low` to `high`, world units on the plane, is in the
         /// band the last walk asked over and not yet held: a picture of the ground there taken now
         /// shows the cell's objects on nothing. False where the last walk stood nothing.
