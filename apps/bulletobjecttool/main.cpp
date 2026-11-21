@@ -126,7 +126,7 @@ namespace
         config.processPaths(variables, std::filesystem::current_path());
         config.readConfiguration(variables, desc);
 
-        Debug::setupLogging(config.getLogPath(), applicationName);
+        Debug::setupLogging(config.getLogPath(), config.getUserDataPath(), applicationName);
 
         const std::string encoding(variables["encoding"].as<std::string>());
         Log(Debug::Info) << ToUTF8::encodingUsingMessage(encoding);

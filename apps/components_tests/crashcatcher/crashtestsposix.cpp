@@ -85,6 +85,14 @@ namespace CrashTests
             .mKept = true });
         // Under an image with the catcher turned off: nothing is kept, because no monitor starts.
         into.push_back({ "unkept-disabled", "", {}, "crash-tests lived on", false });
+        // **Reports where the configuration says**, with no folder named and the default one moved under the mode's,
+        // so the run writes nothing into the user's own.
+        into.push_back({ .mName = "configured-folder",
+            .mHeadline = "",
+            .mRaised = {},
+            .mFollows = "crash-tests lived on",
+            .mReports = false,
+            .mConfigured = true });
         into.push_back({ .mName = "kept-leaves",
             .mHeadline = "",
             .mRaised = {},
@@ -174,11 +182,18 @@ namespace CrashTests
             Platform::Process::setEnvironment("APPIMAGE", "crash-tests: no image, and no catcher to keep one for");
             Platform::Process::setEnvironment("OPENMW_DISABLE_CRASH_CATCHER", "1");
         }
+        if (mode == "configured-folder")
+        {
+            const std::filesystem::path folder
+                = std::filesystem::path(std::getenv("OPENMW_CRASH_REPORTS")).parent_path().parent_path();
+            Platform::Process::setEnvironmentPath("XDG_DATA_HOME", folder / "default");
+            unsetenv("OPENMW_CRASH_REPORTS"); // NOLINT(concurrency-mt-unsafe): before any thread starts
+        }
     }
 
     std::optional<std::int32_t> runModeOfThisSystem(std::string_view mode)
     {
-        if (mode == "folder-unopened" || mode == "report-unwritable")
+        if (mode == "folder-unopened" || mode == "report-unwritable" || mode == "configured-folder")
             return livedOn();
         if (mode == "unkept-disabled")
         {
@@ -238,7 +253,7 @@ namespace CrashTests
             const std::string log
                 = contentsOf(std::filesystem::path(std::getenv("OPENMW_CRASH_REPORTS")).parent_path().parent_path()
                     / "crash-tests.log");
-            constexpr std::string_view named = "from the monitor process ";
+            constexpr std::string_view named = "The crash catcher's monitor is process ";
             const std::size_t at = log.find(named);
             if (at == std::string::npos)
                 return 3;

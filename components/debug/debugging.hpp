@@ -34,13 +34,11 @@ namespace Debug
 
     Level getRecastMaxLogLevel();
 
-    // Redirect cout and cerr to the log file
-    void setupLogging(const std::filesystem::path& logDir, std::string_view appName);
-
-    /// Hands the crash catcher the folder its packages go to, `crashes/` in the user data folder the
-    /// configuration names, where `OPENMW_CRASH_REPORTS` named none: the catcher started before any
-    /// configuration was read, and saves and logs go where the configuration says.
-    void setCrashReports(const std::filesystem::path& userData);
+    /// Redirects cout and cerr to the log file in `logDir`, and hands the crash catcher that log and `crashes/` in
+    /// `userData`, where `OPENMW_CRASH_REPORTS` named no folder: the catcher started before any configuration was
+    /// read, and every program that reads one sends its reports where the configuration says, as its saves and logs.
+    void setupLogging(
+        const std::filesystem::path& logDir, const std::filesystem::path& userData, std::string_view appName);
 
     std::int32_t wrapApplication(std::int32_t (*innerApplication)(std::int32_t argc, char* argv[]), std::int32_t argc,
         char* argv[], std::string_view appName);

@@ -206,6 +206,10 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   (`Misc::OsgUserValues::sFilePath`), so a refusal and a note name the file.
 - `Debug::wrapApplication`'s fatal error box reads `OPENMW_CRASH_DIALOG` as the crash dialog does, and shows after the
   error is logged: under a harness it waited for a click with nothing in the log.
+- `Debug::setupLogging` takes the configured user data folder beside the log's (2026-11-21), and hands the catcher its
+  `crashes/` there: the game and the harness alone handed it over, so the launcher's, the wizard's, the editor's and
+  the tools' reports went to the default folder whatever the configuration named. Cost: one argument at each program's
+  call.
 
 **What the harness holds of the game** (`OMW::EngineHost`, which the game alone asks nothing of): a sky between two
 weathers for one update (`WeatherManager::holdWeather`), a stated game hour (`holdsGameClock`), a script's message box
@@ -369,13 +373,14 @@ and upstream's two Lua storage tests writing there.
   quoted path of another folder spelled from the root (`"../mwbase/world.hpp"` is `<apps/openmw/mwbase/world.hpp>`),
   which `omw format` writes and `omw merge-file` writes on upstream's side too: 1,528 sources. Cost: a merge's
   conflicts stay where the edits overlap, as the merge driver lays out both sides first.
-- Every integer type as `<cstdint>`'s fixed widths, `std::`-qualified (AGENTS.md, "Fixed-width integers",
-  2026-11-17): 2,019 sources rewritten by `omw format`, which `omw merge-file` applies to upstream's side, and held by
+- Every integer type as `<cstdint>`'s fixed widths, `std::`-qualified (AGENTS.md, "Fixed-width integers", 2026-11-17):
+  2,019 sources rewritten by `omw format`, which `omw merge-file` applies to upstream's side, and held by
   `google-runtime-int` and `modernize-deprecated-headers`. Each `long` chosen by hand: the Lua `seek` offset is
   `std::int64_t`, which ends its 32 bits on Windows; a code point `std::uint32_t`; an API's own `long` kept with its
-  reason. The editor's queued scroll calls its slot through a lambda, not a string. A declaration a cast initialises
-  is `auto` (`modernize-use-auto`, which a type name of five letters or more now reaches). Cost: a conflict with an
-  upstream edit only where it overlaps the fork's, as the merge driver rewrites upstream's side first.
+  reason. The editor's queued scroll calls its slot through a lambda, not a string, and the launcher's skip-menu box its
+  slot by member, not by name, which Qt matched as the text `stateChanged(int)` and never connected. A declaration a
+  cast initialises is `auto` (`modernize-use-auto`, which a type name of five letters or more now reaches). Cost: a
+  conflict with an upstream edit only where it overlaps the fork's, as the merge driver rewrites upstream's side first.
 - No system branch outside `components/platform` (2026-11-17): the calendar through `Platform::localTime` and the new
   `universalTime`; the idle thread priority through `Platform::lowerThisThreadToIdle`, its error the system's (Linux's
   from `pthread_setschedparam`'s result, where `errno` was read); the console, its colours, the executable's suffix,

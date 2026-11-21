@@ -179,13 +179,13 @@ namespace CrashTests
         }
 
         /// **Started the way the game starts**: `wrapApplication` starts the catcher with its reports in
-        /// `<folder>/user data/crashes`, and `setupLogging` opens the log and hands it over, so what a mode writes
-        /// afterwards goes through the stream the game writes its log with, the one the monitor's
-        /// summaries have to survive.
+        /// `<folder>/user data/crashes`, and `setupLogging` opens the log and hands it over with the configured
+        /// folder, `<folder>/configured`, so what a mode writes afterwards goes through the stream the game writes its
+        /// log with, the one the monitor's summaries have to survive.
         std::int32_t run(std::string_view mode, const std::filesystem::path& folder)
         {
             std::filesystem::create_directories(folder);
-            Debug::setupLogging(folder, "crash-tests");
+            Debug::setupLogging(folder, folder / "configured", "crash-tests");
             Crash::setHangLimit(std::chrono::seconds(2));
             Crash::annotate("mode", mode);
             const Crash::NoteScope noted("running the mode \"{}\"", mode);
@@ -462,8 +462,21 @@ namespace CrashTests
                     claimed != said.end())
                     return "the log says a catcher works: " + *claimed;
             }
-            else if (missing != said.end())
-                return *missing;
+            else
+            {
+                if (missing != said.end())
+                    return *missing;
+                // A catcher that started says where its reports go once the log is open: the folder
+                // `OPENMW_CRASH_REPORTS` names, which stands over the configured one `run` hands `setupLogging`.
+                const bool started = std::ranges::any_of(said, [](const std::string& line) {
+                    return line.starts_with("The crash catcher's monitor is process ");
+                });
+                const std::string reports = "Crash reports go to "
+                    + Files::pathToUnicodeString(std::filesystem::absolute(folder)
+                        / (mode.mConfigured ? "configured" : "user data") / "crashes");
+                if (started && std::ranges::find(said, reports) == said.end())
+                    return "the log does not say \"" + reports + "\"";
+            }
 
             if (!mode.mReports)
             {

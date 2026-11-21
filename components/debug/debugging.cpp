@@ -59,9 +59,13 @@ namespace Debug
 
     namespace
     {
-        /// Whether `OPENMW_CRASH_REPORTS` named the reports' folder, which then stands over the
-        /// configured one: `setCrashReports`.
-        bool sReportsNamed = false;
+        /// The catcher `wrapApplication` started, none where it did not: with the folder `OPENMW_CRASH_REPORTS`
+        /// named, which stands over the one the configuration names (`setupLogging`).
+        struct Catcher
+        {
+            std::optional<std::filesystem::path> mNamedReports;
+        };
+        std::optional<Catcher> sCatcher;
 
         /// The folder under the user data folder that the reports go to, both before the configuration
         /// names that folder and after.
@@ -321,13 +325,8 @@ namespace Debug
         return Error;
     }
 
-    void setCrashReports(const std::filesystem::path& userData)
-    {
-        if (!sReportsNamed)
-            Crash::setReportFolder(userData / sReportFolder);
-    }
-
-    void setupLogging(const std::filesystem::path& logDir, std::string_view appName)
+    void setupLogging(
+        const std::filesystem::path& logDir, const std::filesystem::path& userData, std::string_view appName)
     {
         Log::sMinDebugLevel = getDebugLevel();
         Log::sWriteLevel = true;
@@ -351,9 +350,15 @@ namespace Debug
         std::cout.rdbuf(&standardOut);
         std::cerr.rdbuf(&standardErr);
 
-        // The catcher started before the log was known, in `wrapApplication`; its summaries land
-        // here from now on.
+        // The catcher started before the log and the user data folder were known, in `wrapApplication`; its
+        // summaries land in this log from now on, and its packages in the configured folder.
+        if (!sCatcher.has_value())
+            return;
         Crash::setLogFile(logFile);
+        const std::filesystem::path reports = sCatcher->mNamedReports.value_or(userData / sReportFolder);
+        if (!sCatcher->mNamedReports.has_value())
+            Crash::setReportFolder(reports);
+        Log(Debug::Info) << "Crash reports go to " << reports;
     }
 
     std::int32_t wrapApplication(std::int32_t (*innerApplication)(std::int32_t argc, char* argv[]), std::int32_t argc,
@@ -399,7 +404,6 @@ namespace Debug
             settings.mIssues = "https://github.com/xorza/openmw-rtx/issues";
             const std::optional<std::filesystem::path> reports
                 = Platform::Process::environmentPath("OPENMW_CRASH_REPORTS");
-            sReportsNamed = reports.has_value();
             settings.mReportFolder = reports.value_or(Files::FixedPath<>("openmw").getUserDataPath() / sReportFolder);
             settings.mAnswering = asks ? Crash::Answering(Crash::AskThePlayer{}) : Crash::Answering(Crash::AskNobody{});
             // A harness's End in place of the player's where it names one, spelled as the monitor
@@ -421,9 +425,9 @@ namespace Debug
                 Log(Debug::Warning) << "No crash catcher: " << installed.error();
             else
             {
-                Log(Debug::Info) << "Crash reports go to " << settings.mReportFolder << ", from the monitor process "
-                                 << installed.value().mMonitor << ", which reads the game under "
-                                 << installed.value().mReading
+                sCatcher = Catcher{ .mNamedReports = reports };
+                Log(Debug::Info) << "The crash catcher's monitor is process " << installed.value().mMonitor
+                                 << ", which reads the game under " << installed.value().mReading
                                  << (std::getenv("APPIMAGE") != nullptr && unkept.empty()
                                             ? ", and the AppImage's keeper holds its mount"
                                             : "");

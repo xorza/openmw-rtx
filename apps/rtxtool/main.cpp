@@ -76,8 +76,7 @@ namespace RtxTool
         /// reported as one in the game is.
         void startLogAndSettings(const Files::ConfigurationManager& config)
         {
-            Debug::setupLogging(config.getLogPath(), applicationName);
-            Debug::setCrashReports(config.getUserDataPath());
+            Debug::setupLogging(config.getLogPath(), config.getUserDataPath(), applicationName);
             Log(Debug::Info) << Version::getOpenmwVersionDescription();
 
             Settings::Manager::load(config);

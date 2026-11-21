@@ -141,7 +141,7 @@ boost::program_options::variables_map CS::Editor::readConfiguration()
 
     mCfgMgr.readConfiguration(variables, desc, false);
     Settings::Manager::load(mCfgMgr, true);
-    Debug::setupLogging(mCfgMgr.getLogPath(), "OpenMW-CS");
+    Debug::setupLogging(mCfgMgr.getLogPath(), mCfgMgr.getUserDataPath(), "OpenMW-CS");
 
     return variables;
 }

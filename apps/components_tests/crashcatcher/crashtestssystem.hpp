@@ -51,6 +51,10 @@ namespace CrashTests
         /// Whether the session is packaged with no summary and the log alone in it: a crash whose
         /// dump could not be written.
         bool mLogAlone = false;
+
+        /// Whether no `OPENMW_CRASH_REPORTS` names the reports' folder, so they go to `crashes/` in the user data
+        /// folder `setupLogging` is handed, `<folder>/configured`, as a program that reads a configuration sends them.
+        bool mConfigured = false;
     };
 
     /// How this system names what the modes every system has raise, one of each list.

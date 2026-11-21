@@ -26,7 +26,7 @@ namespace
         configurationManager.addCommonOptions(description);
         configurationManager.readConfiguration(variables, description, true);
 
-        Debug::setupLogging(configurationManager.getLogPath(), "Launcher");
+        Debug::setupLogging(configurationManager.getLogPath(), configurationManager.getUserDataPath(), "Launcher");
 
         try
         {

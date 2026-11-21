@@ -21,7 +21,7 @@ namespace
         configurationManager.addCommonOptions(description);
         configurationManager.readConfiguration(variables, description, true);
 
-        Debug::setupLogging(configurationManager.getLogPath(), "Wizard");
+        Debug::setupLogging(configurationManager.getLogPath(), configurationManager.getUserDataPath(), "Wizard");
 
         Platform::Application app(argc, argv, Platform::Look::Graphite);
 

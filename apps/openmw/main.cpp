@@ -58,8 +58,7 @@ namespace
 
         cfgMgr.readConfiguration(variables, desc);
 
-        Debug::setupLogging(cfgMgr.getLogPath(), "OpenMW");
-        Debug::setCrashReports(cfgMgr.getUserDataPath());
+        Debug::setupLogging(cfgMgr.getLogPath(), cfgMgr.getUserDataPath(), "OpenMW");
         Log(Debug::Info) << Version::getOpenmwVersionDescription();
 
         Settings::Manager::load(cfgMgr);

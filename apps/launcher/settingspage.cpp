@@ -123,6 +123,7 @@ Launcher::SettingsPage::SettingsPage(
     mCellNameCompleter.setModel(&mCellNameCompleterModel);
     startDefaultCharacterAtField->setCompleter(&mCellNameCompleter);
 
+    connect(skipMenuCheckBox, &QCheckBox::toggled, this, &SettingsPage::slotSkipMenuToggled);
     connect(configsList, &QTreeWidget::itemActivated, this, &SettingsPage::slotOpenFile);
 
     auto actionOpenDir = new QAction(tr("Open Directory"), configsList);
@@ -181,10 +182,10 @@ void Launcher::SettingsPage::loadCellsForAutocomplete(const QStringList& cellNam
     mCellNameCompleter.setCaseSensitivity(Qt::CaseSensitivity::CaseInsensitive);
 }
 
-void Launcher::SettingsPage::on_skipMenuCheckBox_stateChanged(std::int32_t state)
+void Launcher::SettingsPage::slotSkipMenuToggled(bool checked)
 {
-    startDefaultCharacterAtLabel->setEnabled(state == Qt::Checked);
-    startDefaultCharacterAtField->setEnabled(state == Qt::Checked);
+    startDefaultCharacterAtLabel->setEnabled(checked);
+    startDefaultCharacterAtField->setEnabled(checked);
 }
 
 void Launcher::SettingsPage::on_runScriptAfterStartupBrowseButton_clicked()
