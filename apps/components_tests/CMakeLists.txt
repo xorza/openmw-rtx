@@ -40,6 +40,7 @@ target_sources(
         esmloader/load.cpp
         esmloader/record.cpp
         esmterrain/testgridsampling.cpp
+        fallback/validate.cpp
         files/constrainedfilestream.cpp
         files/conversiontests.cpp
         files/hash.cpp

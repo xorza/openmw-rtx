@@ -275,6 +275,11 @@ and upstream's two Lua storage tests writing there.
   `failed to render`. Its 24 bits may be one of the plugin's own, as `MFR_Grass.esp`'s 0x0107355E is, so no number
   holds it: both cell readers read past it, said. Cost: a conflict with an upstream edit to `adjustRefNum`,
   `Cell::getNextRef` or `getNextMVRF`.
+- **An empty fallback value ended the game at its start** (upstream #9213, the user's yes, 2026-11-21):
+  `Fallback::validate` refused a token whose comma is its last character, so `fallback=Movies_New_Game,`, as a
+  Morrowind.ini with its movies blanked imports, closed the game with `the argument for option 'fallback' is
+  invalid`. An empty value is kept, which every reader takes as unset: the movies are skipped. Cost: a conflict with
+  an upstream edit to `Fallback::validate`.
 - `Files::LinuxPath` took a failed `read_symlink` for the executable's path (`ec.value() != -1` holds for every error).
 - `SettingsFileParser::saveSettingsFile` and `StateManager::saveGame` wrote in place, so a crash or a full disk left
   part of either: both write through `Platform::writeWhole`, synced (`openmw-platform-io`), and a save the system could
