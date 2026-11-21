@@ -280,6 +280,17 @@ and upstream's two Lua storage tests writing there.
   Morrowind.ini with its movies blanked imports, closed the game with `the argument for option 'fallback' is
   invalid`. An empty value is kept, which every reader takes as unset: the movies are skipped. Cost: a conflict with
   an upstream edit to `Fallback::validate`.
+- **A stick let go in a menu kept turning the camera once the menu closed** (upstream #8863, the user's yes,
+  2026-11-21): a menu keeps the axis events it acts on, so the controls never heard the stick come back.
+  `BindingsManager` keeps each axis's value as the controls last heard it, and as the game leaves a menu
+  `InputManager::changeInputMode` has `ControllerManager::catchUpAxes` read the sticks and tell the controls each axis
+  that stands elsewhere (`catchUpControllerAxes`). Cost: a conflict with an upstream edit to
+  `BindingsManager::controllerAxisMoved` or `changeInputMode`.
+- **Alchemy's filter forgot its selection after each potion** (upstream #8143, the user's yes, 2026-11-21): MyGUI's
+  `ComboBox::removeAllItems` drops the selection and keeps the caption, so the wheel stepped from the first item.
+  `AlchemyWindow::updateFilters` puts its items back through `Gui::replaceComboBoxItems`
+  (`components/widgets/comboboxitems.hpp`), which keeps the selected item. Cost: a conflict with an upstream edit
+  to `updateFilters`.
 - `Files::LinuxPath` took a failed `read_symlink` for the executable's path (`ec.value() != -1` holds for every error).
 - `SettingsFileParser::saveSettingsFile` and `StateManager::saveGame` wrote in place, so a crash or a full disk left
   part of either: both write through `Platform::writeWhole`, synced (`openmw-platform-io`), and a save the system could

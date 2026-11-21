@@ -204,6 +204,7 @@ target_sources(
         rtxvulkan/upscale/upscaler.cpp
         sky/skyclock.cpp
         sky/sundisc.cpp
+        widgets/comboboxitems.cpp
         widgets/listbox.cpp
         widgets/settlingscrollbar.cpp
         widgets/trackedtext.cpp

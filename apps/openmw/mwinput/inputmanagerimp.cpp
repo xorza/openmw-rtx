@@ -112,6 +112,11 @@ namespace MWInput
             = guiMode && (!mControllerManager->joystickLastUsed() || mControllerManager->gamepadGuiCursorEnabled());
         MWBase::Environment::get().getWindowManager()->setCursorVisible(isCursorVisible);
 
+        // What a stick did while a menu kept its events, once the menu is gone; nothing where the controller's input
+        // is off, which the controls never heard.
+        if (!guiMode && Settings::input().mEnableController)
+            mControllerManager->catchUpAxes();
+
         if (!guiMode)
             setCursorMode(MWBase::CursorMode::Locked);
         else if (MWBase::Environment::get().getWindowManager()->containsMode(MWGui::GM_MainMenu)

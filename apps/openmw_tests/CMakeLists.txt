@@ -9,6 +9,7 @@ target_sources(
         mwgui/fontsize.cpp
         mwgui/tooltips.cpp
         mwgui/weightedsearch.cpp
+        mwinput/bindingsmanager.cpp
         mwlua/surfacelight.cpp
         mwlua/testmwscriptbindings.cpp
         mwlua/testobjectcache.cpp

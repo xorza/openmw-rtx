@@ -1,6 +1,8 @@
 #include "bindingsmanager.hpp"
 
+#include <cassert>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <exception>
 #include <filesystem>
@@ -16,6 +18,7 @@
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_scancode.h>
 #include <SDL3/SDL_stdinc.h>
+#include <SDL3/SDL_timer.h>
 #include <oics/ICSChannel.h>
 #include <oics/ICSChannelListener.h>
 #include <oics/ICSControl.h>
@@ -686,7 +689,28 @@ namespace MWInput
 
     void BindingsManager::controllerAxisMoved(std::int32_t deviceID, const SDL_GamepadAxisEvent& arg)
     {
+        assert(arg.axis < mHeardAxes.size());
+        // What the controls hold, which an axis a binding is detected from does not move.
+        if (!isDetectingBindingState())
+            mHeardAxes[arg.axis] = arg.value;
         mInputBinder->axisMoved(deviceID, arg);
+    }
+
+    void BindingsManager::catchUpControllerAxes(std::span<const Sint16, SDL_GAMEPAD_AXIS_COUNT> standing)
+    {
+        if (isDetectingBindingState())
+            return;
+        for (std::size_t axis = 0; axis < mHeardAxes.size(); ++axis)
+        {
+            if (standing[axis] == mHeardAxes[axis])
+                continue;
+            SDL_GamepadAxisEvent event{};
+            event.type = SDL_EVENT_GAMEPAD_AXIS_MOTION;
+            event.timestamp = SDL_GetTicksNS();
+            event.axis = static_cast<Uint8>(axis);
+            event.value = standing[axis];
+            controllerAxisMoved(sFakeDeviceId, event);
+        }
     }
 
     SDL_Scancode BindingsManager::getKeyBinding(std::int32_t actionId)

@@ -2,6 +2,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <set>
+#include <string>
+#include <vector>
 
 #include <MyGUI_Button.h>
 #include <MyGUI_ComboBox.h>
@@ -25,6 +28,7 @@
 #include <components/esm3/loadingr.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/settings/values.hpp>
+#include <components/widgets/comboboxitems.hpp>
 
 #include "inventoryitemmodel.hpp"
 #include "itemview.hpp"
@@ -229,20 +233,8 @@ namespace MWGui
             itemEffects.insert(effects.begin(), effects.end());
         }
 
-        mFilterValue->removeAllItems();
-        auto const addItems = [&](auto const& container) {
-            for (auto const& item : container)
-                mFilterValue->addItem(item);
-        };
-        switch (mCurrentFilter)
-        {
-            case FilterType::ByName:
-                addItems(itemNames);
-                break;
-            case FilterType::ByEffect:
-                addItems(itemEffects);
-                break;
-        }
+        const std::set<std::string>& shown = mCurrentFilter == FilterType::ByName ? itemNames : itemEffects;
+        Gui::replaceComboBoxItems(*mFilterValue, std::vector<std::string>(shown.begin(), shown.end()));
     }
 
     void AlchemyWindow::applyFilter(const std::string& filter)

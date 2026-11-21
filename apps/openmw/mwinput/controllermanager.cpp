@@ -1,5 +1,7 @@
 #include "controllermanager.hpp"
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 
 #include <MyGUI_Button.h>
@@ -454,6 +456,17 @@ namespace MWInput
         if (cntrl != nullptr)
             return static_cast<float>(SDL_GetGamepadAxis(cntrl, axis)) / axisMaxAbsoluteValue;
         return 0;
+    }
+
+    void ControllerManager::catchUpAxes()
+    {
+        SDL_Gamepad* const controller = mBindingsManager->getControllerOrNull();
+        if (controller == nullptr)
+            return;
+        std::array<Sint16, SDL_GAMEPAD_AXIS_COUNT> standing{};
+        for (std::size_t axis = 0; axis < standing.size(); ++axis)
+            standing[axis] = SDL_GetGamepadAxis(controller, static_cast<SDL_GamepadAxis>(axis));
+        mBindingsManager->catchUpControllerAxes(standing);
     }
 
     bool ControllerManager::isButtonPressed(SDL_GamepadButton button) const

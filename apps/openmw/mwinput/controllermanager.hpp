@@ -43,6 +43,10 @@ namespace MWInput
         bool gamepadGuiCursorEnabled() const { return mGamepadGuiCursorEnabled; }
 
         float getAxisValue(SDL_GamepadAxis axis) const; // returns value in range [-1, 1]
+
+        /// Tells the controls where the controller's axes stand, once a menu that kept their events is gone
+        /// (`BindingsManager::catchUpControllerAxes`); nothing with no controller.
+        void catchUpAxes();
         bool isButtonPressed(SDL_GamepadButton button) const;
 
         bool isGyroAvailable() const;

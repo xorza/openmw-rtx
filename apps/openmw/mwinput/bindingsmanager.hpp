@@ -1,8 +1,10 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -61,6 +63,12 @@ namespace MWInput
         void controllerButtonReleased(std::int32_t deviceID, const SDL_GamepadButtonEvent& arg);
         void controllerAxisMoved(std::int32_t deviceID, const SDL_GamepadAxisEvent& arg);
 
+        /// **Tells the controls where the controller's axes stand, `standing` by axis, each that stands elsewhere than
+        /// they last heard**: a menu keeps the axis events it acts on, and a stick let go there left its action held
+        /// once the menu closed (upstream #8863). An axis that stands where they heard it is told nothing, so a key
+        /// held on the same action stays held.
+        void catchUpControllerAxes(std::span<const Sint16, SDL_GAMEPAD_AXIS_COUNT> standing);
+
         SDL_Scancode getKeyBinding(std::int32_t actionId);
 
         void actionValueChanged(std::int32_t action, float currentValue, float previousValue);
@@ -76,5 +84,8 @@ namespace MWInput
         std::filesystem::path mUserFile;
 
         bool mDragDrop;
+
+        /// Each axis's value as the controls last heard it, at rest until they hear one.
+        std::array<Sint16, SDL_GAMEPAD_AXIS_COUNT> mHeardAxes{};
     };
 }

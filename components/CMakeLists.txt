@@ -1515,6 +1515,7 @@ target_sources(
     openmw-components
     PRIVATE
         widgets/box.cpp
+        widgets/comboboxitems.cpp
         widgets/fontusers.cpp
         widgets/imagebutton.cpp
         widgets/list.cpp
@@ -1530,6 +1531,7 @@ target_sources(
         FILE_SET HEADERS
             FILES
                 widgets/box.hpp
+                widgets/comboboxitems.hpp
                 widgets/fontusers.hpp
                 widgets/imagebutton.hpp
                 widgets/list.hpp
