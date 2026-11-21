@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-#include <glm/vec2.hpp>
+#include <glm/ext/vector_float2.hpp>
 
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/inputmanager.hpp>

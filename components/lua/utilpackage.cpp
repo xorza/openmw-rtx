@@ -10,11 +10,10 @@
 #include <sstream>
 
 #include <MyGUI_StringUtility.h>
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/geometric.hpp>
-#include <glm/gtc/matrix_inverse.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include <glm/matrix.hpp>
 
 #include <components/lua/shapes/box.hpp>
 #include <components/misc/color.hpp>
@@ -96,7 +95,7 @@ namespace LuaUtil
         void addSwizzleFields(sol::usertype<T>& type)
         {
             // glm::vec* exposes the component count via a constexpr static length() method.
-            constexpr std::int32_t kN = static_cast<std::int32_t>(T::length());
+            constexpr auto kN = static_cast<std::int32_t>(T::length());
 
             // Generate mapping of swizzle characters to their getter functions
             constexpr auto components = []() {
@@ -156,7 +155,7 @@ namespace LuaUtil
         template <typename T>
         void addVectorMethods(sol::usertype<T>& vectorType)
         {
-            constexpr std::int32_t kN = static_cast<std::int32_t>(T::length());
+            constexpr auto kN = static_cast<std::int32_t>(T::length());
             vectorType[sol::meta_function::unary_minus] = [](const T& a) { return -a; };
             vectorType[sol::meta_function::addition] = [](const T& a, const T& b) { return a + b; };
             vectorType[sol::meta_function::subtraction] = [](const T& a, const T& b) { return a - b; };

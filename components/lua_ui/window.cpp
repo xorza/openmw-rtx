@@ -5,7 +5,7 @@
 #include <MyGUI_Delegate.h>
 #include <MyGUI_MouseButton.h>
 #include <MyGUI_Types.h>
-#include <glm/vec2.hpp>
+#include <glm/ext/vector_float2.hpp>
 
 namespace LuaUi
 {

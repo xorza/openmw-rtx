@@ -12,8 +12,8 @@
 
 #include <gtest/gtest.h>
 
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/constants.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
 #include <components/lua/shapes/box.hpp>

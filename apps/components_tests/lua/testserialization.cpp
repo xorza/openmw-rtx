@@ -1,12 +1,13 @@
+#include <cstddef>
 #include <cstdint>
 
 #include <gtest/gtest.h>
 
-#include <glm/gtc/quaternion.hpp>
-#include <glm/mat4x4.hpp>
-#include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
+#include <glm/ext/matrix_float4x4.hpp>
+#include <glm/ext/quaternion_float.hpp>
+#include <glm/ext/vector_float2.hpp>
+#include <glm/ext/vector_float3.hpp>
+#include <glm/ext/vector_float4.hpp>
 
 #include <components/lua/luastate.hpp>
 #include <components/lua/serialization.hpp>
@@ -151,9 +152,9 @@ namespace
             // Pin wire bytes: payload is 16 doubles in the same column-major order
             // pre-glm osg::Matrixf wrote them. Any layout drift breaks round-trip
             // with saves written by earlier versions.
-            for (std::int32_t i = 0; i < 16; ++i)
+            for (std::size_t i = 0; i < 16; ++i)
             {
-                double value;
+                double value = 0.0;
                 std::memcpy(&value, serialized.data() + 2 + i * sizeof(double), sizeof(double));
                 EXPECT_EQ(value, static_cast<double>(i + 1)) << "matrix payload byte " << i;
             }
@@ -166,9 +167,9 @@ namespace
             EXPECT_EQ(serialized.size(), 34); // version, type, 4x double
             // Pin wire bytes: payload is x, y, z, w as doubles.
             const double expected[4] = { 1.0, 2.0, 3.0, 4.0 };
-            for (std::int32_t i = 0; i < 4; ++i)
+            for (std::size_t i = 0; i < 4; ++i)
             {
-                double value;
+                double value = 0.0;
                 std::memcpy(&value, serialized.data() + 2 + i * sizeof(double), sizeof(double));
                 EXPECT_EQ(value, expected[i]) << "quat payload byte " << i;
             }

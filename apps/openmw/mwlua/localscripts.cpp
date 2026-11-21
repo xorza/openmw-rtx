@@ -5,7 +5,7 @@
 #include <type_traits>
 #include <utility>
 
-#include <glm/vec3.hpp>
+#include <glm/ext/vector_float3.hpp>
 
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/mechanicsmanager.hpp>
