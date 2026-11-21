@@ -47,6 +47,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # The whole history and its tags: the build names its release and the upstream merge it is based on from
+          # them (`cmake/GitVersion.cmake`).
+          fetch-depth: 0
 
       - uses: $/.github/actions/openmw-deps
         with:

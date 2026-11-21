@@ -428,6 +428,10 @@ or the install, which the merge places in this layout:
   written out at their one caller.
 - The version filled once: a build needs a Git clone, so `GIT_CHECKOUT` and the empty-hash fallback go; the templates
   read `PROJECT_VERSION*`, and `cmake/GitVersion.cmake` fills the commit and the tag at every build.
+- A build names itself `OpenMW-RTX <release>` over `based on OpenMW <version> (<upstream commit>)`
+  (`Version::getOpenmwVersionDescription`, read by the launcher's label too): the release from the nearest `rtx-v*` tag
+  as the package names it, the commit the upstream side of the newest merge of upstream, both read from Git at every
+  build. Upstream's own name and the commit's hash said who built nothing a player of the fork could tell apart.
 - `extern/`'s vendored projects (`osgQt`, `oics`, `osg-ffmpeg-videoplayer`, `smhasher`, `rgbcx`) as the tree's own
   targets, their warnings off from the directory's flags.
 - The test binaries' `-Og` an interface target; the system's test support one object library; CTest runs each

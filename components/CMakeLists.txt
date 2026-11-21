@@ -2,10 +2,10 @@
 # of its own. The ray tracer's core stands apart in `rtx/`, a library a layer, and MyGUI's backend on it
 # above the core.
 
-# What the version states, configured once but for the commit and the latest tag, which `get-version`
+# What the version states, configured once but for what Git answers, which `get-version`
 # fills in at every build from Git (`cmake/GitVersion.cmake`): each file from its template, `<name>.in` in
 # `version_templates`, rewritten only where its text moved, so a build after no commit compiles nothing.
-foreach(field IN ITEMS OPENMW_VERSION_COMMITHASH OPENMW_VERSION_TAGHASH)
+foreach(field IN ITEMS OPENMW_VERSION_COMMITHASH OPENMW_VERSION_TAGHASH OPENMW_RTX_VERSION OPENMW_UPSTREAM_COMMIT)
     set(${field} "@${field}@")
 endforeach()
 set(version_templates "${CMAKE_CURRENT_BINARY_DIR}/version-templates")

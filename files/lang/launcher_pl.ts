@@ -568,14 +568,6 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
         <translation>Pomiń</translation>
     </message>
     <message>
-        <source>OpenMW %1 release</source>
-        <translation>Wersja OpenMW %1</translation>
-    </message>
-    <message>
-        <source>OpenMW development (%1)</source>
-        <translation>OpenMW - wersja deweloperska (%1)</translation>
-    </message>
-    <message>
         <source>Compiled on %1 %2</source>
         <translation>Skompilowano %1 %2</translation>
     </message>

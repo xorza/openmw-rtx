@@ -20,6 +20,16 @@ namespace Version
         return "@OPENMW_VERSION_TAGHASH@";
     }
 
+    std::string_view getRtxVersion()
+    {
+        return "@OPENMW_RTX_VERSION@";
+    }
+
+    std::string_view getUpstreamCommit()
+    {
+        return "@OPENMW_UPSTREAM_COMMIT@";
+    }
+
     int getLuaApiRevision()
     {
         return @OPENMW_LUA_API_REVISION@;
@@ -30,16 +40,25 @@ namespace Version
         return @OPENMW_POSTPROCESSING_API_REVISION@;
     }
 
+    std::string describeVersion(const VersionNames& names)
+    {
+        std::string described = "OpenMW-RTX ";
+        described += names.mRtx;
+        described += "\nbased on OpenMW ";
+        described += names.mUpstream;
+        if (!names.mUpstreamCommit.empty())
+        {
+            described += " (";
+            described += names.mUpstreamCommit.substr(0, 10);
+            described += ")";
+        }
+        return described;
+    }
+
     std::string getOpenmwVersionDescription()
     {
-        std::string str = "OpenMW version ";
-        str += getVersion();
-        if (!getCommitHash().empty())
-        {
-            str += "\nRevision: ";
-            str += getCommitHash().substr(0, 10);
-        }
-        return str;
+        return describeVersion(
+            VersionNames{ .mRtx = getRtxVersion(), .mUpstream = getVersion(), .mUpstreamCommit = getUpstreamCommit() });
     }
 
     bool checkResourcesVersion(const std::filesystem::path& resourcePath)

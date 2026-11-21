@@ -566,14 +566,6 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
         <translation>Пропусни</translation>
     </message>
     <message>
-        <source>OpenMW %1 release</source>
-        <translation>OpenMW издание %1</translation>
-    </message>
-    <message>
-        <source>OpenMW development (%1)</source>
-        <translation>OpenMW разработка (%1)</translation>
-    </message>
-    <message>
         <source>Compiled on %1 %2</source>
         <translation>Компилирано на %1 %2</translation>
     </message>

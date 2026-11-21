@@ -556,14 +556,6 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>OpenMW %1 release</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>OpenMW development (%1)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Compiled on %1 %2</source>
         <translation type="unfinished"></translation>
     </message>

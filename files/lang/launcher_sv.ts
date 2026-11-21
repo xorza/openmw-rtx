@@ -559,14 +559,6 @@ de ordinarie fonterna i Morrowind. Bocka denna ruta om du ändå föredrar ordin
         <translation>Hoppa över</translation>
     </message>
     <message>
-        <source>OpenMW %1 release</source>
-        <translation>OpenMW version %1</translation>
-    </message>
-    <message>
-        <source>OpenMW development (%1)</source>
-        <translation>OpenMW utvecklarversion (%1)</translation>
-    </message>
-    <message>
         <source>Compiled on %1 %2</source>
         <translation>Kompilerad den %1 %2</translation>
     </message>

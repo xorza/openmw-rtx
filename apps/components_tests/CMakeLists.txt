@@ -117,6 +117,7 @@ target_sources(
         shader/shadermanager.cpp
         terrain/refstack.cpp
         toutf8/toutf8.cpp
+        version/describe.cpp
         vfs/testpathutil.cpp
     PRIVATE
         FILE_SET HEADERS
