@@ -5,7 +5,6 @@
 #include <span>
 #include <string>
 
-#include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/BoundingBox>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
@@ -14,6 +13,7 @@
 #include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/slots.hpp>
+#include <components/rtx/common/steadymap.hpp>
 #include <components/rtx/shaders/scene.h>
 
 #include "deformertable.hpp"
@@ -173,7 +173,7 @@ namespace Rtx
         void note(MeshIndex slot, SlotNews what);
 
         /// The static meshes by their key, one slot a key, which leaves with its slot; and the meshes that rest.
-        boost::unordered_flat_map<MeshKey, MeshIndex, MeshKeyHash> mKeyIndex;
+        SteadyMap<MeshKey, MeshIndex, MeshKeyHash> mKeyIndex;
 
         /// The runs of indices meshes share (`MeshArrays::mSharedIndices`), by their digest, with how many meshes
         /// name each.
@@ -182,7 +182,7 @@ namespace Rtx
             Run mRun;
             std::uint32_t mHolders = 0;
         };
-        boost::unordered_flat_map<MeshKey, SharedIndices, MeshKeyHash> mSharedIndices;
+        SteadyMap<MeshKey, SharedIndices, MeshKeyHash> mSharedIndices;
         RestQueue<MeshIndex> mResting;
         RestingGeometry mRestingGeometry;
 

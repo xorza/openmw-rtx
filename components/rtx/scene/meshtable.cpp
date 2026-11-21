@@ -184,7 +184,7 @@ namespace Rtx
         assert(!mKeyIndex.contains(mesh.mKey) && "a key filed twice, which `find` answers first");
         const MeshIndex added = add(deformers, mesh, sNoRow);
         rowAt(added).mKey = mesh.mKey;
-        mKeyIndex.emplace(mesh.mKey, added);
+        mKeyIndex.try_emplace(mesh.mKey, added);
         return added;
     }
 
@@ -243,7 +243,11 @@ namespace Rtx
         if (range.mRest.mResting)
             wake(mesh);
         if (range.mKey.has_value())
-            mKeyIndex.erase(*range.mKey);
+        {
+            const auto keyed = mKeyIndex.find(*range.mKey);
+            assert(keyed != mKeyIndex.end() && "a keyed mesh its key does not name");
+            mKeyIndex.erase(keyed);
+        }
         range.mKey.reset();
         range.mStands = false;
 

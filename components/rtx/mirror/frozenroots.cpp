@@ -182,7 +182,7 @@ namespace Rtx
     void FrozenRoots::thawUnmet(const std::uint32_t walk, const Holders holders)
     {
         if (mMetBy != walk || mMet != mFrozen.size())
-            boost::unordered::erase_if(mFrozen, [&](auto& frozen) {
+            mFrozen.erase_if([&](auto& frozen) {
                 if (frozen.second.mMet == walk)
                     return false;
 

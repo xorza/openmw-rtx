@@ -5,9 +5,10 @@
 #include <span>
 #include <vector>
 
-#include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/StateSet>
 #include <osg/ref_ptr>
+
+#include <components/rtx/common/steadymap.hpp>
 
 #include "mirrorpass.hpp"
 #include "released.hpp"
@@ -95,7 +96,7 @@ namespace Rtx
 
         const MirrorPass& mPass;
 
-        boost::unordered_flat_map<Pair, Held, PairHash> mKeys;
+        SteadyMap<Pair, Held, PairHash> mKeys;
 
         std::uint32_t mPastRoom = 0;
 

@@ -8,11 +8,11 @@
 #include <functional>
 #include <utility>
 
-#include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/ref_ptr>
 
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/maproom.hpp>
+#include <components/rtx/common/steadymap.hpp>
 
 #include "mirrorpass.hpp"
 #include "released.hpp"
@@ -105,7 +105,7 @@ namespace Rtx
 
         Entry end() { return mKnown.end(); }
 
-        /// Room for `count` entries before the table rehashes. A rehash on the frame a cell arrives
+        /// Room for `count` entries held at once (`SteadyMap::reserve`). A rehash on the frame a cell arrives
         /// is what this is called once to prevent.
         void reserve(std::size_t count) { mKnown.reserve(count); }
 
@@ -170,7 +170,7 @@ namespace Rtx
             held.mReach.mHolds = 0;
 
             const bool full = fillsRoom(mKnown);
-            const auto [entry, arrived] = mKnown.emplace(key, std::move(held));
+            const auto [entry, arrived] = mKnown.try_emplace(key, std::move(held));
             assert(arrived && "an identity the map already held, added again");
             mPastRoom += full ? 1u : 0u;
 
@@ -319,5 +319,5 @@ namespace Rtx
     /// What the scene knows one `osg` object as, keyed so the object cannot go while the entry
     /// stands. See `ByAddress`.
     template <class T, class Held>
-    using Identity = Kept<boost::unordered_flat_map<osg::ref_ptr<T>, Held, ByAddress<T>, ByAddress<T>>>;
+    using Identity = Kept<SteadyMap<osg::ref_ptr<T>, Held, ByAddress<T>, ByAddress<T>>>;
 }

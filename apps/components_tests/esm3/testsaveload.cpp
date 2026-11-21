@@ -7,6 +7,8 @@
 #include <memory>
 #include <numeric>
 #include <random>
+#include <sstream>
+#include <vector>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -18,6 +20,7 @@
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadbook.hpp>
+#include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadcont.hpp>
 #include <components/esm3/loadcrea.hpp>
@@ -391,6 +394,62 @@ namespace ESM
             EXPECT_EQ(record.mTrap, result.mTrap);
             EXPECT_EQ(record.mReferenceBlocked, result.mReferenceBlocked);
             EXPECT_EQ(record.mPos, result.mPos);
+        }
+
+        /// **A reference whose number names a master its plugin does not list is read past**, moved or not: a plugin
+        /// of no masters holds its own 1 and 2, and between them 0x0107355E, master 1's 0x07355E, and a move of master
+        /// 1's 5. No reference number holds them, so both readers answer 1 and 2 alone, each the plugin's own.
+        TEST(Esm3CellRefTest, aReferenceNamingAMasterThePluginDoesNotListIsReadPast)
+        {
+            const auto reference = [](std::uint32_t index, std::int32_t master) {
+                CellRef ref;
+                ref.blank();
+                ref.mRefNum.mIndex = index;
+                ref.mRefNum.mContentFile = master;
+                ref.mRefID = ESM::RefId::stringRefId("flora_kreshweed_03");
+                return ref;
+            };
+            const auto stream = [&] {
+                ESMWriter writer;
+                auto made = std::make_unique<std::stringstream>();
+                writer.setFormatVersion(DefaultFormatVersion);
+                writer.save(*made);
+                writer.startRecord(fakeRecordId);
+                reference(1, 0).save(writer);
+                reference(0x07355E, 1).save(writer);
+                writer.writeHNT("MVRF", std::uint32_t{ 0x01000005 });
+                reference(5, 1).save(writer);
+                reference(2, 0).save(writer);
+                writer.endRecord(fakeRecordId);
+                return made;
+            };
+            const auto readAll = [&](auto&& next) {
+                ESMReader reader;
+                reader.open(stream(), "MFR_Grass.esp");
+                reader.getRecName();
+                reader.getRecHeader();
+                std::vector<std::uint32_t> read;
+                CellRef ref;
+                while (next(reader, ref))
+                {
+                    EXPECT_EQ(ref.mRefNum.mContentFile, reader.getIndex()) << ref.mRefNum.mIndex;
+                    read.push_back(ref.mRefNum.mIndex);
+                }
+                return read;
+            };
+
+            EXPECT_EQ(readAll([](ESMReader& reader, CellRef& ref) {
+                bool deleted = false;
+                return Cell::getNextRef(reader, ref, deleted);
+            }),
+                (std::vector<std::uint32_t>{ 1, 2 }));
+            EXPECT_EQ(readAll([](ESMReader& reader, CellRef& ref) {
+                bool deleted = false;
+                bool moved = false;
+                MovedCellRef movedRef;
+                return Cell::getNextRef(reader, ref, deleted, movedRef, moved);
+            }),
+                (std::vector<std::uint32_t>{ 1, 2 }));
         }
 
         TEST_P(Esm3SaveLoadRecordTest, creatureStatsShouldNotChange)

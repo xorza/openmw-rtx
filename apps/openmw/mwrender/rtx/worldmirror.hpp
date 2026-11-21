@@ -26,6 +26,7 @@
 #include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
+#include <components/rtx/mirror/pastroom.hpp>
 #include <components/rtx/mirror/released.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/mirror/walkcontext.hpp>
@@ -180,7 +181,12 @@ namespace MWRender
         Rtx::ContentMemory getContentMemory();
 
         /// `Rtx::SceneExtractor::countPastRoom`, the ring's models with it.
-        std::uint32_t countPastRoom() const { return mExtractor.countPastRoom() + mRing.countPastRoom(); }
+        Rtx::PastRoom countPastRoom() const
+        {
+            Rtx::PastRoom past = mExtractor.countPastRoom();
+            past.mRingModels = mRing.countPastRoom();
+            return past;
+        }
 
         /// What every walk on the frame thread shares: the world's, the sky's and every traced view's
         /// (`Rtx::WalkContext`).

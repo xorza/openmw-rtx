@@ -118,7 +118,7 @@ namespace Rtx
         struct Held
         {
             DeformerIndex mIndex = sNoRow;
-            DeformerEntry mEntry;
+            DeformerEntry mEntry{};
         };
 
         /// What a drawable's deformer is keyed on: the source geometry every copy of a rig shares, or the base target

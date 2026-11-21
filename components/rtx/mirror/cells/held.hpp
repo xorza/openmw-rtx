@@ -7,7 +7,6 @@
 #include <optional>
 #include <vector>
 
-#include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/Matrixf>
 #include <osg/Vec2i>
 #include <osg/Vec3f>
@@ -16,6 +15,7 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/common/slots.hpp>
+#include <components/rtx/common/steadymap.hpp>
 #include <components/rtx/mirror/sceneadopter.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/sceneutil/lightcommon.hpp>
@@ -331,7 +331,7 @@ namespace Rtx
         /// By the model, unordered: a sorted run of rows that each own a vector moved every row
         /// after a new model, on the frame a cell lands. Reserved at the budget, so no landing
         /// rehashes it; only `forget` walks it, and in no order it needs.
-        boost::unordered_flat_map<const PreparedModel*, HeldModel> mModels;
+        SteadyMap<const PreparedModel*, HeldModel> mModels;
         std::uint32_t mPastRoom = 0;
 
         /// A model's row taken back out is room the next one refills rather than a heap call on

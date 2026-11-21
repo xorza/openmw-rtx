@@ -9,7 +9,6 @@
 
 #include <gtest/gtest.h>
 
-#include <boost/unordered/unordered_flat_map.hpp> // IWYU pragma: keep: the whole table, credited to its forward header
 #include <osg/Callback>
 #include <osg/Geometry>
 #include <osg/Group>
@@ -25,6 +24,7 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/graph.hpp>
+#include <components/rtx/common/steadymap.hpp>
 #include <components/rtx/mirror/cells/cellstreamer.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
@@ -377,7 +377,7 @@ namespace Rtx::Testing
             mCell->removeChild(kept);
             frame();
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, 0u) << "a hold of the throw's freeze outlived it";
-            EXPECT_EQ(mExtractor.countPastRoom(), 0u);
+            EXPECT_EQ(mExtractor.countPastRoom(), PastRoom{});
         }
 
         /// A world whose frozen roots have room for sixteen, which the table rounds up to what a table reserved alike
@@ -409,7 +409,7 @@ namespace Rtx::Testing
             /// How many roots the table holds before a new one moves every entry.
             static std::size_t tableRoom()
             {
-                boost::unordered_flat_map<std::int32_t, std::int32_t> alike;
+                SteadyMap<std::int32_t, std::int32_t> alike;
                 alike.reserve(sRoom);
                 return alike.max_load();
             }
@@ -445,8 +445,8 @@ namespace Rtx::Testing
 
         /// **A walk that replaces every reference keeps the frozen roots in their room**: the roots it left are
         /// thawed before the ones it met are filed, so the map holds one grid and never two. Sixteen references in
-        /// a room of sixteen, which the table rounds up to 29; sixteen others in their place on one walk, 32 with
-        /// the grid they replaced, arrive past none of it, and freeze.
+        /// a room of sixteen; sixteen others in their place on one walk, 32 with the grid they replaced, arrive past
+        /// none of it, and freeze.
         TEST_F(RtxFrozenRootsRoomTest, aWalkThatReplacesEveryReferenceKeepsTheFrozenRootsInTheirRoom)
         {
             ASSERT_LT(tableRoom(), 2 * sRoom) << "two grids fit the table, and the walk proves nothing";
@@ -461,7 +461,7 @@ namespace Rtx::Testing
             EXPECT_EQ(walk().mPassedFrozen, sRoom) << "the first grid froze";
             fill(100.0f);
             walk();
-            EXPECT_EQ(mExtractor.countPastRoom(), 0u) << "the grid left and the grid met were held at once";
+            EXPECT_EQ(mExtractor.countPastRoom(), PastRoom{}) << "the grid left and the grid met were held at once";
             EXPECT_EQ(walk().mPassedFrozen, sRoom) << "the second grid froze";
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, sRoom);
         }
@@ -488,7 +488,8 @@ namespace Rtx::Testing
 
             mCell->removeChild(broken);
             walk();
-            EXPECT_EQ(mExtractor.countPastRoom(), 0u) << "the second filing of one root was counted as a new key";
+            EXPECT_EQ(mExtractor.countPastRoom(), PastRoom{})
+                << "the second filing of one root was counted as a new key";
             EXPECT_EQ(walk().mPassedFrozen, full) << "every root filed, the last of them once";
         }
 

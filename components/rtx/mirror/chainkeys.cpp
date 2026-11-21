@@ -6,7 +6,6 @@
 #include <functional>
 #include <span>
 
-#include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/StateSet>
 #include <osg/ref_ptr>
 
@@ -74,7 +73,7 @@ namespace Rtx
             std::sort(mReleasedScratch.begin() + static_cast<std::ptrdiff_t>(sorted), mReleasedScratch.end());
             mReleasedRuns.push_back(mReleasedScratch.size());
 
-            gone = boost::unordered::erase_if(mKeys, [&](const auto& entry) {
+            gone = mKeys.erase_if([&](const auto& entry) {
                 const Held& held = entry.second;
                 if (held.mMet == mPass.mEpoch)
                     return false;

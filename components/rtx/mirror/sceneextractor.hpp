@@ -10,7 +10,6 @@
 #include <span>
 #include <vector>
 
-#include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/Matrix>
 #include <osg/Matrixf>
 #include <osg/Node>
@@ -18,6 +17,7 @@
 #include <osg/ref_ptr>
 
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/steadymap.hpp>
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/image/specularlayout.hpp>
@@ -36,6 +36,7 @@
 #include "mirroridentity.hpp"
 #include "mirrorpass.hpp"
 #include "nodekind.hpp"
+#include "pastroom.hpp"
 #include "released.hpp"
 #include "sceneadopter.hpp"
 #include "shading.hpp"
@@ -85,9 +86,10 @@ namespace Rtx
         std::size_t mEffects = 0;
     };
 
-    /// The world's: past what every view of the suites reaches at the default ten cells of land, on
-    /// vanilla content and under the Fullrest Repack with Tamriel Rebuilt, which `rooms-held` holds. The frozen
-    /// roots past the Repack tour's: its leg 29, east over the Tamriel Rebuilt mainland, held 13,918 at its most.
+    /// The world's, each the most its table holds at once (`SteadyMap::reserve`): past what every view of the
+    /// suites reaches at the default ten cells of land, on vanilla content and under the Fullrest Repack with Tamriel
+    /// Rebuilt, which `rooms-held` holds. The frozen roots past the Repack tour's, which met 46,265 at once on leg 40,
+    /// over cell 46,11.
     inline constexpr ExtractorRoom sWorldExtractorRoom{ .mPlacements = 65536,
         .mMeshes = 16384,
         .mDeformers = 2048,
@@ -95,7 +97,7 @@ namespace Rtx
         .mTextures = 8192,
         .mAnimated = 4096,
         .mEmitters = 2048,
-        .mFrozen = 16384,
+        .mFrozen = 65536,
         .mEffects = 256 };
 
     /// A picture's subject: a doll dressed in every slot with a weapon drawn and a spell held, with
@@ -260,13 +262,17 @@ namespace Rtx
         /// keeps a cell the world unloaded alive.
         Released& getReleased() { return mReleased; }
 
-        /// How many entries arrived past the room this was made with (`ExtractorRoom`), ever, every
-        /// map and the list of glows together: each a rehash or a growth on the frame it happened. Nought is what the
-        /// room promises, and a harness's `rooms-held` check asks it.
-        std::uint32_t countPastRoom() const
+        /// How many entries arrived past the room this was made with (`ExtractorRoom`), ever, by table, the list of
+        /// glows among them: each a rehash or a growth on the frame it happened.
+        PastRoom countPastRoom() const
         {
-            return mPlacements.getPastRoom() + mMeshes.countPastRoom() + mMaterials.countPastRoom()
-                + mEmitters.countPastRoom() + mFrozen.getPastRoom() + mChainKeys.getPastRoom() + mGlowsPastRoom;
+            return PastRoom{ .mPlacements = mPlacements.getPastRoom(),
+                .mMeshes = mMeshes.countPastRoom(),
+                .mMaterials = mMaterials.countPastRoom(),
+                .mEmitters = mEmitters.countPastRoom(),
+                .mFrozen = mFrozen.getPastRoom(),
+                .mChainKeys = mChainKeys.getPastRoom(),
+                .mGlows = mGlowsPastRoom };
         }
 
     private:
@@ -461,7 +467,7 @@ namespace Rtx
 
         /// Which slot each placement holds, and when it was last met. One lookup a placement a
         /// frame, and the scene keeps the transform.
-        Kept<boost::unordered_flat_map<std::size_t, Known<PlacementIndex>>> mPlacements{ mPass };
+        Kept<SteadyMap<std::size_t, Known<PlacementIndex>>> mPlacements{ mPass };
 
         /// The drawables the walk met, and what poses the ones that deform.
         MeshResolver mMeshes{ mScene, mPass, mContext.mContent.mPreprocessor };

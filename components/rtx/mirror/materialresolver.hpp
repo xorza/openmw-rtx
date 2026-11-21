@@ -9,7 +9,6 @@
 #include <span>
 #include <vector>
 
-#include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/Callback>
 #include <osg/Node>
 #include <osg/Vec3f>
@@ -19,6 +18,7 @@
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/rowvector.hpp>
 #include <components/rtx/common/slots.hpp>
+#include <components/rtx/common/steadymap.hpp>
 #include <components/rtx/image/imagefacts.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
@@ -433,7 +433,7 @@ namespace Rtx
 
         /// Owning for the same reason the identity maps are: a node freed and replaced at the same
         /// address would otherwise be handed the state set the first one's controllers were writing.
-        Kept<boost::unordered_flat_map<Placed, Animated, ByPlacement, ByPlacement>> mAnimated{ mPass };
+        Kept<SteadyMap<Placed, Animated, ByPlacement, ByPlacement>> mAnimated{ mPass };
 
         /// Whether a callback class is a state set's controller (`SceneUtil::StateSetUpdater`), asked of each class
         /// once: `carriesUpdater`.

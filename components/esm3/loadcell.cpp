@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <ios>
 #include <limits>
 #include <string>
 
@@ -16,14 +17,23 @@ namespace ESM
 {
     namespace
     {
-        ///< Translate 8bit/24bit code (stored in refNum.mIndex) into a proper refNum
-        void adjustRefNum(RefNum& refNum, const ESMReader& reader)
+        ///< Translate 8bit/24bit code (stored in refNum.mIndex) into a proper refNum. False for a reference whose 8
+        ///< bits name a master its plugin does not list: no reference number holds it, as its 24 bits may be one of the
+        ///< plugin's own, so it is left out, said, rather than handed on with the 8 bits in its index, where every
+        ///< text of its number fails (`FormId::toString`).
+        bool adjustRefNum(RefNum& refNum, const ESMReader& reader)
         {
             std::uint32_t local = (refNum.mIndex & 0xff000000) >> 24;
 
-            // If we have an index value that does not make sense, assume that it was an addition
-            // by the present plugin (but a faulty one)
-            if (local && local <= reader.getParentFileIndices().size())
+            if (local > reader.getParentFileIndices().size())
+            {
+                Log(Debug::Warning) << "Reference 0x" << std::hex << refNum.mIndex << std::dec << " in "
+                                    << reader.getName() << " names master " << local << " of the "
+                                    << reader.getParentFileIndices().size() << " it lists; it is left out";
+                return false;
+            }
+
+            if (local)
             {
                 // If the most significant 8 bits are used, then this reference already exists.
                 // In this case, do not spawn a new reference, but overwrite the old one.
@@ -35,6 +45,7 @@ namespace ESM
                 // This is an addition by the present plugin. Set the corresponding plugin index.
                 refNum.mContentFile = reader.getIndex();
             }
+            return true;
         }
     }
 }
@@ -258,67 +269,81 @@ namespace ESM
 
     bool Cell::getNextRef(ESMReader& esm, CellRef& ref, bool& isDeleted)
     {
-        isDeleted = false;
-
-        // TODO: Try and document reference numbering, I don't think this has been done anywhere else.
-        if (!esm.hasMoreSubs())
-            return false;
-
-        // MVRF are FRMR are present in pairs. MVRF indicates that following FRMR describes moved CellRef.
-        // This function has to skip all moved CellRefs therefore read all such pairs to ignored values.
-        while (esm.isNextSub("MVRF"))
+        // A reference no number holds is read past (`adjustRefNum`), and the one after it answers.
+        for (;;)
         {
-            MovedCellRef movedCellRef;
-            esm.getHT(movedCellRef.mRefNum.mIndex);
-            esm.getHNOT(movedCellRef.mTarget, "CNDT");
-            CellRef skippedCellRef;
+            isDeleted = false;
+
+            // TODO: Try and document reference numbering, I don't think this has been done anywhere else.
+            if (!esm.hasMoreSubs())
+                return false;
+
+            // MVRF are FRMR are present in pairs. MVRF indicates that following FRMR describes moved CellRef.
+            // This function has to skip all moved CellRefs therefore read all such pairs to ignored values.
+            while (esm.isNextSub("MVRF"))
+            {
+                MovedCellRef movedCellRef;
+                esm.getHT(movedCellRef.mRefNum.mIndex);
+                esm.getHNOT(movedCellRef.mTarget, "CNDT");
+                CellRef skippedCellRef;
+                if (!esm.peekNextSub("FRMR"))
+                    return false;
+                bool skippedDeleted = false;
+                skippedCellRef.load(esm, skippedDeleted);
+            }
+
             if (!esm.peekNextSub("FRMR"))
                 return false;
-            bool skippedDeleted = false;
-            skippedCellRef.load(esm, skippedDeleted);
-        }
 
-        if (esm.peekNextSub("FRMR"))
-        {
             ref.load(esm, isDeleted);
 
             // TODO: should count the number of temp refs and validate the number
 
             // Identify references belonging to a parent file and adapt the ID accordingly.
-            adjustRefNum(ref.mRefNum, esm);
-            return true;
+            if (adjustRefNum(ref.mRefNum, esm))
+                return true;
         }
-        return false;
     }
 
     bool Cell::getNextRef(
         ESMReader& esm, CellRef& cellRef, bool& deleted, MovedCellRef& movedCellRef, bool& moved, GetNextRefMode mode)
     {
-        deleted = false;
-        moved = false;
-
-        if (!esm.hasMoreSubs())
-            return false;
-
-        if (esm.isNextSub("MVRF"))
+        // A reference no number holds, moved or not, is read past (`adjustRefNum`), and the one after it answers.
+        for (;;)
         {
-            moved = true;
-            getNextMVRF(esm, movedCellRef);
+            deleted = false;
+            moved = false;
+
+            if (!esm.hasMoreSubs())
+                return false;
+
+            bool numbered = true;
+            if (esm.isNextSub("MVRF"))
+            {
+                moved = true;
+                numbered = getNextMVRF(esm, movedCellRef);
+            }
+
+            if (!esm.peekNextSub("FRMR"))
+                return false;
+
+            if ((!moved && mode == GetNextRefMode::LoadOnlyMoved)
+                || (moved && mode == GetNextRefMode::LoadOnlyNotMoved))
+            {
+                skipLoadCellRef(esm);
+                return true;
+            }
+
+            if (!numbered)
+            {
+                skipLoadCellRef(esm);
+                continue;
+            }
+
+            cellRef.load(esm, deleted);
+            if (adjustRefNum(cellRef.mRefNum, esm))
+                return true;
         }
-
-        if (!esm.peekNextSub("FRMR"))
-            return false;
-
-        if ((!moved && mode == GetNextRefMode::LoadOnlyMoved) || (moved && mode == GetNextRefMode::LoadOnlyNotMoved))
-        {
-            skipLoadCellRef(esm);
-            return true;
-        }
-
-        cellRef.load(esm, deleted);
-        adjustRefNum(cellRef.mRefNum, esm);
-
-        return true;
     }
 
     bool Cell::getNextMVRF(ESMReader& esm, MovedCellRef& mref)
@@ -326,9 +351,7 @@ namespace ESM
         esm.getHT(mref.mRefNum.mIndex);
         esm.getHNOT(mref.mTarget, "CNDT");
 
-        adjustRefNum(mref.mRefNum, esm);
-
-        return true;
+        return adjustRefNum(mref.mRefNum, esm);
     }
 
     void Cell::blank()

@@ -265,6 +265,12 @@ and upstream's two Lua storage tests writing there.
   order. `hasId` for a loaded store returned the inverse of its search, unreached until now. Cost: a conflict with an
   upstream edit to `CellStore::updateMergedRefs`, `hasId`, `search` or `WorldModel::getAll`.
 
+- **A reference whose number names a master its plugin does not list is left out at load** (the user's yes,
+  2026-11-21): `adjustRefNum` (`components/esm3/loadcell.cpp`) took one for the plugin's own and kept the 8 bits in its
+  index, so every text of its number threw (`FormId::toString`) and the object failed to enter the world, logged as
+  `failed to render`. Its 24 bits may be one of the plugin's own, as `MFR_Grass.esp`'s 0x0107355E is, so no number
+  holds it: both cell readers read past it, said. Cost: a conflict with an upstream edit to `adjustRefNum`,
+  `Cell::getNextRef` or `getNextMVRF`.
 - `Files::LinuxPath` took a failed `read_symlink` for the executable's path (`ec.value() != -1` holds for every error).
 - `SettingsFileParser::saveSettingsFile` and `StateManager::saveGame` wrote in place, so a crash or a full disk left
   part of either: both write through `Platform::writeWhole`, synced (`openmw-platform-io`), and a save the system could

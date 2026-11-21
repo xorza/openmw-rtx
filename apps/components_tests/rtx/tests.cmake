@@ -15,6 +15,7 @@ target_sources(
         rtx/common/error.cpp
         rtx/common/halffloat.cpp
         rtx/common/job.cpp
+        rtx/common/steadymap.cpp
         rtx/common/classanswers.cpp
         rtx/common/namedenum.cpp
         rtx/common/ownedby.cpp
@@ -66,6 +67,7 @@ target_sources(
         rtx/mirror/mirroridentity.cpp
         rtx/mirror/nifsurface.cpp
         rtx/mirror/nodekind.cpp
+        rtx/mirror/pastroom.cpp
         rtx/mirror/released.cpp
         rtx/mirror/shading.cpp
         rtx/mirror/statereading.cpp

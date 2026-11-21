@@ -283,6 +283,13 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
   clamp, sRGB bytes.
 - **`Rtx::SceneExtractor` mirrors an OSG subtree** into a `SceneDesc`, its identity maps living across walks, so a still
   frame costs what moved; what a walk did not meet is swept after it.
+- **The tables a world fills and empties cell by cell are steady maps** (`Rtx::SteadyMap`): linear probing with
+  backward-shift deletion, so a table's load is its size over its slots however long the session churns, and one
+  reserved for the most it holds at once never moves its entries on a frame. `rooms-held` names the table that grew
+  (`Rtx::PastRoom`). Refused: Boost's open-addressing maps, whose anti-drift lowers the maximum load on an erase from an
+  overflowed group and rehashed the Repack's frozen roots short of their room, then again and again once the rehash
+  had shrunk them back to their size, a reservation of twice the room only postponing it; a node or chained map, an
+  allocation an insert; a dependency for it, by the user's decision.
 - **The cell ring** (`mirror/cells/`) stands the world past the loaded cells, which rays reach: the ground, the statics
   as instances of their templates, the lamps. A reader thread prepares cells and the frame adopts them a little at a
   time. A reference a local script enables or disables stands behind a gate the game evaluates

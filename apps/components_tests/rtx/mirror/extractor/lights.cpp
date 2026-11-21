@@ -545,7 +545,7 @@ namespace Rtx::Testing
             }
             mScene.clearPlacement();
             walk(*town);
-            EXPECT_EQ(mExtractor.countPastRoom(), 0u);
+            EXPECT_EQ(mExtractor.countPastRoom(), PastRoom{});
         }
 
         /// A lamp the record says animates is mirrored at the instant the walk was told, not at rest.

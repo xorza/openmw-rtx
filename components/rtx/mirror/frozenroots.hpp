@@ -5,7 +5,6 @@
 #include <utility>
 #include <vector>
 
-#include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/Callback>
 #include <osg/Matrix>
 #include <osg/Node>
@@ -13,6 +12,7 @@
 #include <osg/ref_ptr>
 
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/steadymap.hpp>
 
 #include "extractionstats.hpp"
 #include "materialresolver.hpp"
@@ -102,7 +102,7 @@ namespace Rtx
         /// gives a hold, which this holds no reference to.
         struct Holders
         {
-            Kept<boost::unordered_flat_map<std::size_t, Known<PlacementIndex>>>& mPlacements;
+            Kept<SteadyMap<std::size_t, Known<PlacementIndex>>>& mPlacements;
             MeshResolver& mMeshes;
             MaterialResolver& mMaterials;
 
@@ -110,14 +110,14 @@ namespace Rtx
             Released& mReleased;
         };
 
-        /// Room for `budget` roots, and for as many first frozen in one walk, made once.
+        /// Room for `budget` roots held at once, and for as many first frozen in one walk, made once.
         void reserve(std::size_t budget)
         {
             mFrozen.reserve(budget);
             mArrived.reserve(budget);
         }
 
-        /// `Kept::getPastRoom`, of the roots.
+        /// `Kept::getPastRoom`, of the roots: the map's growths and the arrivals' together.
         std::uint32_t getPastRoom() const { return mPastRoom; }
 
         /// Whether `root`, met as `face`, is frozen and still what it froze as: counted into
@@ -189,8 +189,7 @@ namespace Rtx
         /// it stood; the roots this walk froze that no walk had before, until `thawUnmet` files them;
         /// their keys in one buffer, a run a subtree; and what the root being walked has resolved so
         /// far. Reserved and kept, never freed.
-        boost::unordered_flat_map<osg::ref_ptr<const osg::Node>, Frozen, ByAddress<const osg::Node>,
-            ByAddress<const osg::Node>>
+        SteadyMap<osg::ref_ptr<const osg::Node>, Frozen, ByAddress<const osg::Node>, ByAddress<const osg::Node>>
             mFrozen;
         std::vector<std::pair<osg::ref_ptr<const osg::Node>, Frozen>> mArrived;
         RunBuffer<Key> mKeys;

@@ -5,6 +5,7 @@
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/maproom.hpp>
+#include <components/rtx/common/steadymap.hpp>
 #include <components/rtx/mirror/mirroridentity.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
 
@@ -17,7 +18,7 @@ namespace Rtx
         using Entry = Known<Row>;
 
         /// The map every identity in the mirror is, so what a reservation holds is the shipped one's.
-        using Map = boost::unordered_flat_map<std::int32_t, Entry>;
+        using Map = SteadyMap<std::int32_t, Entry>;
 
         struct RtxKeptTest : testing::Test
         {
@@ -166,7 +167,7 @@ namespace Rtx
             std::int32_t key = 0;
             while (!fillsRoom(beside))
             {
-                beside.emplace(key, Entry{});
+                beside.try_emplace(key, Entry{});
                 mKept.add(key++, Entry{});
             }
             ASSERT_GE(key, 4) << "a room of four held fewer";
@@ -175,13 +176,13 @@ namespace Rtx
             mKept.reach(0);
             EXPECT_EQ(mKept.getPastRoom(), 0u) << "an entry reached again counted";
 
-            beside.emplace(key, Entry{});
+            beside.try_emplace(key, Entry{});
             mKept.add(key++, Entry{});
             EXPECT_EQ(mKept.getPastRoom(), 1u);
 
             while (!fillsRoom(beside))
             {
-                beside.emplace(key, Entry{});
+                beside.try_emplace(key, Entry{});
                 mKept.reach(key++);
             }
             mKept.reach(key++);

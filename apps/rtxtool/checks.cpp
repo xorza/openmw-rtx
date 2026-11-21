@@ -240,9 +240,9 @@ namespace RtxTool
 
                 case Check::RoomsHeld:
                 {
-                    const std::uint32_t past = context.mMirror.countPastRoom();
-                    found = std::format("{} entries arrived past their map's room", past);
-                    return past == 0;
+                    const Rtx::PastRoom past = context.mMirror.countPastRoom();
+                    found = Rtx::describe(past);
+                    return past.total() == 0;
                 }
 
                 case Check::CrossingsAppend:

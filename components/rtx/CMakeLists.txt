@@ -347,6 +347,7 @@ openmw_rtx_layer(
         mirror/modelderivation.cpp
         mirror/modelfold.cpp
         mirror/nodekind.cpp
+        mirror/pastroom.cpp
         mirror/posecull.cpp
         mirror/sceneextractor.cpp
         mirror/shading.cpp
