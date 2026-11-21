@@ -1206,7 +1206,7 @@ struct Surface
     bool mLampLit;
 
     /// How far toward the eye its relief showed its texture, in the texture's own units along the eye's
-    /// lean in the map's tangent frame (`reliefToward`): the march's answer, or the shift's where the march
+    /// lean in the relief's frame (`reliefToward`): the march's answer, or the shift's where the march
     /// took no step, and nought where no relief was read, which the trace stores for the stages after it
     /// (`storeStageSolid`).
     float mRelief;
@@ -1343,12 +1343,6 @@ MapFrame mapFrameOf(Hit hit, vec3 normal)
     return MapFrame(tangent, cross(normal, tangent) * hit.mTangent.w, normal);
 }
 
-/// The way back along `direction` in `frame`.
-vec3 towardEyeIn(MapFrame frame, vec3 direction)
-{
-    return vec3(dot(frame.mTangent, -direction), dot(frame.mBitangent, -direction), dot(frame.mNormal, -direction));
-}
-
 /// Shifts `point`, where a hit lands on its material's own sheet, toward the eye by its normal map's height
 /// (`MATERIAL_PARALLAX`), so every read on the sheet after it lands where the relief puts it: the map itself, the
 /// albedo, the opacity, and the specular, emissive and dark maps. **Marched through the relief** where the scene
@@ -1358,7 +1352,7 @@ vec3 towardEyeIn(MapFrame frame, vec3 direction)
 /// **One statement of the shift, for the resolve and for a peel that weighs a layer by its opacity alone**
 /// (`layerOpacityOf`): the two read one texel.
 ///
-/// @param eye the way to the eye in the map's frame (`towardEyeIn`), and `bounds` the heights the march spans
+/// @param eye the way to the eye in the relief's frame (`ReliefFrame`), and `bounds` the heights the march spans
 ///        (`reliefBoundsOf`).
 /// @return how far toward the eye the relief showed its texture, and by how much deeper it stood
 ///         (`reliefDepthOf`): noughts in a scene with no relief to march.
@@ -1490,16 +1484,19 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint normal
         const vec3 tangent = frame.mTangent;
         const vec3 bitangent = frame.mBitangent;
 
-        // **Shifted toward the eye by the map's height first**, where it carries one (`shiftToRelief`).
+        // **Shifted toward the eye by the map's height first**, where it carries one (`shiftToRelief`), in the
+        // relief's frame and not the map's (`ReliefFrame`).
         if ((material.mFlags & MATERIAL_PARALLAX) != 0u)
         {
             const vec2 bounds = reliefBoundsOf(material.mRelief);
-            const vec2 shown = shiftToRelief(point, hit, material, towardEyeIn(frame, direction), bounds, normalMap);
+            const ReliefFrame relief
+                = reliefFrameOf(uv, material.mTextureTransform, cone, surface.mGeometric, normal);
+            const vec2 shown = shiftToRelief(point, hit, material, onSheet(relief, -direction), bounds, normalMap);
             if (HAS_RELIEF)
             {
                 surface.mRelief = shown.x;
-                surface.mReliefSite = ReliefSite(material.mNormal, point.mAt, bounds, tangent, bitangent, normal,
-                    reliefLevelOf(material.mNormal, point));
+                surface.mReliefSite
+                    = ReliefSite(material.mNormal, point.mAt, bounds, relief, reliefLevelOf(material.mNormal, point));
                 surface.mReliefMarched = shown.y;
             }
         }
@@ -1544,8 +1541,8 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint normal
         // layers over each other with additive blending and one pass apiece.
         const vec2 chunkUv = acrossTriangle(uv[0], uv[1], uv[2], hit.mBary);
 
-        // The frame every layer shares (`layerFrameOf`), and the eye in it, which is all of it the layers'
-        // reads take.
+        // The frame every layer's normal map shares (`layerFrameOf`), and the eye in the relief's frame of the
+        // sheet every layer is laid on (`ReliefMaps`), which is all of it the layers' reads take.
         //
         // **Filled behind `HAS_MAPS` and not declared with it**: the optimizer the kernels are compared through
         // keeps arithmetic nothing reads, so a frame computed outside the branch would be in every vanilla
@@ -1555,8 +1552,9 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint normal
         if (readsNormalMaps(detailed, normalMap))
         {
             layers = layerFrameOf(normal);
-            layerEye
-                = vec3(dot(layers.mTangent, -direction), dot(layers.mBitangent, -direction), dot(normal, -direction));
+            layerEye = onSheet(
+                reliefFrameOf(uv, layerAt(material.mLayerOffset).mDiffuseTransform, cone, surface.mGeometric, normal),
+                -direction);
         }
 
         // **The stack's relief marched once, through the heights its layers show summed** (`ReliefMaps`), and
@@ -1846,8 +1844,10 @@ float layerOpacityOf(SceneAnswer met, SceneQuery asked)
     TexturePoint point = texturePoint(uv, hit.mBary, material.mTextureTransform, cone, hit.mFootprint, detailed);
     if (readsNormalMap(hit, material, detailed, NORMAL_MAP_MARCHES) && (material.mFlags & MATERIAL_PARALLAX) != 0u)
     {
-        const MapFrame frame = mapFrameOf(hit, carriedNormalOf(hit, planeOf(hit.mEdges)));
-        shiftToRelief(point, hit, material, towardEyeIn(frame, asked.mAlong), reliefBoundsOf(material.mRelief),
+        const vec3 plane = planeOf(hit.mEdges);
+        const ReliefFrame relief
+            = reliefFrameOf(uv, material.mTextureTransform, cone, plane, carriedNormalOf(hit, plane));
+        shiftToRelief(point, hit, material, onSheet(relief, -asked.mAlong), reliefBoundsOf(material.mRelief),
             NORMAL_MAP_MARCHES);
     }
 

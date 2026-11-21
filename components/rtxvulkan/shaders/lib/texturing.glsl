@@ -68,6 +68,63 @@ SurfaceCone surfaceConeAt(TriangleEdges edges, vec3 direction)
         cross(normal, along), along / facing);
 }
 
+/// The world's length of one unit of the sheet `transform` lays on a triangle whose corners stand at `uv` on its
+/// texture and whose cone is `cone`: the square root of its area in the world over its area on the sheet, so a
+/// texture stretched unevenly takes the mean of its two stretches. Nought where the sheet has no area.
+float worldPerSheetOf(vec2 uv[3], vec4 transform, SurfaceCone cone)
+{
+    const vec2 across = (uv[1] - uv[0]) * transform.xy;
+    const vec2 down = (uv[2] - uv[0]) * transform.xy;
+    const float sheetArea = abs(across.x * down.y - down.x * across.y);
+    return sheetArea > 0.0 ? sqrt(cone.mArea / sheetArea) : 0.0;
+}
+
+/// What carries a way in the world into the relief a triangle's sheet is marched through (`reliefToward`): how
+/// far across and down the sheet a step along it goes, and how far up the relief, each in the sheet's units
+/// over its world length of one (`worldPerSheetOf`). On a sheet laid square and even along the mesh's own
+/// tangents it is their frame.
+///
+/// **The sheet's own gradients and not the mesh's tangents**, so the relief stands in the world as one solid:
+/// the texel a march shows from one eye is the one a march from any other eye shows along the ray to the same
+/// point, which is what the eye's motion measured to that point promises (`storedMotionOf`). A frame laid off
+/// the mesh's tangents, unit and square, parts from the sheet wherever the texture is stretched, sheared or
+/// turned against them, and the history a temporal filter fetched along the motion was another texel's: the
+/// stone swam under every step aside (`docs/research/2026-11-21-relief-frame-swim.md`).
+///
+/// **Up along the shading normal**, a height over the plane carried to the plane's square, so the relief bends
+/// with a smooth mesh and parts at none of its edges, while a point of it stays one point whichever ray finds
+/// it.
+struct ReliefFrame
+{
+    vec3 mAcross;
+    vec3 mDown;
+    vec3 mUp;
+};
+
+/// The relief's frame on a triangle whose corners stand at `uv` on its texture under the sheet `transform`, of the
+/// cone `cone` and the plane `plane`, under the shading normal `normal`.
+///
+/// **A normal along its own plane is held a thousandth off it**, as `surfaceConeAt` floors a grazing ray, where
+/// the height over the plane is a division by nought.
+ReliefFrame reliefFrameOf(vec2 uv[3], vec4 transform, SurfaceCone cone, vec3 plane, vec3 normal)
+{
+    const vec2 across = (uv[1] - uv[0]) * transform.xy;
+    const vec2 down = (uv[2] - uv[0]) * transform.xy;
+    const vec3 alongAcross = cone.mToSecond * across.x + cone.mToThird * down.x;
+    const vec3 alongDown = cone.mToSecond * across.y + cone.mToThird * down.y;
+    const float stretch = worldPerSheetOf(uv, transform, cone);
+    const vec3 lifted = dot(plane, normal) < 0.0 ? -plane : plane;
+    const vec3 up = lifted / max(dot(normal, lifted), 1e-3);
+    return ReliefFrame((alongAcross - up * dot(normal, alongAcross)) * stretch,
+        (alongDown - up * dot(normal, alongDown)) * stretch, up);
+}
+
+/// The way `way` in the world as the relief's frame `frame` reads it.
+vec3 onSheet(ReliefFrame frame, vec3 way)
+{
+    return vec3(dot(frame.mAcross, way), dot(frame.mDown, way), dot(frame.mUp, way));
+}
+
 /// The variance of the shading normal's slopes over the ellipse a cone `footprint` wide makes on the
 /// surface, both axes together, which is what `widenedRoughness` takes.
 ///
@@ -280,8 +337,8 @@ float coneLod(uint slot, TexturePoint point)
     return point.mBase + 0.5 * log2(float(textureTexelsAt(slot)));
 }
 
-/// How far a normal map's `height` shifts a texture point toward the eye, `eye` being the unit direction to
-/// the eye in the map's tangent frame: `PARALLAX_SCALE`'s shift, the rasterizer's own.
+/// How far a normal map's `height` shifts a texture point toward the eye, `eye` being the way to the eye in the
+/// relief's frame (`ReliefFrame`): `PARALLAX_SCALE`'s shift, the rasterizer's own.
 ///
 /// **With offset limiting, as the rasterizer's form has it**: linear in the eye's lean, where dividing by
 /// the eye's height would slide a texture off a surface met at grazing.
@@ -397,7 +454,7 @@ float reliefHeightAt(ReliefMaps maps, vec2 at, float level)
 /// march took no step: the shift moves the texture and stands it at no depth.
 ///
 /// **The relief OpenMW states, marched** (Tatarchuk 2006): a height `h` stands `h * PARALLAX_SCALE +
-/// PARALLAX_BIAS` over the triangle in the map's tangent frame, in the texture's units, so the mean height the
+/// PARALLAX_BIAS` over the triangle in the relief's frame (`ReliefFrame`), in the texture's units, so the mean height the
 /// replacers paint stands on it. The eye's ray enters at the highest height and is walked down in even steps
 /// to the lowest; the first step under the height ends it, and the root is found in float on the line through
 /// the last two heights, which joins the filtered bytes without a step's stairs.
@@ -416,7 +473,7 @@ float reliefHeightAt(ReliefMaps maps, vec2 at, float level)
 /// @param maps the normal maps whose alpha is the height, the first of which the march counts its texels
 ///        at.
 /// @param bounds the lowest and the highest height they hold (`reliefBoundsOf`).
-/// @param eye the direction to the eye in the maps' tangent frame, as `parallaxShift` takes it.
+/// @param eye the way to the eye in the relief's frame, as `parallaxShift` takes it.
 /// @param height their height at the hit, read as the shift reads it.
 vec2 reliefToward(ReliefMaps maps, vec2 bounds, TexturePoint point, vec3 eye, float height)
 {
@@ -465,34 +522,30 @@ vec2 reliefToward(ReliefMaps maps, vec2 bounds, TexturePoint point, vec3 eye, fl
 
 /// How much farther along the ray than the triangle a march's texel stands, in the world (`storedMotionOf`):
 /// `marched`, the march's own share (`reliefToward`'s `y`) in the units of the sheet `transform` lays, carried by
-/// the triangle's world length of one, the square root of its area in the world over its area on the sheet, so a
-/// texture stretched unevenly takes the mean of its two stretches. Nought where the sheet has no area.
+/// the sheet's world length of one (`worldPerSheetOf`), which the relief's frame is measured in, so the point
+/// stands where the march found its texel (`ReliefFrame`).
 float reliefDepthOf(vec2 uv[3], vec4 transform, SurfaceCone cone, float marched)
 {
-    const vec2 across = (uv[1] - uv[0]) * transform.xy;
-    const vec2 down = (uv[2] - uv[0]) * transform.xy;
-    const float sheetArea = abs(across.x * down.y - down.x * across.y);
-    return sheetArea > 0.0 ? -marched * sqrt(cone.mArea / sheetArea) : 0.0;
+    return -marched * worldPerSheetOf(uv, transform, cone);
 }
 
 /// Where a hit's relief showed the eye its texel, for a march from there toward a light (`reliefLit`): the
 /// normal map, or `NO_TEXTURE` where the surface has no relief; the texel, past the march; the heights the
-/// map spans (`reliefBoundsOf`); the map's tangent frame, as `reliefToward` was handed the eye in it; and the
-/// level its reads resolve (`reliefLevelOf`).
+/// map spans (`reliefBoundsOf`); the relief's frame, as `reliefToward` was handed the eye in it; and the level
+/// its reads resolve (`reliefLevelOf`).
 struct ReliefSite
 {
     uint mMap;
     vec2 mAt;
     vec2 mBounds;
-    vec3 mTangent;
-    vec3 mBitangent;
-    vec3 mNormal;
+    ReliefFrame mFrame;
     float mLevel;
 };
 
 ReliefSite noReliefSite()
 {
-    return ReliefSite(NO_TEXTURE, vec2(0.0), vec2(0.0), vec3(0.0), vec3(0.0), vec3(0.0, 0.0, 1.0), 0.0);
+    return ReliefSite(
+        NO_TEXTURE, vec2(0.0), vec2(0.0), ReliefFrame(vec3(0.0), vec3(0.0), vec3(0.0, 0.0, 1.0)), 0.0);
 }
 
 /// How much of a light `toLight` lights the texel `site` showed the eye, past the relief between: a march
@@ -516,7 +569,7 @@ ReliefSite noReliefSite()
 ///        its distance.
 float reliefLit(ReliefSite site, vec3 toLight, float spread)
 {
-    const vec3 light = vec3(dot(site.mTangent, toLight), dot(site.mBitangent, toLight), dot(site.mNormal, toLight));
+    const vec3 light = onSheet(site.mFrame, toLight);
     const float top = site.mBounds.y * PARALLAX_SCALE + PARALLAX_BIAS;
     const float start = textureLod(TEXTURE(sceneTexels(), site.mMap), site.mAt, site.mLevel).a * PARALLAX_SCALE
         + PARALLAX_BIAS;

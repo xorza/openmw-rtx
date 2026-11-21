@@ -356,6 +356,11 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
   keeps its cost. Only the tuples with maps march, and no setting turns it off. Refused: a max-mip quadtree; true
   displacement (`research/2026-11-08-height-map-range.md`, `research/2026-11-08-parallax-occlusion-techniques.md`,
   `research/2026-11-08-relief-cost-and-noise.md`).
+- **A relief is marched in the frame of the sheet its texture is laid on** (`ReliefFrame`): across and down by the
+  sheet's own gradients, up along the shading normal by a height over the plane, so every ray meets one solid and the
+  motion measured to the texel a march shows fetches that texel's history. Refused: the mesh's tangents, unit and
+  square, the rasterizer's, whose relief moved under a step aside and swam under a temporal upscaler; the relief in
+  FSR's reactive or composition mask, which traded the smear for shimmer (`research/2026-11-21-relief-frame-swim.md`).
 - **A mod's detail, decal, bump and gloss maps are read as `objects.frag` reads them**, behind a material's bit and
   from a row of their own (`MATERIAL_MOD_MAPS`), so no other hit's read moves; compiled into every kernel, which holds
   no more registers on either AMD driver for it (`research/2026-11-19-one-kernel-registers.md`). Refused: under the
