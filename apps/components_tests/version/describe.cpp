@@ -22,5 +22,12 @@ namespace Version
             EXPECT_EQ(describeVersion({ .mRtx = "7c9343fa4d", .mUpstream = "0.53.0", .mUpstreamCommit = {} }),
                 "OpenMW-RTX 7c9343fa4d\nbased on OpenMW 0.53.0");
         }
+
+        /// **The documentation is upstream's latest, whatever the build**: a fork's release tag names no upstream
+        /// release, and the link to one that was not published was dead.
+        TEST(VersionTest, theDocumentationIsUpstreamsLatest)
+        {
+            EXPECT_EQ(getDocumentationUrl(), "https://openmw.readthedocs.io/en/latest/");
+        }
     }
 }

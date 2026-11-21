@@ -38,5 +38,7 @@ namespace Version
 
     bool checkResourcesVersion(const std::filesystem::path& resourcePath);
 
+    /// Upstream's documentation of its master, which the fork merges: no upstream release is the fork's, and the
+    /// newest tag's commit is the fork's own release, whose upstream version upstream may not have published.
     std::string_view getDocumentationUrl();
 }
