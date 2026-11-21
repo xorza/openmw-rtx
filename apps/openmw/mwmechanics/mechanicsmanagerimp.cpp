@@ -1172,7 +1172,13 @@ namespace MWMechanics
             return false;
 
         if (type == OT_Assault)
+        {
+            // **A blow that killed is the murder's**, which `actorKilled` commits, and no assault besides: no victim is
+            // left to report it, and Morrowind.exe charges none (upstream #8818).
+            if (!victim.isEmpty() && victim.getClass().getCreatureStats(victim).isDead())
+                return false;
             victimAware = true;
+        }
 
         // Find all the actors within the alarm radius
         std::vector<MWWorld::Ptr> neighbors;
@@ -1198,10 +1204,9 @@ namespace MWMechanics
             if (!canReportCrime(neighbor, victim, playerFollowers))
                 continue;
 
+            // **A murder needs a witness who sees it**, as every crime does: Morrowind.exe charges none for a kill no
+            // one detected, a sneak attack's among them (upstream #8818).
             if ((neighbor == victim && victimAware)
-                // Murder crime can be reported even if no one saw it (hearing is enough, I guess).
-                // TODO: Add mod support for stealth executions!
-                || (type == OT_Murder && neighbor != victim)
                 || (MWBase::Environment::get().getWorld()->getLOS(player, neighbor)
                     && awarenessCheck(player, neighbor)))
             {

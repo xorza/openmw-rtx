@@ -34,6 +34,11 @@ namespace MWInput
         ~MouseManager() override = default;
 
         void updateCursorMode();
+        /// **Takes the mouse's motion since the last input update as this frame's**, `getMouseMoveX` and
+        /// `getMouseMoveY`, on every update: SDL sums every motion until it is read, and one read only while controls
+        /// were on gave the motion over a loading screen, a movie or a blocking message box as one frame's at their
+        /// end.
+        void takeFrameMotion();
         void update(float dt);
 
         void setCursorMode(MWBase::CursorMode mode) { mCursorMode = mode; }

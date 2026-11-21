@@ -397,6 +397,78 @@ testing.registerGlobalTest('commit crime', function()
     testing.expectEqual(types.Player.getCrimeLevel(player), 0, "Crime level should not change if the victim's alarm value is low and there's no other witnesses")
 end)
 
+-- An NPC of the player's record at `offset` from the player, still, taking the blows it is sent (`struck.lua`).
+local function placeStruck(player, offset)
+    local npc = world.createObject(types.NPC.record(player).id)
+    npc:addScript('struck.lua')
+    npc:teleport(player.cell, player.position + offset)
+    return npc
+end
+
+local function waitFrames(count)
+    for _ = 1, count do
+        coroutine.yield()
+    end
+end
+
+-- A murder needs a witness who sees it, as every crime does: Morrowind.exe charges none for a kill no one detected
+-- (upstream #8818). The victim dead, a witness blind to everything reports nothing; the same witness seeing again
+-- reports it.
+testing.registerGlobalTest('a murder needs a witness who sees it', function()
+    local player = initPlayer()
+    local victim = placeStruck(player, util.vector3(0, 300, 0))
+    local witness = placeStruck(player, util.vector3(300, 0, 0))
+    waitFrames(2)
+    victim:sendEvent('Die')
+    waitFrames(3)
+    testing.expectEqual(types.Actor.isDead(victim), true, 'The victim should be dead before its murder is committed')
+
+    witness:sendEvent('Blind', 10000)
+    waitFrames(2)
+    testing.expectEqual(I.Crimes.commitCrime(player, { victim = victim, type = types.Player.OFFENSE_TYPE.Murder }).wasCrimeSeen,
+        false, 'A witness blind to the murder should not report it')
+    witness:sendEvent('Blind', -10000)
+    waitFrames(2)
+    testing.expectEqual(I.Crimes.commitCrime(player, { victim = victim, type = types.Player.OFFENSE_TYPE.Murder }).wasCrimeSeen,
+        true, 'A witness who sees the murder should report it')
+
+    victim:remove()
+    witness:remove()
+end)
+
+-- A blow is the victim's to report once it has taken it: one it lives through is an assault, at iCrimeAttack, and one
+-- that kills it is no assault besides the murder, which Morrowind.exe charges none for unseen (upstream #8818). Each
+-- victim's alarm is the highest, so a report it makes lands its bounty.
+testing.registerGlobalTest('a blow that kills reports no assault', function()
+    local player = initPlayer()
+    local hurt = placeStruck(player, util.vector3(0, 300, 0))
+    local slain = placeStruck(player, util.vector3(300, 0, 0))
+    waitFrames(2)
+    hurt:sendEvent('Alarm', 100)
+    slain:sendEvent('Alarm', 100)
+    waitFrames(2)
+    local blow = function(health)
+        return { attacker = player, successful = true, sourceType = 'melee', damage = { health = health } }
+    end
+
+    types.Player.setCrimeLevel(player, 0)
+    hurt:sendEvent('Struck', blow(1))
+    waitFrames(3)
+    testing.expectEqual(types.Actor.isDead(hurt), false, 'The first victim should live through its blow')
+    testing.expectEqual(types.Player.getCrimeLevel(player), core.getGMST('iCrimeAttack'),
+        'A blow the victim lives through should be the assault it reports')
+
+    hurt:remove()
+    waitFrames(1)
+    types.Player.setCrimeLevel(player, 0)
+    slain:sendEvent('Struck', blow(1000000))
+    waitFrames(3)
+    testing.expectEqual(types.Actor.isDead(slain), true, 'The second victim should die of its blow')
+    testing.expectEqual(types.Player.getCrimeLevel(player), 0, 'A blow that kills unseen should be no crime')
+
+    slain:remove()
+end)
+
 testing.registerGlobalTest('record model property', function()
     local player = world.players[1]
     testing.expectEqual(types.NPC.record(player).model, 'meshes/basicplayer.dae')

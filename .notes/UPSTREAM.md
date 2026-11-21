@@ -296,6 +296,25 @@ and upstream's two Lua storage tests writing there.
   without it, and a data folder off its drive saved none at all. Such a name now stands as a missing file, checked
   and shown with the error icon, as a missing file another config names already stood; a folder read later that
   holds it fills the entry. Cost: a conflict with an upstream edit to `setContentList`.
+- **A murder no one saw was charged, and a killing blow was an assault besides** (upstream #8818, the user's yes,
+  2026-11-21, the original game's way): `commitCrime` let any NPC in the alarm radius report a murder unseen, and
+  `Npc::onHit` reported the blow before its damage, so a one-hit kill while sneaking unseen gave 1,000 and 40 gold,
+  where Morrowind.exe gives none ([UESP](https://en.uesp.net/wiki/Morrowind:Crime): a sneak-attack kill in one
+  hit draws no murder bounty, a witness to the death charges murder). A murder now needs a witness who sees it,
+  as every crime does; the victim reacts to a blow once it has taken it, and an assault on a victim the blow
+  killed is the murder's. The integration suite holds both (`test_lua_api`, `struck.lua`). Cost: a conflict with
+  an upstream edit to `commitCrime` or `Npc::onHit`.
+- **A digit typed on the keypad also moved the slider under the pointer** (upstream #8552, the user's yes,
+  2026-11-21): a field takes a key that types text, and the test took a keypad key for none, as its keycode
+  carries SDL's scancode mask; the key reached the look action it is bound to, which a menu turns into the wheel.
+  `SDLUtil::typesText` answers it, the keypad's digits typing with NumLock on as SDL's `hide_numpad` maps them.
+  Cost: a conflict with an upstream edit to `KeyboardManager::keyPressed`.
+- **The mouse's motion over a loading screen, a movie or a blocking message box came out as one frame's** (the
+  user's yes, 2026-11-21, beside upstream #8483, which the fork's SDL3 does not show): SDL sums every motion until
+  `SDL_GetRelativeMouseState` reads it, whatever events were flushed, and `MouseManager::update` read it only
+  while controls were on, so `input.getMouseMoveX` and `Y` jumped once they came back. `InputManager::update` has
+  `MouseManager::takeFrameMotion` read it on every update. Cost: a conflict with an upstream edit to
+  `MouseManager::update` or `InputManager::update`.
 - `Files::LinuxPath` took a failed `read_symlink` for the executable's path (`ec.value() != -1` holds for every error).
 - `SettingsFileParser::saveSettingsFile` and `StateManager::saveGame` wrote in place, so a crash or a full disk left
   part of either: both write through `Platform::writeWhole`, synced (`openmw-platform-io`), and a save the system could

@@ -60,6 +60,7 @@ namespace MWInput
 
         mInputWrapper->setMouseVisible(MWBase::Environment::get().getWindowManager()->getCursorVisible());
         mInputWrapper->capture(disableEvents);
+        mMouseManager->takeFrameMotion();
 
         if (disableControls)
         {

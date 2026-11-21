@@ -236,10 +236,13 @@ namespace MWInput
         }
     }
 
-    void MouseManager::update(float dt)
+    void MouseManager::takeFrameMotion()
     {
         SDL_GetRelativeMouseState(&mMouseMoveX, &mMouseMoveY);
+    }
 
+    void MouseManager::update(float dt)
+    {
         if (!mMouseLookEnabled)
             return;
 

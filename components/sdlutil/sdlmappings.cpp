@@ -1,5 +1,6 @@
 #include "sdlmappings.hpp"
 
+#include <cctype>
 #include <cstdint>
 #include <map>
 
@@ -237,6 +238,38 @@ namespace SDLUtil
             kc = foundKey->second;
 
         return kc;
+    }
+
+    bool typesText(SDL_Keycode key, SDL_Keymod mod)
+    {
+        switch (key)
+        {
+            case SDLK_KP_0:
+            case SDLK_KP_1:
+            case SDLK_KP_2:
+            case SDLK_KP_3:
+            case SDLK_KP_4:
+            case SDLK_KP_5:
+            case SDLK_KP_6:
+            case SDLK_KP_7:
+            case SDLK_KP_8:
+            case SDLK_KP_9:
+            case SDLK_KP_PERIOD:
+                return (mod & SDL_KMOD_NUM) != 0;
+            case SDLK_KP_DIVIDE:
+            case SDLK_KP_MULTIPLY:
+            case SDLK_KP_MINUS:
+            case SDLK_KP_PLUS:
+            case SDLK_KP_EQUALS:
+                return true;
+            default:
+                break;
+        }
+        if ((key & SDLK_SCANCODE_MASK) != 0)
+            return false;
+        // A character past Latin-1 that has no key of MyGUI's is text; `isprint` is not trusted past ASCII's range.
+        return (key > 0xff && sdlKeyToMyGUI(key) == MyGUI::KeyCode::None)
+            || (key <= 0xff && std::isprint(static_cast<std::int32_t>(key)) != 0);
     }
 
     SDL_Keycode myGuiKeyToSdl(MyGUI::KeyCode button)

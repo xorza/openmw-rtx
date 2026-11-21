@@ -3,3 +3,4 @@ GLOBAL: global.lua
 PLAYER: player.lua
 LOAD: load.lua
 CUSTOM: idle.lua
+CUSTOM: struck.lua

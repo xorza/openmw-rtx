@@ -669,49 +669,55 @@ namespace MWClass
         MWMechanics::CreatureStats& stats = getCreatureStats(ptr);
         bool wasDead = stats.isDead();
 
-        bool setOnPcHitMe = true;
-
         // NOTE: 'object' and/or 'attacker' may be empty.
-        if (!attacker.isEmpty() && attacker.getClass().isActor() && !stats.getAiSequence().isInCombat(attacker))
-        {
-            stats.setAttacked(true);
-            bool complain = sourceType == MWMechanics::DamageSourceType::Melee;
-            bool supportFriendlyFire = sourceType != MWMechanics::DamageSourceType::Ranged;
-            if (supportFriendlyFire && MWMechanics::friendlyHit(attacker, ptr, complain))
-                setOnPcHitMe = false;
-            else
-                setOnPcHitMe = MWBase::Environment::get().getMechanicsManager()->actorAttacked(ptr, attacker);
-        }
+        const bool reacts
+            = !attacker.isEmpty() && attacker.getClass().isActor() && !stats.getAiSequence().isInCombat(attacker);
+        // **The victim reacts to a blow once it has taken it**, and a missed one at once: a blow that kills leaves no
+        // victim to report an assault, which Morrowind.exe charges none for (upstream #8818).
+        const auto react = [&] {
+            bool setOnPcHitMe = true;
+            if (reacts)
+            {
+                stats.setAttacked(true);
+                bool complain = sourceType == MWMechanics::DamageSourceType::Melee;
+                bool supportFriendlyFire = sourceType != MWMechanics::DamageSourceType::Ranged;
+                if (supportFriendlyFire && MWMechanics::friendlyHit(attacker, ptr, complain))
+                    setOnPcHitMe = false;
+                else
+                    setOnPcHitMe = MWBase::Environment::get().getMechanicsManager()->actorAttacked(ptr, attacker);
+            }
 
-        // Attacker and target store each other as hitattemptactor if they have no one stored yet
-        if (!attacker.isEmpty() && attacker.getClass().isActor())
-        {
-            MWMechanics::CreatureStats& statsAttacker = attacker.getClass().getCreatureStats(attacker);
-            // First handle the attacked actor
-            if (!stats.getHitAttemptActor().isSet()
-                && (statsAttacker.getAiSequence().isInCombat(ptr) || attacker == MWMechanics::getPlayer()))
-                stats.setHitAttemptActor(attacker.getCellRef().getRefNum());
+            // Attacker and target store each other as hitattemptactor if they have no one stored yet
+            if (!attacker.isEmpty() && attacker.getClass().isActor())
+            {
+                MWMechanics::CreatureStats& statsAttacker = attacker.getClass().getCreatureStats(attacker);
+                // First handle the attacked actor
+                if (!stats.getHitAttemptActor().isSet()
+                    && (statsAttacker.getAiSequence().isInCombat(ptr) || attacker == MWMechanics::getPlayer()))
+                    stats.setHitAttemptActor(attacker.getCellRef().getRefNum());
 
-            // Next handle the attacking actor
-            if (!statsAttacker.getHitAttemptActor().isSet()
-                && (statsAttacker.getAiSequence().isInCombat(ptr) || attacker == MWMechanics::getPlayer()))
-                statsAttacker.setHitAttemptActor(ptr.getCellRef().getRefNum());
-        }
+                // Next handle the attacking actor
+                if (!statsAttacker.getHitAttemptActor().isSet()
+                    && (statsAttacker.getAiSequence().isInCombat(ptr) || attacker == MWMechanics::getPlayer()))
+                    statsAttacker.setHitAttemptActor(ptr.getCellRef().getRefNum());
+            }
 
-        if (!object.empty())
-            stats.setLastHitAttemptObject(object);
+            if (!object.empty())
+                stats.setLastHitAttemptObject(object);
 
-        if (setOnPcHitMe && !attacker.isEmpty() && attacker == MWMechanics::getPlayer())
-        {
-            const ESM::RefId& script = getScript(ptr);
-            /* Set the OnPCHitMe script variable. The script is responsible for clearing it. */
-            if (!script.empty())
-                ptr.getRefData().getLocals().setVarByInt(script, "onpchitme", 1);
-        }
+            if (setOnPcHitMe && !attacker.isEmpty() && attacker == MWMechanics::getPlayer())
+            {
+                const ESM::RefId& script = getScript(ptr);
+                /* Set the OnPCHitMe script variable. The script is responsible for clearing it. */
+                if (!script.empty())
+                    ptr.getRefData().getLocals().setVarByInt(script, "onpchitme", 1);
+            }
+        };
 
         if (!successful)
         {
             // Missed
+            react();
             return;
         }
 
@@ -719,7 +725,10 @@ namespace MWClass
             stats.setLastHitObject(object);
 
         if (ptr == MWMechanics::getPlayer() && MWBase::Environment::get().getWorld()->getGodModeState())
+        {
+            react();
             return;
+        }
 
         bool hasDamage = false;
         bool hasHealthDamage = false;
@@ -751,6 +760,8 @@ namespace MWClass
                 stats.setMagicka(magicka);
             }
         }
+
+        react();
 
         if (hasDamage && !attacker.isEmpty())
         {

@@ -105,6 +105,7 @@ target_sources(
         sceneutil/userdata.cpp
         sdlutil/sdlcursormanager.cpp
         sdlutil/sdlinputwrapper.cpp
+        sdlutil/sdlmappings.cpp
         sdlutil/sdlvideowrapper.cpp
         serialization/binaryreader.cpp
         serialization/binarywriter.cpp

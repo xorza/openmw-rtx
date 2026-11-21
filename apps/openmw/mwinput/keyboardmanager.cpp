@@ -1,8 +1,5 @@
 #include "keyboardmanager.hpp"
 
-#include <cctype>
-#include <cstdint>
-
 #include <MyGUI_InputManager.h>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -46,11 +43,7 @@ namespace MWInput
             SDL_FlushEvent(SDL_EVENT_TEXT_INPUT);
         }
 
-        bool consumed = SDL_TextInputActive(mWindow) && // Little trick to check if key is printable
-            (!(SDLK_SCANCODE_MASK & arg.key) &&
-                // Don't trust isprint for symbols outside the extended ASCII range
-                ((kc == MyGUI::KeyCode::None && arg.key > 0xff)
-                    || (arg.key <= 255 && std::isprint(static_cast<std::int32_t>(arg.key)))));
+        bool consumed = SDL_TextInputActive(mWindow) && SDLUtil::typesText(arg.key, arg.mod);
         if (kc != MyGUI::KeyCode::None && !mBindingsManager->isDetectingBindingState())
         {
             if (MWBase::Environment::get().getWindowManager()->injectKeyPress(kc, 0, arg.repeat))
