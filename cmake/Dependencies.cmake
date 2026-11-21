@@ -80,8 +80,10 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
         SYSTEM
         EXCLUDE_FROM_ALL
     )
-    set(GLM_BUILD_TESTS OFF)
-    set(GLM_BUILD_LIBRARY OFF)
+    # In the cache, as Recast's: glm's project states a policy version older than CMP0077, so its `option()`
+    # would drop a normal variable and build its library after all.
+    set(GLM_BUILD_TESTS OFF CACHE BOOL "")
+    set(GLM_BUILD_LIBRARY OFF CACHE BOOL "")
     FetchContent_MakeAvailable(glm)
     # Default-constructed glm types start as zero or identity, as the OSG types they stand beside do. On the target
     # that carries glm's headers, so every file that can include them compiles one glm (ODR), and on glm's own
