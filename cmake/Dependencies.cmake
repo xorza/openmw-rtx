@@ -69,6 +69,34 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
     FetchContent_MakeAvailable(yaml-cpp)
     target_compile_options(yaml-cpp PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/wd4267>)
 
+    # glm, the vectors and matrices of the Lua bindings and `Misc` beside OSG's.
+    FetchContent_Declare(
+        glm
+        URL
+            https://github.com/g-truc/glm/archive/refs/tags/1.0.1.tar.gz
+        URL_HASH
+            SHA512=c6c6fa1ea7a7e97820e36ee042a78be248ae828c99c1b1111080d9bf334a5160c9993a70312351c92a867cd49907c95f9f357c8dfe2bc29946da6e83e27ba20c
+        SOURCE_DIR fetched/glm
+        SYSTEM
+        EXCLUDE_FROM_ALL
+    )
+    set(GLM_BUILD_TESTS OFF)
+    set(GLM_BUILD_LIBRARY OFF)
+    FetchContent_MakeAvailable(glm)
+    # Default-constructed glm types start as zero or identity, as the OSG types they stand beside do. On the target
+    # that carries glm's headers, so every file that can include them compiles one glm (ODR), and on glm's own
+    # files where it builds any.
+    get_target_property(glm_target glm::glm ALIASED_TARGET)
+    if(NOT glm_target)
+        set(glm_target glm::glm)
+    endif()
+    get_target_property(glm_type ${glm_target} TYPE)
+    if(glm_type STREQUAL "INTERFACE_LIBRARY")
+        target_compile_definitions(${glm_target} INTERFACE GLM_FORCE_CTOR_INIT)
+    else()
+        target_compile_definitions(${glm_target} PUBLIC GLM_FORCE_CTOR_INIT)
+    endif()
+
     if(BUILD_TESTING)
         FetchContent_Declare(
             googletest

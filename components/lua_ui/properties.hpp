@@ -4,10 +4,10 @@
 
 #include <MyGUI_Colour.h>
 #include <MyGUI_Types.h>
-#include <osg/Vec2>
 #include <sol/sol.hpp>
 
 #include <components/lua/luastate.hpp>
+#include <components/lua/utilpackage.hpp>
 #include <components/misc/color.hpp>
 
 namespace LuaUi
@@ -49,9 +49,9 @@ namespace LuaUi
 
         LuaT luaT = opt.as<LuaT>();
         if constexpr (isMyGuiIntVector<T>())
-            return T(static_cast<std::int32_t>(luaT.x()), static_cast<std::int32_t>(luaT.y()));
+            return T(static_cast<std::int32_t>(luaT.x), static_cast<std::int32_t>(luaT.y));
         else if constexpr (isMyGuiVector<T>())
-            return T(luaT.x(), luaT.y());
+            return T(luaT.x, luaT.y);
         else if constexpr (isMyGuiColor<T>())
             return T(luaT.r(), luaT.g(), luaT.b(), luaT.a());
         else
@@ -62,7 +62,7 @@ namespace LuaUi
     sol::optional<T> parseValue(const sol::object& table, std::string_view field, std::string_view errorPrefix)
     {
         if constexpr (isMyGuiVector<T>())
-            return parseValue<T, osg::Vec2f>(table, field, errorPrefix);
+            return parseValue<T, LuaUtil::Vec2>(table, field, errorPrefix);
         else if constexpr (isMyGuiColor<T>())
             return parseValue<T, Misc::Color>(table, field, errorPrefix);
         else

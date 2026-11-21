@@ -1,9 +1,11 @@
 #include "esmreader.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
+#include <format>
 #include <fstream> // IWYU pragma: keep: a file stream whole, which the stream pointer converts from
 #include <ios>
 #include <istream>
@@ -435,10 +437,18 @@ namespace ESM
 
     std::string_view ESMReader::getStringView(std::size_t size)
     {
+        if (size == 0)
+            return std::string_view();
+
         if (mBuffer.size() <= size)
+        {
+            const std::size_t rest = mFileSize - static_cast<std::size_t>(mEsm->tellg());
+            if (rest < size)
+                fail(std::format("String size ({}) is bigger than the rest of the file ({})", size, rest));
             // Add some extra padding to reduce the chance of having to resize
             // again later.
-            mBuffer.resize(3 * size);
+            mBuffer.resize(std::clamp(rest, size + 1, size * 3));
+        }
 
         // And make sure the string is zero terminated
         mBuffer[size] = 0;

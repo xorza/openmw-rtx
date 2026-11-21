@@ -34,6 +34,7 @@
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/loadweap.hpp>
 #include <components/lua/luastate.hpp>
+#include <components/misc/convert.hpp>
 #include <components/misc/finitevalues.hpp>
 
 #include "animationbindings.hpp"
@@ -178,9 +179,10 @@ namespace MWLua
         api["activeActors"] = GObjectList{ objectLists->getActorsInScene() };
         api["players"] = GObjectList{ objectLists->getPlayers() };
 
-        api["getObjectsInRange"] = [](osg::Vec3f position, Misc::FiniteFloat range) -> GObjectList {
+        api["getObjectsInRange"] = [](const glm::vec3& position, Misc::FiniteFloat range) -> GObjectList {
             std::vector<MWWorld::Ptr> objects;
-            MWBase::Environment::get().getMechanicsManager()->getObjectsInRange(position, range, objects);
+            MWBase::Environment::get().getMechanicsManager()->getObjectsInRange(
+                Misc::Convert::toOsg(position), range, objects);
             GObjectList objList;
             objList.mIds = std::make_shared<std::vector<ObjectId>>();
             objList.mIds->reserve(objects.size());

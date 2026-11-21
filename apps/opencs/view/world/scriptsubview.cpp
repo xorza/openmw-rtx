@@ -1,5 +1,6 @@
 #include "scriptsubview.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <istream>
 #include <vector>
@@ -27,6 +28,7 @@
 #include "scriptedit.hpp"
 #include "scripterrortable.hpp"
 #include "scripthighlighter.hpp"
+#include "scripttext.hpp"
 #include "tablebottombox.hpp"
 
 void CSVWorld::ScriptSubView::addButtonBar()
@@ -235,6 +237,7 @@ void CSVWorld::ScriptSubView::useHint(const std::string& hint)
 
             for (std::int32_t i = 0; i <= pos; ++i)
             {
+                // We expect \n line endings, see the toEditorText() function
                 if (source[i] == '\n')
                 {
                     ++line;
@@ -271,8 +274,16 @@ void CSVWorld::ScriptSubView::textChanged()
 
     QString source = mEditor->toPlainText();
 
-    mDocument.getUndoStack().push(
-        new CSMWorld::ModifyCommand(*mModel, mModel->getModelIndex(getUniversalId().getId(), mColumn), source));
+    QModelIndex index = mModel->getModelIndex(getUniversalId().getId(), mColumn);
+
+    // If the text itself did not change, it means that its formatting changed instead (a highlighting, in our case).
+    // So there is no real edit command, and nothing to recompile.
+    QString modelText = mModel->data(index).toString();
+    toEditorText(modelText);
+    if (modelText == source)
+        return;
+
+    mDocument.getUndoStack().push(new CSMWorld::ModifyCommand(*mModel, index, source));
 
     recompile();
 }
@@ -302,11 +313,39 @@ void CSVWorld::ScriptSubView::dataChanged(const QModelIndex& topLeft, const QMod
 
         if (mColumn >= topLeft.column() && mColumn <= bottomRight.column())
         {
-            QString source = mModel->data(index).toString();
+            QString modelText = mModel->data(index).toString();
+            toEditorText(modelText);
+            const QString editorText = mEditor->toPlainText();
 
-            QTextCursor cursor = mEditor->textCursor();
-            mEditor->setPlainText(source);
-            mEditor->setTextCursor(cursor);
+            // Check if model has a new text which does not exist in the script editor yet.
+            // If yes, replace the whole changed fragment.
+            if (modelText != editorText)
+            {
+                const qsizetype maxLength = std::min(modelText.size(), editorText.size());
+
+                // Calculate position of the first changed character
+                qsizetype prefix = 0;
+                while (prefix < maxLength && modelText[prefix] == editorText[prefix])
+                    ++prefix;
+
+                // Calculate positions of the first character after changed block in both texts
+                qsizetype modelEnd = modelText.size();
+                qsizetype editorEnd = editorText.size();
+                while (modelEnd > prefix && editorEnd > prefix && modelText[modelEnd - 1] == editorText[editorEnd - 1])
+                {
+                    --modelEnd;
+                    --editorEnd;
+                }
+
+                // Select a block in the script editor where we need to replace an old text
+                QTextCursor cursor = mEditor->textCursor();
+                cursor.setPosition(static_cast<std::int32_t>(prefix));
+                cursor.setPosition(static_cast<std::int32_t>(editorEnd), QTextCursor::KeepAnchor);
+
+                // Replace it by the new data from model and apply changes
+                cursor.insertText(modelText.mid(prefix, modelEnd - prefix));
+                mEditor->setTextCursor(cursor);
+            }
 
             updateRequired = true;
         }

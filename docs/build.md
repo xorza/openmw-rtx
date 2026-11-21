@@ -25,8 +25,8 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
 - **CMake's switches before the tree's**: `CMAKE_COMPILE_WARNING_AS_ERROR`, `CMAKE_INTERPROCEDURAL_OPTIMIZATION`,
   `BUILD_TESTING`; `OPENMW_SANITIZER` is the one cache entry of the tree's. Refused: a switch per program.
 - **Third-party code in one file**, `cmake/Dependencies.cmake`: the vcpkg set's packages, and what the tree compiles
-  from a pinned archive (SDL3, Recast, yaml-cpp, Google Test and Benchmark, volk, VMA, Crashpad) with the tree's flags
-  and sanitizer, as ThreadSanitizer sees a lock only in code it instrumented. Recast is pinned, as
+  from a pinned archive (SDL3, Recast, yaml-cpp, glm, Google Test and Benchmark, volk, VMA, Crashpad) with the tree's
+  flags and sanitizer, as ThreadSanitizer sees a lock only in code it instrumented. Recast is pinned, as
   `NavMeshTileStore::sTileVersion` keys tiles by it. Refused: `FIND_PACKAGE_ARGS`, which took a desk's own versions.
 - **A third party's warnings are off, not fixed**: `-w` on Clang for `extern/` and the fetched projects, `/w` on
   MSVC for `extern/`, and the one warning a fetched project raises turned off on its target (`/wd4267` on

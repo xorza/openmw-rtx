@@ -485,6 +485,7 @@ target_sources(
                 view/world/scripterrortable.hpp
                 view/world/scripthighlighter.hpp
                 view/world/scriptsubview.hpp
+                view/world/scripttext.hpp
                 view/world/startscriptcreator.hpp
                 view/world/subviews.hpp
                 view/world/table.hpp

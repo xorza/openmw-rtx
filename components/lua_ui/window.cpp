@@ -5,6 +5,7 @@
 #include <MyGUI_Delegate.h>
 #include <MyGUI_MouseButton.h>
 #include <MyGUI_Types.h>
+#include <glm/vec2.hpp>
 
 namespace LuaUi
 {
@@ -94,8 +95,8 @@ namespace LuaUi
 
         protectedCall([this](LuaUtil::LuaView& view) {
             sol::table table = view.newTable();
-            table["position"] = osg::Vec2f(static_cast<float>(mCoord.left), static_cast<float>(mCoord.top));
-            table["size"] = osg::Vec2f(static_cast<float>(mCoord.width), static_cast<float>(mCoord.height));
+            table["position"] = glm::vec2(static_cast<float>(mCoord.left), static_cast<float>(mCoord.top));
+            table["size"] = glm::vec2(static_cast<float>(mCoord.width), static_cast<float>(mCoord.height));
             triggerEvent("windowDrag", table);
         });
     }

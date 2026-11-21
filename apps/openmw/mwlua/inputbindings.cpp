@@ -6,6 +6,7 @@
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_gamepad.h>
 #include <SDL3/SDL_mouse.h>
+#include <glm/vec2.hpp>
 
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/inputmanager.hpp>
@@ -76,7 +77,7 @@ namespace MWLua
             touchpadEvent["finger"]
                 = sol::readonly_property([](const SDLUtil::TouchEvent& e) -> std::int32_t { return e.mFinger; });
             touchpadEvent["position"]
-                = sol::readonly_property([](const SDLUtil::TouchEvent& e) -> osg::Vec2f { return { e.mX, e.mY }; });
+                = sol::readonly_property([](const SDLUtil::TouchEvent& e) -> glm::vec2 { return { e.mX, e.mY }; });
             touchpadEvent["pressure"]
                 = sol::readonly_property([](const SDLUtil::TouchEvent& e) -> float { return e.mPressure; });
             return sol::table(lua, sol::create);
