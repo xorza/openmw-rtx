@@ -5,8 +5,10 @@
 #include <chrono>
 #include <map>
 #include <memory>
+#include <stdexcept>
 #include <thread>
 
+#include <apps/components_tests/rtx/support/bound.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/imageshape.hpp>
 #include <components/rtx/renderer/sceneholder.hpp>
@@ -96,11 +98,13 @@ namespace Rtx::Testing
                                                                             : mLedger.askChunk(mLedger.getArena(of));
             device.acquireBlock(block, mLedger.getArena(of), mLedger.getBlockBytes(block));
             // The device's thread makes it; a test waits, which no frame does. **Bounded by time, not by a count of
-            // yields**: under the gate's lint beside it, 100,000 yields passed before the device's thread ran.
-            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
-            while (!mLedger.hasRoom(of))
+            // yields**: under the gate's lint beside it, 100,000 yields passed before the device's thread ran. A
+            // failure in every build, as the harness's waits are, and not an assert, which a release build compiles
+            // out and leaves a wait with no end.
+            for (const WaitBound bound(std::chrono::seconds(30)); !mLedger.hasRoom(of);)
             {
-                assert(std::chrono::steady_clock::now() < deadline && "a block the device never made");
+                if (bound.passed())
+                    throw std::runtime_error("a block the device never made");
                 std::this_thread::yield();
                 openFrame(device);
             }
