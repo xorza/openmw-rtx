@@ -291,6 +291,11 @@ and upstream's two Lua storage tests writing there.
   `AlchemyWindow::updateFilters` puts its items back through `Gui::replaceComboBoxItems`
   (`components/widgets/comboboxitems.hpp`), which keeps the selected item. Cost: a conflict with an upstream edit
   to `updateFilters`.
+- **The launcher dropped from the load order every file no data folder held** (upstream #7300, the user's yes,
+  2026-11-21): `ContentModel::setContentList` skipped a name it found no file of, so the next save wrote the list
+  without it, and a data folder off its drive saved none at all. Such a name now stands as a missing file, checked
+  and shown with the error icon, as a missing file another config names already stood; a folder read later that
+  holds it fills the entry. Cost: a conflict with an upstream edit to `setContentList`.
 - `Files::LinuxPath` took a failed `read_symlink` for the executable's path (`ec.value() != -1` holds for every error).
 - `SettingsFileParser::saveSettingsFile` and `StateManager::saveGame` wrote in place, so a crash or a full disk left
   part of either: both write through `Platform::writeWhole`, synced (`openmw-platform-io`), and a save the system could

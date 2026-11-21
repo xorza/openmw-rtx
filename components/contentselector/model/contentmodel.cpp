@@ -683,8 +683,17 @@ void ContentSelectorModel::ContentModel::setContentList(const QStringList& fileL
     for (qsizetype i = 0, n = fileList.size(); i < n; ++i)
     {
         const EsmFile* file = item(fileList[i]);
-        if (!file)
+        if (!file && orderOnly)
             continue;
+        if (!file)
+        {
+            // **A file no data folder holds stays in the list, shown as missing**, until a folder that holds it is
+            // read: dropped here, the next save wrote the load order without it, and a data folder off its drive wrote
+            // none at all (upstream #7300).
+            auto missingFile = std::make_unique<EsmFile>(fileList[i]);
+            file = missingFile.get();
+            addFile(missingFile.release());
+        }
 
         if (orderOnly || setCheckState(file, true))
         {

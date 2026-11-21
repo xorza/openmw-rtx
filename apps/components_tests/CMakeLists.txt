@@ -145,7 +145,12 @@ target_link_libraries(
         openmw-test-platform
         openmw-test-options
 )
-target_sources(components-tests PRIVATE config/testlaunchersettings.cpp)
+target_sources(
+    components-tests
+    PRIVATE
+        config/testlaunchersettings.cpp
+        contentselector/contentmodel.cpp
+)
 target_link_libraries(components-tests PRIVATE openmw-components-qt)
 target_sources(
     components-tests

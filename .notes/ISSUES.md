@@ -9,6 +9,3 @@
 - **A one-hit stealth kill gives a bounty** (upstream [#8818](https://gitlab.com/OpenMW/openmw/-/issues/8818)): a
   perfect-stealth one-hit kill while sneaking with two NPCs about gives 1,040 gold, where Morrowind.exe gives none; a
   perfect-stealth hit that does not kill puts the victim in combat with a 40 gold bounty.
-- **The launcher deletes every `content=` line when the game fails to start** (upstream
-  [#7300](https://gitlab.com/OpenMW/openmw/-/issues/7300)), as when a data folder's drive is not mounted: the player's
-  load order is gone from `openmw.cfg`.
