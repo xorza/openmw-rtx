@@ -106,12 +106,19 @@ namespace Settings
         const CategorySettingValueMap originalDefaultSettings = mDefaultSettings;
 
         // Load "settings.cfg" or "openmw-cs.cfg" from every config dir except the last one as additional default
-        // settings.
+        // settings. Each is a player's file as the last one is, read through the same migration on its own: the
+        // defaults already name every key, which the migration reads a file's age by.
         for (std::int32_t i = 0; i < static_cast<std::int32_t>(paths.size()) - 1; ++i)
         {
             const auto additionalDefaults = paths[static_cast<std::size_t>(i)] / userSettingsFile;
-            if (std::filesystem::exists(additionalDefaults))
-                parser.loadSettingsFile(additionalDefaults, mDefaultSettings, false, true);
+            if (!std::filesystem::exists(additionalDefaults))
+                continue;
+            CategorySettingValueMap layer;
+            parser.loadSettingsFile(additionalDefaults, layer, false, true);
+            if (!loadEditorSettings)
+                migrateUserSettings(layer);
+            for (auto& [key, value] : layer)
+                mDefaultSettings.insert_or_assign(key, std::move(value));
         }
 
         if (!loadEditorSettings)

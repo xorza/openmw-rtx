@@ -31,7 +31,9 @@ conflict here resolves by keeping the seam:
 - an exterior map tile keeps its land where the quad tree did not build the chunk yet;
 - both renderers draw at `[Video] resolution x/y`, shown scaled into the window (`Misc::Presentation`), so the GUI, the
   projection, the pointer and Lua read one size; an upstream settings file's window size moves to the window on the
-  first start.
+  first start. `Settings::Manager::load` runs that migration on every config dir's `settings.cfg`, each read into a map
+  of its own before it is laid over the defaults, and not on the last alone: the harness reads the player's file as a
+  layer ahead of its run's own, and refused a released build's `[RTX] upscale = off` there.
 
 **One rule both renderers read**, moved out of the rasterizer's code into a header or a helper:
 

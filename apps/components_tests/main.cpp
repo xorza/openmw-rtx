@@ -3,10 +3,8 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/components_tests/settings/registry.hpp>
 #include <components/debug/debugging.hpp>
-#include <components/misc/strings/conversion.hpp>
-#include <components/settings/parser.hpp>
-#include <components/settings/values.hpp>
 #include <components/testing/util.hpp>
 
 // An exception here ends the process, which is what this function means.
@@ -15,17 +13,7 @@ int main(std::int32_t argc, char** argv)
 {
     Log::sMinDebugLevel = Debug::getDebugLevel();
 
-    const std::filesystem::path settingsDefaultPath = std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files"
-        / Misc::StringUtils::stringToU8String("settings-default.cfg");
-
-    Settings::SettingsFileParser parser;
-    parser.loadSettingsFile(settingsDefaultPath, Settings::Manager::mDefaultSettings);
-
-    Settings::StaticValues::initDefaults();
-
-    Settings::Manager::mUserSettings = Settings::Manager::mDefaultSettings;
-
-    Settings::StaticValues::init();
+    Settings::standShippedSettings();
 
     // **Death tests run the binary again rather than fork it.** A fork copies the one thread that
     // forked, so a lock another thread held stays held in the child: gtest warns of it at every death

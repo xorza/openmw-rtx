@@ -4,8 +4,9 @@
 
 namespace Settings
 {
-    /// Rewrites what a `settings.cfg` written by upstream means to this fork, on the user's own
-    /// values, before anything reads them.
+    /// Rewrites what a `settings.cfg` written by upstream or an older build means to this fork, on one file's own
+    /// values, before anything reads them: the user's, and each config dir's ahead of it that `Manager::load` lays
+    /// over the defaults, which the harness puts the player's file in.
     ///
     /// **The window's size**: upstream kept it in `[Video] resolution x/y`, which this fork reads as the
     /// frame the picture is drawn at, taking the window from `window width/height`. A file is the fork's

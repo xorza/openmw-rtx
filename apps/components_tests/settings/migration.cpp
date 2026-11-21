@@ -1,7 +1,23 @@
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <string>
+#include <vector>
+
 #include <gtest/gtest.h>
 
+#include <boost/program_options/options_description.hpp>
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/variables_map.hpp>
+
+#include <components/files/configurationmanager.hpp>
+#include <components/files/conversion.hpp>
 #include <components/settings/categories.hpp>
 #include <components/settings/migration.hpp>
+#include <components/settings/settings.hpp>
+#include <components/testing/util.hpp>
+
+#include "registry.hpp"
 
 namespace Settings
 {
@@ -89,6 +105,46 @@ namespace Settings
             kept[marker] = "true";
             migrateUserSettings(upscaled);
             EXPECT_EQ(upscaled, kept);
+        }
+
+        /// **A settings file ahead of the user's goes through the migration as the user's does**: the harness reads the
+        /// player's file as such a layer, ahead of its run's own folder, and a released build's `upscale = off` there
+        /// reached the mode's spelling list, which refuses it. Three config dirs, the build's own with the shipped
+        /// defaults first, a 0.4.5 file in the second and nothing in the last: the upscaler reads `off`, and the mode
+        /// the shipped `balanced`, as the user layer's migration leaves them.
+        TEST(SettingsMigrationTest, aLayerAheadOfTheUsersIsMigratedAsTheUsersIs)
+        {
+            const std::filesystem::path root = TestingOpenMW::currentTestDirPath();
+            const std::filesystem::path player = root / "player";
+            const std::filesystem::path run = root / "run";
+            for (const std::filesystem::path& folder : { player, run })
+                std::filesystem::create_directories(folder);
+            std::ofstream(player / "settings.cfg") << "[RTX]\nupscale = off\n";
+
+            namespace bpo = boost::program_options;
+            bpo::options_description description;
+            Files::ConfigurationManager::addCommonOptions(description);
+            const std::string playerArg = Files::pathToUnicodeString(player);
+            const std::string runArg = Files::pathToUnicodeString(run);
+            const std::vector<const char*> arguments{ "test", "--replace=config", "--config", playerArg.c_str(),
+                "--config", runArg.c_str() };
+            bpo::variables_map variables;
+            bpo::store(bpo::command_line_parser(static_cast<std::int32_t>(arguments.size()), arguments.data())
+                           .options(description)
+                           .run(),
+                variables);
+            bpo::notify(variables);
+            Files::ConfigurationManager config(true);
+            config.readConfiguration(variables, description, true);
+            ASSERT_EQ(config.getActiveConfigPaths(),
+                (std::vector<std::filesystem::path>{ config.getLocalPath(), player, run }));
+
+            // The binary's registry, which a load adds to rather than replaces, made again for the tests after.
+            Manager::clear();
+            Manager::load(config);
+            EXPECT_EQ(Manager::getString("upscaler", "RTX"), "off");
+            EXPECT_EQ(Manager::getString("upscale", "RTX"), "balanced") << "the shipped mode, the layer's gone";
+            standShippedSettings();
         }
     }
 }
