@@ -15,8 +15,11 @@ permissions: {}
 jobs:
   ci:
     uses: $/.github/workflows/ci.yml
+    # What CI's jobs ask, or GitHub refuses the run before it starts: `build` and `caches` ask `actions: write` to
+    # delete superseded caches, on master and with caches only, so a release's run deletes nothing.
     permissions:
       contents: read
+      actions: write
     with:
       cache: false
 
