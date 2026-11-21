@@ -69,7 +69,9 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
     FetchContent_MakeAvailable(yaml-cpp)
     target_compile_options(yaml-cpp PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/wd4267>)
 
-    # glm, the vectors and matrices of the Lua bindings and `Misc` beside OSG's.
+    # glm, the vectors and matrices of the Lua bindings and `Misc` beside OSG's: its headers alone, populated
+    # without its project, as Crashpad's submodules are. The tree builds none of glm's sources, and glm 1.0.1's
+    # project states a policy version CMake deprecates, which the presets make a configure's error.
     FetchContent_Declare(
         glm
         URL
@@ -77,27 +79,15 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
         URL_HASH
             SHA512=c6c6fa1ea7a7e97820e36ee042a78be248ae828c99c1b1111080d9bf334a5160c9993a70312351c92a867cd49907c95f9f357c8dfe2bc29946da6e83e27ba20c
         SOURCE_DIR fetched/glm
-        SYSTEM
-        EXCLUDE_FROM_ALL
+        SOURCE_SUBDIR not-a-project
     )
-    # In the cache, as Recast's: glm's project states a policy version older than CMP0077, so its `option()`
-    # would drop a normal variable and build its library after all.
-    set(GLM_BUILD_TESTS OFF CACHE BOOL "")
-    set(GLM_BUILD_LIBRARY OFF CACHE BOOL "")
     FetchContent_MakeAvailable(glm)
-    # Default-constructed glm types start as zero or identity, as the OSG types they stand beside do. On the target
-    # that carries glm's headers, so every file that can include them compiles one glm (ODR), and on glm's own
-    # files where it builds any.
-    get_target_property(glm_target glm::glm ALIASED_TARGET)
-    if(NOT glm_target)
-        set(glm_target glm::glm)
-    endif()
-    get_target_property(glm_type ${glm_target} TYPE)
-    if(glm_type STREQUAL "INTERFACE_LIBRARY")
-        target_compile_definitions(${glm_target} INTERFACE GLM_FORCE_CTOR_INIT)
-    else()
-        target_compile_definitions(${glm_target} PUBLIC GLM_FORCE_CTOR_INIT)
-    endif()
+    # Imported, so its headers are a system's, as every fetched project's are. Default-constructed glm types start
+    # as zero or identity, as the OSG types they stand beside do: on the one target that carries glm's headers, so
+    # every file that can include them compiles one glm (ODR).
+    add_library(glm::glm INTERFACE IMPORTED)
+    target_include_directories(glm::glm INTERFACE "${glm_SOURCE_DIR}")
+    target_compile_definitions(glm::glm INTERFACE GLM_FORCE_CTOR_INIT)
 
     if(BUILD_TESTING)
         FetchContent_Declare(

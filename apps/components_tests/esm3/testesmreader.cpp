@@ -1,6 +1,6 @@
-#include <components/esm3/esmreader.hpp>
-
 #include <gtest/gtest.h>
+
+#include <components/esm3/esmreader.hpp>
 
 namespace ESM
 {
@@ -23,6 +23,5 @@ namespace ESM
 
             EXPECT_THROW(reader.getStringView(data.size() + 1), std::runtime_error);
         }
-
     }
 }

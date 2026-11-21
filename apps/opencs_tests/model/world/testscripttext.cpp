@@ -1,8 +1,8 @@
-#include "apps/opencs/view/world/scripttext.hpp"
-
 #include <gtest/gtest.h>
 
 #include <QString>
+
+#include <apps/opencs/view/world/scripttext.hpp>
 
 namespace CSVWorld
 {

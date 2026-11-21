@@ -1,13 +1,14 @@
-#include <components/misc/convert.hpp>
+#include <cstdint>
 
+#include <gtest/gtest.h>
+
+#include <glm/gtc/matrix_transform.hpp>
 #include <osg/Matrixf>
 #include <osg/Quat>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
-#include <glm/gtc/matrix_transform.hpp>
-
-#include <gtest/gtest.h>
+#include <components/misc/convert.hpp>
 
 namespace Misc::Convert
 {
@@ -89,8 +90,8 @@ namespace Misc::Convert
             const osg::Matrixf o
                 = osg::Matrixf::translate(1.0f, 2.0f, 3.0f) * osg::Matrixf::rotate(osg::Quat(0.4, osg::Vec3f(0, 1, 0)));
             const osg::Matrixf back = toOsg(toGlm(o));
-            for (int i = 0; i < 4; ++i)
-                for (int j = 0; j < 4; ++j)
+            for (std::int32_t i = 0; i < 4; ++i)
+                for (std::int32_t j = 0; j < 4; ++j)
                     EXPECT_NEAR(back(i, j), o(i, j), kEps) << "at (" << i << ", " << j << ")";
         }
 
