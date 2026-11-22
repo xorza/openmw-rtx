@@ -1,5 +1,4 @@
-#ifndef CSM_WORLD_VARIANTCONVERSION_H
-#define CSM_WORLD_VARIANTCONVERSION_H
+#pragma once
 
 #include <string>
 
@@ -20,5 +19,3 @@ namespace CSMWorld
         return ESM::RefId::stringRefId(value.toString().toUtf8().constData());
     }
 }
-
-#endif
