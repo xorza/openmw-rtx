@@ -1,6 +1,7 @@
 # Run at every build (`get-version` in `components/CMakeLists.txt`): the commit, the latest tag, the fork's
-# release, the upstream commit it is based on and the copyright year into each of `FILES`, from its template in `TEMPLATES`, `<name>.in`, which the configure left with everything
-# else filled in. `configure_file` writes a file only where its text moved. `SOURCE_DIR` is the clone.
+# release, the upstream commit it is based on and the copyright year into each of `FILES`, from its template in
+# `TEMPLATES`, `<name>.in`, which the configure left with everything else filled in. `configure_file` writes a file
+# only where its text moved. `SOURCE_DIR` is the clone.
 
 execute_process(
     COMMAND
