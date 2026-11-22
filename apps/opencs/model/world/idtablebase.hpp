@@ -7,6 +7,7 @@
 #include <QAbstractItemModel>
 #include <QModelIndex>
 
+#include "columnbase.hpp"
 #include "columns.hpp"
 
 namespace CSMWorld
@@ -64,6 +65,13 @@ namespace CSMWorld
         virtual bool isDeleted(const std::string& id) const = 0;
 
         virtual std::int32_t getColumnId(std::int32_t column) const = 0;
+
+        QVariant getData(std::int32_t row, std::int32_t column, std::int32_t role = Qt::DisplayRole) const;
+
+        /// Return the UniversalId for a source-model row.
+        UniversalId getUniversalId(std::int32_t row) const;
+
+        ColumnBase::Display getColumnDisplay(std::int32_t column) const;
 
         std::uint32_t getFeatures() const;
     };

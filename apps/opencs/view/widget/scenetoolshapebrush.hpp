@@ -13,7 +13,6 @@
 class QComboBox;
 class QDragEnterEvent;
 class QDropEvent;
-class QModelIndex;
 class QObject;
 class QPoint;
 class QPushButton;
@@ -23,8 +22,6 @@ namespace CSMDoc
 {
     class Document;
 }
-
-class QTableWidget;
 
 namespace CSVRender
 {
@@ -96,8 +93,6 @@ namespace CSVWidget
 
         QString mToolTip;
         CSMDoc::Document& mDocument;
-        QFrame* mPanel;
-        QTableWidget* mTable;
         ShapeBrushWindow* mShapeBrushWindow;
 
     private:
@@ -107,7 +102,6 @@ namespace CSVWidget
         SceneToolShapeBrush(SceneToolbar* parent, QString toolTip, CSMDoc::Document& document);
 
         void showPanel(const QPoint& position) override;
-        void updatePanel();
 
         void dropEvent(QDropEvent* event) override;
         void dragEnterEvent(QDragEnterEvent* event) override;
@@ -116,7 +110,6 @@ namespace CSVWidget
 
     public slots:
         void setButtonIcon(CSVWidget::BrushShape brushShape);
-        void clicked(const QModelIndex& index);
         void activate() override;
 
     signals:
