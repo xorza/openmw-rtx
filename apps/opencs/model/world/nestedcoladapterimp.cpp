@@ -62,7 +62,7 @@ namespace CSMWorld
     void PathgridPointListAdapter::setTable(Record<Pathgrid>& record, const NestedTableWrapperBase& nestedTable) const
     {
         Pathgrid pathgrid = record.get();
-        pathgrid.mPoints = static_cast<const NestedTableWrapper<ESM::Pathgrid::PointList>&>(nestedTable).mNestedTable;
+        pathgrid.mPoints = nestedTable.get<ESM::Pathgrid::PointList>();
         pathgrid.mData.mPoints = static_cast<std::uint16_t>(pathgrid.mPoints.size());
 
         record.setModified(pathgrid);
@@ -276,8 +276,7 @@ namespace CSMWorld
     {
         ESM::Faction faction = record.get();
 
-        faction.mReactions
-            = static_cast<const NestedTableWrapper<std::map<ESM::RefId, std::int32_t>>&>(nestedTable).mNestedTable;
+        faction.mReactions = nestedTable.get<std::map<ESM::RefId, std::int32_t>>();
 
         record.setModified(faction);
     }

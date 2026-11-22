@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <utility>
+#include <vector>
 
 #include <QButtonGroup>
 #include <QDragEnterEvent>
@@ -11,15 +12,13 @@
 #include <QFrame>
 #include <QGroupBox>
 #include <QHBoxLayout>
-#include <QHeaderView>
 #include <QIcon>
 #include <QLabel>
 #include <QMargins>
-#include <QModelIndex>
 #include <QSizePolicy>
 #include <QSlider>
 #include <QSpinBox>
-#include <QTableWidget>
+#include <QStringList>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -40,6 +39,7 @@
 #include "brushshapes.hpp"
 #include "pushbutton.hpp"
 #include "scenetool.hpp"
+#include "scenetoollistpanel.hpp"
 
 namespace CSVWidget
 {
@@ -164,13 +164,14 @@ void CSVWidget::TextureBrushWindow::setBrushTexture(ESM::RefId brushTexture)
     CSMWorld::IdCollection<ESM::LandTexture>& landtexturesCollection = mDocument.getData().getLandTextures();
     std::int32_t landTextureFilename = landtexturesCollection.findColumnIndex(CSMWorld::Columns::ColumnId_Texture);
 
-    std::int32_t row = landtexturesCollection.getIndex(brushTexture);
-    const auto& record = landtexturesCollection.getRecord(row);
+    const std::int32_t row = landtexturesCollection.searchId(brushTexture);
 
-    if (!record.isDeleted())
+    const CSMWorld::Record<ESM::LandTexture>* record = row != -1 ? &landtexturesCollection.getRecord(row) : nullptr;
+
+    if (record != nullptr && !record->isDeleted())
     {
         // Ensure the texture is defined by the current plugin
-        if (!record.isModified())
+        if (!record->isModified())
         {
             CSMWorld::CommandMacro macro(undoStack);
             macro.push(new CSMWorld::TouchCommand(ltexTable, brushTexture.getRefIdString()));
@@ -218,32 +219,15 @@ CSVWidget::SceneToolTextureBrush::SceneToolTextureBrush(
     : SceneTool(parent, Type_TopAction)
     , mToolTip(std::move(toolTip))
     , mDocument(document)
+    , mPanel(new SceneToolListPanel(2, this))
     , mTextureBrushWindow(new TextureBrushWindow(document, this))
 {
-    mBrushHistory.resize(1);
-
     setAcceptDrops(true);
     connect(mTextureBrushWindow, &TextureBrushWindow::passBrushShape, this, &SceneToolTextureBrush::setButtonIcon);
     setButtonIcon(mTextureBrushWindow->mBrushShape);
 
-    mPanel = new QFrame(this, Qt::Popup);
-
-    auto* layout = new QHBoxLayout(mPanel);
-
-    layout->setContentsMargins(QMargins(0, 0, 0, 0));
-
-    mTable = new QTableWidget(0, 2, this);
-
-    mTable->setShowGrid(true);
-    mTable->verticalHeader()->hide();
-    mTable->horizontalHeader()->hide();
-    mTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
-    mTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-    mTable->setSelectionMode(QAbstractItemView::NoSelection);
-
-    layout->addWidget(mTable);
-
-    connect(mTable, &QTableWidget::clicked, this, &SceneToolTextureBrush::clicked);
+    connect(mPanel, &SceneToolListPanel::selectRequest, this, &SceneToolTextureBrush::selectRow);
+    connect(mPanel, &SceneToolListPanel::removeRequest, this, &SceneToolTextureBrush::removeRow);
 }
 
 void CSVWidget::SceneToolTextureBrush::setButtonIcon(CSVWidget::BrushShape brushShape)
@@ -303,35 +287,30 @@ void CSVWidget::SceneToolTextureBrush::setButtonIcon(CSVWidget::BrushShape brush
 void CSVWidget::SceneToolTextureBrush::showPanel(const QPoint& position)
 {
     updatePanel();
-    mPanel->move(position);
-    mPanel->show();
+    mPanel->showAt(position);
 }
 
 void CSVWidget::SceneToolTextureBrush::updatePanel()
 {
-    mTable->setRowCount(static_cast<std::int32_t>(mBrushHistory.size()));
+    CSMWorld::IdCollection<ESM::LandTexture>& landtexturesCollection = mDocument.getData().getLandTextures();
+    const std::int32_t landTextureFilename
+        = landtexturesCollection.findColumnIndex(CSMWorld::Columns::ColumnId_Texture);
 
-    for (std::size_t i = mBrushHistory.size(); i > 0; --i)
+    std::vector<QStringList> rows;
+    rows.reserve(mBrushHistory.size());
+
+    for (const ESM::RefId& brushTexture : mBrushHistory)
     {
-        CSMWorld::IdCollection<ESM::LandTexture>& landtexturesCollection = mDocument.getData().getLandTextures();
-        std::int32_t landTextureFilename = landtexturesCollection.findColumnIndex(CSMWorld::Columns::ColumnId_Texture);
-        const std::int32_t index = landtexturesCollection.searchId(mBrushHistory[i - 1]);
-        const auto row = static_cast<std::int32_t>(i - 1);
+        const std::int32_t index = landtexturesCollection.searchId(brushTexture);
+        QString filename = "Invalid/deleted texture";
 
         if (index != -1 && !landtexturesCollection.getRecord(index).isDeleted())
-        {
-            mTable->setItem(row, 1,
-                new QTableWidgetItem(landtexturesCollection.getData(index, landTextureFilename).value<QString>()));
-            mTable->setItem(
-                row, 0, new QTableWidgetItem(QString::fromStdString(mBrushHistory[i - 1].getRefIdString())));
-        }
-        else
-        {
-            mTable->setItem(row, 1, new QTableWidgetItem("Invalid/deleted texture"));
-            mTable->setItem(
-                row, 0, new QTableWidgetItem(QString::fromStdString(mBrushHistory[i - 1].getRefIdString())));
-        }
+            filename = landtexturesCollection.getData(index, landTextureFilename).value<QString>();
+
+        rows.push_back(QStringList{ QString::fromStdString(brushTexture.getRefIdString()), filename });
     }
+
+    mPanel->setRows(rows);
 }
 
 void CSVWidget::SceneToolTextureBrush::updateBrushHistory(ESM::RefId brushTexture)
@@ -341,17 +320,18 @@ void CSVWidget::SceneToolTextureBrush::updateBrushHistory(ESM::RefId brushTextur
         mBrushHistory.pop_back();
 }
 
-void CSVWidget::SceneToolTextureBrush::clicked(const QModelIndex& index)
+void CSVWidget::SceneToolTextureBrush::selectRow(std::int32_t row)
 {
-    if (index.column() == 0 || index.column() == 1)
-    {
-        ESM::RefId brushTexture = mBrushHistory[static_cast<std::size_t>(index.row())];
-        std::swap(mBrushHistory[static_cast<std::size_t>(index.row())], mBrushHistory[0]);
-        mTextureBrushWindow->setBrushTexture(brushTexture);
-        emit passTextureId(brushTexture);
-        updatePanel();
-        mPanel->hide();
-    }
+    const ESM::RefId brushTexture = mBrushHistory[static_cast<std::size_t>(row)];
+    std::swap(mBrushHistory[static_cast<std::size_t>(row)], mBrushHistory[0]);
+    mTextureBrushWindow->setBrushTexture(brushTexture);
+    emit passTextureId(mTextureBrushWindow->mBrushTexture);
+}
+
+void CSVWidget::SceneToolTextureBrush::removeRow(std::int32_t row)
+{
+    mBrushHistory.erase(mBrushHistory.begin() + row);
+    updatePanel();
 }
 
 void CSVWidget::SceneToolTextureBrush::activate()

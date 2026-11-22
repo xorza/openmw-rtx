@@ -276,7 +276,7 @@ void CSVWorld::GenericCreator::touch(const std::vector<CSMWorld::UniversalId>& i
     // Combine multiple touch commands into one "macro" command
     mUndoStack.beginMacro("Touch Records");
 
-    auto& table = dynamic_cast<CSMWorld::IdTable&>(*mData.getTableModel(mListId));
+    auto& table = mData.getTableModel<CSMWorld::IdTable>(mListId);
     for (const CSMWorld::UniversalId& uid : ids)
     {
         auto* touchCmd = new CSMWorld::TouchCommand(table, uid.getId());

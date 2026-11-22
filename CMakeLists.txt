@@ -35,7 +35,9 @@ include(cmake/Links.cmake)
 
 # The version the programs report: the release (`project`), the API revisions scripts and shaders check, and
 # the commit, which `components/version` reads at every build. A build is of a Git clone, as every build's
-# set is named from Git (`omw`), and the version names its commit.
+# set is named from Git (`omw`), and the version names its commit. The copyright year is the earliest the
+# programs state: a commit of a later year states its own (`cmake/GitVersion.cmake`).
+set(OPENMW_COPYRIGHT_YEAR "2026")
 set(OPENMW_LUA_API_REVISION 166)
 set(OPENMW_POSTPROCESSING_API_REVISION 5)
 set(OPENMW_DOC_BASEURL "https://openmw.readthedocs.io/en/")

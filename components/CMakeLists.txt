@@ -5,7 +5,18 @@
 # What the version states, configured once but for what Git answers, which `get-version`
 # fills in at every build from Git (`cmake/GitVersion.cmake`): each file from its template, `<name>.in` in
 # `version_templates`, rewritten only where its text moved, so a build after no commit compiles nothing.
-foreach(field IN ITEMS OPENMW_VERSION_COMMITHASH OPENMW_VERSION_TAGHASH OPENMW_RTX_VERSION OPENMW_UPSTREAM_COMMIT)
+# The copyright year is the configured one or the commit's, whichever is later.
+set(configured_copyright_year "${OPENMW_COPYRIGHT_YEAR}")
+foreach(
+    field
+    IN
+    ITEMS
+        OPENMW_VERSION_COMMITHASH
+        OPENMW_VERSION_TAGHASH
+        OPENMW_RTX_VERSION
+        OPENMW_UPSTREAM_COMMIT
+        OPENMW_COPYRIGHT_YEAR
+)
     set(${field} "@${field}@")
 endforeach()
 set(version_templates "${CMAKE_CURRENT_BINARY_DIR}/version-templates")
@@ -25,7 +36,8 @@ add_custom_target(
         "${version_templates}/version.in"
     COMMAND
         ${CMAKE_COMMAND} -DGIT_EXECUTABLE=${GIT_EXECUTABLE} -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
-        -DTEMPLATES=${version_templates} "-DFILES=${version_files}" -P ${PROJECT_SOURCE_DIR}/cmake/GitVersion.cmake
+        -DTEMPLATES=${version_templates} "-DFILES=${version_files}" -DOPENMW_COPYRIGHT_YEAR=${configured_copyright_year}
+        -P ${PROJECT_SOURCE_DIR}/cmake/GitVersion.cmake
     VERBATIM
 )
 

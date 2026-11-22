@@ -248,6 +248,7 @@ target_sources(
                 model/world/subcellcollection.hpp
                 model/world/tablemimedata.hpp
                 model/world/universalid.hpp
+                model/world/variantconversion.hpp
 )
 
 target_sources(
@@ -319,6 +320,7 @@ target_sources(
         view/widget/pushbutton.cpp
         view/widget/scenetool.cpp
         view/widget/scenetoolbar.cpp
+        view/widget/scenetoollistpanel.cpp
         view/widget/scenetoolmode.cpp
         view/widget/scenetoolrun.cpp
         view/widget/scenetoolshapebrush.cpp
@@ -445,6 +447,7 @@ target_sources(
                 view/widget/pushbutton.hpp
                 view/widget/scenetool.hpp
                 view/widget/scenetoolbar.hpp
+                view/widget/scenetoollistpanel.hpp
                 view/widget/scenetoolmode.hpp
                 view/widget/scenetoolrun.hpp
                 view/widget/scenetoolshapebrush.hpp

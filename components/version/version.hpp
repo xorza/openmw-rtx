@@ -8,6 +8,7 @@
 namespace Version
 {
     std::string_view getVersion();
+    std::int32_t getCopyrightYear();
     std::string_view getCommitHash();
     std::string_view getTagHash();
     std::int32_t getLuaApiRevision();
