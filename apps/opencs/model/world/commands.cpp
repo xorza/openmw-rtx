@@ -21,6 +21,7 @@
 #include "pathgrid.hpp"
 #include "record.hpp"
 #include "universalid.hpp"
+#include "variantconversion.hpp"
 
 CSMWorld::TouchCommand::TouchCommand(IdTable& table, std::string id, QUndoCommand* parent)
     : QUndoCommand(parent)
@@ -490,7 +491,7 @@ CSMWorld::DeleteNestedCommand::DeleteNestedCommand(
     , mParentColumn(parentColumn)
     , mNestedRow(nestedRow)
 {
-    std::string title = model.headerData(parentColumn, Qt::Horizontal, Qt::DisplayRole).toString().toUtf8().constData();
+    std::string title = getString(model.headerData(parentColumn, Qt::Horizontal, Qt::DisplayRole));
     setText(("Delete row in " + title + " sub-table of " + mId).c_str());
 
     QModelIndex parentIndex = mModel.getModelIndex(mId, mParentColumn);
@@ -520,7 +521,7 @@ CSMWorld::AddNestedCommand::AddNestedCommand(
     , mNewRow(nestedRow)
     , mParentColumn(parentColumn)
 {
-    std::string title = model.headerData(parentColumn, Qt::Horizontal, Qt::DisplayRole).toString().toUtf8().constData();
+    std::string title = getString(model.headerData(parentColumn, Qt::Horizontal, Qt::DisplayRole));
     setText(("Add row in " + title + " sub-table of " + mId).c_str());
 
     QModelIndex parentIndex = mModel.getModelIndex(mId, mParentColumn);

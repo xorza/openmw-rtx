@@ -24,6 +24,7 @@
 #include <apps/opencs/model/world/ref.hpp>
 #include <apps/opencs/model/world/refcollection.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
+#include <apps/opencs/model/world/variantconversion.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/misc/strings/lower.hpp>
@@ -194,8 +195,7 @@ CSVRender::Cell::Cell(CSMDoc::Document& document, ObjectMarker* selectionMarker,
 
     if (!mDeleted)
     {
-        CSMWorld::IdTable& references
-            = dynamic_cast<CSMWorld::IdTable&>(*mData.getTableModel(CSMWorld::UniversalId::Type_References));
+        auto& references = mData.getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_References);
 
         std::int32_t rows = references.rowCount();
 
@@ -206,8 +206,7 @@ CSVRender::Cell::Cell(CSMDoc::Document& document, ObjectMarker* selectionMarker,
             std::int32_t landIndex = document.getData().getLand().searchId(mId);
             if (landIndex == -1)
             {
-                CSMWorld::IdTable& landTable
-                    = dynamic_cast<CSMWorld::IdTable&>(*mData.getTableModel(CSMWorld::UniversalId::Type_Land));
+                auto& landTable = mData.getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Land);
                 document.getUndoStack().push(new CSMWorld::CreateCommand(landTable, mId.getRefIdString()));
             }
             updateLand();
@@ -261,8 +260,7 @@ bool CSVRender::Cell::referenceDataChanged(const QModelIndex& topLeft, const QMo
     if (mDeleted)
         return false;
 
-    CSMWorld::IdTable& references
-        = dynamic_cast<CSMWorld::IdTable&>(*mData.getTableModel(CSMWorld::UniversalId::Type_References));
+    auto& references = mData.getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_References);
 
     std::int32_t idColumn = references.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
     std::int32_t cellColumn = references.findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
@@ -273,15 +271,13 @@ bool CSVRender::Cell::referenceDataChanged(const QModelIndex& topLeft, const QMo
 
     for (std::int32_t i = topLeft.row(); i <= bottomRight.row(); ++i)
     {
-        auto cell
-            = ESM::RefId::stringRefId(references.data(references.index(i, cellColumn)).toString().toUtf8().constData());
+        auto cell = CSMWorld::getRefId(references.getData(i, cellColumn));
 
         if (cell == mId)
         {
-            std::string id = Misc::StringUtils::lowerCase(
-                references.data(references.index(i, idColumn)).toString().toUtf8().constData());
+            std::string id = Misc::StringUtils::lowerCase(CSMWorld::getString(references.getData(i, idColumn)));
 
-            std::int32_t state = references.data(references.index(i, stateColumn)).toInt();
+            std::int32_t state = references.getData(i, stateColumn).toInt();
 
             ids.insert(std::make_pair(id, state == CSMWorld::RecordBase::State_Deleted));
         }
@@ -336,15 +332,14 @@ bool CSVRender::Cell::referenceAboutToBeRemoved(const QModelIndex& parent, std::
     if (mDeleted)
         return false;
 
-    CSMWorld::IdTable& references
-        = dynamic_cast<CSMWorld::IdTable&>(*mData.getTableModel(CSMWorld::UniversalId::Type_References));
+    auto& references = mData.getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_References);
 
     std::int32_t idColumn = references.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
 
     bool modified = false;
 
     for (std::int32_t row = start; row <= end; ++row)
-        if (removeObject(references.data(references.index(row, idColumn)).toString().toUtf8().constData()))
+        if (removeObject(CSMWorld::getString(references.getData(row, idColumn))))
             modified = true;
 
     return modified;

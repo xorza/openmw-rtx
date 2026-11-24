@@ -32,6 +32,7 @@
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/tablemimedata.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
+#include <apps/opencs/model/world/variantconversion.hpp>
 #include <apps/opencs/view/widget/modebutton.hpp>
 #include <apps/opencs/view/widget/scenetoolmode.hpp>
 #include <apps/opencs/view/widget/scenetoolrun.hpp>
@@ -260,12 +261,12 @@ CSVWidget::SceneToolRun* CSVRender::WorldspaceWidget::makeRunTool(CSVWidget::Sce
 
     for (std::int32_t i = 0; i < size; ++i)
     {
-        std::int32_t state = debugProfiles.data(debugProfiles.index(i, stateColumn)).toInt();
+        std::int32_t state = debugProfiles.getData(i, stateColumn).toInt();
 
-        const bool defaultValue = debugProfiles.data(debugProfiles.index(i, defaultColumn)).toInt();
+        const bool defaultValue = debugProfiles.getData(i, defaultColumn).toInt();
 
         if (state != CSMWorld::RecordBase::State_Deleted && defaultValue)
-            profiles.emplace_back(debugProfiles.data(debugProfiles.index(i, idColumn)).toString().toUtf8().constData());
+            profiles.emplace_back(CSMWorld::getString(debugProfiles.getData(i, idColumn)));
     }
 
     std::sort(profiles.begin(), profiles.end());
@@ -576,14 +577,14 @@ void CSVRender::WorldspaceWidget::debugProfileDataChanged(const QModelIndex& top
 
     for (std::int32_t i = topLeft.row(); i <= bottomRight.row(); ++i)
     {
-        std::int32_t state = debugProfiles.data(debugProfiles.index(i, stateColumn)).toInt();
+        std::int32_t state = debugProfiles.getData(i, stateColumn).toInt();
 
         // As of version 0.33 this case can not happen because debug profiles exist only in
         // project or session scope, which means they will never be in deleted state. But we
         // are adding the code for the sake of completeness and to avoid surprises if debug
         // profile ever get extended to content scope.
         if (state == CSMWorld::RecordBase::State_Deleted)
-            mRun->removeProfile(debugProfiles.data(debugProfiles.index(i, idColumn)).toString().toUtf8().constData());
+            mRun->removeProfile(CSMWorld::getString(debugProfiles.getData(i, idColumn)));
     }
 }
 
@@ -603,7 +604,7 @@ void CSVRender::WorldspaceWidget::debugProfileAboutToBeRemoved(
 
     for (std::int32_t i = start; i <= end; ++i)
     {
-        mRun->removeProfile(debugProfiles.data(debugProfiles.index(i, idColumn)).toString().toUtf8().constData());
+        mRun->removeProfile(CSMWorld::getString(debugProfiles.getData(i, idColumn)));
     }
 }
 

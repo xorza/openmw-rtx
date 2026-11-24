@@ -28,6 +28,8 @@ namespace Loading
         {
             std::scoped_lock guard(mMutex);
             mRangeUpdate = range;
+            // The progress belongs to the previous range
+            mProgressUpdate = std::nullopt;
         }
 
         void setProgress(std::size_t value) override

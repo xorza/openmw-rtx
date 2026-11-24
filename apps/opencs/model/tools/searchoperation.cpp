@@ -20,7 +20,7 @@ CSMTools::SearchOperation::SearchOperation(CSMDoc::Document& document)
         CSMWorld::UniversalId::Class_RecordList | CSMWorld::UniversalId::Class_ResourceList);
 
     for (auto type : types)
-        appendStage(new SearchStage(&dynamic_cast<CSMWorld::IdTableBase&>(*document.getData().getTableModel(type))));
+        appendStage(new SearchStage(&document.getData().getTableModel<CSMWorld::IdTableBase>(type)));
 
     setDefaultSeverity(CSMDoc::Message::Severity_Info);
 }

@@ -215,8 +215,7 @@ void CSVRender::TerrainVertexPaintMode::editVertexColourGrid(
     const std::pair<std::int32_t, std::int32_t>& vertexCoords, bool dragOperation)
 {
     CSMDoc::Document& document = getWorldspaceWidget().getDocument();
-    CSMWorld::IdTable& landTable
-        = dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Land));
+    auto& landTable = document.getData().getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Land);
 
     std::string cellId = CSMWorld::CellCoordinates::vertexGlobalToCellId(vertexCoords);
 
@@ -356,10 +355,8 @@ void CSVRender::TerrainVertexPaintMode::pushEditToCommand(const CSMWorld::LandCo
 bool CSVRender::TerrainVertexPaintMode::allowLandColourEditing(const std::string& cellId, bool useTool)
 {
     CSMDoc::Document& document = getWorldspaceWidget().getDocument();
-    CSMWorld::IdTable& landTable
-        = dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Land));
-    CSMWorld::IdTree& cellTable
-        = dynamic_cast<CSMWorld::IdTree&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Cells));
+    auto& landTable = document.getData().getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Land);
+    auto& cellTable = document.getData().getTableModel<CSMWorld::IdTree>(CSMWorld::UniversalId::Type_Cells);
 
     const ESM::RefId cellRefId = ESM::RefId::stringRefId(cellId);
     const bool noCell = document.getData().getCells().searchId(cellRefId) == -1;

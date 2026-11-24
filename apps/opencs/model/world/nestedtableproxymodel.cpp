@@ -6,6 +6,7 @@
 
 #include "columnbase.hpp"
 #include "idtree.hpp"
+#include "variantconversion.hpp"
 
 CSMWorld::NestedTableProxyModel::NestedTableProxyModel(
     const QModelIndex& parent, ColumnBase::Display columnId, CSMWorld::IdTree* parentModel)
@@ -148,7 +149,7 @@ void CSMWorld::NestedTableProxyModel::forwardRowsInserted(
 bool CSMWorld::NestedTableProxyModel::indexIsParent(const QModelIndex& index)
 {
     return (index.isValid() && index.column() == mParentColumn
-        && mMainModel->data(mMainModel->index(index.row(), 0)).toString().toUtf8().constData() == mId);
+        && CSMWorld::getString(mMainModel->getData(index.row(), 0)) == mId);
 }
 
 void CSMWorld::NestedTableProxyModel::forwardRowsAboutToRemoved(

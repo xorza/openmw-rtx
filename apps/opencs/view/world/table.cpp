@@ -31,6 +31,7 @@
 #include <apps/opencs/model/world/landtexturetableproxymodel.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
+#include <apps/opencs/model/world/variantconversion.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/helpviewer.hpp>
 #include <components/misc/scalableicon.hpp>
@@ -258,7 +259,7 @@ CSVWorld::Table::Table(const CSMWorld::UniversalId& id, bool createAndDelete, bo
     , mUnselectAfterJump(false)
     , mAutoJump(false)
 {
-    mModel = &dynamic_cast<CSMWorld::IdTableBase&>(*mDocument.getData().getTableModel(id));
+    mModel = &mDocument.getData().getTableModel<CSMWorld::IdTableBase>(id);
 
     bool isInfoTable = id.getType() == CSMWorld::UniversalId::Type_TopicInfos
         || id.getType() == CSMWorld::UniversalId::Type_JournalInfos;
@@ -467,7 +468,7 @@ std::vector<std::string> CSVWorld::Table::getSelectedIds() const
     for (QModelIndexList::const_iterator iter(selectedRows.begin()); iter != selectedRows.end(); ++iter)
     {
         std::int32_t row = mProxyModel->mapToSource(mProxyModel->index(iter->row(), 0)).row();
-        ids.emplace_back(mModel->getData(row, columnIndex).toString().toUtf8().constData());
+        ids.emplace_back(CSMWorld::getString(mModel->getData(row, columnIndex)));
     }
     return ids;
 }
@@ -875,7 +876,7 @@ std::vector<std::string> CSVWorld::Table::getColumnsWithDisplay(CSMWorld::Column
 
         if (display == columndisplay)
         {
-            titles.emplace_back(mModel->headerData(i, Qt::Horizontal).toString().toUtf8().constData());
+            titles.emplace_back(CSMWorld::getString(mModel->headerData(i, Qt::Horizontal)));
         }
     }
     return titles;

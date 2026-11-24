@@ -47,7 +47,7 @@ void CSVTools::SearchSubView::replace(bool selection)
 
         CSMWorld::UniversalId::Type type = CSMWorld::UniversalId::getParentType(id.getType());
 
-        CSMWorld::IdTableBase* table = &dynamic_cast<CSMWorld::IdTableBase&>(*mDocument.getData().getTableModel(type));
+        CSMWorld::IdTableBase* table = &mDocument.getData().getTableModel<CSMWorld::IdTableBase>(type);
 
         if (table != currentTable)
         {

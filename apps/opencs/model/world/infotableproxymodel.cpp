@@ -64,7 +64,7 @@ std::int32_t CSMWorld::InfoTableProxyModel::getFirstInfoRow(std::int32_t current
 
     std::int32_t row = currentRow;
     std::int32_t column = mInfoColumnIndex;
-    QString info = toLower(mSourceModel->data(mSourceModel->index(row, column)).toString());
+    QString info = toLower(mSourceModel->getData(row, column).toString());
 
     if (mFirstRowCache.contains(info))
     {
@@ -73,7 +73,7 @@ std::int32_t CSMWorld::InfoTableProxyModel::getFirstInfoRow(std::int32_t current
 
     // The step inside the test is the loop it means.
     // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
-    while (--row >= 0 && toLower(mSourceModel->data(mSourceModel->index(row, column)).toString()) == info)
+    while (--row >= 0 && toLower(mSourceModel->getData(row, column).toString()) == info)
         ;
     ++row;
 

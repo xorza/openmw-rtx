@@ -578,8 +578,7 @@ void CSVRender::TerrainShapeMode::setFlattenToolTargetHeight(const WorldspaceHit
     std::int32_t inCellY = CSMWorld::CellCoordinates::vertexGlobalToInCellCoords(vertexCoords.second);
 
     CSMDoc::Document& document = getWorldspaceWidget().getDocument();
-    CSMWorld::IdTable& landTable
-        = dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Land));
+    auto& landTable = document.getData().getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Land);
     std::int32_t landshapeColumn = landTable.findColumnIndex(CSMWorld::Columns::ColumnId_LandHeightsIndex);
     const auto landShapePointer = landTable.data(landTable.getModelIndex(cellId, landshapeColumn))
                                       .value<CSMWorld::LandHeightsColumn::DataType>();
@@ -749,8 +748,7 @@ void CSVRender::TerrainShapeMode::smoothHeight(
         return;
 
     CSMDoc::Document& document = getWorldspaceWidget().getDocument();
-    CSMWorld::IdTable& landTable
-        = dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Land));
+    auto& landTable = document.getData().getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Land);
     const std::int32_t landshapeColumn = landTable.findColumnIndex(CSMWorld::Columns::ColumnId_LandHeightsIndex);
     const auto landShapePointer = landTable.data(landTable.getModelIndex(cellId, landshapeColumn))
                                       .value<CSMWorld::LandHeightsColumn::DataType>();
@@ -860,8 +858,7 @@ void CSVRender::TerrainShapeMode::flattenHeight(const CSMWorld::CellCoordinates&
     std::int32_t inCellY, std::int32_t toolStrength, std::int32_t targetHeight)
 {
     CSMDoc::Document& document = getWorldspaceWidget().getDocument();
-    CSMWorld::IdTable& landTable
-        = dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Land));
+    auto& landTable = document.getData().getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Land);
     std::int32_t landshapeColumn = landTable.findColumnIndex(CSMWorld::Columns::ColumnId_LandHeightsIndex);
 
     float thisHeight = 0.0f;
@@ -896,8 +893,7 @@ void CSVRender::TerrainShapeMode::equalizeHeight(
     const CSMWorld::CellCoordinates& cellCoords, std::int32_t inCellX, std::int32_t inCellY, std::int32_t targetHeight)
 {
     CSMDoc::Document& document = getWorldspaceWidget().getDocument();
-    CSMWorld::IdTable& landTable
-        = dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Land));
+    auto& landTable = document.getData().getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Land);
     std::int32_t landshapeColumn = landTable.findColumnIndex(CSMWorld::Columns::ColumnId_LandHeightsIndex);
 
     float thisHeight = 0.0f;
@@ -921,8 +917,7 @@ void CSVRender::TerrainShapeMode::updateKeyHeightValues(const CSMWorld::CellCoor
     float* downHeight, float* downAlteredHeight)
 {
     CSMDoc::Document& document = getWorldspaceWidget().getDocument();
-    CSMWorld::IdTable& landTable
-        = dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Land));
+    auto& landTable = document.getData().getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Land);
     std::int32_t landshapeColumn = landTable.findColumnIndex(CSMWorld::Columns::ColumnId_LandHeightsIndex);
 
     std::string cellId = CSMWorld::CellCoordinates::generateId(cellCoords.getX(), cellCoords.getY());
@@ -1091,8 +1086,7 @@ void CSVRender::TerrainShapeMode::compareAndLimit(const CSMWorld::CellCoordinate
 bool CSVRender::TerrainShapeMode::limitAlteredHeights(const CSMWorld::CellCoordinates& cellCoords, bool reverseMode)
 {
     CSMDoc::Document& document = getWorldspaceWidget().getDocument();
-    CSMWorld::IdTable& landTable
-        = dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Land));
+    auto& landTable = document.getData().getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Land);
     std::int32_t landshapeColumn = landTable.findColumnIndex(CSMWorld::Columns::ColumnId_LandHeightsIndex);
 
     std::string cellId = CSMWorld::CellCoordinates::generateId(cellCoords.getX(), cellCoords.getY());
@@ -1376,10 +1370,8 @@ bool CSVRender::TerrainShapeMode::isLandLoaded(const std::string& cellId)
 void CSVRender::TerrainShapeMode::createNewLandData(const CSMWorld::CellCoordinates& cellCoords)
 {
     CSMDoc::Document& document = getWorldspaceWidget().getDocument();
-    CSMWorld::IdTable& landTable
-        = dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Land));
-    CSMWorld::IdTable& ltexTable
-        = dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_LandTextures));
+    auto& landTable = document.getData().getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Land);
+    auto& ltexTable = document.getData().getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_LandTextures);
     std::int32_t landshapeColumn = landTable.findColumnIndex(CSMWorld::Columns::ColumnId_LandHeightsIndex);
     std::int32_t landnormalsColumn = landTable.findColumnIndex(CSMWorld::Columns::ColumnId_LandNormalsIndex);
 
@@ -1485,10 +1477,8 @@ void CSVRender::TerrainShapeMode::createNewLandData(const CSMWorld::CellCoordina
 bool CSVRender::TerrainShapeMode::allowLandShapeEditing(const std::string& cellId, bool useTool)
 {
     CSMDoc::Document& document = getWorldspaceWidget().getDocument();
-    CSMWorld::IdTable& landTable
-        = dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Land));
-    CSMWorld::IdTree& cellTable
-        = dynamic_cast<CSMWorld::IdTree&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Cells));
+    auto& landTable = document.getData().getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Land);
+    auto& cellTable = document.getData().getTableModel<CSMWorld::IdTree>(CSMWorld::UniversalId::Type_Cells);
 
     if (noCell(cellId))
     {
@@ -1575,8 +1565,7 @@ bool CSVRender::TerrainShapeMode::allowLandShapeEditing(const std::string& cellI
 void CSVRender::TerrainShapeMode::fixEdges(CSMWorld::CellCoordinates cellCoords)
 {
     CSMDoc::Document& document = getWorldspaceWidget().getDocument();
-    CSMWorld::IdTable& landTable
-        = dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Land));
+    auto& landTable = document.getData().getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Land);
     std::int32_t landshapeColumn = landTable.findColumnIndex(CSMWorld::Columns::ColumnId_LandHeightsIndex);
     std::string cellId = CSMWorld::CellCoordinates::generateId(cellCoords.getX(), cellCoords.getY());
     std::string cellLeftId = CSMWorld::CellCoordinates::generateId(cellCoords.getX() - 1, cellCoords.getY());

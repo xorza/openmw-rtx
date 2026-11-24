@@ -18,6 +18,7 @@
 #include <apps/opencs/model/world/commands.hpp>
 #include <apps/opencs/model/world/idtablebase.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
+#include <apps/opencs/model/world/variantconversion.hpp>
 
 void CSMTools::Search::searchTextCell(const CSMWorld::IdTableBase* model, const QModelIndex& index,
     const CSMWorld::UniversalId& id, bool writable, CSMDoc::Messages& messages) const
@@ -178,9 +179,7 @@ void CSMTools::Search::configure(const CSMWorld::IdTableBase* model)
 
     for (std::int32_t i = 0; i < columns; ++i)
     {
-        CSMWorld::ColumnBase::Display display = static_cast<CSMWorld::ColumnBase::Display>(
-            model->headerData(i, Qt::Horizontal, static_cast<std::int32_t>(CSMWorld::ColumnBase::Role_Display))
-                .toInt());
+        CSMWorld::ColumnBase::Display display = model->getColumnDisplay(i);
 
         bool consider = false;
 
@@ -233,9 +232,9 @@ void CSMTools::Search::searchRow(const CSMWorld::IdTableBase* model, std::int32_
         QModelIndex index = model->index(row, mColumn);
 
         CSMWorld::UniversalId::Type type
-            = static_cast<CSMWorld::UniversalId::Type>(model->data(model->index(row, mTypeColumn)).toInt());
+            = static_cast<CSMWorld::UniversalId::Type>(model->getData(row, mTypeColumn).toInt());
 
-        CSMWorld::UniversalId id(type, model->data(model->index(row, mIdColumn)).toString().toUtf8().data());
+        CSMWorld::UniversalId id(type, CSMWorld::getString(model->getData(row, mIdColumn)));
 
         bool writable = model->flags(index) & Qt::ItemIsEditable;
 
@@ -285,7 +284,7 @@ void CSMTools::Search::replace(CSMDoc::Document& document, CSMWorld::IdTableBase
 
         QModelIndex index = model->getModelIndex(id.getId(), column);
 
-        std::string text = model->data(index).toString().toUtf8().constData();
+        std::string text = CSMWorld::getString(model->data(index));
 
         std::string before = text.substr(0, static_cast<std::size_t>(pos));
         std::string after = text.substr(static_cast<std::size_t>(pos) + static_cast<std::size_t>(length));

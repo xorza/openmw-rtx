@@ -128,7 +128,7 @@ QString CSMWorld::IdTableProxyModel::getRecordId(std::int32_t sourceRow) const
     Q_ASSERT(mSourceModel != nullptr);
 
     std::int32_t idColumn = mSourceModel->findColumnIndex(Columns::ColumnId_Id);
-    return mSourceModel->data(mSourceModel->index(sourceRow, idColumn)).toString();
+    return mSourceModel->getData(sourceRow, idColumn).toString();
 }
 
 void CSMWorld::IdTableProxyModel::timerTimeout()
