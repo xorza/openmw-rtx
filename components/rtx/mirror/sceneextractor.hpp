@@ -94,7 +94,7 @@ namespace Rtx
         .mMeshes = 16384,
         .mDeformers = 2048,
         .mMaterials = 16384,
-        .mTextures = 8192,
+        .mTextures = 32768,
         .mAnimated = 4096,
         .mEmitters = 2048,
         .mFrozen = 65536,

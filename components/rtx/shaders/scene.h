@@ -37,11 +37,10 @@ namespace Rtx::Shaders
     /// count `TEXTURE_TEXELS` holds whole. A texture past it stands from its first level within it.
     const uint TEXTURE_SIDE_MOST = 16384u;
 
-    /// How many slots the bindless array holds. A PBR pack gives a diffuse a normal and a specular
-    /// slot beside it (about 3700 at the largest bench place), so twice that. **Not 16384**: the
-    /// layers' kernel spilled 480 bytes a lane on a low-end AMD integrated GPU, against 192 at 8192
-    /// (`docs/research/2026-10-22-amd-integrated-spill-ceilings.md`).
-    const uint TEXTURE_SLOTS = 8192u;
+    /// How many slots the bindless array holds. 30-cell distant land adds two composite slots per
+    /// flattened chunk (`GroundAlbedo` and `GroundGloss`) alongside PBR texture packs (diffuse, normal,
+    /// specular, converted pairs, and wraps), which exceeds 8,192 live slots; 32,768 gives ample headroom.
+    const uint TEXTURE_SLOTS = 32768u;
 
     /// The one slot the scene never hands out: one texel of `UNTEXTURED_ALBEDO` with an alpha of one.
     /// **A texture and not a sentinel**, so an untextured surface takes the textured path with no

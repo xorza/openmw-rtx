@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <format>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -11,6 +12,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/cardmemory.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/driverprofile.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
@@ -369,12 +371,14 @@ namespace Rtx
                 EXPECT_EQ(cramped.profile().mObstacle, "push constants of 128 bytes, under 256");
             }
             {
-                // **The texture set's arrays**, two of 8192 images and eight samplers, held to the set's
+                // **The texture set's arrays**, two of `TEXTURE_SLOTS` images and eight samplers, held to the set's
                 // limit and the stage's, whichever is less.
                 Card few(&describeAda);
-                few.mProperties.mVulkan12.maxPerStageDescriptorUpdateAfterBindSampledImages = 16383;
-                EXPECT_EQ(few.profile().mObstacle, "16383 sampled images bound after use, under 16384");
-                few.mProperties.mVulkan12.maxPerStageDescriptorUpdateAfterBindSampledImages = 16384;
+                constexpr std::uint32_t images = 2 * Shaders::TEXTURE_SLOTS;
+                few.mProperties.mVulkan12.maxPerStageDescriptorUpdateAfterBindSampledImages = images - 1;
+                EXPECT_EQ(
+                    few.profile().mObstacle, std::format("{} sampled images bound after use, under {}", images - 1, images));
+                few.mProperties.mVulkan12.maxPerStageDescriptorUpdateAfterBindSampledImages = images;
                 few.mProperties.mVulkan12.maxDescriptorSetUpdateAfterBindSamplers = 7;
                 EXPECT_EQ(few.profile().mObstacle, "7 samplers bound after use, under 8");
                 few.mProperties.mVulkan12.maxDescriptorSetUpdateAfterBindSamplers = 8;

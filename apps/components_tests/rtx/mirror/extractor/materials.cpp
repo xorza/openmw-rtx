@@ -1870,6 +1870,56 @@ namespace Rtx::Testing
                 << "the freed slot is the refused texture's";
         }
 
+        /// **A standing (non-animated) material whose texture was refused retries once the table frees a slot.**
+        /// Otherwise a static surface, actor or prop resolved while the array was full stayed neutral for good even
+        /// after room came back.
+        TEST_F(RtxSceneExtractorTest, aRefusedStandingMaterialRecoversOnceASlotIsFreed)
+        {
+            TextureTable& textures = mScene.textures();
+            Testing::SceneHolds holds(mScene);
+            for (std::size_t at = 0; at < TextureTable::sCapacity; ++at)
+            {
+                const TextureIndex slot = textures.add(VFS::Path::Normalized("textures/tx_" + std::to_string(at) + ".dds"));
+                ASSERT_EQ(slot.at(), at);
+                holds.texture(slot);
+            }
+
+            osg::ref_ptr<osg::Geometry> standing = makeQuad();
+            paint(*standing->getOrCreateStateSet(), "textures/tx_standing.dds");
+
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            root->addChild(standing);
+
+            for (std::uint32_t frame = 1; frame <= 3; ++frame)
+            {
+                mScene.clearPlacement();
+                const std::size_t spent = Testing::allocationsIn([&] { walk(*root, 0, frame); });
+
+                if (frame > 1)
+                {
+                    EXPECT_EQ(spent, 0u) << spent << " allocations on frame " << frame;
+                }
+
+                EXPECT_EQ(textures.getRefused(), 1u) << "asked again on frame " << frame;
+                ASSERT_EQ(mScene.materials().getRows().size(), 1u);
+                EXPECT_EQ(mScene.materials().getRows()[MaterialIndex(0)].mDiffuse, sNoRow);
+
+                mExtractor.retire();
+            }
+
+            holds.dropTexture(TextureIndex(9));
+
+            mScene.clearPlacement();
+            walk(*root, 0, 4);
+
+            EXPECT_EQ(textures.getRefused(), 1u);
+            ASSERT_EQ(mScene.materials().getRows().size(), 1u);
+            EXPECT_EQ(mScene.materials().getRows()[MaterialIndex(0)].mDiffuse, TextureIndex(9))
+                << "the freed slot is the standing material's";
+
+            mExtractor.retire();
+        }
+
         /// **A material over an image that stands names it without a string.** The image is taken by its path,
         /// normalised into a scratch the thread keeps; a `VFS::Path::Normalized` apiece was a string per material
         /// (past the short string's room, as every texture's path is). Measured where nothing else of an arrival

@@ -197,12 +197,16 @@ namespace Rtx
         return known;
     }
 
-    MaterialResolver::Entry MaterialResolver::adopt(const osg::StateSet* const key, const Material& material)
+    MaterialResolver::Entry MaterialResolver::adopt(
+        const osg::StateSet* const key, const Material& material, const bool refused)
     {
         MaterialHold row = mScene.holdMaterial(mScene.addMaterial(material), HoldTier::Kept);
         ++mPass.getStats().mMaterialsAdded;
 
-        return mMaterials.add(key, HeldMaterial{ .mRow = std::move(row) });
+        return mMaterials.add(key,
+            HeldMaterial{ .mRow = std::move(row),
+                .mRefused = refused,
+                .mRefusedAt = refused ? mScene.textures().getFreedCount() : 0 });
     }
 
     void MaterialResolver::releaseWorn(const Worn& worn)
@@ -287,7 +291,18 @@ namespace Rtx
 
         Entry known = reuse(key);
         if (known == mMaterials.end())
-            known = adopt(key, describe(reading, false, nullptr));
+        {
+            bool refused = false;
+            const Material material = describe(reading, false, nullptr, &refused);
+            known = adopt(key, material, refused);
+        }
+        else if (known->second.mRefused && mScene.textures().getFreedCount() != known->second.mRefusedAt)
+        {
+            bool refused = false;
+            mScene.setMaterial(known->second.mRow.get(), describe(reading, false, nullptr, &refused));
+            known->second.mRefused = refused;
+            known->second.mRefusedAt = refused ? mScene.textures().getFreedCount() : 0;
+        }
 
         mMaterials.hold(known);
         return known->second.mRow.get();
@@ -330,35 +345,53 @@ namespace Rtx
 
         if (const Entry known = reuse(key); known != mMaterials.end())
         {
-            // Read again, because a controller rewrote it since the last frame. The state set
-            // is the same object — that is what lets the material keep its slot and every placement
-            // standing on it stay where it is — and everything inside it is this frame's. What it
-            // wears is kept across the frames, for the reason `Worn` gives.
+            HeldMaterial& held = known->second;
+
+            // Read again, because a controller rewrote it since the last frame, or because the texture table
+            // refused a map earlier and has freed a slot since. The state set is the same object — that is what
+            // lets the material keep its slot and every placement standing on it stay where it is — and everything
+            // inside it is this frame's. What it wears is kept across the frames, for the reason `Worn` gives.
             if (rewritten)
             {
-                HeldMaterial& held = known->second;
                 if (held.mWorn == sNoRow)
                     held.mWorn = takeWorn();
-                mScene.setMaterial(held.mRow.get(), readMaterial(shading, &mWorns[held.mWorn]));
+                bool refused = false;
+                mScene.setMaterial(held.mRow.get(), readMaterial(shading, &mWorns[held.mWorn], &refused));
+                held.mRefused = refused;
+                held.mRefusedAt = refused ? mScene.textures().getFreedCount() : 0;
+            }
+            else if (held.mRefused && mScene.textures().getFreedCount() != held.mRefusedAt)
+            {
+                bool refused = false;
+                mScene.setMaterial(held.mRow.get(), readMaterial(shading, nullptr, &refused));
+                held.mRefused = refused;
+                held.mRefusedAt = refused ? mScene.textures().getFreedCount() : 0;
             }
 
-            return Resolved{ .mIndex = known->second.mRow.get(), .mKey = key };
+            return Resolved{ .mIndex = held.mRow.get(), .mKey = key, .mRefused = held.mRefused };
         }
 
         // An arrival under a controller starts wearing what it wears from its first frame.
         if (!rewritten)
-            return Resolved{ .mIndex = adopt(key, readMaterial(shading, nullptr))->second.mRow.get(), .mKey = key };
+        {
+            bool refused = false;
+            const Material material = readMaterial(shading, nullptr, &refused);
+            return Resolved{ .mIndex = adopt(key, material, refused)->second.mRow.get(),
+                .mKey = key,
+                .mRefused = refused };
+        }
 
         const WornIndex worn = takeWorn();
-        const Material material = readMaterial(shading, &mWorns[worn]);
-        const Entry added = adopt(key, material);
+        bool refused = false;
+        const Material material = readMaterial(shading, &mWorns[worn], &refused);
+        const Entry added = adopt(key, material, refused);
         added->second.mWorn = worn;
 
-        return Resolved{ .mIndex = added->second.mRow.get(), .mKey = key };
+        return Resolved{ .mIndex = added->second.mRow.get(), .mKey = key, .mRefused = refused };
     }
 
-    TextureIndex MaterialResolver::takeTexture(
-        const TextureUse& use, Worn* const worn, const TextureEncoding encoding, const osg::Image* const partner)
+    TextureIndex MaterialResolver::takeTexture(const TextureUse& use, Worn* const worn, const TextureEncoding encoding,
+        const osg::Image* const partner, bool* const refused)
     {
         ExtractionStats& stats = mPass.getStats();
 
@@ -445,6 +478,9 @@ namespace Rtx
             }
         }
 
+        if (slot.empty() && refused != nullptr)
+            *refused = true;
+
         return slot.get();
     }
 
@@ -468,7 +504,7 @@ namespace Rtx
         return facts;
     }
 
-    Material MaterialResolver::readMaterial(std::span<const Shading> shading, Worn* const worn)
+    Material MaterialResolver::readMaterial(std::span<const Shading> shading, Worn* const worn, bool* const refused)
     {
         const bool animated = animatedThrough(shading);
 
@@ -478,10 +514,11 @@ namespace Rtx
         if (!describeSurface(shading, reading.mDescribed.emplace()))
             reading.mDescribed.reset();
 
-        return describe(reading, animated, worn);
+        return describe(reading, animated, worn, refused);
     }
 
-    Material MaterialResolver::describe(const MaterialReading& reading, const bool animated, Worn* const worn)
+    Material MaterialResolver::describe(
+        const MaterialReading& reading, const bool animated, Worn* const worn, bool* const refused)
     {
         ExtractionStats& stats = mPass.getStats();
 
@@ -528,7 +565,7 @@ namespace Rtx
         // screen's preparation binds by too.
         const auto bound = [&](const SurfaceMap map) {
             return takeTexture(described->getTextureUse(map), worn, described->encodingOf(map, layout),
-                described->partnerOf(map, layout));
+                described->partnerOf(map, layout), refused);
         };
         material.mDiffuse = bound(SurfaceMap::Diffuse);
         material.mEmissive = bound(SurfaceMap::Emissive);

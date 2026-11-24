@@ -913,7 +913,7 @@ namespace Rtx
 
         // A frozen subtree's meshes stand still, so a mesh that deforms, or the sea, keeps its
         // root walked.
-        const bool changes = water || read.mDeform != Deform::None;
+        bool changes = water || read.mDeform != Deform::None;
 
         // The mesh first: a surface nothing places has no material, and one resolved ahead of a
         // refused mesh held its textures and uploaded them for nothing.
@@ -925,6 +925,7 @@ namespace Rtx
         }
 
         const MaterialResolver::Resolved material = water ? mMaterials.resolveWater() : mMaterials.resolve(shading);
+        changes |= material.mRefused;
 
         // The slot this placement has held since it first appeared, so a world that stands
         // still writes nothing: the scene already knows where everything is, and only a transform

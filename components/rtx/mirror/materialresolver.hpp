@@ -86,6 +86,7 @@ namespace Rtx
         {
             MaterialIndex mIndex = sNoRow;
             const osg::StateSet* mKey = nullptr;
+            bool mRefused = false;
         };
 
         /// @param pass the walk in progress: its sweep stamp and its counts, read at every call. Borrowed, so that the
@@ -241,6 +242,8 @@ namespace Rtx
             MaterialHold mRow;
             Reach mReach{};
             WornIndex mWorn = sNoRow;
+            bool mRefused = false;
+            std::uint64_t mRefusedAt = 0;
         };
 
         /// How many controllers one node's chains are applied from: an actor's root carries a glow
@@ -371,13 +374,13 @@ namespace Rtx
         };
 
         /// Reads a whole material off the chain, which is what an arrival and a rewrite both want.
-        Material readMaterial(std::span<const Shading> shading, Worn* worn);
+        Material readMaterial(std::span<const Shading> shading, Worn* worn, bool* refused = nullptr);
 
         /// The material a reading comes to, with its images taken into the scene. What the reader answered about the
         /// diffuse map is taken as read, and what it left unset is asked of the image here, only where it matters.
         ///
         /// @param worn what an animated material keeps of every image it has worn, or null for one nothing rewrites.
-        Material describe(const MaterialReading& reading, bool animated, Worn* worn);
+        Material describe(const MaterialReading& reading, bool animated, Worn* worn, bool* refused = nullptr);
 
         using Entry = Identity<const osg::StateSet, HeldMaterial>::Entry;
 
@@ -386,7 +389,7 @@ namespace Rtx
         Entry reuse(const osg::StateSet* key);
 
         /// Adds `material` under `key`, counted as an arrival.
-        Entry adopt(const osg::StateSet* key, const Material& material);
+        Entry adopt(const osg::StateSet* key, const Material& material, bool refused = false);
 
         /// Gives back every hold `worn` took on the images it names.
         void releaseWorn(const Worn& worn);
@@ -406,7 +409,7 @@ namespace Rtx
         /// @param partner a converted slot's other file (`isConverted`), which the slot is named for beside `use`'s;
         ///        null for every other slot.
         TextureIndex takeTexture(const TextureUse& use, Worn* worn, TextureEncoding encoding = TextureEncoding::Colour,
-            const osg::Image* partner = nullptr);
+            const osg::Image* partner = nullptr, bool* refused = nullptr);
 
         /// What `image`'s texels say — `ImageFactCache::of`, found by the slot after the first ask.
         /// Asked only for a material the answer changes, because the first ask for a file walks its
