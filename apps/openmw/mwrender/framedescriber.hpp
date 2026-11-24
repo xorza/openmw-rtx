@@ -45,6 +45,7 @@ namespace MWRender
     {
         Location mLocation = Location::Interior;
         std::optional<ESM::Cell::AMBIstruct> mRoom;
+        float mNorthMarkerYaw = 0.0f;
     };
 
     /// A cell's place: outdoors, a room under a sky, or a room, with a room's facts off its record. The ray tracer

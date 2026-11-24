@@ -21,6 +21,10 @@ namespace MWRender
         bool mIndirectLighting = true;
         std::int32_t mBounceRays = 1;
         Rtx::LampSettings mLamps{};
+        bool mInteriorWindowSunlight = true;
+        float mInteriorSunlightStrength = 1.0f;
+        float mInteriorWindowSkylight = 1.0f;
+        float mInteriorWindowGodrays = 1.0f;
         float mDistantLandCells = 0.0f;
         float mViewingDistance = 0.0f;
         bool mObjectPaging = true;
@@ -54,6 +58,12 @@ namespace MWRender
 
         /// `SamplingSwitches::mBounceRays`: the setting, from one to `Shaders::MAX_BOUNCE_RAYS`.
         std::uint32_t mBounceRays = 1;
+
+        /// Interior window sky/sun portals and volumetric dust shafts (`[RTX] interior *`).
+        bool mInteriorWindowSunlight = true;
+        float mInteriorSunlightStrength = 1.0f;
+        float mInteriorWindowSkylight = 1.0f;
+        float mInteriorWindowGodrays = 1.0f;
 
         MirrorKnobs mMirror;
 

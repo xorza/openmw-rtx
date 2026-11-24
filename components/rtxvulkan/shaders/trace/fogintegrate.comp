@@ -111,6 +111,8 @@ void main()
     FogSlice before = sliceAt(column, 0u, grid, surfaces, seeing);
     FogSlice here = before;
 
+    const float sunExtinction = frame.mInteriorSun != 0u ? frame.mInteriorDust : frame.mFogExtinction;
+
     for (uint slice = 0u; slice < FOG_VOLUME_SLICES; ++slice)
     {
         const ivec3 froxel = ivec3(column, int(slice));
@@ -132,8 +134,10 @@ void main()
         const float middle = froxelMiddle(slice);
         const float ahead = froxelFar(slice);
 
-        air = fogThrough(air, fogSliceBetween(before, here, 0.75), middle - behind, frame.mFogExtinction);
-        air = fogThrough(air, fogSliceBetween(here, after, 0.25), ahead - middle, frame.mFogExtinction);
+        air = fogThroughSplit(
+            air, fogSliceBetween(before, here, 0.75), middle - behind, frame.mFogExtinction, sunExtinction);
+        air = fogThroughSplit(
+            air, fogSliceBetween(here, after, 0.25), ahead - middle, frame.mFogExtinction, sunExtinction);
 
         // **The accumulation at the slice's far edge**, which is the depth `fogVolumeAlong` resolves
         // a distance to, and the slice's own sample beside it, which is what that read steps

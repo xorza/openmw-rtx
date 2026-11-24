@@ -35,6 +35,15 @@ namespace MWRender
     struct SkyState;
     struct WorldState;
 
+    /// Exterior daylight terms projected onto interior window portal lights (`LIGHT_WINDOW`).
+    struct WindowPortalLighting
+    {
+        bool mActive = false;
+        osg::Vec3f mSkyScatter;
+        osg::Vec3f mSunDirection{ 0.0f, 0.0f, 1.0f };
+        osg::Vec3f mSunScatter;
+    };
+
     /// Turns what the game says about a frame's world into what the renderer builds a sky, an air and a sea
     /// out of, handing every reading to the one builder that decides what a sun, room light, air and moon may
     /// be, which keeps the game and the harness under the same sky. Nothing here touches a device. What this
@@ -93,7 +102,16 @@ namespace MWRender
         /// @param seconds the world's clock, which the sea is animated by.
         /// @param reach how far the world is built, in units, which the open air closes over.
         Rtx::WorldReading read(const SkyState& sky, const WorldState& world, const Precipitation& falling,
-            double seconds, float reach) const;
+            double seconds, float reach, bool hasWindowPortals = false) const;
+
+        /// Configures interior window sky portal sunlight, skylight, and volumetric dust shafts.
+        void setInteriorWindowSunlight(bool enabled) { mInteriorWindowSunlight = enabled; }
+        void setInteriorSunlightStrength(float strength) { mInteriorSunlightStrength = strength; }
+        void setInteriorWindowSkylight(float scale) { mInteriorWindowSkylight = scale; }
+        void setInteriorWindowGodrays(float strength) { mInteriorWindowGodrays = strength; }
+
+        WindowPortalLighting readWindowPortalLighting(
+            const WorldState& world, const SkyState& sky, bool hasWindowPortals) const;
 
     private:
         /// The sky's own meshes, as the settings name them, and each weather's sheet, as the
@@ -127,5 +145,10 @@ namespace MWRender
         /// The water's scattering albedo, `Water_UnderwaterColor` at `Water_UnderwaterColorWeight`,
         /// read once: `WATER_SCATTER_SHIPPED` says what it is.
         osg::Vec3f mWaterScatter;
+
+        bool mInteriorWindowSunlight = true;
+        float mInteriorSunlightStrength = 1.0f;
+        float mInteriorWindowSkylight = 1.0f;
+        float mInteriorWindowGodrays = 1.0f;
     };
 }

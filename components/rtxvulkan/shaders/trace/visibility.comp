@@ -98,7 +98,7 @@ TracedLists tracePixel(uvec2 pixel)
         armsThrough = pending.mArmsThrough;
         turns = pending.mTurns;
         layerClass = pending.mLayerClass;
-        met = SceneAnswer(1u, along.w, 0u, hit.x, hit.y, uintBitsToFloat(hit.zw), KIND_WATER);
+        met = SceneAnswer(1u, along.w, 0u, hit.x, hit.y, uintBitsToFloat(hit.zw), KIND_WATER, 1u);
         peelCut = false;
     }
     else
@@ -190,7 +190,7 @@ TracedLists tracePixel(uvec2 pixel)
         column.mStep = RUN_IDLE;
 
         RayAsk ask = noRay();
-        RayAnswer answered = RayAnswer(false, unansweredScene());
+        RayAnswer answered = RayAnswer(false, false, unansweredScene());
         stepEye(eye, waterRunOf(vec3(0.0, 0.0, -1.0), Cone(0.0, 0.0), WATER_MIRROR), pixel);
         if (!water)
             storeStageSolid(stored, met, peelAsk(peel, pixel).mQuery);
@@ -213,9 +213,9 @@ TracedLists tracePixel(uvec2 pixel)
             [[dont_unroll]] while ((ask.mTraced || water.mStep != RUN_IDLE) && turns < WALK_TURNS)
             {
                 ++turns;
-                answered = RayAnswer(false, unansweredScene());
+                answered = RayAnswer(false, false, unansweredScene());
                 if (ask.mTraced)
-                    answered = RayAnswer(true, queryScene(ask.mQuery));
+                    answered = RayAnswer(true, ask.mPortal, queryScene(ask.mQuery));
                 ask = noRay();
                 stepWater(water, column, reachOf(answered.mMet), answered, ask, WATER_SHADES);
             }

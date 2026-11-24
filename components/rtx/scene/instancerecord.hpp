@@ -115,6 +115,10 @@ namespace Rtx
         /// `INSTANCE_LAMP_BODY` and `mMask` never does.
         bool mLampBody = false;
 
+        /// Whether the placement is an interior window portal (`MeshInstance::mWindowPortal`),
+        /// which `GpuInstance::mClass` carries as `INSTANCE_WINDOW_PORTAL` and `mMask` never does.
+        bool mWindowPortal = false;
+
         /// Whether the slot this record sits in holds a placement. Records are addressed by slot
         /// and slots have gaps, because a slot index is what a hit reads back.
         bool mPlaced = false;

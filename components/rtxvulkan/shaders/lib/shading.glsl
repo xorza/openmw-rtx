@@ -294,13 +294,16 @@ void startGather(inout GatherRun run, Surface surface, Gloss gloss, uvec2 pixel,
     // cosine was.
     Reservoir kept = noLamps();
     Reservoir listed = noLamps();
+    const bool windowPortal = surface.mHit && frame.mInteriorWindow != 0u
+        && (instanceAt(surface.mInstance).mClass & INSTANCE_WINDOW_PORTAL) != 0u;
     // **Every lamp at a split hit, a stratum each, whose unshadowed sums must be exact, and a fixed count of
     // candidates everywhere else** (`VisibilityConstants::mLampCandidates`): a path's far end and a pane cost what
     // a lamp-dense cell costs only where it is seen.
     if (split)
-        weighLampStrata(listed, kept, state, position, facing, INV_PI, gloss, surface.mLampLit, list);
+        weighLampStrata(listed, kept, state, position, facing, INV_PI, gloss, surface.mLampLit, windowPortal, list);
     else
-        weighLamps(kept, state, position, facing, INV_PI, gloss, surface.mLampLit, frame.mLampCandidates);
+        weighLamps(
+            kept, state, position, facing, INV_PI, gloss, surface.mLampLit, windowPortal, frame.mLampCandidates);
     // Each held lamp's row read only where one was held: a picture no lamp lights may have no row.
     kept.mFrom = position;
     listed.mFrom = position;
@@ -1373,7 +1376,9 @@ struct LandingLight
 /// @param seeds the sequences the landing draws from, its ray's (`bounceSeedsAt`).
 LandingLight landingLightOf(Surface landing, bool lobe, uvec2 pixel, vec3 weight, BounceSeeds seeds)
 {
-    const bool lampBody = (instanceAt(landing.mInstance).mClass & INSTANCE_LAMP_BODY) != 0u;
+    const uint instClass = instanceAt(landing.mInstance).mClass;
+    const bool lampBody = (instClass & INSTANCE_LAMP_BODY) != 0u;
+    const bool windowPortal = frame.mInteriorWindow != 0u && (instClass & INSTANCE_WINDOW_PORTAL) != 0u;
     const float keep = lampBody ? 0.0 : 1.0;
     landing.mEmissiveColour *= keep;
     landing.mEmitted *= keep;
@@ -1396,6 +1401,8 @@ LandingLight landingLightOf(Surface landing, bool lobe, uvec2 pixel, vec3 weight
 
     LandingLight light;
     light.mGlow = weight * landing.mEmitted;
+    if (windowPortal)
+        light.mGlow *= WINDOW_SKY_BOUNCE_GAIN;
     light.mFill = weight * end.mFill;
     light.mSky = weight * (landing.mAlbedo * end.mSkyDiffuse + end.mSkySpecular);
     light.mLamp = weight * (landing.mAlbedo * end.mLampDiffuse + end.mLampSpecular);

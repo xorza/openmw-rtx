@@ -52,7 +52,10 @@ RayAsk skyAsk(SkySource sky, vec3 position, vec3 step, vec2 draw, bool nearest)
         return noRay();
 
     const vec3 towards = coneDirection(sky.mDirection, sky.mLimb, draw);
-    return skyLightAsk(leaveSurface(position, step, towards), towards, frame.mReach, nearest);
+    const bool portal = frame.mInteriorSun != 0u;
+    RayAsk ask = skyLightAsk(leaveSurface(position, step, towards), towards, frame.mReach, nearest || portal);
+    ask.mPortal = portal;
+    return ask;
 }
 
 /// Which lamps one cell of the grid holds, as a range into the light list.
@@ -530,9 +533,11 @@ vec3 unshadowedOf(LightCandidate candidate)
 ///
 /// @param facing,scale,gloss as `lampCandidateAt` takes them.
 /// @param lampLit whether the lamps light the surface at all — `Surface::mLampLit`.
+/// @param skipWindowLights whether to ignore synthetic `LIGHT_WINDOW` portal area lights (so
+///        `INSTANCE_WINDOW_PORTAL` panes do not reflect or receive their own inward emitter).
 /// @param candidates how many lamps to draw where the cell holds more, and nought for every one.
 void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing, float scale, Gloss gloss,
-    bool lampLit, uint candidates)
+    bool lampLit, bool skipWindowLights, uint candidates)
 {
     const uvec2 near = lampRunOf(lampsReaching(from), lampLit);
 
@@ -546,6 +551,8 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
     {
         const uint i = near.x + (sampled ? min(uint(randomNext(state) * float(count)), count - 1u) : step);
         const uint row = lightListAt(i);
+        if (skipWindowLights && (lightAt(row).mTraits & LIGHT_WINDOW) != 0u)
+            continue;
         const LightCandidate candidate = lampCandidateAt(row, from, facing, scale, gloss);
 
         kept.mUnshadowed += unshadowedOf(candidate);
@@ -614,12 +621,14 @@ bool listedIn(LampList list, uint row)
 /// @param facing,scale,gloss,lampLit as `weighLamps` takes them; every lamp, and never a fixed count, since each
 ///        stratum's sum must be exact.
 void weighLampStrata(inout Reservoir listed, inout Reservoir rest, inout uint state, vec3 from, Facing facing,
-    float scale, Gloss gloss, bool lampLit, LampList list)
+    float scale, Gloss gloss, bool lampLit, bool skipWindowLights, LampList list)
 {
     const uvec2 near = lampRunOf(lampsReaching(from), lampLit);
     for (uint i = near.x; i < near.y; ++i)
     {
         const uint row = lightListAt(i);
+        if (skipWindowLights && (lightAt(row).mTraits & LIGHT_WINDOW) != 0u)
+            continue;
         const LightCandidate candidate = lampCandidateAt(row, from, facing, scale, gloss);
         const float on = listedIn(list, row) ? 1.0 : 0.0;
 

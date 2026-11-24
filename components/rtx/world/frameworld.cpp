@@ -115,6 +115,23 @@ namespace Rtx
 
         constants.mSun = Shaders::sunSource(light.mSun.mPosition, light.mSun.mIrradiance);
         constants.mSunDiscColour = light.mSun.mDiscColour;
+        constants.mInteriorWindow = 0u;
+        constants.mInteriorSun = 0u;
+        constants.mInteriorDust = 0.0f;
+        constants.mWindowSkyHorizon = Shaders::vec3();
+        constants.mWindowSkyZenith = Shaders::vec3();
+        if (!reading.mOutdoors && reading.mInteriorWindowSky.has_value())
+        {
+            const InteriorWindowSky& win = *reading.mInteriorWindowSky;
+            constants.mInteriorWindow = 1u;
+            constants.mWindowSkyHorizon = win.mSkyHorizon;
+            constants.mWindowSkyZenith = win.mSkyZenith;
+            constants.mSun = Shaders::sunSource(win.mSun.mPosition, win.mSun.mIrradiance);
+            constants.mSunDiscColour = win.mSun.mDiscColour;
+            const bool hasSun = constants.mSun.mIrradiance != Shaders::vec3();
+            constants.mInteriorSun = hasSun ? 1u : 0u;
+            constants.mInteriorDust = hasSun ? win.mDust : 0.0f;
+        }
         constants.mAmbient = light.mAmbient;
         constants.mSurfaceAmbient = light.mSurfaceAmbient;
         constants.mWaterAmbient = light.mWaterAmbient;

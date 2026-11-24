@@ -45,6 +45,23 @@ float fogPhase(float cosine)
     return mix(henyeyGreenstein(peak, cosine), draine, share);
 }
 
+/// Indoor suspended dust phase function: softer forward scattering than coastal droplet fog so
+/// interior window sun shafts stay visible from both side and facing angles.
+float interiorDustPhase(float cosine)
+{
+    return mix(henyeyGreenstein(INTERIOR_DUST_G, cosine), INV_FOUR_PI, INTERIOR_DUST_ISOTROPIC);
+}
+
+/// Subtle density variation of indoor suspended dust motes along sunlight shafts.
+float interiorDustAt(vec3 position, float spacing)
+{
+    if (waterOver(position) > 0.0)
+        return 0.0;
+
+    const float field = fogFieldAt(position, INTERIOR_DUST_TILE, spacing, 2u).x;
+    return mix(0.65, 1.35, smoothstep(0.2, 0.8, field));
+}
+
 /// How much fog stands between `position` and the sky along the line `towards` a light. Fog shadows
 /// itself, and leaving that out is what makes single scattering white out: light reaching a point deep in a
 /// bank crossed the whole bank to get there.
@@ -230,8 +247,9 @@ vec4 fogVolumeAlong(uvec2 pixel, vec3 direction, float distance)
     const vec2 across = fogVolumeAcross(vec2(pixel) + 0.5, frame.mFogColumns);
 
     const float slices = float(FOG_VOLUME_SLICES);
-    const float reach = min(distance, FOG_REACH);
+    const float reach = min(distance, fogReach());
     const float along = fogDepthInverse(reach) * slices;
+    const float sunExtinction = frame.mInteriorSun != 0u ? frame.mInteriorDust : frame.mFogExtinction;
 
     // The slice the surface stands in, and how far through it — the reach itself lands in the last
     // slice at the whole of it.
@@ -252,25 +270,27 @@ vec4 fogVolumeAlong(uvec2 pixel, vec3 direction, float distance)
     const float middle = froxelMiddle(slice);
     if (through <= 0.5)
     {
-        air = fogThrough(air,
-            fogSliceAt(across, (float(slice) + 0.5 * through) / slices), reach - behind, frame.mFogExtinction);
+        air = fogThroughSplit(air,
+            fogSliceAt(across, (float(slice) + 0.5 * through) / slices), reach - behind, frame.mFogExtinction,
+            sunExtinction);
     }
     else
     {
-        air = fogThrough(air,
-            fogSliceAt(across, (float(slice) + 0.25) / slices), middle - behind, frame.mFogExtinction);
+        air = fogThroughSplit(air,
+            fogSliceAt(across, (float(slice) + 0.25) / slices), middle - behind, frame.mFogExtinction, sunExtinction);
 
         // **Flat where the next slice starts past the column's own surface**, which is the rule the
         // integrate pass carried the same half by: that slice holds none of this column's air, and a line
         // bent toward it thinned the air in the last quarter of every slice a surface stood in.
         const float surface = imageLoad(fogColumnDepth, ivec2(pixel / FOG_VOLUME_SCALE)).x;
         const float onward = froxelNear(slice + 1u) < surface ? 0.25 + 0.5 * through : 0.5;
-        air = fogThrough(air,
-            fogSliceAt(across, (float(slice) + onward) / slices), reach - middle, frame.mFogExtinction);
+        air = fogThroughSplit(air,
+            fogSliceAt(across, (float(slice) + onward) / slices), reach - middle, frame.mFogExtinction, sunExtinction);
     }
 
-    const vec3 sun
-        = sunUp() ? frame.mSun.mIrradiance * (air.mSunward * fogPhase(dot(direction, frame.mSun.mDirection))) : vec3(0.0);
+    const float phase = frame.mInteriorSun != 0u ? interiorDustPhase(dot(direction, frame.mSun.mDirection))
+                                                 : fogPhase(dot(direction, frame.mSun.mDirection));
+    const vec3 sun = sunUp() ? frame.mSun.mIrradiance * (air.mSunward * phase) : vec3(0.0);
 
     return vec4(air.mScattered + sun, air.mTransmittance);
 }
@@ -441,6 +461,8 @@ vec3 lampsInAir(inout Reservoir kept, inout uint state, vec3 origin, vec3 direct
         {
             const uint row = lightListAt(i);
             const GpuLight held = shownLightAt(row);
+            if ((held.mTraits & LIGHT_WINDOW) != 0u)
+                continue;
 
             // The lamp's distance off the ray from what is left of the offset past its closest
             // approach, and not `|offset|² - closest²`: that difference cancels for a lamp nearly on

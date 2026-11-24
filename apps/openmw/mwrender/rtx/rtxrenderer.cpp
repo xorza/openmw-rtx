@@ -143,6 +143,10 @@ namespace MWRender
         mSettled = setup.mSettled;
         mCacheBudget = setup.mCacheBudget;
         mSteppedExpiry = setup.mSteppedExpiry;
+        mSky.setInteriorWindowSunlight(setup.mInteriorWindowSunlight);
+        mSky.setInteriorSunlightStrength(setup.mInteriorSunlightStrength);
+        mSky.setInteriorWindowSkylight(setup.mInteriorWindowSkylight);
+        mSky.setInteriorWindowGodrays(setup.mInteriorWindowGodrays);
 
         // **Made here, because there is no viewer to make them.** Every renderer needs the four and
         // one built on `osgViewer` gets them already wired together.
@@ -867,6 +871,10 @@ namespace MWRender
             || changed.contains({ "RTX", "lamp flicker strength" })
             || changed.contains({ "RTX", "lamp animation speed" }) || changed.contains({ "RTX", "lamp movement" })
             || changed.contains({ "RTX", "lamp size variation" });
+        const bool interiorWindow = changed.contains({ "RTX", "interior window sunlight" });
+        const bool interiorSun = changed.contains({ "RTX", "interior sunlight strength" });
+        const bool interiorSkylight = changed.contains({ "RTX", "interior window skylight" });
+        const bool interiorGodrays = changed.contains({ "RTX", "interior window godrays" });
         const bool upscale = changed.contains({ "RTX", "upscale" });
         const bool indirect = changed.contains({ "RTX", "indirect lighting" });
         const bool bounceRays = changed.contains({ "RTX", "bounce rays" });
@@ -874,7 +882,8 @@ namespace MWRender
             = changed.contains({ "RTX", "distant land cells" }) || changed.contains({ "Camera", "viewing distance" });
         const bool anisotropy = changed.contains({ "General", "anisotropy" });
         const bool gamma = changed.contains({ "Video", "gamma" });
-        if (!upscale && !indirect && !bounceRays && !reach && !anisotropy && !gamma && !lamps)
+        if (!upscale && !indirect && !bounceRays && !reach && !anisotropy && !gamma && !lamps && !interiorWindow
+            && !interiorSun && !interiorSkylight && !interiorGodrays)
             return;
         const Crash::NoteScope noted("applying the settings the menu changed");
 
@@ -884,6 +893,18 @@ namespace MWRender
 
         if (lamps)
             mMirror.setLampSettings(settings.mMirror.mLamps);
+
+        if (interiorWindow)
+        {
+            mMirror.setInteriorWindowSunlight(settings.mInteriorWindowSunlight);
+            mSky.setInteriorWindowSunlight(settings.mInteriorWindowSunlight);
+        }
+        if (interiorSun)
+            mSky.setInteriorSunlightStrength(settings.mInteriorSunlightStrength);
+        if (interiorSkylight)
+            mSky.setInteriorWindowSkylight(settings.mInteriorWindowSkylight);
+        if (interiorGodrays)
+            mSky.setInteriorWindowGodrays(settings.mInteriorWindowGodrays);
 
         // **A mode moves under the upscaler the renderer was made with**, and waits under none: the upscaler
         // the menu now names is the next start's.
@@ -1084,6 +1105,8 @@ namespace MWRender
 
         // After the last walk, because a walk clears the frame's lists.
         mMirror.addRipples(mRipples.getImpulses());
+        mMirror.addWindowPortalLights(mSky.readWindowPortalLighting(
+            frame.mWorld, frame.mSky, mMirror.getScene().placements().getCounts().mWindowPortals > 0));
 
         traceWorld(frame, view, report, since);
         mResidency->closeFrame(*mRenderer);
@@ -1247,7 +1270,7 @@ namespace MWRender
         mSky.follow(
             frame.mSky, mMirror.getScene(), *getResources().getSceneManager(), mMirror.getWalkContext().mContent);
         request.mWorld = mSky.read(frame.mSky, frame.mWorld, frame.mPrecipitation, frame.mWhen.getSimulationTime(),
-            frame.mEye.closesAirAt(mMirror.getReach()));
+            frame.mEye.closesAirAt(mMirror.getReach()), mMirror.getScene().placements().getCounts().mWindowPortals > 0);
         request.mSky = &mSky.getContent();
 
         const TracedSeconds elapsed = mTraceClocks.trace(getLoopClock().getNow(), frame.mWhen.getSimulationTime());

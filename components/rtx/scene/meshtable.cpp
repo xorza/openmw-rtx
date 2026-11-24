@@ -284,9 +284,27 @@ namespace Rtx
         // structure has gone with it.
         mDeformed.remove(mesh);
         mArrivals.forget(mesh);
+        if (const auto portal = mPortalGeometry.find(mesh); portal != mPortalGeometry.end())
+            mPortalGeometry.erase(portal);
 
         freeRow(mesh);
         note(mesh, SlotNews::Freed);
+    }
+
+    void MeshTable::setPortalGeometry(
+        const MeshIndex mesh, const std::span<const osg::Vec3f> positions, const std::span<const std::uint32_t> indices)
+    {
+        if (positions.empty() || indices.size() < 3)
+            return;
+        PortalGeometry& entry = mPortalGeometry.try_emplace(mesh).first->second;
+        entry.mPositions.assign(positions.begin(), positions.end());
+        entry.mIndices.assign(indices.begin(), indices.end());
+    }
+
+    const MeshTable::PortalGeometry* MeshTable::getPortalGeometry(const MeshIndex mesh) const
+    {
+        const auto found = mPortalGeometry.find(mesh);
+        return found != mPortalGeometry.end() ? &found->second : nullptr;
     }
 
     void MeshTable::compact()

@@ -69,6 +69,11 @@ namespace Rtx
         ///        read in the model of (`modelOf`).
         MeshIndex resolve(const osg::Drawable& drawable, const DrawableRead& read, std::span<osg::Node* const> path);
 
+        /// Ensures CPU positions and triangle indices are cached in `MeshTable` for a window portal
+        /// mesh so `WorldMirror` can cluster its triangles after `MeshArrivals` clears.
+        bool readPortalGeometry(
+            const osg::Drawable& drawable, const DrawableRead& read, std::span<osg::Node* const> path, MeshIndex mesh);
+
         /// The mesh index for a drawable somebody else has already read, adding it where the mirror
         /// does not hold it and stamping it where it does — the insertion half of `resolve`, for a
         /// reading made off the frame, under the drawable so a clone met by the walk resolves to

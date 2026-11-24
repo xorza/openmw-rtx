@@ -48,6 +48,10 @@ namespace MWRender
         /// Not where the player stands, which is `WorldState::mLocation`, read at the frame.
         bool mWeatherRan = false;
 
+        /// Whether the exterior weather and sun fields below were populated for this frame
+        /// (including inside interiors where `mWeatherRan` stays false).
+        bool mExteriorValid = false;
+
         /// The orbit's direction, as `WeatherManager::update` runs the sun east to west. Where the
         /// disc is drawn is `Sky::sunDiscPosition` of it, and where the light comes from is each
         /// renderer's own answer (`match sunlight to sun`).

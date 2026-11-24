@@ -58,6 +58,9 @@ namespace MWGui
         MyGUI::ComboBox* mRayTracingUpscale{};
         MyGUI::ComboBox* mRayTracingUpscaler{};
         MyGUI::ScrollBar* mRayTracingBounceRays{};
+        MyGUI::ScrollBar* mRayTracingInteriorSunlightStrength{};
+        MyGUI::ScrollBar* mRayTracingInteriorWindowSkylight{};
+        MyGUI::ScrollBar* mRayTracingInteriorWindowGodrays{};
         std::span<const Rtx::UpscalerChoice> mUpscalers;
 
         // controls

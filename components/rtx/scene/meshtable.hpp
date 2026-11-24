@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <span>
 #include <string>
+#include <vector>
 
 #include <osg/BoundingBox>
 #include <osg/Vec2f>
@@ -74,6 +75,19 @@ namespace Rtx
         /// `mesh`'s geometry in the device's form, which arrived since the last `clearArrivals`: what a hand-over
         /// writes, and nothing holds after it (`MeshArrivals`).
         MeshGeometry getArrival(MeshIndex mesh) const { return mArrivals.of(mesh); }
+        bool hasArrival(MeshIndex mesh) const { return mArrivals.holds(mesh); }
+
+        /// CPU-side geometry cached solely for interior window portal meshes so `WorldMirror` can
+        /// cluster window triangles after `MeshArrivals` has been cleared.
+        struct PortalGeometry
+        {
+            std::vector<osg::Vec3f> mPositions;
+            std::vector<std::uint32_t> mIndices;
+        };
+        bool hasPortalGeometry(MeshIndex mesh) const { return mPortalGeometry.contains(mesh); }
+        void setPortalGeometry(
+            MeshIndex mesh, std::span<const osg::Vec3f> positions, std::span<const std::uint32_t> indices);
+        const PortalGeometry* getPortalGeometry(MeshIndex mesh) const;
 
         /// Makes a digest of each mesh as it arrives, which nothing reads but the harness: asked of a table that holds
         /// nothing yet, so every mesh has one.
@@ -196,6 +210,7 @@ namespace Rtx
 
         /// The geometry of what arrived since the last hand-over, the host's one copy of it.
         MeshArrivals mArrivals;
+        SteadyMap<MeshIndex, PortalGeometry> mPortalGeometry;
 
         /// Each slot's digest as its mesh arrived, where `keepDigests` asked for them: as long as the rows.
         RowVector<MeshDigest, MeshIndex> mDigests;

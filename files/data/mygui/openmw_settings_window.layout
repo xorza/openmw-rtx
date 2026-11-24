@@ -546,6 +546,74 @@
                                 <Property key="Caption" value="#{OMWEngine:LampAnimationHint}"/>
                                 <Property key="WordWrap" value="true"/>
                             </Widget>
+
+                            <Widget type="HBox" position="0 574 420 28" name="RayTracingInteriorWindowRow">
+                                <UserString key="ToolTipType" value="Layout"/>
+                                <UserString key="ToolTipLayout" value="TextToolTip"/>
+                                <UserString key="Caption_Text" value="#{OMWEngine:RayTracingInteriorWindowSunlightHint}"/>
+                                <Widget type="AutoSizedButton" skin="MW_Button" position="0 0 24 24" name="RayTracingInteriorWindowButton">
+                                    <UserString key="SettingCategory" value="RTX"/>
+                                    <UserString key="SettingName" value="interior window sunlight"/>
+                                    <UserString key="SettingType" value="CheckButton"/>
+                                </Widget>
+                                <Widget type="AutoSizedTextBox" skin="SandText" position="28 4 95 16" name="RayTracingInteriorWindowText">
+                                    <Property key="Caption" value="#{OMWEngine:RayTracingInteriorWindowSunlight}"/>
+                                </Widget>
+                            </Widget>
+
+                            <Widget type="TextBox" skin="NormalText" position="0 606 420 18" name="RayTracingInteriorSunlightStrengthText"/>
+                            <Widget type="ScrollBar" skin="MW_HScroll" position="0 627 420 18" name="RayTracingInteriorSunlightStrengthSlider">
+                                <Property key="Range" value="3001"/>
+                                <Property key="Page" value="1"/>
+                                <Property key="WheelPage" value="25"/>
+                                <UserString key="SettingType" value="Slider"/>
+                                <UserString key="SettingCategory" value="RTX"/>
+                                <UserString key="SettingName" value="interior sunlight strength"/>
+                                <UserString key="SettingValueType" value="Integer"/>
+                                <UserString key="SettingMin" value="0"/>
+                                <UserString key="SettingMax" value="3000"/>
+                                <UserString key="SettingLabelWidget" value="RayTracingInteriorSunlightStrengthText"/>
+                                <UserString key="SettingLabelCaption" value="RayTracingInteriorSunlightStrengthValue"/>
+                                <UserString key="ToolTipType" value="Layout"/>
+                                <UserString key="ToolTipLayout" value="TextToolTip"/>
+                                <UserString key="Caption_Text" value="#{OMWEngine:RayTracingInteriorSunlightStrengthHint}"/>
+                            </Widget>
+
+                            <Widget type="TextBox" skin="NormalText" position="0 654 420 18" name="RayTracingInteriorWindowSkylightText"/>
+                            <Widget type="ScrollBar" skin="MW_HScroll" position="0 675 420 18" name="RayTracingInteriorWindowSkylightSlider">
+                                <Property key="Range" value="3001"/>
+                                <Property key="Page" value="1"/>
+                                <Property key="WheelPage" value="25"/>
+                                <UserString key="SettingType" value="Slider"/>
+                                <UserString key="SettingCategory" value="RTX"/>
+                                <UserString key="SettingName" value="interior window skylight"/>
+                                <UserString key="SettingValueType" value="Integer"/>
+                                <UserString key="SettingMin" value="0"/>
+                                <UserString key="SettingMax" value="3000"/>
+                                <UserString key="SettingLabelWidget" value="RayTracingInteriorWindowSkylightText"/>
+                                <UserString key="SettingLabelCaption" value="RayTracingInteriorWindowSkylightValue"/>
+                                <UserString key="ToolTipType" value="Layout"/>
+                                <UserString key="ToolTipLayout" value="TextToolTip"/>
+                                <UserString key="Caption_Text" value="#{OMWEngine:RayTracingInteriorWindowSkylightHint}"/>
+                            </Widget>
+
+                            <Widget type="TextBox" skin="NormalText" position="0 702 420 18" name="RayTracingInteriorWindowGodraysText"/>
+                            <Widget type="ScrollBar" skin="MW_HScroll" position="0 723 420 18" name="RayTracingInteriorWindowGodraysSlider">
+                                <Property key="Range" value="301"/>
+                                <Property key="Page" value="1"/>
+                                <Property key="WheelPage" value="5"/>
+                                <UserString key="SettingType" value="Slider"/>
+                                <UserString key="SettingCategory" value="RTX"/>
+                                <UserString key="SettingName" value="interior window godrays"/>
+                                <UserString key="SettingValueType" value="Integer"/>
+                                <UserString key="SettingMin" value="0"/>
+                                <UserString key="SettingMax" value="300"/>
+                                <UserString key="SettingLabelWidget" value="RayTracingInteriorWindowGodraysText"/>
+                                <UserString key="SettingLabelCaption" value="RayTracingInteriorWindowGodraysValue"/>
+                                <UserString key="ToolTipType" value="Layout"/>
+                                <UserString key="ToolTipLayout" value="TextToolTip"/>
+                                <UserString key="Caption_Text" value="#{OMWEngine:RayTracingInteriorWindowGodraysHint}"/>
+                            </Widget>
                         </Widget>
                     </Widget>
                 </Widget>

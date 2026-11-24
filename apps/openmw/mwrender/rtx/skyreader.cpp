@@ -8,6 +8,7 @@
 #include <limits>
 #include <optional>
 
+#include <osg/Quat>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
@@ -21,6 +22,7 @@
 #include <components/rtx/environment/moonfaces.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/shaders/look.h>
 #include <components/rtx/world/fogbuilder.hpp>
 #include <components/rtx/world/skylight.hpp>
 #include <components/rtx/world/sunglare.hpp>
@@ -28,6 +30,8 @@
 #include <components/settings/values.hpp>
 #include <components/sky/moonstate.hpp>
 #include <components/sky/skyclock.hpp>
+#include <components/sky/sundisc.hpp>
+#include <components/sky/timeofday.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -43,6 +47,118 @@ namespace MWRender
             const osg::Vec4f colour = Fallback::Map::getColour("Water_UnderwaterColor");
             return osg::Vec3f(colour.r(), colour.g(), colour.b())
                 * Fallback::Map::getFloat("Water_UnderwaterColorWeight");
+        }
+
+        float smoothstep01(float x)
+        {
+            const float t = std::clamp(x, 0.0f, 1.0f);
+            return t * t * (3.0f - 2.0f * t);
+        }
+
+        /// Smooth dawn-to-day-to-dusk envelope extending across Morrowind's exterior sky/fog twilight
+        /// windows so interior window portal light and emissive glass fade smoothly into night and out
+        /// of dawn without snapping at `mSunriseTime` or `mNightStart`.
+        float interiorTwilightFactor(const float hour, const Sky::TimeOfDaySettings& times)
+        {
+            const float daySpan = times.mNightStart < times.mNightEnd ? (times.mNightStart + 24.0f - times.mNightEnd)
+                                                                      : (times.mNightStart - times.mNightEnd);
+            if (!(daySpan > 0.0f) || daySpan >= 24.0f)
+                return 1.0f;
+
+            const Sky::WeatherSetting skySetting = times.getSetting("Sky");
+            const Sky::WeatherSetting fogSetting = times.getSetting("Fog");
+            const float preDawn = std::max(0.25f, std::max(fogSetting.mPreSunriseTime, skySetting.mPreSunriseTime));
+            const float postDusk = std::max(0.50f, std::max(fogSetting.mPostSunsetTime, skySetting.mPostSunsetTime));
+            const float sunriseDuration = std::max(times.mDayStart - times.mNightEnd, times.mSunriseDuration);
+            const float sunsetDuration = std::max(times.mNightStart - times.mDayEnd, 0.0f);
+
+            const float dawnStart = times.mNightEnd - preDawn;
+            float h = std::fmod(hour - dawnStart, 24.0f);
+            if (h < 0.0f)
+                h += 24.0f;
+
+            const float dawnSpan = preDawn + std::max(sunriseDuration * 0.5f, 0.5f);
+            const float duskEndOffset = preDawn + daySpan + postDusk;
+            const float duskFadeOffset = std::max(dawnSpan, preDawn + daySpan - sunsetDuration * 0.5f);
+
+            if (h >= duskEndOffset)
+                return 0.0f;
+            if (h < dawnSpan)
+                return smoothstep01(h / std::max(dawnSpan, 1e-4f));
+            if (h > duskFadeOffset)
+                return smoothstep01((duskEndOffset - h) / std::max(duskEndOffset - duskFadeOffset, 1e-4f));
+            return 1.0f;
+        }
+
+        struct ComputedInteriorWindowTerms
+        {
+            Rtx::Sun mSun;
+            osg::Vec3f mSunDirection{ 0.0f, 0.0f, 1.0f };
+            osg::Vec3f mSkyHorizon;
+            osg::Vec3f mSkyZenith;
+            osg::Vec3f mSkyMean;
+            float mTwilight = 1.0f;
+        };
+
+        ComputedInteriorWindowTerms computeInteriorWindowTerms(
+            const SkyState& sky, const WorldState& world, float zenithShare, float sunlightStrength)
+        {
+            const WeatherResult& weather = sky.mWeather;
+
+            osg::Vec3f exteriorSunDir = Sky::sunDiscPosition(sky.mSunDirection);
+            if (exteriorSunDir.length2() > 0.0f)
+                exteriorSunDir.normalize();
+            else
+                exteriorSunDir = osg::Vec3f(0.0f, 0.0f, 1.0f);
+
+            const osg::Quat toInterior(-world.mNorthMarkerYaw, osg::Vec3f(0.0f, 0.0f, 1.0f));
+            osg::Vec3f interiorSunDir = toInterior * exteriorSunDir;
+            if (interiorSunDir.length2() > 0.0f)
+                interiorSunDir.normalize();
+
+            const float smoothSunShare = smoothstep01(Rtx::sunShareAt(world.mGameHour, sky.mTimes));
+            const Rtx::SkyReading exteriorReading{
+                .mSunPosition = exteriorSunDir,
+                .mSunShare = smoothSunShare,
+                .mSunShareAloft = Rtx::sunShareAloft(world.mGameHour, sky.mTimes),
+                .mSunColour = Rtx::decodeColour(weather.mSunColor),
+                .mAmbient = Rtx::decodeColour(weather.mAmbientColor),
+                .mDiscColour = Rtx::decodeColour(weather.mSunDiscColor),
+                .mGlare = weather.mGlareView,
+            };
+            const Rtx::Skylight exteriorLight = Rtx::makeSkylight(exteriorReading);
+            Rtx::Sun interiorSun = exteriorLight.mSun;
+            interiorSun.mPosition = interiorSunDir;
+
+            // Keep low-elevation sunrise/sunset shafts warm amber via Rayleigh transmittance rather
+            // than allowing Morrowind's late-sunset `Sun_Night_Color` blue bleed to chill the beam.
+            const osg::Vec3f atmo = Rtx::airTransmittance(std::max(exteriorSunDir.z(), 0.0f));
+            const float atmoMax = std::max(atmo.x(), 1e-4f);
+            const osg::Vec3f atmoHue = atmo / atmoMax;
+            const float warmthMix = 0.65f * (1.0f - smoothSunShare);
+            const osg::Vec3f horizonTint(1.0f + (atmoHue.x() - 1.0f) * warmthMix,
+                1.0f + (atmoHue.y() - 1.0f) * warmthMix, 1.0f + (atmoHue.z() - 1.0f) * warmthMix);
+            interiorSun.mIrradiance = osg::componentMultiply(interiorSun.mIrradiance, horizonTint);
+
+            interiorSun.mIrradiance *= std::clamp(weather.mGlareView, 0.0f, 1.0f) * sunlightStrength;
+            if (!sky.mSunUp)
+                interiorSun.mIrradiance = osg::Vec3f(0.0f, 0.0f, 0.0f);
+
+            const osg::Vec3f rawHorizon = Rtx::decodeColour(weather.mFogColor);
+            const osg::Vec3f rawZenith = Rtx::decodeColour(weather.mSkyColor);
+            const Rtx::SkyBudget exteriorBudget
+                = Rtx::skyBudget(rawHorizon, rawZenith, zenithShare, osg::Vec3f(), exteriorLight.mAmbient);
+            const float twilight = interiorTwilightFactor(world.mGameHour, sky.mTimes);
+            const osg::Vec3f fill = exteriorBudget.mFill * twilight;
+
+            return ComputedInteriorWindowTerms{
+                .mSun = interiorSun,
+                .mSunDirection = interiorSunDir,
+                .mSkyHorizon = rawHorizon + fill,
+                .mSkyZenith = rawZenith + fill,
+                .mSkyMean = rawHorizon * 0.65f + rawZenith * 0.35f + fill,
+                .mTwilight = twilight,
+            };
         }
     }
 
@@ -106,7 +222,7 @@ namespace MWRender
     }
 
     Rtx::WorldReading SkyReader::read(const SkyState& sky, const WorldState& world, const Precipitation& falling,
-        const double seconds, const float reach) const
+        const double seconds, const float reach, const bool hasWindowPortals) const
     {
         const WeatherResult& weather = sky.mWeather;
 
@@ -182,6 +298,25 @@ namespace MWRender
         const float cloudBlend
             = std::isfinite(weather.mCloudBlendFactor) ? std::clamp(weather.mCloudBlendFactor, 0.f, 1.f) : 1.f;
 
+        std::optional<Rtx::InteriorWindowSky> interiorWindow;
+        if (!world.isOutdoors() && room.has_value() && sky.mExteriorValid && mInteriorWindowSunlight && hasWindowPortals)
+        {
+            const ComputedInteriorWindowTerms terms = computeInteriorWindowTerms(
+                sky, world, mSkyContent.mAtmosphere.mZenithShare, mInteriorSunlightStrength);
+            // Cap directly-seen window glass brightness gently so cranking skylight/sunlight up
+            // does not slam auto-exposure down and crush indirect light inside the room, and blend
+            // smoothly down to a dim night-sky baseline during dusk and dawn.
+            const float dayGlassGain
+                = std::min(1.0f + 0.35f * std::sqrt(std::max(mInteriorWindowSkylight, 0.0f)), 2.8f);
+            const float glassGain = 0.25f + (dayGlassGain - 0.25f) * terms.mTwilight;
+            interiorWindow = Rtx::InteriorWindowSky{
+                .mSun = terms.mSun,
+                .mSkyHorizon = terms.mSkyHorizon * glassGain,
+                .mSkyZenith = terms.mSkyZenith * glassGain,
+                .mDust = Rtx::Shaders::INTERIOR_DUST_EXTINCTION * mInteriorWindowGodrays,
+            };
+        }
+
         return Rtx::WorldReading{
             .mDaylight = Rtx::Daylight{
                 .mLight = light,
@@ -245,6 +380,24 @@ namespace MWRender
             // **Out of the world's light, both indoors and out**: the room's fill and the sky's
             // ambient are read without it, and the display chain lays it over the picture.
             .mNightEye = osg::Vec3f(world.mNightEye.x(), world.mNightEye.y(), world.mNightEye.z()),
+            .mInteriorWindowSky = interiorWindow,
+        };
+    }
+
+    WindowPortalLighting SkyReader::readWindowPortalLighting(
+        const WorldState& world, const SkyState& sky, const bool hasWindowPortals) const
+    {
+        if (world.isOutdoors() || !world.mRoom.has_value() || !sky.mExteriorValid || !mInteriorWindowSunlight
+            || !hasWindowPortals)
+            return {};
+
+        const ComputedInteriorWindowTerms terms = computeInteriorWindowTerms(
+            sky, world, mSkyContent.mAtmosphere.mZenithShare, mInteriorSunlightStrength);
+        return WindowPortalLighting{
+            .mActive = true,
+            .mSkyScatter = terms.mSkyMean * (6.0f * terms.mTwilight * mInteriorWindowSkylight),
+            .mSunDirection = terms.mSunDirection,
+            .mSunScatter = terms.mSun.mIrradiance * 0.30f,
         };
     }
 }

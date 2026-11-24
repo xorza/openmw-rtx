@@ -62,6 +62,7 @@ namespace SceneUtil
 namespace MWRender
 {
     struct SceneFrame;
+    struct WindowPortalLighting;
     class TracedGroundcover;
 
     /// The engine's scene graph mirrored into what a ray can meet: everything between "the game has a frame"
@@ -142,6 +143,9 @@ namespace MWRender
         /// trace presses it and the digest sees it. After `mirror`, which clears the frame's lists.
         void addRipples(std::span<const Rtx::RippleImpulse> impulses);
 
+        /// Emits area portal lights (`LIGHT_WINDOW`) inward from clustered `mWindowPortal` panes.
+        void addWindowPortalLights(const WindowPortalLighting& lighting);
+
         /// A cell the scene added, which the sea is centred on as `Water::changeCell` centres it
         /// (`seaCentre`): the middle of the cell outdoors, the origin indoors, the last one added winning.
         void standSea(const MWWorld::CellStore& cell);
@@ -168,6 +172,8 @@ namespace MWRender
         void setReach(const Rtx::LandReach& reach) { mKnobs.mReach = reach; }
 
         void setLampSettings(const Rtx::LampSettings& settings) { mKnobs.mLamps = settings; }
+
+        void setInteriorWindowSunlight(bool enabled) { mKnobs.mInteriorWindowSunlight = enabled; }
 
         /// Where the last walk stood the rings: the camera's eye, which is not the player's feet.
         const osg::Vec3f& getEye() const { return mEye; }

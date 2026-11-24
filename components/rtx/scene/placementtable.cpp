@@ -24,6 +24,7 @@ namespace Rtx
             .mMapped = worn.mMapped ? 1u : 0u,
             .mModMapped = worn.mModMapped ? 1u : 0u,
             .mRelief = worn.mRelief ? 1u : 0u,
+            .mWindowPortals = placed.mWindowPortal ? 1u : 0u,
         };
     }
 
@@ -39,6 +40,7 @@ namespace Rtx
         mCounts.mMapped += share.mMapped;
         mCounts.mModMapped += share.mModMapped;
         mCounts.mRelief += share.mRelief;
+        mCounts.mWindowPortals += share.mWindowPortals;
 
         if (share.mMedium + share.mAdditive > 0)
             mPresent.addMakingRoom(slot);
@@ -56,6 +58,7 @@ namespace Rtx
         mCounts.mMapped -= share.mMapped;
         mCounts.mModMapped -= share.mModMapped;
         mCounts.mRelief -= share.mRelief;
+        mCounts.mWindowPortals -= share.mWindowPortals;
 
         if (share.mMedium + share.mAdditive > 0)
             mPresent.remove(slot);

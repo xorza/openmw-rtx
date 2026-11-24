@@ -300,6 +300,10 @@ namespace Rtx::Shaders
     /// (`Rtx::InstanceRecord::mMask`) never carries it, so no traversal sees it.
     const uint INSTANCE_LAMP_BODY = 0x100u;
 
+    /// The placement is an interior window pane under `NightDaySwitch` — a portal to the exterior
+    /// sky and sun (`Rtx::MeshInstance::mWindowPortal`) rather than an opaque interior wall.
+    const uint INSTANCE_WINDOW_PORTAL = 0x200u;
+
     /// The material is a medium — `Rtx::Material::isMedium`. **A bit and not a second float**, as the
     /// row is read at every candidate the eye walks past; density is not stored (the texture's alpha
     /// is what a crossing square to the surface hides, and obliquity is all a thickness adds).
@@ -543,8 +547,9 @@ namespace Rtx::Shaders
         vec4 mToObject[3];
     };
 
-    /// `GpuLight::mTraits`' fill bit, and where the class bits start above it.
+    /// `GpuLight::mTraits`' fill and window-portal bits, and where the class bits start above them.
     const uint LIGHT_FILL = 1u;
+    const uint LIGHT_WINDOW = 2u;
     const uint LIGHT_CLASS_SHIFT = 8u;
 
     /// One light placed in the world — a lamp, or the fill a magic effect glows with — with
@@ -1075,6 +1080,8 @@ namespace Rtx::Shaders
     static_assert(sizeof(GpuInstance) == 160, "GpuInstance must be scalar-packed on every side");
     static_assert(INSTANCE_LAMP_BODY > (MASK_EVERY_CLASS | MASK_ADDITIVE | MASK_MEDIUM),
         "the lamp body's bit stands above every ray mask's");
+    static_assert(INSTANCE_WINDOW_PORTAL > INSTANCE_LAMP_BODY,
+        "the window portal's bit stands above every ray mask's and lamp body's");
     static_assert(sizeof(GpuLight) == 40, "GpuLight must be scalar-packed on every side");
     static_assert(sizeof(GpuLightGrid) == 28, "GpuLightGrid must be scalar-packed on every side");
     static_assert(sizeof(GpuLightCell) == 16, "GpuLightCell must be scalar-packed on every side");

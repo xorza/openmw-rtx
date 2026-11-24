@@ -31,6 +31,10 @@ namespace MWRender
                 .mMovement = Settings::rtx().mLampMovement.get() / 100.0f,
                 .mSizeVariation = Settings::rtx().mLampBreathing.get() / 100.0f,
             },
+            .mInteriorWindowSunlight = Settings::rtx().mInteriorWindowSunlight,
+            .mInteriorSunlightStrength = Settings::rtx().mInteriorSunlightStrength.get() / 100.0f,
+            .mInteriorWindowSkylight = Settings::rtx().mInteriorWindowSkylight.get() / 100.0f,
+            .mInteriorWindowGodrays = Settings::rtx().mInteriorWindowGodrays.get() / 100.0f,
             .mDistantLandCells = Settings::rtx().mDistantLandCells,
             .mViewingDistance = Settings::camera().mViewingDistance,
             .mObjectPaging = Settings::terrain().mObjectPaging,
@@ -56,6 +60,12 @@ namespace MWRender
         if (values.mBounceRays < 1 || std::cmp_greater(values.mBounceRays, Rtx::Shaders::MAX_BOUNCE_RAYS))
             throw Rtx::InputError(
                 std::format("{} bounce rays is outside one to {}", values.mBounceRays, Rtx::Shaders::MAX_BOUNCE_RAYS));
+        if (!(values.mInteriorSunlightStrength >= 0.0f && values.mInteriorSunlightStrength <= 30.0f))
+            throw Rtx::InputError("interior sunlight strength must be finite and between zero and 30.0");
+        if (!(values.mInteriorWindowSkylight >= 0.0f && values.mInteriorWindowSkylight <= 30.0f))
+            throw Rtx::InputError("interior window skylight must be finite and between zero and 30.0");
+        if (!(values.mInteriorWindowGodrays >= 0.0f && values.mInteriorWindowGodrays <= 3.0f))
+            throw Rtx::InputError("interior window godrays must be finite and between zero and 3.0");
         assert(values.mUpscale != Rtx::Upscale::Off && "no upscaler named as a mode");
 
         return RtxSettings{
@@ -63,6 +73,10 @@ namespace MWRender
             .mUpscaler = values.mUpscaler,
             .mIndirectLighting = values.mIndirectLighting,
             .mBounceRays = static_cast<std::uint32_t>(values.mBounceRays),
+            .mInteriorWindowSunlight = values.mInteriorWindowSunlight,
+            .mInteriorSunlightStrength = values.mInteriorSunlightStrength,
+            .mInteriorWindowSkylight = values.mInteriorWindowSkylight,
+            .mInteriorWindowGodrays = values.mInteriorWindowGodrays,
             .mMirror = {
                 .mReach = { .mCells = values.mDistantLandCells, .mViewingDistance = values.mViewingDistance },
                 .mLamps = values.mLamps,
@@ -71,6 +85,7 @@ namespace MWRender
                 .mGroundcoverReach = values.mGroundcover ? values.mGroundcoverDistance : 0.0f,
                 .mGroundcoverDensity = values.mGroundcoverDensity,
                 .mGroundcoverLampLit = values.mGroundcoverPointLighting,
+                .mInteriorWindowSunlight = values.mInteriorWindowSunlight,
             },
             .mAnisotropy = static_cast<std::uint32_t>(std::max(values.mAnisotropy, 1)),
             .mGamma = values.mGamma,

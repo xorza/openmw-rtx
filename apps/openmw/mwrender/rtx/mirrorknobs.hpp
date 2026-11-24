@@ -37,5 +37,9 @@ namespace MWRender
         /// Whether each mesh and mask is digested as it arrives (`Rtx::SceneDesc::keepDigests`): a harness run's that
         /// hashes or describes the scene, and never the game's, which pays nothing for a digest nobody reads.
         bool mDigests = false;
+
+        /// `[RTX] interior window sunlight`: whether interior `NightDaySwitch` windows become
+        /// sky/sun portals and suppress hardcoded geometric sunray cones.
+        bool mInteriorWindowSunlight = true;
     };
 }

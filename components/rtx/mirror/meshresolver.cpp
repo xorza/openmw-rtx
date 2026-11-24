@@ -172,6 +172,37 @@ namespace Rtx
         return mesh;
     }
 
+    bool MeshResolver::readPortalGeometry(const osg::Drawable& drawable, const DrawableRead& read,
+        const std::span<osg::Node* const> path, const MeshIndex mesh)
+    {
+        if (mesh == sNoRow)
+            return false;
+        if (mScene.meshes().hasPortalGeometry(mesh))
+            return true;
+
+        if (mScene.meshes().hasArrival(mesh))
+        {
+            const MeshGeometry arrival = mScene.meshes().getArrival(mesh);
+            if (!arrival.mPositions.empty() && arrival.mIndices.size() >= 3)
+            {
+                mScene.meshes().setPortalGeometry(mesh, arrival.mPositions, arrival.mIndices);
+                return true;
+            }
+        }
+
+        const osg::Node* const model = modelOf(path);
+        const Crash::NoteScope noted("reading portal geometry \"{}\" of the model \"{}\"", drawable.getName(),
+            model != nullptr ? modelNameOf(*model) : std::string_view());
+        MeshReading reading;
+        const Result<MeshRead, std::string> readMesh = mReader.read(mContent, read, model, reading);
+        if (!readMesh.isOk() || readMesh.value() != MeshRead::Triangles || reading.mArrays.mPositions.empty()
+            || reading.mArrays.mIndices.size() < 3)
+            return false;
+
+        mScene.meshes().setPortalGeometry(mesh, reading.mArrays.mPositions, reading.mArrays.mIndices);
+        return true;
+    }
+
     const osg::Referenced* MeshResolver::deformerKeyOf(const DrawableRead& read)
     {
         switch (read.mDeform)

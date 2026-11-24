@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
@@ -14,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include <osg/BoundingBox>
 #include <osg/Geometry>
 #include <osg/Image>
 #include <osg/Matrixd>
@@ -64,9 +66,12 @@
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/deformertable.hpp>
+#include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/meshtable.hpp>
 #include <components/rtx/scene/ripple.hpp>
+#include <components/rtx/shaders/look.h>
+#include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/unrefqueue.hpp>
 #include <components/terrain/storage.hpp>
 #include <components/terrain/world.hpp>
@@ -76,6 +81,7 @@
 
 #include "classmasks.hpp"
 #include "mirrorknobs.hpp"
+#include "skyreader.hpp"
 #include "tracedgroundcover.hpp"
 #include "vfsstamps.hpp"
 
@@ -440,6 +446,8 @@ namespace MWRender
         // The world's clock and not this renderer's, or the controllers would run while the game
         // was paused.
         mExtractor.setLampSettings(mKnobs.mLamps);
+        mExtractor.setInteriorWindowPortals(
+            frame.mWorld.mLocation == Location::Interior && mKnobs.mInteriorWindowSunlight);
         mExtractor.setSimulationTime(
             frame.mWhen.getSimulationTime(), frame.mPaused ? 0.0 : static_cast<double>(frame.mDeltaTime));
 
@@ -528,6 +536,132 @@ namespace MWRender
     {
         for (const Rtx::RippleImpulse& impulse : impulses)
             mScene.addRipple(impulse);
+    }
+
+    void WorldMirror::addWindowPortalLights(const WindowPortalLighting& lighting)
+    {
+        if (!lighting.mActive || mScene.placements().getCounts().mWindowPortals == 0)
+            return;
+
+        struct WindowCluster
+        {
+            osg::BoundingBoxf mBounds;
+            osg::Vec3f mCentroidSum;
+            osg::Vec3f mNormalSum;
+            float mArea = 0.0f;
+        };
+
+        std::vector<WindowCluster> clusters;
+        constexpr std::size_t maxClusters = 64;
+        constexpr float joinMargin = 64.0f;
+
+        const Rtx::MeshTable& meshes = mScene.meshes();
+        mScene.placements().forEachPlaced([&](Rtx::PlacementIndex, const Rtx::PlacementRow& row) {
+            if (!row.mInstance.mWindowPortal)
+                return;
+
+            const Rtx::MeshTable::PortalGeometry* geom = meshes.getPortalGeometry(row.mInstance.mMesh);
+            if (geom == nullptr || geom->mPositions.empty() || geom->mIndices.size() < 3)
+                return;
+
+            const std::span<const osg::Vec3f> positions = geom->mPositions;
+            const std::span<const std::uint32_t> indices = geom->mIndices;
+
+            const osg::Matrixf& xf = row.mInstance.mTransform;
+            const osg::Vec3f row0(xf(0, 0), xf(0, 1), xf(0, 2));
+            const osg::Vec3f row1(xf(1, 0), xf(1, 1), xf(1, 2));
+            const osg::Vec3f row2(xf(2, 0), xf(2, 1), xf(2, 2));
+            const float det = (row0 ^ row1) * row2;
+            const bool flip = (det < 0.0f) != row.mInstance.mClockwise;
+
+            for (std::size_t i = 0; i + 2 < indices.size(); i += 3)
+            {
+                const std::uint32_t i0 = indices[i];
+                const std::uint32_t i1 = indices[i + 1];
+                const std::uint32_t i2 = indices[i + 2];
+                if (i0 >= positions.size() || i1 >= positions.size() || i2 >= positions.size())
+                    continue;
+
+                const osg::Vec3f p0 = positions[i0] * xf;
+                const osg::Vec3f p1 = positions[i1] * xf;
+                const osg::Vec3f p2 = positions[i2] * xf;
+                osg::Vec3f cross = (p1 - p0) ^ (p2 - p0);
+                if (flip)
+                    cross = -cross;
+
+                const float len = cross.length();
+                if (!(len > 1e-3f))
+                    continue;
+
+                const float area = 0.5f * len;
+                const osg::Vec3f n = cross / len;
+                const osg::Vec3f c = (p0 + p1 + p2) * (1.0f / 3.0f);
+
+                WindowCluster* joined = nullptr;
+                for (WindowCluster& cluster : clusters)
+                {
+                    if ((n * cluster.mNormalSum) > 0.7f * cluster.mNormalSum.length()
+                        && c.x() >= cluster.mBounds.xMin() - joinMargin && c.x() <= cluster.mBounds.xMax() + joinMargin
+                        && c.y() >= cluster.mBounds.yMin() - joinMargin && c.y() <= cluster.mBounds.yMax() + joinMargin
+                        && c.z() >= cluster.mBounds.zMin() - joinMargin && c.z() <= cluster.mBounds.zMax() + joinMargin)
+                    {
+                        joined = &cluster;
+                        break;
+                    }
+                }
+
+                if (joined != nullptr)
+                {
+                    joined->mBounds.expandBy(p0);
+                    joined->mBounds.expandBy(p1);
+                    joined->mBounds.expandBy(p2);
+                    joined->mCentroidSum += c * area;
+                    joined->mNormalSum += n * area;
+                    joined->mArea += area;
+                }
+                else if (clusters.size() < maxClusters)
+                {
+                    osg::BoundingBoxf bounds;
+                    bounds.expandBy(p0);
+                    bounds.expandBy(p1);
+                    bounds.expandBy(p2);
+                    clusters.push_back(WindowCluster{
+                        .mBounds = bounds,
+                        .mCentroidSum = c * area,
+                        .mNormalSum = n * area,
+                        .mArea = area,
+                    });
+                }
+            }
+        });
+
+        for (const WindowCluster& cluster : clusters)
+        {
+            if (!(cluster.mArea > 16.0f))
+                continue;
+            const float nLen = cluster.mNormalSum.length();
+            if (!(nLen > 1e-4f))
+                continue;
+
+            const osg::Vec3f normal = cluster.mNormalSum / nLen;
+            const osg::Vec3f center = cluster.mCentroidSum / cluster.mArea;
+            const float clampedArea = std::clamp(cluster.mArea, 600.0f, 36000.0f);
+            const float radius = std::clamp(std::sqrt(clampedArea / Rtx::Shaders::PI), 22.0f, 96.0f);
+            const float sunOnWindow = std::max(0.0f, -(normal * lighting.mSunDirection));
+            const osg::Vec3f radiance = lighting.mSkyScatter + lighting.mSunScatter * sunOnWindow;
+            if (!(radiance.x() > 1e-4f || radiance.y() > 1e-4f || radiance.z() > 1e-4f))
+                continue;
+
+            mScene.addLight(Rtx::Light{
+                .mPosition = center + normal * 18.0f,
+                .mIntensity = radiance * clampedArea,
+                .mReach = std::clamp(radius * 40.0f, 1200.0f, 2600.0f),
+                .mSourceRadius = radius * 0.75f,
+                .mClearance = 14.0f,
+                .mTraits
+                = Rtx::Shaders::lightTraits(false, Rtx::Shaders::MASK_EVERY_CLASS) | Rtx::Shaders::LIGHT_WINDOW,
+            });
+        }
     }
 
     Rtx::SceneUpload WorldMirror::hand(

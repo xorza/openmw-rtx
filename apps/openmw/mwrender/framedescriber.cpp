@@ -12,6 +12,7 @@
 #include <apps/openmw/mwworld/datetimemanager.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/timestamp.hpp>
+#include <components/esm/stringrefid.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/settings/values.hpp>
 
@@ -38,6 +39,18 @@ namespace MWRender
 
     namespace
     {
+        FramePlace placeOf(const MWWorld::CellStore& cell)
+        {
+            FramePlace place = MWRender::placeOf(*cell.getCell());
+            if (place.mLocation == Location::Interior)
+            {
+                const MWWorld::ConstPtr northMarker = cell.searchConst(ESM::RefId::stringRefId("northmarker"));
+                if (!northMarker.isEmpty())
+                    place.mNorthMarkerYaw = northMarker.getRefData().getPosition().rot[2];
+            }
+            return place;
+        }
+
         /// Where the world stands: the player's cell, and a room with no facts where the player stands in none, as
         /// in the main menu.
         FramePlace placeOfPlayer()
@@ -45,7 +58,7 @@ namespace MWRender
             const MWWorld::Ptr& player = MWMechanics::getPlayer();
             if (!player.isInCell())
                 return FramePlace{ .mLocation = Location::Interior, .mRoom = std::nullopt };
-            return placeOf(*player.getCell()->getCell());
+            return placeOf(*player.getCell());
         }
     }
 
@@ -77,6 +90,7 @@ namespace MWRender
         // `configureAmbient` pointed.
         described.mLocation = place.mLocation;
         described.mRoom = place.mRoom;
+        described.mNorthMarkerYaw = place.mNorthMarkerYaw;
 
         described.mWater = mWater;
         described.mUnderwater = mWater.isUnderwater(sources.mEyePosition);
@@ -134,7 +148,7 @@ namespace MWRender
     const SceneFrame& FrameDescriber::describeStill(const FrameSources& sources, const MWWorld::CellStore& destination)
     {
         assert(!mDescribed && "a still frame described while the frame described spans the jumps");
-        mWorld = describeWorld(sources, placeOf(*destination.getCell()));
+        mWorld = describeWorld(sources, placeOf(destination));
         mEye = sources.mEye;
         mEye.mProjectionMatrix = mProjection;
         mEye.mProjectionShift = mProjectionShift;

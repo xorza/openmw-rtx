@@ -9,6 +9,14 @@
 #include "look.h"
 #include "shared/medium.h"
 #include "scene.h"
+#include "bindings.glsl"
+
+/// Active depth reach of the froxel volume: tightened to room scale when interior window
+/// sunlight is active so slices keep precision across 50-600 unit interior rays.
+float fogReach()
+{
+    return frame.mInteriorSun != 0u ? INTERIOR_FOG_REACH : FOG_REACH;
+}
 
 /// Where along the ray the slice ending at `fraction` of the way through reaches.
 ///
@@ -24,7 +32,8 @@ float fogDepth(float fraction)
 /// reach. What a reader hands the sampler as the volume's depth coordinate.
 float fogDepthInverse(float distance)
 {
-    return sqrt(min(distance, FOG_REACH) / FOG_REACH);
+    const float maxReach = fogReach();
+    return sqrt(min(distance, maxReach) / maxReach);
 }
 
 /// Where a pixel stands across the volume, from nought to one over the image's columns.
@@ -47,12 +56,12 @@ vec2 fogVolumeAcross(vec2 pixel, uvec2 columns)
 /// is filled before anything has been traced.
 float froxelNear(uint slice)
 {
-    return fogDepth(float(slice) / float(FOG_VOLUME_SLICES)) * FOG_REACH;
+    return fogDepth(float(slice) / float(FOG_VOLUME_SLICES)) * fogReach();
 }
 
 float froxelFar(uint slice)
 {
-    return fogDepth(float(slice + 1u) / float(FOG_VOLUME_SLICES)) * FOG_REACH;
+    return fogDepth(float(slice + 1u) / float(FOG_VOLUME_SLICES)) * fogReach();
 }
 
 /// How thick the grid is where a point `along` the ray stands, in world units: the stride of the slice that
@@ -64,7 +73,7 @@ float froxelFar(uint slice)
 /// camera.
 float froxelStrideAt(float along)
 {
-    return 2.0 * sqrt(along * FOG_REACH) / float(FOG_VOLUME_SLICES);
+    return 2.0 * sqrt(along * fogReach()) / float(FOG_VOLUME_SLICES);
 }
 
 /// Where the slice stands, as the one point that answers for the whole of it.
@@ -75,7 +84,7 @@ float froxelStrideAt(float along)
 /// edges would have a slice near the eye ask for a fifth of a texel past its own centre.
 float froxelMiddle(uint slice)
 {
-    return fogDepth((float(slice) + 0.5) / float(FOG_VOLUME_SLICES)) * FOG_REACH;
+    return fogDepth((float(slice) + 0.5) / float(FOG_VOLUME_SLICES)) * fogReach();
 }
 
 /// What the scatter pass measures at one froxel, as `fogscatter.rgen` packs it into two images and

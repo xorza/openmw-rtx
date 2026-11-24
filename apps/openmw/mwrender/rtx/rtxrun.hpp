@@ -46,6 +46,12 @@ namespace MWRender
         /// harness, because the registry is the player's and a knob of a run travels with the run.
         MirrorKnobs mMirror{};
 
+        /// Interior window sky/sun portals and volumetric dust shafts (`[RTX] interior *`).
+        bool mInteriorWindowSunlight = true;
+        float mInteriorSunlightStrength = 1.0f;
+        float mInteriorWindowSkylight = 1.0f;
+        float mInteriorWindowGodrays = 1.0f;
+
         /// What draws the frames.
         RtxBackend mBackend = RtxBackend::Vulkan;
 

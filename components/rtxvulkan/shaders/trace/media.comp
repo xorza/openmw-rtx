@@ -81,8 +81,7 @@ void main()
     [[dont_unroll]] while (column.mStep != RUN_IDLE && turns < WALK_TURNS)
     {
         ++turns;
-        const RayAnswer answered = ask.mTraced ? RayAnswer(true, queryScene(ask.mQuery))
-                                               : RayAnswer(false, unansweredScene());
+        const RayAnswer answered = answerAsked(ask);
         ask = noRay();
         if (skyPassage.mStep != RUN_IDLE)
             stepSkyPassage(skyPassage, answered, ask);
@@ -113,7 +112,7 @@ void main()
         {
             water = waterRunOf(eye.mAlong, cone, waterFieldOf(pixel));
             const PlacedHit at = placedHitOf(eyeMet, eyeRay.mQuery);
-            stepWater(water, column, at, RayAnswer(false, unansweredScene()), ask, WATER_MARCHES);
+            stepWater(water, column, at, RayAnswer(false, false, unansweredScene()), ask, WATER_MARCHES);
         }
     }
 
@@ -122,9 +121,9 @@ void main()
     [[dont_unroll]] while (water.mStep != RUN_IDLE && column.mStep == RUN_IDLE && turns < WALK_TURNS)
     {
         ++turns;
-        RayAnswer answered = RayAnswer(false, unansweredScene());
+        RayAnswer answered = RayAnswer(false, false, unansweredScene());
         if (ask.mTraced)
-            answered = RayAnswer(true, queryScene(ask.mQuery));
+            answered = RayAnswer(true, ask.mPortal, queryScene(ask.mQuery));
         ask = noRay();
         stepWater(water, column, reachOf(answered.mMet), answered, ask, WATER_MARCHES);
     }
@@ -136,8 +135,7 @@ void main()
     [[dont_unroll]] while (column.mStep != RUN_IDLE && turns < WALK_TURNS)
     {
         ++turns;
-        const RayAnswer answered = ask.mTraced ? RayAnswer(true, queryScene(ask.mQuery))
-                                               : RayAnswer(false, unansweredScene());
+        const RayAnswer answered = answerAsked(ask);
         ask = noRay();
         if (skyPassage.mStep != RUN_IDLE)
             stepSkyPassage(skyPassage, answered, ask);

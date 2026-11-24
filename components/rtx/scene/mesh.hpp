@@ -141,6 +141,10 @@ namespace Rtx
         /// (`SceneUtil::LampBody`, `givesLight`).
         bool mLampBody = false;
 
+        /// Whether this is an interior window glass pane under `NightDaySwitch` acting as a sky/sun
+        /// portal (`INSTANCE_WINDOW_PORTAL`).
+        bool mWindowPortal = false;
+
         /// Who stood it, which is who may move it or drop it. The walk's unless the ring says so.
         Stander mStander = Stander::Walk;
 
@@ -312,5 +316,8 @@ namespace Rtx
         /// and so whether the trace needs the march through it at all (`HAS_RELIEF`). None in a scene
         /// with no `_nh` map.
         std::uint32_t mRelief = 0;
+
+        /// How many placements are marked as interior window portals (`MeshInstance::mWindowPortal`).
+        std::uint32_t mWindowPortals = 0;
     };
 }

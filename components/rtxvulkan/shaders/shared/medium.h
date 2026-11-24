@@ -102,6 +102,22 @@ namespace Rtx::Shaders
         return column;
     }
 
+    /// Variant of `fogThrough` allowing the sun's volumetric transport (`mSunSource`) to scatter with its own
+    /// `sunExtinction` coefficient independently of ambient fog `extinction`.
+    RTX_SHADER FogColumn fogThroughSplit(
+        FogColumn column, FogSlice slice, float length, float extinction, float sunExtinction)
+    {
+        const float depth = slice.mDensity * extinction * length;
+        const float share = column.mTransmittance * mediumKept(depth);
+        const float carried = share * length * extinction;
+        const float sunCarried = share * length * sunExtinction;
+
+        column.mScattered += slice.mSource * carried;
+        column.mSunward += sunCarried * slice.mSunSource;
+        column.mTransmittance -= share * depth;
+        return column;
+    }
+
     /// What a stretch of water `path` long along `direction` gathers of a light arriving `slant` units
     /// of water per unit of depth, as a share of the stretch: `exp(-o k h)`'s factor along the ray,
     /// `(1 - exp(-o g L)) / g` with `g = 1 - k d.z`, in `mediumKept`'s form, which holds its digits

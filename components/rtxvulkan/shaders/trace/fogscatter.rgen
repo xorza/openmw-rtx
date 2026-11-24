@@ -273,8 +273,18 @@ void main()
     // **The sun without its irradiance and without its phase**, which is the whole of what the second image
     // is for: both are functions of the direction alone, so they factor out of the integral exactly and the
     // trace puts them back at the pixel's own angle rather than the column's.
-    float transport = sunUp() ? sunInAir(position, visible) : 0.0;
-    float sunSource = density * transport;
+    float transport = 0.0;
+    float sunSource = 0.0;
+    if (frame.mInteriorSun != 0u)
+    {
+        transport = sunUp() ? visible : 0.0;
+        sunSource = interiorDustAt(position, froxelStrideAt(along)) * transport;
+    }
+    else
+    {
+        transport = sunUp() ? sunInAir(position, visible) : 0.0;
+        sunSource = density * transport;
+    }
 
     // **The lamps' seeing and the ambient's ride beside the sun's transport**, because the three are
     // filtered alike and for one reason: each is what a ray found, nought or one at an edge the grid cannot

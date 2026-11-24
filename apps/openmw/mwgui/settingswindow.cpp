@@ -284,9 +284,13 @@ namespace MWGui
         mRayTracingBounceRays->setUserString("SettingMax", MyGUI::utility::toString(mostRays));
         mRayTracingBounceRays->setScrollRange(static_cast<std::size_t>(mostRays));
 
+        getWidget(mRayTracingInteriorSunlightStrength, "RayTracingInteriorSunlightStrengthSlider");
+        getWidget(mRayTracingInteriorWindowSkylight, "RayTracingInteriorWindowSkylightSlider");
+        getWidget(mRayTracingInteriorWindowGodrays, "RayTracingInteriorWindowGodraysSlider");
+
         MyGUI::ScrollView* rayTracingScroll = nullptr;
         getWidget(rayTracingScroll, "RayTracingScroll");
-        rayTracingScroll->setCanvasSize(420, 572);
+        rayTracingScroll->setCanvasSize(420, 756);
         rayTracingScroll->setVisibleHScroll(false);
 
         configureWidgets(mMainWidget, true);
@@ -824,6 +828,17 @@ namespace MWGui
         mRayTracingBounceRays->setEnabled(traced);
         mRayTracingBounceRays->setAlpha(traced ? 1.0f : 0.5f);
         getSliderLabel(mRayTracingBounceRays)->setAlpha(traced ? 1.0f : 0.5f);
+
+        const bool windowSun = Settings::rtx().mInteriorWindowSunlight;
+        mRayTracingInteriorSunlightStrength->setEnabled(windowSun);
+        mRayTracingInteriorSunlightStrength->setAlpha(windowSun ? 1.0f : 0.5f);
+        getSliderLabel(mRayTracingInteriorSunlightStrength)->setAlpha(windowSun ? 1.0f : 0.5f);
+        mRayTracingInteriorWindowSkylight->setEnabled(windowSun);
+        mRayTracingInteriorWindowSkylight->setAlpha(windowSun ? 1.0f : 0.5f);
+        getSliderLabel(mRayTracingInteriorWindowSkylight)->setAlpha(windowSun ? 1.0f : 0.5f);
+        mRayTracingInteriorWindowGodrays->setEnabled(windowSun);
+        mRayTracingInteriorWindowGodrays->setAlpha(windowSun ? 1.0f : 0.5f);
+        getSliderLabel(mRayTracingInteriorWindowGodrays)->setAlpha(windowSun ? 1.0f : 0.5f);
     }
 
     void SettingsWindow::layoutControlsBox()

@@ -133,6 +133,15 @@ namespace Rtx
         SceneExtractor(const SceneExtractor&) = delete;
         SceneExtractor& operator=(const SceneExtractor&) = delete;
 
+        void setInteriorWindowPortals(bool enabled)
+        {
+            if (mInteriorWindowPortals == enabled)
+                return;
+            mPhase.expect(Phase::Between, "SceneExtractor::setInteriorWindowPortals");
+            mInteriorWindowPortals = enabled;
+            mFrozen.thawAll(frozenHolders());
+        }
+
         /// Which nodes the walks may descend into, as an `osg` traversal mask: what keeps the mirror out of subtrees
         /// the ray tracer answers for itself, such as the sky's mask, without knowing what a sky is, and out of what
         /// the content hides.
@@ -371,13 +380,16 @@ namespace Rtx
         ///        actor's its flames alone.
         /// @param jumped whether the drawable stands under a node `setJumped` named.
         /// @param lampBody whether the drawable is the model of a light that gives light (`MeshInstance::mLampBody`).
+        /// @param nightDaySwitch whether the drawable stands under a `NightDaySwitch` node.
+        /// @param allowUnlitWindowPortal whether non-emissive opaque `INT-DAY` drawables may fall back
+        ///        to acting as `mWindowPortal` when the `INT-DAY` branch has no emissive pane.
         /// @param path the walk's path to the drawable — `MeshResolver::resolve`.
         ///
         /// Answers whether the placement changes between frames on its own — a particle system, the sea, a mesh that
         /// deforms — which keeps a reference root above it walked.
         bool addDrawable(const osg::Drawable& drawable, std::size_t who, std::span<const Shading> shading,
             const osg::Matrixf& place, InstanceClass what, WalkGlows& glows, bool jumped, bool lampBody,
-            std::span<osg::Node* const> path);
+            bool nightDaySwitch, bool allowUnlitWindowPortal, std::span<osg::Node* const> path);
 
         /// The state set a controller wrote over a node this frame, or null where none writes one:
         /// `MaterialResolver::animate`, which says why a node under one needs none. Applied here rather than left to a
@@ -449,6 +461,7 @@ namespace Rtx
 
         /// See `setJumped`.
         LampSettings mLampSettings;
+        bool mInteriorWindowPortals = false;
         std::span<const std::uint64_t> mJumped;
 
         /// Every effect this walk entered, in the order it entered them. Which of them the walk
