@@ -229,8 +229,7 @@ Lamp lampAt(GpuLight lamp, vec3 position)
 /// off its row when the ray is aimed, so a reservoir whose origin moved aims from where it now is.
 struct Reservoir
 {
-    /// Where the ray this buys leaves from — a shading point lifted toward the lamp held (`liftedToward`), or a
-    /// froxel of the air.
+    /// Where the ray this buys leaves from: a path end's shading point lifted toward the lamp held (`lampLeaving`).
     vec3 mFrom;
 
     /// What the lamp held would deliver there with nothing in the way: `LightCandidate::mRadiance`.
@@ -669,7 +668,8 @@ vec3 darkeningAt(vec3 from, Facing facing, float scale, bool lampLit)
 /// **Of the row and not the reservoir**, which an asker that makes the ray at its turn does not hold through the
 /// traversals before it (`heldLampRay`).
 ///
-/// @param from where the ray leaves from, the reservoir's point as the asker moved it (`Reservoir::mFrom`).
+/// @param from where the ray leaves from: a shading point lifted toward the lamp (`lampLeaving`), or a froxel of
+///        the air.
 /// @param step the step off the triangle that point stands on (`stepOf`), or nought for a point in the air.
 RayAsk lampRowAsk(uint row, vec3 from, vec3 step, vec2 draw, bool nearest)
 {

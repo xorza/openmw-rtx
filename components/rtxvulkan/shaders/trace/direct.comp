@@ -126,8 +126,9 @@ void main()
             RTX_STORE_COUNTED(direct, directAt,
                 vec4(imageLoad(direct, directAt).rgb + light.mRest * imageLoad(stageThroughput, stored).rgb, 1.0))
 
-            Passage skyFirst = openPassage();
-            Passage skyOver = openPassage();
+            // **The sky's legs joined at the turn of the second** (`skyLegsJoined`), so one passage of the sky's stands
+            // through the lamps' traversals and not its two legs.
+            Passage skyPassage = openPassage();
             Passage lampPassage = openPassage();
             Passage listedPassage = openPassage();
             [[dont_unroll]] for (uint turn = 0u; turn < DIRECT_RAYS; ++turn)
@@ -137,27 +138,26 @@ void main()
                 // query each spilled the stage past its registers.
                 RayAsk ask;
                 if (turn == DIRECT_SKY)
-                    ask = skyLegAsk(light.mRays, unitPair(pixel, STREAM_SUN_DISC), false);
+                    ask = skyLegAsk(light.mRays, skyLeaving(light.mRays), unitPair(pixel, STREAM_SUN_DISC), false);
                 else if (turn == DIRECT_SKY_OVER)
-                    ask = skyLegAsk(light.mRays, unitPair(pixel, STREAM_SUN_DISC), true);
+                    ask = skyLegAsk(light.mRays, skyLeaving(light.mRays), unitPair(pixel, STREAM_SUN_DISC), true);
                 else if (turn == DIRECT_LAMP)
-                    ask = heldLampRay(light.mRestLamps, light.mRays.mStep, unitPair(pixel, STREAM_LAMP_DISC));
+                    ask = heldLampRay(light.mRestLamps, light.mRays, unitPair(pixel, STREAM_LAMP_DISC));
                 else
-                    ask = heldLampRay(light.mListedLamps, light.mRays.mStep, unitPair(pixel, STREAM_LAMP_DISC_LISTED));
+                    ask = heldLampRay(light.mListedLamps, light.mRays, unitPair(pixel, STREAM_LAMP_DISC_LISTED));
 
                 const Passage passage = passageAnswered(answerAsked(ask));
                 if (turn == DIRECT_SKY)
-                    skyFirst = passage;
+                    skyPassage = passage;
                 else if (turn == DIRECT_SKY_OVER)
-                    skyOver = passage;
+                    skyPassage = skyLegsJoined(light.mRays, skyLeaving(light.mRays), skyPassage, passage);
                 else if (turn == DIRECT_LAMP)
                     lampPassage = passage;
                 else
                     listedPassage = passage;
             }
 
-            const SeenSolid seen = seenSolidOf(
-                light, pixel, skyLegsJoined(light.mRays, skyFirst, skyOver), lampPassage, listedPassage);
+            const SeenSolid seen = seenSolidOf(light, pixel, skyPassage, lampPassage, listedPassage);
 
             // **Its shadowed sources and its lobe by the layers' share as well**, which no stage lays over them: what
             // the path let through read again here, and not held through the rays.

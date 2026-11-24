@@ -118,10 +118,12 @@ SkyTerm joinedTerms(SkyTerm first, SkyTerm second, float scale)
 /// (`docs/research/2026-11-15-radv-wave-tiers.md`).
 struct GatherRays
 {
-    /// Where the sky's rays leave from, the shaded point lifted toward the drawn source (`liftedToward`), and the step
-    /// off the triangle the point stands on (`stepOf`). A stage's held lamps leave from their reservoirs' points
-    /// (`Reservoir::mFrom`), each lifted toward its lamp; a path end's from this one (`pathEndLightOf`).
-    vec3 mLeaving;
+    /// The shaded point, its lift (`Surface::mLift`) and the step off the triangle it stands on (`stepOf`), which a
+    /// ray toward each source leaves from (`gatherLeaving`). **The lift whole and not a point a source**: the sky's and
+    /// each held lamp's lifted point held through a stage's traversals took `direct` a tier of registers up on AMD's
+    /// drivers (`docs/research/2026-11-24-direct-registers.md`).
+    vec3 mAt;
+    vec3 mLift;
     vec3 mStep;
 
     /// The sky's drawn source (`skySourceAt`), the sun where none was drawn; whether its passage is asked at all;
@@ -134,6 +136,25 @@ struct GatherRays
     /// the tile's.
     uint mSequence;
 };
+
+/// Where a ray of `rays` toward `towards`, of any length, leaves from: the shaded point lifted toward it
+/// (`liftedToward`).
+vec3 gatherLeaving(GatherRays rays, vec3 towards)
+{
+    return liftedToward(rays.mAt, rays.mLift, rays.mStep, towards);
+}
+
+/// Where the sky's rays of `rays` leave from: lifted toward its drawn source.
+vec3 skyLeaving(GatherRays rays)
+{
+    return gatherLeaving(rays, skySourceAt(rays.mSkyPicked).mDirection);
+}
+
+/// Where the ray of `rays` toward the lamp at `row` of the light table leaves from: lifted toward the lamp.
+vec3 lampLeaving(GatherRays rays, uint row)
+{
+    return gatherLeaving(rays, lightAt(row).mPosition - rays.mAt);
+}
 
 /// The *direct* light arriving at a point and turning back out of it: per unit albedo for the diffuse half,
 /// and whole for the specular.
@@ -219,7 +240,7 @@ GatherRun gatherRunOf(uint key, uint lamps, uint path, bool split, bool blue)
     run.mListed = noLamps();
     run.mListedStretch = 1.0;
     run.mFootprint = 0.0;
-    run.mRays = GatherRays(vec3(0.0), vec3(0.0), SKY_SOURCE_SUN, false, false, 0u);
+    run.mRays = GatherRays(vec3(0.0), vec3(0.0), vec3(0.0), SKY_SOURCE_SUN, false, false, 0u);
     return run;
 }
 
@@ -268,9 +289,9 @@ void startGather(inout GatherRun run, Surface surface, Gloss gloss, uvec2 pixel,
     // Only the shadow rays leave from the surface the normals describe (`Surface::mLift`), lifted toward each
     // source by how near it stands to the facet's terminator (`liftedToward`): what a light delivers is weighed
     // at the point shaded, the one the eye sees.
-    const vec3 step = stepOf(surface);
-    run.mRays.mLeaving = position;
-    run.mRays.mStep = step;
+    run.mRays.mAt = position;
+    run.mRays.mLift = surface.mLift;
+    run.mRays.mStep = stepOf(surface);
     run.mRays.mSequence = run.mKey + run.mLamps;
 
     // **The eye's own split hit takes its draws from the tile**, the pick here (`STREAM_SKY_PICK`) and its rays'
@@ -301,13 +322,13 @@ void startGather(inout GatherRun run, Surface surface, Gloss gloss, uvec2 pixel,
         weighLampStrata(listed, kept, state, position, facing, INV_PI, gloss, surface.mLampLit, list);
     else
         weighLamps(kept, state, position, facing, INV_PI, gloss, surface.mLampLit, frame.mLampCandidates);
-    // Each held lamp's row read only where one was held: a picture no lamp lights may have no row.
+    // The held lamp's point where a path end's ray leaves from (`pathEndLightOf`), made here and not there: made
+    // past the sky's terms, it took NVIDIA's landing from 384 bytes of shared memory to 1152. A stage's strata lift
+    // theirs at their turns (`heldLampRay`). Its row read only where one was held: a picture no lamp lights may
+    // have no row.
     kept.mFrom = position;
-    listed.mFrom = position;
     if (kept.mWeight > 0.0)
-        kept.mFrom = liftedToward(position, surface.mLift, step, lightAt(kept.mLamp).mPosition - position);
-    if (listed.mWeight > 0.0)
-        listed.mFrom = liftedToward(position, surface.mLift, step, lightAt(listed.mLamp).mPosition - position);
+        kept.mFrom = lampLeaving(run.mRays, kept.mLamp);
     run.mKept = kept;
     run.mListed = listed;
 
@@ -360,8 +381,6 @@ void startGather(inout GatherRun run, Surface surface, Gloss gloss, uvec2 pixel,
         // The pick's index is the source's id: `pickByWeight` was handed the three in their ids' order.
         run.mRays.mSkyPicked = pick.mIndex;
         run.mRays.mSkyAsked = true;
-        run.mRays.mLeaving
-            = liftedToward(position, surface.mLift, step, skySourceAt(pick.mIndex).mDirection);
         run.mRays.mSkyNearest = split && !drawnAmong(picked.mLight.mWeight, skyWeight);
 
         // **Each source's term whole, as the lamps' unshadowed sum is**: split, every source with a weight
@@ -392,31 +411,33 @@ void startGather(inout GatherRun run, Surface surface, Gloss gloss, uvec2 pixel,
     run.mFootprint = surface.mFootprint;
 }
 
-/// The sky's path to where `rays` leave from, bent at the water (`bentPathAt`).
-BentPath skyBentPath(GatherRays rays)
+/// The sky's path to `from`, where its rays leave, bent at the water (`bentPathAt`).
+BentPath skyBentPath(GatherRays rays, vec3 from)
 {
-    return bentPathAt(rays.mLeaving, sunUnderWater(skySourceAt(rays.mSkyPicked).mDirection));
+    return bentPathAt(from, sunUnderWater(skySourceAt(rays.mSkyPicked).mDirection));
 }
 
-/// A leg of the sky's passage of `rays`, asked at its turn: the first, or the one over the water (`over`), as
-/// `SkyPassageRun` asks them. None where the gather asked no sky.
+/// A leg of the sky's passage of `rays` from `from`, asked at its turn: the first, or the one over the water
+/// (`over`), as `SkyPassageRun` asks them. None where the gather asked no sky.
 ///
+/// @param from where the sky's rays leave: `skyLeaving`, or the one start a path end's rays share
+///        (`PathEndRays::mLeaving`).
 /// @param draw the gather's pair on the sky's disc (`GatherDraws::mSun`).
-RayAsk skyLegAsk(GatherRays rays, vec2 draw, bool over)
+RayAsk skyLegAsk(GatherRays rays, vec3 from, vec2 draw, bool over)
 {
     if (!rays.mSkyAsked)
         return noRay();
 
     const SkyPassageRun passage = skyPassageRunOf(
-        skySourceAt(rays.mSkyPicked), rays.mLeaving, rays.mStep, skyBentPath(rays), draw, rays.mSkyNearest);
+        skySourceAt(rays.mSkyPicked), from, rays.mStep, skyBentPath(rays, from), draw, rays.mSkyNearest);
     return over ? skyPassageOverAsk(passage) : skyPassageFirstAsk(passage);
 }
 
-/// The sky's passage of `rays` once its legs answered `first` and `over`: joined where it is bent at the water
-/// (`joinedPassage`), and the one leg's where it is not.
-Passage skyLegsJoined(GatherRays rays, Passage first, Passage over)
+/// The sky's passage of `rays` from `from` once its legs answered `first` and `over`: joined where it is bent at
+/// the water (`joinedPassage`), and the one leg's where it is not.
+Passage skyLegsJoined(GatherRays rays, vec3 from, Passage first, Passage over)
 {
-    const BentPath bent = skyBentPath(rays);
+    const BentPath bent = skyBentPath(rays, from);
     return rays.mSkyAsked && bent.mDepth > 0.0
         ? joinedPassage(first, over, bent.mPath, skySourceAt(rays.mSkyPicked).mLimb)
         : first;
@@ -667,6 +688,11 @@ struct PathEndRays
     RayAsk mAmbient;
     GatherRays mGather;
     uint mLamp;
+
+    /// **One start for both of a path end's rays**, the sky's and the held lamp's, as a second point held through
+    /// their traversals spilled the landing past its ceiling: the one of the two lifted less (`liftedToward`), so
+    /// neither ray leaves past what stands over its facet, and the lamp's where the sky asks none.
+    vec3 mLeaving;
 };
 
 /// What each of a path end's rays let through (`throughAnswered`): the sky's the product of its
@@ -748,6 +774,7 @@ PathEndLight pathEndLightOf(Surface surface, uvec2 pixel, uint lamps, uint indir
     GatherRun gather = gatherRunOf(key, lamps, path, false, false);
     light.mRays.mGather = gather.mRays;
     light.mRays.mLamp = LAMP_LIST_NONE;
+    light.mRays.mLeaving = vec3(0.0);
     float rated = 1.0;
     if (path == PATH_INDIRECT && skyLights())
     {
@@ -780,13 +807,11 @@ PathEndLight pathEndLightOf(Surface surface, uvec2 pixel, uint lamps, uint indir
     light.mLampSpecular = (gloss.mGlossy ? kept.mSpecular * held : vec3(0.0)) * rated;
     light.mRays.mLamp = kept.mWeight > 0.0 ? kept.mLamp : LAMP_LIST_NONE;
 
-    // **One start for both of a path end's rays**, the sky's and the held lamp's, as a second point held through
-    // their traversals spilled the landing past its ceiling: the one of the two lifted less (`liftedToward`), so
-    // neither ray leaves past what stands over its facet, and the lamp's where the sky asks none.
     const vec3 position = surface.mPosition;
-    const vec3 sky = gather.mRays.mLeaving;
-    if (kept.mWeight > 0.0 && (!gather.mRays.mSkyAsked || distance(kept.mFrom, position) < distance(sky, position)))
-        light.mRays.mGather.mLeaving = kept.mFrom;
+    const vec3 sky = gather.mRays.mSkyAsked ? skyLeaving(gather.mRays) : position;
+    const bool lamped
+        = kept.mWeight > 0.0 && (!gather.mRays.mSkyAsked || distance(kept.mFrom, position) < distance(sky, position));
+    light.mRays.mLeaving = lamped ? kept.mFrom : sky;
     return light;
 }
 
@@ -807,11 +832,11 @@ PathEndSeen pathEndSeenOf(PathEndRays rays)
         if (turn == 0u)
             ask = rays.mAmbient;
         else if (turn == 1u)
-            ask = skyLegAsk(rays.mGather, draws.mSun, false);
+            ask = skyLegAsk(rays.mGather, rays.mLeaving, draws.mSun, false);
         else if (turn == 2u)
-            ask = skyLegAsk(rays.mGather, draws.mSun, true);
+            ask = skyLegAsk(rays.mGather, rays.mLeaving, draws.mSun, true);
         else if (rays.mLamp != LAMP_LIST_NONE)
-            ask = lampRowAsk(rays.mLamp, rays.mGather.mLeaving, rays.mGather.mStep, draws.mLamp, false);
+            ask = lampRowAsk(rays.mLamp, rays.mLeaving, rays.mGather.mStep, draws.mLamp, false);
         else
             ask = noRay();
         const float through = throughAnswered(answerAsked(ask));
@@ -1018,20 +1043,17 @@ SolidLook solidLookOf(Surface surface, Gloss gloss)
 /// ray's answer needs**, since they stand through every traversal of the direct stage: how much the stratum's lamps
 /// add as though the held lamp's ray got through, as a luminance, which its ray is weighed by in the lamps'
 /// fraction (`shadowedLamps`); the held lamp's lobe per unit of `specularModulation`, its share in; what the
-/// penumbra is made of — the held lamp's radius stretched as a penumbra on this surface stretches toward it, its
-/// distance, and whether its bit is drawn among its stratum's lamps (`drawnAmong`); and the held lamp's row of the
-/// light table, `LAMP_LIST_NONE` where it held none, which the ray is asked of at its turn (`heldLampRay`).
+/// penumbra is made of — the held lamp's radius stretched as a penumbra on this surface stretches toward it, and
+/// whether its bit is drawn among its stratum's lamps (`drawnAmong`), its distance measured past the rays
+/// (`heldLampDistance`); and the held lamp's row of the light table, `LAMP_LIST_NONE` where it held none, which the ray
+/// is asked of at its turn (`heldLampRay`).
 struct HeldLamps
 {
     float mWeight;
     vec3 mLobe;
     float mStretchedRadius;
-    float mDistance;
     bool mDrawn;
     uint mRow;
-
-    /// Where the held lamp's ray leaves from: its reservoir's point (`Reservoir::mFrom`).
-    vec3 mLeaving;
 };
 
 /// The stratum `kept` weighed on `surface` and its `gloss`: its unshadowed light less its share of what the
@@ -1049,16 +1071,13 @@ HeldLamps heldLampsOf(Reservoir kept, float stretch, vec3 darkening, vec3 unshad
     vec3 lobe = gloss.mGlossy ? kept.mSpecular * heldShare(kept) / specularModulation(gloss) : vec3(0.0);
     lamps.mDrawn = drawnAmong(kept.mWeight, kept.mTotal);
     lamps.mRow = kept.mWeight > 0.0 ? kept.mLamp : LAMP_LIST_NONE;
-    lamps.mLeaving = kept.mFrom;
 
     // The held lamp's row, read only where one was held: a picture no lamp lights may have no row.
     lamps.mStretchedRadius = 0.0;
-    lamps.mDistance = 0.0;
     if (kept.mWeight > 0.0)
     {
         const GpuLight lamp = lightAt(kept.mLamp);
         lamps.mStretchedRadius = lamp.mSourceRadius * stretch;
-        lamps.mDistance = length(lamp.mPosition - kept.mFrom);
 
         // **The relief's own shadow on the stratum's light** (`reliefLit`), whole and not drawn into a bit, so
         // the shadow filter blurs no shadow the size of a texel: the held lamp's over every lamp of its stratum,
@@ -1077,22 +1096,33 @@ HeldLamps heldLampsOf(Reservoir kept, float stretch, vec3 darkening, vec3 unshad
     return lamps;
 }
 
-/// The shadow ray of a stratum's held lamp, from where it leaves (`HeldLamps::mLeaving`) off the triangle `step` stands
-/// for, aimed by the eye's draw `draw` of the tile (`STREAM_LAMP_DISC`, `STREAM_LAMP_DISC_LISTED`): the nearest
-/// occluder's where its lamp carried all of its stratum's light, which the penumbra is made of. None where it held no
-/// lamp.
-RayAsk heldLampRay(HeldLamps lamps, vec3 step, vec2 draw)
+/// The shadow ray of a stratum's held lamp, leaving `rays`' point lifted toward the lamp (`lampLeaving`), aimed by
+/// the eye's draw `draw` of the tile (`STREAM_LAMP_DISC`, `STREAM_LAMP_DISC_LISTED`): the nearest occluder's where its
+/// lamp carried all of its stratum's light, which the penumbra is made of. None where it held no lamp.
+RayAsk heldLampRay(HeldLamps lamps, GatherRays rays, vec2 draw)
 {
-    return lamps.mRow != LAMP_LIST_NONE ? lampRowAsk(lamps.mRow, lamps.mLeaving, step, draw, !lamps.mDrawn) : noRay();
+    if (lamps.mRow == LAMP_LIST_NONE)
+        return noRay();
+
+    return lampRowAsk(lamps.mRow, lampLeaving(rays, lamps.mRow), rays.mStep, draw, !lamps.mDrawn);
+}
+
+/// How far the held lamp of a stratum that holds one stands from where its ray leaves (`heldLampRay`), which its
+/// penumbra is made of. **Measured past the rays and not held through them**, as the ray's start is made at its
+/// turn: the two strata's distances held through the traversals stood in `direct` with the rest
+/// (`docs/research/2026-11-24-direct-registers.md`).
+float heldLampDistance(HeldLamps lamps, GatherRays rays)
+{
+    return length(lightAt(lamps.mRow).mPosition - lampLeaving(rays, lamps.mRow));
 }
 
 /// A stratum's penumbra once its ray answered `passage`, in `footprint`s, as `seenSolidOf` counts each: the whole
 /// reach where its bit was drawn among its lamps or its ray crossed a translucent surface, and clear where it
 /// lights nothing.
-float strataPenumbra(HeldLamps lamps, Passage passage, float footprint)
+float strataPenumbra(HeldLamps lamps, GatherRays rays, Passage passage, float footprint)
 {
     const float radius = lamps.mRow != LAMP_LIST_NONE
-        ? lampPenumbra(lamps.mStretchedRadius, lamps.mDistance, passage.mOccluder)
+        ? lampPenumbra(lamps.mStretchedRadius, heldLampDistance(lamps, rays), passage.mOccluder)
         : SHADOW_PENUMBRA_CLEAR;
     return lamps.mWeight > 0.0 ? penumbraIn(lamps.mDrawn || passage.mThrough < 1.0, radius, footprint)
                                : SHADOW_PENUMBRA_CLEAR;
@@ -1109,14 +1139,15 @@ float widerPenumbra(float one, float other)
 /// stratum's ray's open half times what its translucent surfaces let through, by its stratum's share of the light.
 /// The ratio estimator a stratum, summed, which is an estimate of the same share of the same light whatever the list
 /// put in each stratum (`CHANNEL_LAMPED_SHARE`), and all of it where no lamp lights the surface.
-Shadowed shadowedLamps(
-    vec3 light, HeldLamps rest, Passage restPassage, HeldLamps listed, Passage listedPassage, float footprint)
+Shadowed shadowedLamps(vec3 light, HeldLamps rest, Passage restPassage, HeldLamps listed, Passage listedPassage,
+    GatherRays rays, float footprint)
 {
     const float whole = rest.mWeight + listed.mWeight;
     const float seen = rest.mWeight * (restPassage.mOpen * restPassage.mThrough)
         + listed.mWeight * (listedPassage.mOpen * listedPassage.mThrough);
     return Shadowed(light, whole > 0.0 ? min(seen / whole, 1.0) : 1.0,
-        widerPenumbra(strataPenumbra(rest, restPassage, footprint), strataPenumbra(listed, listedPassage, footprint)));
+        widerPenumbra(strataPenumbra(rest, rays, restPassage, footprint),
+            strataPenumbra(listed, rays, listedPassage, footprint)));
 }
 
 /// The row of the lamp a stratum's ray reached, as the lists' pass takes it (`STAGE_LAMPS_SEEN`), or `LAMP_LIST_NONE`
@@ -1231,7 +1262,7 @@ SeenSolid seenSolidOf(SolidLight light, uvec2 pixel, Passage sky, Passage lamp, 
     seen.mLight = SplitLight(light.mRest,
         Shadowed(light.mSky, sky.mOpen * (skyPassed ? 1.0 : 0.0),
             penumbraIn(light.mSkyDrawn || sky.mThrough < 1.0, skyRadius, light.mFootprint)),
-        shadowedLamps(light.mLamps, light.mRestLamps, lamp, light.mListedLamps, listed, light.mFootprint));
+        shadowedLamps(light.mLamps, light.mRestLamps, lamp, light.mListedLamps, listed, light.mRays, light.mFootprint));
     seen.mSpecular = lampLobe(light.mRestLamps, lamp) + lampLobe(light.mListedLamps, listed);
     seen.mRoughness = light.mRoughness;
     return seen;
