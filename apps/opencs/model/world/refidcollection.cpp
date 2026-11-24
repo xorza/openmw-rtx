@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <memory>
 #include <stdexcept>
-#include <string_view>
 
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadalch.hpp>

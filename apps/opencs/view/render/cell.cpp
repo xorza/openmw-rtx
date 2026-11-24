@@ -195,7 +195,7 @@ CSVRender::Cell::Cell(CSMDoc::Document& document, ObjectMarker* selectionMarker,
 
     if (!mDeleted)
     {
-        CSMWorld::IdTable& references = mData.getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_References);
+        auto& references = mData.getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_References);
 
         std::int32_t rows = references.rowCount();
 
@@ -206,7 +206,7 @@ CSVRender::Cell::Cell(CSMDoc::Document& document, ObjectMarker* selectionMarker,
             std::int32_t landIndex = document.getData().getLand().searchId(mId);
             if (landIndex == -1)
             {
-                CSMWorld::IdTable& landTable = mData.getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Land);
+                auto& landTable = mData.getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Land);
                 document.getUndoStack().push(new CSMWorld::CreateCommand(landTable, mId.getRefIdString()));
             }
             updateLand();
@@ -260,7 +260,7 @@ bool CSVRender::Cell::referenceDataChanged(const QModelIndex& topLeft, const QMo
     if (mDeleted)
         return false;
 
-    CSMWorld::IdTable& references = mData.getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_References);
+    auto& references = mData.getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_References);
 
     std::int32_t idColumn = references.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
     std::int32_t cellColumn = references.findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
@@ -332,7 +332,7 @@ bool CSVRender::Cell::referenceAboutToBeRemoved(const QModelIndex& parent, std::
     if (mDeleted)
         return false;
 
-    CSMWorld::IdTable& references = mData.getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_References);
+    auto& references = mData.getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_References);
 
     std::int32_t idColumn = references.findColumnIndex(CSMWorld::Columns::ColumnId_Id);
 

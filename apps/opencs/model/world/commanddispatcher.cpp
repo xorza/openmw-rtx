@@ -34,7 +34,7 @@ std::vector<std::string> CSMWorld::CommandDispatcher::getDeletableRecords() cons
 {
     std::vector<std::string> result;
 
-    IdTable& model = mDocument.getData().getTableModel<IdTable>(mId);
+    auto& model = mDocument.getData().getTableModel<IdTable>(mId);
 
     std::int32_t stateColumnIndex = model.findColumnIndex(Columns::ColumnId_Modification);
 
@@ -69,7 +69,7 @@ std::vector<std::string> CSMWorld::CommandDispatcher::getRevertableRecords() con
 {
     std::vector<std::string> result;
 
-    IdTable& model = mDocument.getData().getTableModel<IdTable>(mId);
+    auto& model = mDocument.getData().getTableModel<IdTable>(mId);
 
     /// \todo Reverting temporarily disabled on tables that support reordering, because
     /// revert logic currently can not handle reordering.
@@ -172,7 +172,7 @@ void CSMWorld::CommandDispatcher::executeModify(
             std::int32_t row = proxy ? proxy->mapToSource(index).row() : index.row();
 
             // This is not guaranteed to be the same as \a model, since a proxy could be used.
-            IdTable& model2 = mDocument.getData().getTableModel<IdTable>(mId);
+            auto& model2 = mDocument.getData().getTableModel<IdTable>(mId);
 
             std::int32_t cellColumn = model2.searchColumnIndex(Columns::ColumnId_Cell);
 
@@ -211,7 +211,7 @@ void CSMWorld::CommandDispatcher::executeDelete()
     if (rows.empty())
         return;
 
-    IdTable& model = mDocument.getData().getTableModel<IdTable>(mId);
+    auto& model = mDocument.getData().getTableModel<IdTable>(mId);
 
     std::int32_t columnIndex = model.findColumnIndex(Columns::ColumnId_Id);
 
@@ -244,7 +244,7 @@ void CSMWorld::CommandDispatcher::executeRevert()
     if (rows.empty())
         return;
 
-    IdTable& model = mDocument.getData().getTableModel<IdTable>(mId);
+    auto& model = mDocument.getData().getTableModel<IdTable>(mId);
 
     std::int32_t columnIndex = model.findColumnIndex(Columns::ColumnId_Id);
 
@@ -268,7 +268,7 @@ void CSMWorld::CommandDispatcher::executeExtendedDelete()
             executeDelete();
         else if (extendedType == UniversalId::Type_References)
         {
-            IdTable& model = mDocument.getData().getTableModel<IdTable>(extendedType);
+            auto& model = mDocument.getData().getTableModel<IdTable>(extendedType);
 
             const RefCollection& collection = mDocument.getData().getReferences();
 
@@ -301,7 +301,7 @@ void CSMWorld::CommandDispatcher::executeExtendedRevert()
             executeRevert();
         else if (extendedType == UniversalId::Type_References)
         {
-            IdTable& model = mDocument.getData().getTableModel<IdTable>(extendedType);
+            auto& model = mDocument.getData().getTableModel<IdTable>(extendedType);
 
             const RefCollection& collection = mDocument.getData().getReferences();
 

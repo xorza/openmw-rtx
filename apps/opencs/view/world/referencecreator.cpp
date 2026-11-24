@@ -87,8 +87,7 @@ void CSVWorld::ReferenceCreator::cellChanged()
 
 void CSVWorld::ReferenceCreator::cloneMode(const std::string& originId, const CSMWorld::UniversalId::Type type)
 {
-    CSMWorld::IdTable& referenceTable
-        = getData().getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_References);
+    auto& referenceTable = getData().getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_References);
 
     std::int32_t cellIdColumn = referenceTable.findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
 
