@@ -332,7 +332,7 @@ namespace RtxTool
             const ToolLine::Noise& line = command.mLine.mNoise;
             Framed framed = frameFrom(command);
 
-            const SuiteRun run = chooseBenchViews(command.mLine.mPlaces, "noise");
+            const SuiteRun run = chooseBenchViews(command.mLine, "noise", framed);
             const std::vector<Stop> places = stopsFrom(run.mViews, command.mLine, framed);
 
             const std::filesystem::path folder = outOf(command);

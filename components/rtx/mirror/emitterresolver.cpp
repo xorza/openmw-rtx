@@ -113,8 +113,8 @@ namespace Rtx
 
     void EmitterResolver::takeSprite(const osgParticle::ParticleSystem& particles, HeldSprite& held)
     {
-        const std::uint64_t freed = mScene.textures().getFreedCount();
-        if (held.mRefused.stands(sSpriteTake, freed))
+        const std::uint64_t room = mScene.textures().getRoomMade();
+        if (held.mRefused.stands(sSpriteTake, room))
             return;
 
         // Held, because nothing else can name them. An emitter is a placement and is thrown
@@ -123,7 +123,7 @@ namespace Rtx
         held.mSlot = mScene.takeReading(mThread.pathOf(*held.mSprite), *held.mSprite, held.mWrap);
         if (held.mSlot.empty())
         {
-            held.mRefused.refuse(sSpriteTake, freed);
+            held.mRefused.refuse(sSpriteTake, room);
             mScene.refusals().refuse(
                 Refused::Emitter, particles.getName(), "the texture array has no room for its image");
             return;
@@ -134,8 +134,8 @@ namespace Rtx
 
     void EmitterResolver::takeLighting(HeldSprite& held)
     {
-        const std::uint64_t freed = mScene.textures().getFreedCount();
-        if (held.mRefused.stands(sLightingTake, freed))
+        const std::uint64_t room = mScene.textures().getRoomMade();
+        if (held.mRefused.stands(sLightingTake, room))
             return;
 
         // The bake is keyed on the file, so two emitters drawing with one texture share one
@@ -144,7 +144,7 @@ namespace Rtx
         const TextureIndex bake = mScene.textures().addSpriteLight(mThread.pathOf(*held.mSprite));
         if (bake == sNoRow)
         {
-            held.mRefused.refuse(sLightingTake, freed);
+            held.mRefused.refuse(sLightingTake, room);
             return;
         }
 

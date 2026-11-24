@@ -371,12 +371,12 @@ namespace Rtx
             return profile;
         }
 
-        // **The texture set's arrays, which a device is asked for and not assumed to hold**: its two
-        // arrays of sampled images and its samplers, bound after use (`TextureArray`), in one set and
+        // **The texture set's arrays, which a device is asked for and not assumed to hold**: its array
+        // of sampled images, two a slot, and its samplers, bound after use (`TextureArray`), in one set and
         // in each stage that reads them. A device short of either failed to make the set's layout, a
         // fault at start, where it is refused here by name.
         const VkPhysicalDeviceVulkan12Properties& bound = properties.mVulkan12;
-        constexpr std::uint32_t arrayImages = 2 * Shaders::TEXTURE_SLOTS;
+        constexpr std::uint32_t arrayImages = Shaders::TEXTURE_SLOTS * Shaders::TEXTURE_IMAGES_A_SLOT;
         constexpr std::uint32_t arraySamplers = Shaders::TEXTURE_SAMPLERS;
         if (std::min(bound.maxDescriptorSetUpdateAfterBindSampledImages,
                 bound.maxPerStageDescriptorUpdateAfterBindSampledImages)

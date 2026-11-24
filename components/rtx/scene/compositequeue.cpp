@@ -116,8 +116,8 @@ namespace Rtx
 
     std::size_t CompositeQueue::take(SceneDesc& scene, const LayerStanding& standing, const std::size_t limit)
     {
-        const std::uint64_t freed = scene.textures().getFreedCount();
-        if (mRefused.stands(sCompositeTake, freed))
+        const std::uint64_t room = scene.textures().getRoomMade();
+        if (mRefused.stands(sCompositeTake, room))
             return 0;
 
         // Each ask looked at once a frame at most: one whose layers still stand in goes to the back.
@@ -152,7 +152,7 @@ namespace Rtx
             if (slot == sNoRow)
             {
                 putBack(asked);
-                mRefused.refuse(sCompositeTake, freed);
+                mRefused.refuse(sCompositeTake, room);
                 break;
             }
 

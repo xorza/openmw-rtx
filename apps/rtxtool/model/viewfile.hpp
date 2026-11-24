@@ -26,6 +26,11 @@ namespace RtxTool
         /// path says no, because waiting is most of what that path then measures — and a run
         /// under it may not be compared with a picture.
         std::optional<bool> mSettled{};
+
+        /// How many cells out the world stands at every place of the suite, or nothing for the run's own:
+        /// `[RTX] distant land cells`, which `--distant-cells` still names over it. What a suite measures the
+        /// farthest reach a player can choose at says so here, because no place does.
+        std::optional<float> mReach{};
     };
 
     /// The suites `file` holds. Throws when it is malformed, rather than quietly profiling somewhere else.

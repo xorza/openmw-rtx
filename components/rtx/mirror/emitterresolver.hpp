@@ -133,7 +133,7 @@ namespace Rtx
             /// How the image is addressed past its edges, which is part of the slot it takes.
             TextureWrap mWrap = TextureWrap::Repeat;
 
-            /// Whether the table refused the image a slot, which is asked again once it frees one.
+            /// Whether the table refused the image a slot, which is asked again once it makes room.
             RefusedTakes mRefused;
 
             /// That image's facts, or null until an effect's glow asks for its mean: found then and
@@ -168,11 +168,11 @@ namespace Rtx
             const osgParticle::ParticleSystem& particles, HeldSprite& held, std::span<const Shading> shading);
 
         /// Takes the slot `held`'s sprite is drawn out of, and the bake of it, where the table has
-        /// room — or where a refusal stood and the table has freed a slot since.
+        /// room — or where a refusal stood and the table has made room since.
         void takeSprite(const osgParticle::ParticleSystem& particles, HeldSprite& held);
 
         /// Takes the bake of `held`'s sprite, which stands in its slot, on the same terms: a bake the
-        /// table refused is asked again once it frees a slot, and the sprite is lit flat until then.
+        /// table refused is asked again once it makes room, and the sprite is lit flat until then.
         void takeLighting(HeldSprite& held);
 
         /// The two takes a sprite makes, as `RefusedTakes` bits.

@@ -188,6 +188,13 @@ What the game reads from files (`components/resource`), changed for the handheld
   operation rides. Refused: the backend choosing levels as its pools allowed, which allocated before it freed and
   refused a bake or a composite for good at a full pool, and whose waits, moves and rest each held a part of one
   answer (the renderer's review, `.notes/review-rtx-renderer.md` at `a66d42e374`).
+- **A texture slot is room the content never reaches, and not a budget** (`TEXTURE_SLOTS`), by the user's decision:
+  memory is residency's, and a slot is two descriptors, so the array holds seven times the most a Repack-sized land
+  under a PBR pack names at thirty cells (`research/2026-11-24-texture-slots-by-reach.md`), laid out so no binding's
+  offset grows with it, as bindless engines size their heaps. A take still refused waits for the table to make room,
+  a slot freed or a file come to rest. Refused: 8192, which that land overflows; ground composites yielding their
+  slots to files, which sums a distant cell's stack at every hit when the world is largest; a material retried each
+  time a slot is freed, which missed what the cell ring adopts once and a file that rests.
 - **A sprite's light bake is planned as one with its source**, made from it on the device at its level: a cap that
   holds one and not both lowers both. Refused: the bake planned after its source, which starved the bake beside a
   source that could have stood a level coarser for it.

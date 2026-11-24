@@ -400,10 +400,10 @@ namespace Rtx
                        .mSlot;
         }
         TextureHold& slot = *taken;
-        const std::uint64_t freed = mScene.textures().getFreedCount();
+        const std::uint64_t room = mScene.textures().getRoomMade();
         const auto bit = static_cast<std::uint32_t>(
             1u << (static_cast<std::size_t>(encoding) * sTextureWrapCount + static_cast<std::size_t>(use.mWrap)));
-        if (slot.empty() && !held.mRefused.stands(bit, freed))
+        if (slot.empty() && !held.mRefused.stands(bit, room))
         {
             // Held, because this entry is the reference. `mTextureOf` says why a slot the map names
             // has to be one nothing else can hand out.
@@ -419,7 +419,7 @@ namespace Rtx
             else
                 slot = mScene.takeTexture(HoldTier::Kept, mThread.pathOf(*image), *image, use.mWrap, encoding);
             if (slot.empty())
-                held.mRefused.refuse(bit, freed);
+                held.mRefused.refuse(bit, room);
         }
 
         if (worn != nullptr)

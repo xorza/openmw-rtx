@@ -66,15 +66,17 @@ namespace Rtx
         /// The layout every array declares, sized to the maximum and not to the scene, because a
         /// pipeline outlives a cell and two set layouts are compatible only where they are
         /// identically defined. The maximum is paid once: a sampled image is 64 B in RADV, so a
-        /// set's two image arrays are 1 MB of pool.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 3> sBindings{
-            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_IMAGES, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                Shaders::TEXTURE_SLOTS, sStages, nullptr },
-            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_COMPANIONS, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                Shaders::TEXTURE_SLOTS, sStages, nullptr },
+        /// set's image array is 8 MiB of pool. The samplers first, for the offsets `TEXTURE_BIND_IMAGES` says.
+        constexpr std::array<VkDescriptorSetLayoutBinding, 2> sBindings{
             VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_SAMPLERS, VK_DESCRIPTOR_TYPE_SAMPLER,
-                Shaders::TEXTURE_SAMPLERS, sStages, nullptr }
+                Shaders::TEXTURE_SAMPLERS, sStages, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_IMAGES, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                Shaders::TEXTURE_SLOTS * Shaders::TEXTURE_IMAGES_A_SLOT, sStages, nullptr },
         };
+
+        static_assert(Shaders::TEXTURE_BIND_SAMPLERS < Shaders::TEXTURE_BIND_IMAGES);
+        static_assert(Shaders::companionImageOf(Shaders::TEXTURE_NEUTRAL)
+            < std::uint64_t{ Shaders::TEXTURE_SLOTS } * Shaders::TEXTURE_IMAGES_A_SLOT);
 
         static_assert(Shaders::TEXTURE_SAMPLERS_ALONG == sTextureWrapCount);
         static_assert(Shaders::TEXTURE_SAMPLERS == 2 * sTextureWrapCount);
@@ -298,7 +300,7 @@ namespace Rtx
         // descriptor, and a slot nothing has described is a slot no material names.
         constexpr VkDescriptorBindingFlags sBound
             = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
-        constexpr std::array<VkDescriptorBindingFlags, 3> flags{ sBound, sBound, sBound };
+        constexpr std::array<VkDescriptorBindingFlags, sBindings.size()> flags{ sBound, sBound };
         const VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlags{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
             .pNext = nullptr,
@@ -605,12 +607,12 @@ namespace Rtx
             if (held.isEmpty())
                 continue;
 
-            queueWrite(set, Shaders::TEXTURE_BIND_IMAGES, at.at(), VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, held.describe(),
-                mImageScratch, mWriteScratch);
+            queueWrite(set, Shaders::TEXTURE_BIND_IMAGES, Shaders::textureImageOf(at.at()),
+                VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, held.describe(), mImageScratch, mWriteScratch);
             // A companion only where a read reaches one, a normal map's: the binding is partially bound.
             if (held.hasCompanion())
-                queueWrite(set, Shaders::TEXTURE_BIND_COMPANIONS, at.at(), VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                    held.describeCompanion(), mImageScratch, mWriteScratch);
+                queueWrite(set, Shaders::TEXTURE_BIND_IMAGES, Shaders::companionImageOf(at.at()),
+                    VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, held.describeCompanion(), mImageScratch, mWriteScratch);
         }
 
         updateSets(mDevice, mWriteScratch);
@@ -718,7 +720,7 @@ namespace Rtx
         updateSets(mDevice, mWriteScratch);
     }
 
-    void TextureArray::queueWrite(const VkDescriptorSet set, const std::uint32_t binding, const std::uint32_t slot,
+    void TextureArray::queueWrite(const VkDescriptorSet set, const std::uint32_t binding, const std::uint32_t element,
         const VkDescriptorType type, const VkDescriptorImageInfo& image, std::vector<VkDescriptorImageInfo>& images,
         std::vector<VkWriteDescriptorSet>& writes)
     {
@@ -731,7 +733,7 @@ namespace Rtx
             .pNext = nullptr,
             .dstSet = set,
             .dstBinding = binding,
-            .dstArrayElement = slot,
+            .dstArrayElement = element,
             .descriptorCount = 1,
             .descriptorType = type,
             .pImageInfo = &images.back(),

@@ -18,9 +18,12 @@
 #include "scene.h"
 #include "shared/sets.h"
 
-/// Every texture the scene loaded, indexed by the slot a material, a layer or an emitter names — and at
-/// `TEXTURE_NEUTRAL` the one texel a material with no diffuse names instead. An image alone: a read pairs it
-/// with the sampler its wrap names (`TEXTURE`, `TEXTURE_ALONG`).
+/// Every texture the scene loaded, at `textureImageOf` the slot a material, a layer or an emitter names — and at
+/// `TEXTURE_NEUTRAL`'s the one texel a material with no diffuse names instead — and at `companionImageOf` the
+/// slot, what was measured on its texture as it arrived (`Rtx::TextureCompanion`): for a normal map, what each of
+/// its levels lost, which `normalMapSlopes` reads, and nothing at any other slot, which no read reaches.
+/// Images alone: a read pairs one with the sampler its slot's wrap names (`TEXTURE`, `TEXTURE_ALONG`,
+/// `COMPANION`). One array and not one each, for the offsets `TEXTURE_BIND_IMAGES` says.
 ///
 /// **A slot is qualified where it indexes and never where it is passed.** Neighbouring lanes hit different
 /// materials over most of a frame, so the descriptor read has to be a waterfall, which the driver emits only
@@ -35,16 +38,7 @@
 /// their long axis's level to stand clear of it; read as a pair they pass along the footprint. A change of
 /// anisotropy also writes the eight samplers and not a descriptor for every slot.
 
-layout(set = SET_TEXTURES, binding = TEXTURE_BIND_IMAGES) uniform texture2D textures[];
-
-/// What was measured on each texture as it arrived (`Rtx::TextureCompanion`), at the slot of the texture it
-/// was measured on, and read through the same sampler (`COMPANION`): for a normal map, what each of its
-/// levels lost, which `normalMapSlopes` reads, and nothing at any other slot, which no read reaches.
-///
-/// **A binding of its own and not slots between the textures**, because `coneLod` measures the array it
-/// reads for the level a cone resolves, and a companion interleaved with the textures is one it would
-/// measure.
-layout(set = SET_TEXTURES, binding = TEXTURE_BIND_COMPANIONS) uniform texture2D companions[];
+layout(set = SET_TEXTURES, binding = TEXTURE_BIND_IMAGES) uniform texture2D textureImages[];
 
 /// The samplers a read pairs an image with, by the slot's wrap: `TEXTURE_SAMPLERS_ALONG` says which.
 ///
@@ -75,20 +69,23 @@ uint samplerAt(TexelTable texels, uint slot)
     return (texels.at[slot] >> TEXTURE_WRAP_SHIFT) & (TEXTURE_SAMPLERS_ALONG - 1u);
 }
 
+/// `slot`'s texture as an image alone, for a query of its size or its levels.
+#define TEXTURE_IMAGE(slot) textureImages[nonuniformEXT(textureImageOf(slot))]
+
 /// `slot`'s texture through the sampler its wrap names, for a read that names its level. `slot` is read
 /// twice, so it is a name or a plain expression.
 #define TEXTURE(texels, slot)                                                                                      \
-    nonuniformEXT(sampler2D(textures[nonuniformEXT(slot)], textureSamplers[nonuniformEXT(samplerAt(texels, slot))]))
+    nonuniformEXT(sampler2D(TEXTURE_IMAGE(slot), textureSamplers[nonuniformEXT(samplerAt(texels, slot))]))
 
 /// `slot`'s texture through the sampler that filters along a footprint, for a read that hands its
 /// gradients (`textureGrad`).
 #define TEXTURE_ALONG(texels, slot)                                                                                \
-    nonuniformEXT(sampler2D(textures[nonuniformEXT(slot)],                                                         \
+    nonuniformEXT(sampler2D(TEXTURE_IMAGE(slot),                                                                   \
         textureSamplers[nonuniformEXT(TEXTURE_SAMPLERS_ALONG + samplerAt(texels, slot))]))
 
 /// `slot`'s companion through the sampler its texture is read through.
 #define COMPANION(texels, slot)                                                                                    \
-    nonuniformEXT(                                                                                                 \
-        sampler2D(companions[nonuniformEXT(slot)], textureSamplers[nonuniformEXT(samplerAt(texels, slot))]))
+    nonuniformEXT(sampler2D(textureImages[nonuniformEXT(companionImageOf(slot))],                                  \
+        textureSamplers[nonuniformEXT(samplerAt(texels, slot))]))
 
 #endif

@@ -61,24 +61,24 @@ namespace RtxTool
     /// keeps its own.
     std::vector<Stop> stopsFrom(const std::vector<Stop>& views, const ToolLine& line, const Framed& framed);
 
-    /// The places a run of a suite visits, in the order it visits them, with what the suite says about them.
+    /// The places a run of a suite visits, in the order it visits them.
     struct SuiteRun
     {
         std::vector<Stop> mViews;
 
         /// Which suite, for the record's own header; empty where `--views` named the places.
         std::string mSuite;
-
-        /// What the suite says about waiting for the ground, or nothing: `BenchSuite::mSettled`.
-        std::optional<bool> mSettled;
     };
 
     /// `--views` beats `--suite`, and both name entries in `views.cfg`. Neither carries coordinates: those live
     /// with the view, so the frame a picture is taken of and the frame a number is measured on stay one frame.
+    /// **What the suite says of the world goes onto `framed` here**, for every verb that runs one: whether it waits
+    /// for the ground (`BenchSuite::mSettled`), and its reach (`BenchSuite::mReach`) where the line names no
+    /// `--distant-cells`, which framing took already.
     ///
     /// @param ownSuite the suite the verb runs when neither `--views` nor `--suite` names one: `bench` measures the
     ///        frame budget's places and `check` walks a route as well.
-    SuiteRun chooseBenchViews(const ToolLine::Places& places, std::string_view ownSuite);
+    SuiteRun chooseBenchViews(const ToolLine& line, std::string_view ownSuite, Framed& framed);
 
     /// The one place a `SessionRequest` is built: the stops as the command's row holds them, the setup the line
     /// framed, and what every run reads off the line besides. A verb that wants more — a suite, a file to write —

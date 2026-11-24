@@ -241,6 +241,7 @@ namespace Rtx
         row.mPartner = nullptr;
 
         mResting.rest(slot, placeOf());
+        ++mRoomMade;
     }
 
     void TextureTable::wake(const TextureIndex slot, const osg::Image* const image, const osg::Image* const partner)
@@ -306,6 +307,7 @@ namespace Rtx
         row = TextureRow{};
         freeRow(texture);
         mChanges.note(texture, SlotNews::Freed);
+        ++mRoomMade;
     }
 
     std::string TextureRow::getName() const

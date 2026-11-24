@@ -223,8 +223,9 @@ namespace RtxTool
         return hosted;
     }
 
-    SuiteRun chooseBenchViews(const ToolLine::Places& places, const std::string_view ownSuite)
+    SuiteRun chooseBenchViews(const ToolLine& line, const std::string_view ownSuite, Framed& framed)
     {
+        const ToolLine::Places& places = line.mPlaces;
         const std::vector<Stop> views = loadViews(viewsFile());
 
         SuiteRun run;
@@ -245,7 +246,10 @@ namespace RtxTool
             }
 
             wanted = suite->mViews;
-            run.mSettled = suite->mSettled;
+            if (suite->mSettled.has_value())
+                framed.mSetup.mSettled = suite->mSettled;
+            if (suite->mReach.has_value() && !line.mFrame.mDistantCells.has_value())
+                framed.mSetup.mMirror.mReach.mCells = *suite->mReach;
         }
         else
             wanted = *places.mViews;
@@ -321,7 +325,7 @@ namespace RtxTool
         framed.mSetup.mHeadless = !line.mWindow;
         framed.mSetup.mRun.mZoneCounters = line.mCounters;
 
-        const SuiteRun run = chooseBenchViews(command.mLine.mPlaces, "default");
+        const SuiteRun run = chooseBenchViews(command.mLine, "default", framed);
         std::vector<Stop> stops = stopsFrom(run.mViews, command.mLine, framed);
 
         const BenchSpec spec = specFrom(line);
@@ -344,7 +348,6 @@ namespace RtxTool
                 stop.mActions.mFrameTimes = frameTimes / (stop.mName + ".txt");
         }
 
-        framed.mSetup.mSettled = run.mSettled;
         HostedRun hosted = sessionFor(command, std::move(framed), std::move(stops));
         SessionRequest& request = hosted.mRequest;
         request.mSuite = run.mSuite;
@@ -387,7 +390,7 @@ namespace RtxTool
         if (!command.mLine.mFrame.mHold.mNamed)
             framed.mSetup.mRun.mProfile.mStressOverlapMs = sCheckHoldMs;
 
-        const SuiteRun run = chooseBenchViews(command.mLine.mPlaces, "check");
+        const SuiteRun run = chooseBenchViews(command.mLine, "check", framed);
         std::vector<Stop> stops = stopsFrom(run.mViews, command.mLine, framed);
 
         // Every picture a stop can write, at the first place, because each leaves through a path the frame's own

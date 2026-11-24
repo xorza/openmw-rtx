@@ -369,12 +369,16 @@ namespace Rtx
                 EXPECT_EQ(cramped.profile().mObstacle, "push constants of 128 bytes, under 256");
             }
             {
-                // **The texture set's arrays**, two of 8192 images and eight samplers, held to the set's
-                // limit and the stage's, whichever is less.
+                // **The texture set's arrays**, two images for each of 65536 slots, 131072, and eight samplers,
+                // held to the set's limit and the stage's, whichever is less.
                 Card few(&describeAda);
-                few.mProperties.mVulkan12.maxPerStageDescriptorUpdateAfterBindSampledImages = 16383;
-                EXPECT_EQ(few.profile().mObstacle, "16383 sampled images bound after use, under 16384");
-                few.mProperties.mVulkan12.maxPerStageDescriptorUpdateAfterBindSampledImages = 16384;
+                few.mProperties.mVulkan12.maxPerStageDescriptorUpdateAfterBindSampledImages = 131071;
+                EXPECT_EQ(few.profile().mObstacle, "131071 sampled images bound after use, under 131072");
+                few.mProperties.mVulkan12.maxPerStageDescriptorUpdateAfterBindSampledImages = 131072;
+                few.mProperties.mVulkan12.maxDescriptorSetUpdateAfterBindSampledImages = 131071;
+                EXPECT_EQ(few.profile().mObstacle, "131071 sampled images bound after use, under 131072")
+                    << "the set's limit as well as the stage's";
+                few.mProperties.mVulkan12.maxDescriptorSetUpdateAfterBindSampledImages = 131072;
                 few.mProperties.mVulkan12.maxDescriptorSetUpdateAfterBindSamplers = 7;
                 EXPECT_EQ(few.profile().mObstacle, "7 samplers bound after use, under 8");
                 few.mProperties.mVulkan12.maxDescriptorSetUpdateAfterBindSamplers = 8;

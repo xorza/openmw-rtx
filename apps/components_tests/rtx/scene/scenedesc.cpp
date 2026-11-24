@@ -399,11 +399,13 @@ namespace Rtx
             EXPECT_EQ(textures.add(names.back()), sNoRow);
             EXPECT_EQ(textures.addGround(MaterialIndex(1), TextureKind::GroundAlbedo), sNoRow);
             EXPECT_EQ(textures.getRefused(), 2u);
+            EXPECT_EQ(textures.getRoomMade(), 0u);
             EXPECT_EQ(textures.add(names[7]), TextureIndex(7)) << "a texture that stands takes no slot";
 
             scene.drop(scene.holdTexture(TextureIndex(7), HoldTier::Shown));
             EXPECT_EQ(textures.add(names.back()), TextureIndex(7)) << "the slot given back is the next arrival's";
             EXPECT_EQ(textures.getRefused(), 2u);
+            EXPECT_EQ(textures.getRoomMade(), 1u) << "the slot freed, and not the take of it";
 
             // The neutral texel a refused ground layer names is no slot of the table's.
             scene.drop(scene.holdTexture(TextureIndex(Shaders::TEXTURE_NEUTRAL), HoldTier::Shown));
@@ -425,6 +427,7 @@ namespace Rtx
             }
             EXPECT_EQ(textures.getLiveCount(), TextureTable::sCapacity);
             EXPECT_EQ(textures.getResting().getCount(), 2u);
+            EXPECT_EQ(textures.getRoomMade(), 3u) << "each file that came to rest made room, though none was freed";
 
             EXPECT_EQ(textures.add(VFS::Path::NormalizedView("textures/tx_a.dds")), TextureIndex(5))
                 << "the oldest to rest";
@@ -432,6 +435,7 @@ namespace Rtx
             EXPECT_EQ(textures.add(VFS::Path::NormalizedView("textures/tx_c.dds")), sNoRow) << "none rests now";
             EXPECT_EQ(textures.getRefused(), 3u);
             EXPECT_EQ(textures.getResting().getCount(), 0u);
+            EXPECT_EQ(textures.getRoomMade(), 5u) << "the two freed for the takes, and nothing for the refusal";
             scene.compact();
             EXPECT_TRUE(textures.getFreed().empty()) << "each freed and taken over, which reads as an arrival";
             EXPECT_EQ(sorted(textures.getArrived()), (std::vector{ TextureIndex(3), TextureIndex(5) }));

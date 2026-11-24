@@ -45,6 +45,7 @@ namespace RtxTool
                 "note = two of them\n"
                 "views = balmora, vivec\n"
                 "settled = false\n"
+                "reach = 30\n"
                 "\n"
                 "[one]\n"
                 "views = arkngthand\n");
@@ -55,12 +56,14 @@ namespace RtxTool
             EXPECT_EQ(quick->mNote, "two of them");
             EXPECT_EQ(quick->mViews, (std::vector<std::string>{ "balmora", "vivec" }));
             EXPECT_EQ(quick->mSettled, std::optional(false)) << "a suite that times the streaming path says so";
+            EXPECT_EQ(quick->mReach, std::optional(30.0f)) << "one that stands the farthest reach";
 
             const BenchSuite* one = findSuite(suites, "one");
             ASSERT_NE(one, nullptr);
             EXPECT_EQ(one->mViews, (std::vector<std::string>{ "arkngthand" }));
             EXPECT_TRUE(one->mNote.empty()) << "a note is optional";
             EXPECT_EQ(one->mSettled, std::nullopt) << "and so is settled, which the frame clock then decides";
+            EXPECT_EQ(one->mReach, std::nullopt) << "and the reach, which the run's settings then decide";
 
             EXPECT_EQ(findSuite(suites, "nothing"), nullptr);
         }
@@ -78,6 +81,11 @@ namespace RtxTool
             EXPECT_EQ(Rtx::Testing::refusalOf([&] { suitesOf("[typo]\nveiws = balmora\n"); }),
                 "benches.cfg:2: a suite has no field called \"veiws\"")
                 << "a field nobody defined";
+            // A reach past the 30 cells `Rtx::LandReach::sMostCells` takes, and one under nought.
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { suitesOf("[far]\nviews = vivec\nreach = 30.5\n"); }),
+                "benches.cfg:3: reach \"30.5\" is past the 30 cells a reach takes");
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { suitesOf("[near]\nviews = vivec\nreach = -1\n"); }),
+                "benches.cfg:3: reach \"-1\" is not a reach of nought or more cells");
             // The rest is the system's own words for the file it could not open.
             const std::filesystem::path missing = TestingOpenMW::currentTestDirPath() / "no-such-suites.cfg";
             EXPECT_TRUE(Rtx::Testing::refusalOf([&] {

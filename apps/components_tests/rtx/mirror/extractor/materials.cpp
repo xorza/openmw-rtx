@@ -1774,16 +1774,17 @@ namespace Rtx::Testing
             EXPECT_FALSE(mScene.textures().isLive(TextureIndex(0))) << "the walk's own hold outlived the surface";
         }
 
-        /// **A texture a full table refused is not asked again until the table frees a slot.** An animated
+        /// **A texture a full table refused is not asked again until the table makes room.** An animated
         /// material asks for its images every frame, and each refusal built the image's path off the heap.
         ///
-        /// Three walks against the full table, one beside a clamped surface, then one after a slot is freed: the
-        /// second and third catch a refusal asked again, the fifth a remembered refusal outliving the room it lacked.
+        /// Three walks against the full table, one beside a clamped surface, then one after a file comes to rest:
+        /// the second and third catch a refusal asked again, the fifth a remembered refusal outliving the room it
+        /// lacked.
         ///
         /// **The refusal is the wrap's and not the file's.** Slot 5 holds the banner clamped, as a colour (a
         /// diffuse with no specular map), so a clamped surface wearing the image the animated one was refused
         /// under a repeat still finds it.
-        TEST_F(RtxSceneExtractorTest, aRefusedTextureIsAskedAgainOnlyOnceASlotIsFreed)
+        TEST_F(RtxSceneExtractorTest, aRefusedTextureIsAskedAgainOnlyOnceTheTableMakesRoom)
         {
             TextureTable& textures = mScene.textures();
             Testing::SceneHolds holds(mScene);
@@ -1857,7 +1858,11 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.materials().getRows()[MaterialIndex(1)].mDiffuse, TextureIndex(clampedSlot))
                 << "refused for another wrap's want";
 
+            // **A file the device stands rests, and frees no slot**: the room it leaves is what wakes the refused
+            // take (`TextureTable::getRoomMade`), and the take frees it.
+            textures.setStanding(TextureIndex(9), true);
             holds.dropTexture(TextureIndex(9));
+            EXPECT_EQ(textures.getResting().getCount(), 1u);
 
             update.setTraversalNumber(5);
             both->accept(update);
@@ -1865,9 +1870,10 @@ namespace Rtx::Testing
             walk(*both, 0, 5);
 
             EXPECT_EQ(textures.getRefused(), 1u);
+            EXPECT_EQ(textures.getResting().getCount(), 0u);
             ASSERT_EQ(mScene.materials().getRows().size(), 2u);
             EXPECT_EQ(mScene.materials().getRows()[MaterialIndex(0)].mDiffuse, TextureIndex(9))
-                << "the freed slot is the refused texture's";
+                << "the rested slot is the refused texture's";
         }
 
         /// **A material over an image that stands names it without a string.** The image is taken by its path,

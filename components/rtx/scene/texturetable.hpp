@@ -203,6 +203,11 @@ namespace Rtx
         /// has to read as a change.
         std::uint64_t getRevision() const { return mRevision; }
 
+        /// How many times this has ever made room for a take, which is what a refused take waits on (`RefusedTakes`):
+        /// a slot freed, or a file come to rest, which frees no slot and which `hasRoom` frees for the next take of
+        /// another.
+        std::uint64_t getRoomMade() const { return mRoomMade; }
+
         /// Settles what a drop took out of the arrivals, so they can be read, and files the slots that came to rest
         /// since the last.
         void compact()
@@ -308,28 +313,29 @@ namespace Rtx
         RestQueue<TextureIndex> mResting;
 
         std::uint64_t mRevision = 0;
+        std::uint64_t mRoomMade = 0;
         std::uint32_t mRefused = 0;
         std::uint32_t mRefusedArrivals = 0;
         FormatCensus mFormats;
     };
 
-    /// Which takes of one image the table refused, a bit a take, an encoding and a wrap each, and how
-    /// many slots it had freed then (`TextureTable::getFreedCount`). A refused take is asked again once that count
-    /// moves, because nothing else makes room, and not before, because until then asking is a path built to be refused.
-    /// The one rule for every resolver that takes a texture.
+    /// Which takes of one image the table refused, a bit a take, an encoding and a wrap each, and how much room the
+    /// table had made then (`TextureTable::getRoomMade`). A refused take is asked again once that count moves, because
+    /// nothing else makes room, and not before, because until then asking is a path built to be refused. The one rule
+    /// for every resolver that takes a texture.
     class RefusedTakes
     {
     public:
-        /// Whether take `bit` was refused and the table has freed nothing since.
-        bool stands(std::uint32_t bit, std::uint64_t freed) const { return mAt == freed && (mBits & bit) != 0; }
+        /// Whether take `bit` was refused and the table has made no room since.
+        bool stands(std::uint32_t bit, std::uint64_t room) const { return mAt == room && (mBits & bit) != 0; }
 
-        void refuse(std::uint32_t bit, std::uint64_t freed)
+        void refuse(std::uint32_t bit, std::uint64_t room)
         {
-            if (mAt != freed)
+            if (mAt != room)
                 mBits = 0;
 
             mBits |= bit;
-            mAt = freed;
+            mAt = room;
         }
 
     private:

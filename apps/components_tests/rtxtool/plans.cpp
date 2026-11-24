@@ -113,6 +113,26 @@ namespace RtxTool
             const HostedRun unheld = planOf(Verb::Check,
                 { "--views=seyda-neen-ship", "--hold=false", "--out=" + Files::pathToUnicodeString(out) }, planCheck);
             EXPECT_EQ(unheld.mRequest.mSetup.mRun.mProfile.mStressOverlapMs, 0.0) << "the line's hold is the line's";
+
+            // **A suite's word on the world stands over the run's**: `[streaming]`'s unsettled walk, `[far]`'s thirty
+            // cells over the ten framed here, and `--distant-cells` over the suite's, which framing took into the frame
+            // already.
+            const HostedRun streamed
+                = planOf(Verb::Check, { "--suite=streaming", "--out=" + Files::pathToUnicodeString(out) }, planCheck);
+            EXPECT_EQ(streamed.mRequest.mSetup.mSettled, std::optional(false));
+            EXPECT_EQ(held.mRequest.mSetup.mSettled, std::nullopt) << "a run of views leaves it to the frame clock";
+            Framed near;
+            near.mSetup.mMirror.mReach.mCells = 10.0f;
+            const HostedRun far
+                = planOf(Verb::Check, { "--suite=far", "--out=" + Files::pathToUnicodeString(out) }, planCheck, near);
+            EXPECT_EQ(far.mRequest.mSetup.mMirror.mReach.mCells, 30.0f);
+            EXPECT_EQ(far.mRequest.mSuite, "far");
+            const HostedRun named = planOf(Verb::Check,
+                { "--suite=far", "--distant-cells=10", "--out=" + Files::pathToUnicodeString(out) }, planCheck, near);
+            EXPECT_EQ(named.mRequest.mSetup.mMirror.mReach.mCells, 10.0f) << "the line's reach is the line's";
+            const HostedRun own = planOf(Verb::Check,
+                { "--views=seyda-neen-ship", "--out=" + Files::pathToUnicodeString(out) }, planCheck, near);
+            EXPECT_EQ(own.mRequest.mSetup.mMirror.mReach.mCells, 10.0f) << "a run of views stands at its own";
         }
 
         /// **A shot's pictures are held to where they came from**: the frame by its hashes where an upscaler

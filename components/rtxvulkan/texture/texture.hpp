@@ -304,8 +304,9 @@ namespace Rtx
             return slot.mStandIn || slot.mTexture == nullptr ? mStandIn : *slot.mTexture;
         }
 
-        /// Queues a write of `image` into `set` at `binding[slot]`, behind the image info the write names by address.
-        static void queueWrite(VkDescriptorSet set, std::uint32_t binding, std::uint32_t slot, VkDescriptorType type,
+        /// Queues a write of `image` into `set` at `binding[element]`, behind the image info the write names by
+        /// address.
+        static void queueWrite(VkDescriptorSet set, std::uint32_t binding, std::uint32_t element, VkDescriptorType type,
             const VkDescriptorImageInfo& image, std::vector<VkDescriptorImageInfo>& images,
             std::vector<VkWriteDescriptorSet>& writes);
 

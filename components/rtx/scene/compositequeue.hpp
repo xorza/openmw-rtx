@@ -72,7 +72,8 @@ namespace Rtx
         /// many. A chunk taken takes a texture slot and goes onto the material that asked; one
         /// whose slot another chunk took over while it waited is dropped, and one with a layer whose
         /// texture the device has yet to be handed whole goes to the back, each looked at once. A chunk the texture
-        /// table has no room for goes back to the front, and nothing is taken again until the table frees a slot.
+        /// table has no room for goes back to the front, and nothing is taken again until the table makes room
+        /// (`TextureTable::getRoomMade`).
         std::size_t take(SceneDesc& scene, const LayerStanding& standing, std::size_t limit);
 
         /// Puts `asked` at the back of the schedule, growing the ring where it is full.
@@ -99,7 +100,7 @@ namespace Rtx
         static constexpr std::uint32_t sNoPosition = ~std::uint32_t{ 0 };
 
         /// The texture table's refusal of a composite, which holds the schedule until the table
-        /// frees a slot: every chunk wants one, so the next would be refused the same way.
+        /// makes room: every chunk wants one, so the next would be refused the same way.
         RefusedTakes mRefused;
     };
 }

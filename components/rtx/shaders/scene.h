@@ -37,11 +37,13 @@ namespace Rtx::Shaders
     /// count `TEXTURE_TEXELS` holds whole. A texture past it stands from its first level within it.
     const uint TEXTURE_SIDE_MOST = 16384u;
 
-    /// How many slots the bindless array holds. A PBR pack gives a diffuse a normal and a specular
-    /// slot beside it (about 3700 at the largest bench place), so twice that. **Not 16384**: the
-    /// layers' kernel spilled 480 bytes a lane on a low-end AMD integrated GPU, against 192 at 8192
-    /// (`docs/research/2026-10-22-amd-integrated-spill-ceilings.md`).
-    const uint TEXTURE_SLOTS = 8192u;
+    /// How many slots the bindless array holds. **Room the content never reaches, and not a budget**: what a
+    /// texture costs is its memory, which residency plans, and a slot is two descriptors. Thirty cells of
+    /// the Fullrest Repack's land under a PBR pack come to some 8800, a ground composite a cell and three
+    /// slots a PBR path (`docs/research/2026-11-24-texture-slots-by-reach.md`); this is seven times that.
+    /// **Its size moves no binding's offset** (`TEXTURE_BIND_IMAGES`), which is what spilled AMD's layers'
+    /// kernel at 16384 (`docs/research/2026-10-22-amd-integrated-spill-ceilings.md`).
+    const uint TEXTURE_SLOTS = 65536u;
 
     /// The one slot the scene never hands out: one texel of `UNTEXTURED_ALBEDO` with an alpha of one.
     /// **A texture and not a sentinel**, so an untextured surface takes the textured path with no

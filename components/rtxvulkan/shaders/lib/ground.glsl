@@ -93,10 +93,10 @@ float maskWeightIn(GpuLayer layer, vec2 uv, MaskTable masks)
 /// power of two — a bake has no cone, and this is the footprint one would resolve.
 float groundLod(uint slot, GpuLayer layer, uint extent)
 {
-    const vec2 size = vec2(textureSize(textures[nonuniformEXT(slot)], 0));
+    const vec2 size = vec2(textureSize(TEXTURE_IMAGE(slot), 0));
     const vec2 across = size * abs(layer.mDiffuseTransform.xy);
     const float footprint = max(max(across.x, across.y), float(extent)) / float(extent);
-    const float deepest = float(textureQueryLevels(textures[nonuniformEXT(slot)]) - 1);
+    const float deepest = float(textureQueryLevels(TEXTURE_IMAGE(slot)) - 1);
 
     return clamp(log2(footprint), 0.0, deepest);
 }

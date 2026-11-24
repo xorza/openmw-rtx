@@ -50,6 +50,9 @@ STEPS: tuple[tuple[str, Callable[[Build], int]], ...] = (
     ("the release compile", _release_compile),
     ("the integration tests", lambda build: integration.integration(build, [])),
     ("check", lambda build: build.harness("check").returncode),
+    # The claims again at the farthest reach a player can choose (`[far]` in `files/rtx/benches.cfg`), which no
+    # place of `[check]` stands at.
+    ("check at the farthest reach", lambda build: build.harness("check", "--suite=far").returncode),
     ("repeat", lambda build: repeat(build, ["--pairs=1"])),
 )
 SUMMARY = ", ".join(name for name, _ in STEPS)

@@ -36,8 +36,8 @@ void main()
     // outermost sprite raises it to nought and gets one, exactly. It is the mean of the coarsest level, which a
     // box-filtered chain keeps as its texture's own at every level: eight by eight where Morrowind's chains end,
     // one texel where the device made the chain.
-    const int coarsest = textureQueryLevels(textures[nonuniformEXT(emitter.mTexture)]) - 1;
-    const ivec2 grid = min(textureSize(textures[nonuniformEXT(emitter.mTexture)], coarsest), ivec2(8));
+    const int coarsest = textureQueryLevels(TEXTURE_IMAGE(emitter.mTexture)) - 1;
+    const ivec2 grid = min(textureSize(TEXTURE_IMAGE(emitter.mTexture), coarsest), ivec2(8));
     float covered = 0.0;
     for (int y = 0; y < grid.y; ++y)
         for (int x = 0; x < grid.x; ++x)
@@ -48,7 +48,7 @@ void main()
 
     // Both axes, because a streak carries them at different densities — `quadCrossing` says why.
     const GpuEmitterFrame made = GpuEmitterFrame(slantCoverage(from, towards, along),
-        log2(1.0 - min(layerMean, SPRITE_ALPHA_LIMIT)), vec2(textureSize(textures[nonuniformEXT(emitter.mTexture)], 0)));
+        log2(1.0 - min(layerMean, SPRITE_ALPHA_LIMIT)), vec2(textureSize(TEXTURE_IMAGE(emitter.mTexture), 0)));
     countNotFinite(vec4(made.mBand, made.mLayerThrough, made.mTexels));
     EmitterFrames(frame.mTables.mEmitterFrames).at[index] = made;
 }

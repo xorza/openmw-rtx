@@ -34,6 +34,7 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/world/frameworld.hpp>
@@ -709,12 +710,13 @@ namespace RtxTool
             "and white stay. Not given, `settings-default.cfg`'s `[Video] gamma`, which is one and "
             "leaves the picture as the curve wrote it, or the player's own under `view`");
 
-        option(sFramed, "distant-cells", number(between(0.0f, 10.0f)),
+        option(sFramed, "distant-cells", number(between(0.0f, Rtx::LandReach::sMostCells)),
             "how far out the cell ring stands ground and statics, in cells. Outside the active grid "
             "a cell's layer stack is flattened into one baked texture, so this is also how many "
             "cells that path is reached for. Zero hands `viewing distance` back the decision, which "
-            "is 7168 against a cell of 8192 and so barely leaves the active grid. Not given, "
-            "`settings-default.cfg`'s `[RTX] distant land cells`, or the player's own under `view`");
+            "is 7168 against a cell of 8192 and so barely leaves the active grid. Not given, the suite's "
+            "`reach` where it names one, else `settings-default.cfg`'s `[RTX] distant land cells`, or the "
+            "player's own under `view`");
 
         option({ Verb::Shot, Verb::Bench }, "against", bpo::value<std::string>()->default_value(""),
             "what to subtract this run from: the directory a previous `shot` or `bench --out` wrote, "

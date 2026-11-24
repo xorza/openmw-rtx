@@ -10,6 +10,7 @@
 #include <string_view>
 #include <vector>
 
+#include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/world/weather.hpp>
 
 #include "blockfile.hpp"
@@ -43,6 +44,14 @@ namespace RtxTool
                     suite.mNote = field.mValue;
                 else if (field.mName == "settled")
                     suite.mSettled = file.boolean(field);
+                else if (field.mName == "reach")
+                {
+                    const float reach = file.notNegative(field, "a reach of nought or more cells");
+                    if (reach > Rtx::LandReach::sMostCells)
+                        file.refuseValue(
+                            field, std::format("is past the {} cells a reach takes", Rtx::LandReach::sMostCells));
+                    suite.mReach = reach;
+                }
                 else
                     file.refuseUnknown(field, "suite");
             }

@@ -3,6 +3,7 @@
 
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/portable.h>
+#include <components/rtx/shaders/scene.h>
 
 // Which descriptor set is which, for the shaders that declare them and the layouts and binds that
 // place them.
@@ -40,16 +41,36 @@ namespace Rtx::Shaders
     /// How many sets any pipeline may name.
     const uint SET_COUNT = 4;
 
-    /// Where the texture set binds its arrays: the textures, their companions at the same slots
-    /// (`TextureCompanion`, a normal map's spread), both as images alone, and the samplers a read
-    /// pairs either with.
+    /// Where the texture set binds its two arrays: the samplers a read pairs an image with, and the images, every
+    /// slot's texture and after them every slot's companion (`TextureCompanion`, a normal map's spread).
     ///
-    /// **Named on both sides because a swap would be silent.** Both image arrays are
-    /// `TEXTURE_SLOTS` sampled images, so a layout and a shader that disagreed on which is which
-    /// would pass every check the layers make, and the trace would sample companions as colour.
-    const uint TEXTURE_BIND_IMAGES = 0;
-    const uint TEXTURE_BIND_COMPANIONS = 1;
-    const uint TEXTURE_BIND_SAMPLERS = 2;
+    /// **No binding's offset grows with `TEXTURE_SLOTS`**: RADV lays a set's bindings out in the order of their
+    /// numbers (`vk_create_sorted_bindings`), and an offset past what a scalar load's immediate reaches (under 1 MiB
+    /// on AMD's RDNA, `smem_offset_max` in ACO) is added in a register of every load. So the samplers' fixed eight
+    /// first, and one image array last: an array after another stood `TEXTURE_SLOTS` descriptors in for each before
+    /// it, and at 16384 slots the third started 1.5 MiB in, where AMD's layers' kernel spilled
+    /// (`docs/research/2026-10-22-amd-integrated-spill-ceilings.md`).
+    const uint TEXTURE_BIND_SAMPLERS = 0;
+    const uint TEXTURE_BIND_IMAGES = 1;
+
+    /// How many images a slot takes in `TEXTURE_BIND_IMAGES`: its texture and its companion.
+    const uint TEXTURE_IMAGES_A_SLOT = 2;
+
+    /// Where `slot`'s texture stands in `TEXTURE_BIND_IMAGES`: at the slot, so a texture's read indexes by the slot
+    /// alone.
+    RTX_CONSTEXPR uint textureImageOf(uint slot)
+    {
+        return slot;
+    }
+
+    /// Where `slot`'s companion stands in `TEXTURE_BIND_IMAGES`: `TEXTURE_SLOTS` on, which a read adds in its index
+    /// and no binding's offset holds. **After the textures and not beside each**: a slot's pair side by side cost
+    /// NVIDIA's bounce two registers over its ceiling, 114 against 112 with the sea and a mod's maps, and RADV's
+    /// counts were the same either way.
+    RTX_CONSTEXPR uint companionImageOf(uint slot)
+    {
+        return TEXTURE_SLOTS + slot;
+    }
 
     /// The samplers at `TEXTURE_BIND_SAMPLERS`: one per wrap a file states (`Rtx::TextureWrap`),
     /// indexed by it, and from `TEXTURE_SAMPLERS_ALONG` the same four filtering along a footprint.
