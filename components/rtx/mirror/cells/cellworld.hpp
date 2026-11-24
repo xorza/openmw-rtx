@@ -12,6 +12,7 @@
 
 #include <components/esm/refid.hpp>
 #include <components/misc/result.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "cellgrid.hpp"
@@ -147,6 +148,7 @@ namespace Rtx
         /// The world's clock, in seconds: what a lamp the ring stands is animated by, as the walk
         /// animates the graph's by its frame stamp.
         double mSimulationTime = 0.0;
+        LampSettings mLamps{};
 
         /// Which child the game's `NightDaySwitch`es show, which the ring's own copies of them
         /// follow: the town whose windows light at dusk is lit four cells away too.

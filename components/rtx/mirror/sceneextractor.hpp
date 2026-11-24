@@ -191,6 +191,7 @@ namespace Rtx
         /// in one frame. The first call only starts it, and a step backward is none. Also the sequence every emitter's
         /// once-per-frame guard is kept against, so however many walks reach one, exactly one of them steps it.
         void setSimulationTime(double seconds, double step);
+        void setLampSettings(const LampSettings& settings) { mLampSettings = settings; }
 
         /// Walks `node` and places what it finds by `transform`, under `anchor`. A subtree, and it never reaches the
         /// ring: the precipitation node would otherwise place the ground a second time. `extractWorld` is the call that
@@ -447,6 +448,7 @@ namespace Rtx
         std::optional<ViewBasis> mEye;
 
         /// See `setJumped`.
+        LampSettings mLampSettings;
         std::span<const std::uint64_t> mJumped;
 
         /// Every effect this walk entered, in the order it entered them. Which of them the walk

@@ -16,6 +16,15 @@ namespace Settings
     {
         using WithIndex::WithIndex;
 
+        SettingValue<std::int32_t> mLampSourceSize{ mIndex, "RTX", "lamp source size",
+            makeClampSanitizerInt(1, 100) };
+        SettingValue<std::int32_t> mLampFlicker{ mIndex, "RTX", "lamp flicker strength",
+            makeClampSanitizerInt(0, 300) };
+        SettingValue<std::int32_t> mLampSpeed{ mIndex, "RTX", "lamp animation speed",
+            makeClampSanitizerInt(10, 400) };
+        SettingValue<std::int32_t> mLampMovement{ mIndex, "RTX", "lamp movement", makeClampSanitizerInt(0, 2000) };
+        SettingValue<std::int32_t> mLampBreathing{ mIndex, "RTX", "lamp size variation", makeClampSanitizerInt(0, 90) };
+
         /// The most cells `distant land cells` takes: a bound on how much world a frame is asked to
         /// stand, and so on what the ring's ask costs. Nought stays nought, which hands the reach
         /// back to `viewing distance`.

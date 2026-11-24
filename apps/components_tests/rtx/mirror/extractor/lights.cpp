@@ -362,7 +362,7 @@ namespace Rtx::Testing
             EXPECT_EQ(lights[2].mReach, lights[0].mReach);
 
             EXPECT_EQ(Shaders::lightFill(lights[0].mTraits), 0.0f) << "a lamp with a diffuse is no fill";
-            EXPECT_EQ(lights[0].mSourceRadius, 100.0f / 16.0f);
+            EXPECT_EQ(lights[0].mSourceRadius, 100.0f / 64.0f);
         }
 
         /// **A light's own model is a lamp body, and nothing else is** (`SceneUtil::LampBody`).

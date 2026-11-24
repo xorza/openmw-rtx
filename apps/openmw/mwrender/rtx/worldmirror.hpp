@@ -167,6 +167,8 @@ namespace MWRender
         /// per frame, so the ring, the air and the map follow one number a frame was handed.
         void setReach(const Rtx::LandReach& reach) { mKnobs.mReach = reach; }
 
+        void setLampSettings(const Rtx::LampSettings& settings) { mKnobs.mLamps = settings; }
+
         /// Where the last walk stood the rings: the camera's eye, which is not the player's feet.
         const osg::Vec3f& getEye() const { return mEye; }
 

@@ -151,6 +151,7 @@ namespace SceneUtil
         std::size_t mLastAppliedFrame;
 
         bool mEmpty = false;
+        bool mFire = false;
 
     public:
         META_Node(SceneUtil, LightSource)
@@ -187,6 +188,10 @@ namespace SceneUtil
         void setEmpty(bool empty) { mEmpty = empty; }
 
         bool getEmpty() const { return mEmpty; }
+
+        /// Authored fire metadata for renderers; does not change the scene's controller.
+        void setFire(bool fire) { mFire = fire; }
+        bool isFire() const { return mFire; }
 
         /// Get the Light safe for modification in the given frame.
         /// @par May be used externally to animate the light's color/attenuation properties,

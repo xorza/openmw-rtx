@@ -15,6 +15,7 @@ namespace SceneUtil
         , mPulse(light.mData.mFlags & ESM::Light::Pulse)
         , mPulseSlow(light.mData.mFlags & ESM::Light::PulseSlow)
         , mOffDefault(light.mData.mFlags & ESM::Light::OffDefault)
+        , mFire(light.mData.mFlags & ESM::Light::Fire)
         , mColor(SceneUtil::colourFromRGB(light.mData.mColor))
         , mRadius(static_cast<float>(light.mData.mRadius))
 
@@ -27,6 +28,7 @@ namespace SceneUtil
         , mPulse(light.mData.flags & ESM4::Light::Pulse)
         , mPulseSlow(light.mData.flags & ESM4::Light::PulseSlow)
         , mOffDefault(light.mData.flags & ESM4::Light::OffDefault)
+        , mFire(false)
         , mColor(SceneUtil::colourFromRGB(light.mData.colour))
         , mRadius(static_cast<float>(light.mData.radius))
 

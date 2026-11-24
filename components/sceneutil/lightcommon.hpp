@@ -25,6 +25,7 @@ namespace SceneUtil
         bool mPulse;
         bool mPulseSlow;
         bool mOffDefault;
+        bool mFire;
 
         osg::Vec4 mColor;
         float mRadius;

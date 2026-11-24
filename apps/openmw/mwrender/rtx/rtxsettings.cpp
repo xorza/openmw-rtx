@@ -24,6 +24,13 @@ namespace MWRender
             .mUpscaler = Settings::rtx().mUpscaler.get(),
             .mIndirectLighting = Settings::rtx().mIndirectLighting,
             .mBounceRays = Settings::rtx().mBounceRays,
+            .mLamps = {
+                .mSourceScale = Settings::rtx().mLampSourceSize.get() / 25.0f,
+                .mFlicker = Settings::rtx().mLampFlicker.get() / 100.0f,
+                .mSpeed = Settings::rtx().mLampSpeed.get() / 100.0f,
+                .mMovement = Settings::rtx().mLampMovement.get() / 100.0f,
+                .mSizeVariation = Settings::rtx().mLampBreathing.get() / 100.0f,
+            },
             .mDistantLandCells = Settings::rtx().mDistantLandCells,
             .mViewingDistance = Settings::camera().mViewingDistance,
             .mObjectPaging = Settings::terrain().mObjectPaging,
@@ -58,6 +65,7 @@ namespace MWRender
             .mBounceRays = static_cast<std::uint32_t>(values.mBounceRays),
             .mMirror = {
                 .mReach = { .mCells = values.mDistantLandCells, .mViewingDistance = values.mViewingDistance },
+                .mLamps = values.mLamps,
                 .mDistantStatics = values.mObjectPaging,
                 .mMinSize = values.mObjectPagingMinSize,
                 .mGroundcoverReach = values.mGroundcover ? values.mGroundcoverDistance : 0.0f,

@@ -4,6 +4,7 @@
 
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 
 #include "mirrorknobs.hpp"
 
@@ -19,6 +20,7 @@ namespace MWRender
         Rtx::UpscalerChoice mUpscaler = Rtx::UpscalerChoice::Fsr;
         bool mIndirectLighting = true;
         std::int32_t mBounceRays = 1;
+        Rtx::LampSettings mLamps{};
         float mDistantLandCells = 0.0f;
         float mViewingDistance = 0.0f;
         bool mObjectPaging = true;

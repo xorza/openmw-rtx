@@ -933,12 +933,12 @@ namespace Rtx::Testing
 
             const osg::Vec3f anchored = far + sLanternAnchor;
             const Light stood = mScene.lights().front();
-            EXPECT_EQ(stood.mPosition, anchored) << "through both transforms above the anchor";
 
             // The light the walk builds from the graph's own node, to the bit: one rule, in
             // `makeLight`, phased by the reference number.
             const std::optional<Light> built = makeLight(mStorage.mRecords.at("flame"), anchored, 0.0, 7).value();
             ASSERT_TRUE(built.has_value());
+            EXPECT_EQ(stood.mPosition, built->mPosition) << "the transformed anchor plus the same flame offset";
             EXPECT_EQ(stood.mIntensity, built->mIntensity);
             EXPECT_EQ(stood.mReach, built->mReach);
             EXPECT_EQ(stood.mSourceRadius, built->mSourceRadius);
@@ -1001,9 +1001,13 @@ namespace Rtx::Testing
             EXPECT_EQ(filled.mDistantStatics, 1u) << "the lantern's model";
             ASSERT_EQ(mScene.lights().size(), std::size_t{ 1 });
             const osg::Vec3f stood = mScene.lights().front().mPosition;
-            EXPECT_EQ(stood, sLanternAnchor * transformOf(swung)) << "the anchor through the game's transform";
-            EXPECT_NEAR((stood - swung.mPosition).length(), sLanternAnchor.length(), 1e-3f);
-            EXPECT_NEAR(stood.z(), swung.mPosition.z() + sLanternAnchor.z(), 1e-3f);
+            const osg::Vec3f anchor = sLanternAnchor * transformOf(swung);
+            const Light expected
+                = *makeLight(mStorage.mRecords.at("flame"), anchor, mAround.mSimulationTime, 7).value();
+            EXPECT_EQ(stood, expected.mPosition) << "the anchor through the game's transform, then flame motion";
+            const osg::Vec3f flutter = expected.mPosition - anchor;
+            EXPECT_NEAR((stood - flutter - swung.mPosition).length(), sLanternAnchor.length(), 1e-3f);
+            EXPECT_NEAR(stood.z() - flutter.z(), swung.mPosition.z() + sLanternAnchor.z(), 1e-3f);
             EXPECT_GT((stood - (far + sLanternAnchor)).length(), 50.0f) << "where the content puts it";
 
             mRing.moveReference(ESM::RefNum{ 7, 0 }, swung, ReferenceStands::Away);
@@ -1014,7 +1018,10 @@ namespace Rtx::Testing
             mRing.forgetReferences();
             EXPECT_EQ(walk(mWalked++).mLights, 1u) << "a cleared world";
             ASSERT_EQ(mScene.lights().size(), std::size_t{ 1 });
-            EXPECT_EQ(mScene.lights().front().mPosition, far + sLanternAnchor);
+            EXPECT_EQ(mScene.lights().front().mPosition,
+                makeLight(mStorage.mRecords.at("flame"), far + sLanternAnchor, mAround.mSimulationTime, 7)
+                    .value()
+                    ->mPosition);
         }
 
         /// **What the reader cannot take is refused where its cell is adopted**, on the frame's

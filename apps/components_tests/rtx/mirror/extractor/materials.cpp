@@ -1415,7 +1415,7 @@ namespace Rtx::Testing
 
             const std::vector<Light> lit = lampsOf(true);
             ASSERT_EQ(lit.size(), 1u) << "the record's own lamp and nothing beside it";
-            EXPECT_EQ(lit.front().mSourceRadius, 100.0f / 16.0f) << "a record's flame is a sixteenth of its radius";
+            EXPECT_EQ(lit.front().mSourceRadius, 100.0f / 64.0f) << "a record's flame is a sixty-fourth of its radius";
             EXPECT_EQ(lit.front().mClearance, 0.0f) << "and nothing around it kept clear";
         }
 

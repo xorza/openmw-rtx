@@ -863,6 +863,10 @@ namespace MWRender
     void RtxRenderer::applyChangedSettings(const Settings::CategorySettingVector& changed) noexcept
     {
         expectGameCall();
+        const bool lamps = changed.contains({ "RTX", "lamp source size" })
+            || changed.contains({ "RTX", "lamp flicker strength" })
+            || changed.contains({ "RTX", "lamp animation speed" }) || changed.contains({ "RTX", "lamp movement" })
+            || changed.contains({ "RTX", "lamp size variation" });
         const bool upscale = changed.contains({ "RTX", "upscale" });
         const bool indirect = changed.contains({ "RTX", "indirect lighting" });
         const bool bounceRays = changed.contains({ "RTX", "bounce rays" });
@@ -870,13 +874,16 @@ namespace MWRender
             = changed.contains({ "RTX", "distant land cells" }) || changed.contains({ "Camera", "viewing distance" });
         const bool anisotropy = changed.contains({ "General", "anisotropy" });
         const bool gamma = changed.contains({ "Video", "gamma" });
-        if (!upscale && !indirect && !bounceRays && !reach && !anisotropy && !gamma)
+        if (!upscale && !indirect && !bounceRays && !reach && !anisotropy && !gamma && !lamps)
             return;
         const Crash::NoteScope noted("applying the settings the menu changed");
 
         // **The registry's sanitizers hold every value the derivation refuses**, a harness's line's to break
         // (`RtxSettingsTest`), so a refusal here is a broken contract and ends the process through `noexcept`.
         const RtxSettings settings = RtxSettings::derive(RtxSettingValues::fromRegistry());
+
+        if (lamps)
+            mMirror.setLampSettings(settings.mMirror.mLamps);
 
         // **A mode moves under the upscaler the renderer was made with**, and waits under none: the upscaler
         // the menu now names is the next start's.

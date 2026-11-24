@@ -439,6 +439,7 @@ namespace MWRender
 
         // The world's clock and not this renderer's, or the controllers would run while the game
         // was paused.
+        mExtractor.setLampSettings(mKnobs.mLamps);
         mExtractor.setSimulationTime(
             frame.mWhen.getSimulationTime(), frame.mPaused ? 0.0 : static_cast<double>(frame.mDeltaTime));
 
@@ -495,6 +496,7 @@ namespace MWRender
             .mActiveGrid = frame.mTerrain.getActiveGrid(),
             .mExterior = frame.mWorld.mLocation == Location::Exterior,
             .mSimulationTime = frame.mWhen.getSimulationTime(),
+            .mLamps = mKnobs.mLamps,
             .mNightDay = nightDayOf(frame.mWorld),
             .mSight = mSight,
         };

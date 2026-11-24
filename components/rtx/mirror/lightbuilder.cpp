@@ -39,11 +39,10 @@ namespace Rtx
         constexpr float sReachScale = 2.0f;
         constexpr float sReachBonus = 128.0f;
 
-        /// How much of a lamp's recorded radius is actually alight, which is what its shadows are soft by. The
-        /// intensity already scales with the square of the recorded radius, the law for an emitter of fixed radiance
-        /// whose area grows with its size, so reading that radius as a size again keeps one statement rather than
-        /// making a second. A sixteenth of 64 to 256 units is a candle flame to a brazier's bowl.
-        constexpr float sSourceFraction = 1.0f / 16.0f;
+        /// The emitting part of an ordinary lamp, separate from its brightness and reach. A
+        /// sixty-fourth gives a one-to-four-unit source radius for the usual 64-to-256-unit
+        /// records, keeping a finite penumbra without treating a torch as a broad area light.
+        constexpr float sSourceFraction = 1.0f / 64.0f;
 
         /// How high over the actor's feet, where the game hangs a Light spell's glow, its lamp
         /// stands: half of the 128 units Morrowind's people stand, so the lamp is inside the body
@@ -161,6 +160,98 @@ namespace Rtx
                 std::copysign(magnitude.z(), encoded.z()));
         }
 
+        float brightnessAt(SceneUtil::LightController::LightType type, float phase, double simulationTime)
+        {
+            switch (type)
+            {
+                case SceneUtil::LightController::LT_Normal:
+                    return 1.0f;
+                case SceneUtil::LightController::LT_Flicker:
+                    // The whole flame, puffing included. The content gives this one to open fires: a
+                    // tiki torch, a brazier, a spark shower and a failing Dwemer tube.
+                    return sMiddle + sSwing * flame(simulationTime, sTopBand, phase);
+                case SceneUtil::LightController::LT_FlickerSlow:
+                    // The same flame at the game's slow speed, every band of it.
+                    return sMiddle + sSwing * flame(simulationTime, sTopBand * sSlowShare, phase);
+                case SceneUtil::LightController::LT_Pulse:
+                    return sMiddle + sSwing * pulse(simulationTime, sPulsePeriod, phase);
+                case SceneUtil::LightController::LT_PulseSlow:
+                    return sMiddle + sSwing * pulse(simulationTime, sPulsePeriod / sSlowShare, phase);
+            }
+
+            return 1.0f;
+        }
+
+        struct LampVariation
+        {
+            float mBrightness = 1.0f;
+            float mSourceScale = 1.0f;
+            osg::Vec3f mOffset;
+        };
+
+        // One clock and phase for intensity, source size and flutter. The slow bands move the
+        // flame sideways; the brightness lifts it and opens it slightly, without changing reach.
+        // No frame state is kept, so a paused simulation samples exactly the same lamp again.
+        LampVariation variationAt(SceneUtil::LightController::LightType type, std::int32_t id, double simulationTime,
+            const LampSettings& settings, bool fire)
+        {
+            LampVariation variation;
+            const bool fireOnly = type == SceneUtil::LightController::LT_Normal && fire;
+            if (fireOnly)
+                type = SceneUtil::LightController::LT_FlickerSlow;
+            if (type == SceneUtil::LightController::LT_Normal)
+                return variation;
+
+            simulationTime *= settings.mSpeed;
+            const float phase = lightPhase(id);
+            variation.mBrightness = brightnessAt(type, phase, simulationTime);
+            const float level = std::clamp((variation.mBrightness - sMiddle) / sSwing, -1.0f, 1.0f);
+            variation.mSourceScale = 1.0f + settings.mSizeVariation * level;
+            variation.mBrightness = std::max(0.0f, sMiddle + (variation.mBrightness - sMiddle) * settings.mFlicker);
+            if (type == SceneUtil::LightController::LT_Flicker || type == SceneUtil::LightController::LT_FlickerSlow)
+            {
+                const float speed = type == SceneUtil::LightController::LT_FlickerSlow ? sSlowShare : 1.0f;
+                const float frequency = sTopBand * speed / (sBandRatio * sBandRatio);
+                variation.mOffset = osg::Vec3f(0.2f * band(simulationTime, frequency, phase, 0),
+                                        0.2f * band(simulationTime, frequency / sBandRatio, phase, 1), 0.1f * level)
+                    * settings.mMovement;
+            }
+            // A formerly steady fire keeps its mean power; authored flicker retains its own mean.
+            if (fireOnly)
+                variation.mBrightness /= sMiddle;
+            return variation;
+        }
+
+        Result<std::optional<Light>, std::string_view> animateLight(
+            Result<std::optional<Light>, std::string_view> made, const LampVariation& variation,
+            const LampSettings& settings)
+        {
+            if (made.isOk() && made.value().has_value())
+            {
+                Light& light = *made.value();
+                light.mPosition += variation.mOffset * light.mSourceRadius;
+                light.mSourceRadius *= variation.mSourceScale * settings.mSourceScale;
+            }
+            return made;
+        }
+
+        osg::Vec3f colourAtBrightness(const SceneUtil::LightSource& source, float brightness)
+        {
+            const SceneUtil::LightController* animation = source.getController();
+
+            // The controller's colours where there is one, and the light's own where there is not: the
+            // glow of a Light spell is built by hand and has no controller.
+            const SceneUtil::Light& light = *source.getLight(0);
+            const osg::Vec4f diffuse = animation != nullptr ? animation->getDiffuse() : light.getDiffuse();
+
+            // The fade reaches the ambient and the animation does not: the animation is a flame's, and
+            // both places the game writes an ambient mean a light with no flame in it. Without the fade
+            // a Light spell burns at full strength up to the frame the actor's node mask cuts.
+            const float fade = source.getActorFade();
+
+            return decodeSigned(diffuse) * (brightness * fade) + decodeColour(light.getAmbient()) * fade;
+        }
+
         /// The lamp, where every number in it is finite. What it was built from came off a file or
         /// off a graph something else built, so a number that is not finite is data and the lamp is
         /// refused: the grid sized around it would double its cell for ever, and the light would
@@ -196,8 +287,7 @@ namespace Rtx
             .mIntensity = colour * (radius * radius * sIntensity),
             .mReach = radius * sReachScale + sReachBonus,
 
-            // A sixteenth is an estimate, and the paragraph above argues it is a good one — a
-            // lamp that casts no penumbra at all is the worse answer.
+            // Source size controls the penumbra independently of recorded intensity and reach.
             .mSourceRadius = radius * sSourceFraction,
 
             // **No clearance: a lamp's shadow ray runs to the flame.** A quarter of the radius kept clear, so a ray
@@ -257,26 +347,7 @@ namespace Rtx
 
     float lightBrightness(SceneUtil::LightController::LightType type, std::int32_t id, double simulationTime)
     {
-        const float phase = lightPhase(id);
-
-        switch (type)
-        {
-            case SceneUtil::LightController::LT_Normal:
-                return 1.0f;
-            case SceneUtil::LightController::LT_Flicker:
-                // The whole flame, puffing included. The content gives this one to open fires: a
-                // tiki torch, a brazier, a spark shower and a failing Dwemer tube.
-                return sMiddle + sSwing * flame(simulationTime, sTopBand, phase);
-            case SceneUtil::LightController::LT_FlickerSlow:
-                // The same flame at the game's slow speed, every band of it.
-                return sMiddle + sSwing * flame(simulationTime, sTopBand * sSlowShare, phase);
-            case SceneUtil::LightController::LT_Pulse:
-                return sMiddle + sSwing * pulse(simulationTime, sPulsePeriod, phase);
-            case SceneUtil::LightController::LT_PulseSlow:
-                return sMiddle + sSwing * pulse(simulationTime, sPulsePeriod / sSlowShare, phase);
-        }
-
-        return 1.0f;
+        return brightnessAt(type, lightPhase(id), simulationTime);
     }
 
     void Glow::addSheet(const Material& worn, const osg::BoundingBoxf& box, const osg::Matrixf& place, const float fade)
@@ -346,21 +417,23 @@ namespace Rtx
     osg::Vec3f lightColour(const SceneUtil::LightSource& source, double simulationTime)
     {
         const SceneUtil::LightController* animation = source.getController();
+        const auto type = animation != nullptr ? animation->getType() : SceneUtil::LightController::LT_Normal;
+        return colourAtBrightness(
+            source, variationAt(type, source.getId(), simulationTime, {}, source.isFire()).mBrightness);
+    }
 
-        // The controller's colours where there is one, and the light's own where there is not: the
-        // glow of a Light spell is built by hand and has no controller.
-        const SceneUtil::Light& light = *source.getLight(0);
-        const osg::Vec4f diffuse = animation != nullptr ? animation->getDiffuse() : light.getDiffuse();
-
-        const float brightness
-            = animation != nullptr ? lightBrightness(animation->getType(), source.getId(), simulationTime) : 1.0f;
-
-        // The fade reaches the ambient and the animation does not: the animation is a flame's, and
-        // both places the game writes an ambient mean a light with no flame in it. Without the fade
-        // a Light spell burns at full strength up to the frame the actor's node mask cuts.
-        const float fade = source.getActorFade();
-
-        return decodeSigned(diffuse) * (brightness * fade) + decodeColour(light.getAmbient()) * fade;
+    Result<std::optional<Light>, std::string_view> makeLight(const SceneUtil::LightSource& source,
+        const osg::Vec3f& position, const double simulationTime, const LampSettings& settings)
+    {
+        const SceneUtil::LightController* animation = source.getController();
+        const SceneUtil::LightController::LightType type
+            = animation != nullptr ? animation->getType() : SceneUtil::LightController::LT_Normal;
+        const LampVariation variation = variationAt(type, source.getId(), simulationTime, settings, source.isFire());
+        const osg::Vec3f colour = colourAtBrightness(source, variation.mBrightness);
+        const float radius = source.getSourceRadius();
+        return animateLight(
+            isSpellLight(source) ? makeSpellLight(colour, radius, position) : makeLight(colour, radius, position),
+            variation, settings);
     }
 
     bool castsWherePlaced(const SceneUtil::LightCommon& record)
@@ -384,7 +457,7 @@ namespace Rtx
     }
 
     Result<std::optional<Light>, std::string_view> makeLight(const SceneUtil::LightCommon& record,
-        const osg::Vec3f& position, const double simulationTime, const std::int32_t id)
+        const osg::Vec3f& position, const double simulationTime, const std::int32_t id, const LampSettings& settings)
     {
         if (!castsWherePlaced(record))
             return std::nullopt;
@@ -393,12 +466,14 @@ namespace Rtx
         // negate on opposite sides of the sRGB conversion, so what they agree on is the sign, which
         // is the whole of what a refusal reads.
         const osg::Vec3f recorded = decodeColour(record.mColor);
-        const float brightness = lightBrightness(animationOf(record), id, simulationTime);
+        const LampVariation variation = variationAt(animationOf(record), id, simulationTime, settings, record.mFire);
 
         // The minimum scene light radius is 16 in Morrowind, which `createLightSource` applies
         // before the walk ever reads the source's radius back.
         const float radius = std::max(record.mRadius, 16.0f);
 
-        return makeLight((record.mNegative ? -recorded : recorded) * brightness, radius, position);
+        return animateLight(
+            makeLight((record.mNegative ? -recorded : recorded) * variation.mBrightness, radius, position), variation,
+            settings);
     }
 }

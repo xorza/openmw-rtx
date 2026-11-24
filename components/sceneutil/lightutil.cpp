@@ -122,6 +122,7 @@ namespace SceneUtil
         osg::ref_ptr<SceneUtil::LightSource> lightSource(new SceneUtil::LightSource);
         SceneUtil::Light light;
         lightSource->setNodeMask(lightMask);
+        lightSource->setFire(esmLight.mFire);
 
         // The minimum scene light radius is 16 in Morrowind
         const float radius = std::max(esmLight.mRadius, 16.f);

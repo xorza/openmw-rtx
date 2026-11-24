@@ -1,6 +1,7 @@
 #pragma once
 
 #include <components/rtx/mirror/cells/cellgrid.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 
 namespace MWRender
 {
@@ -15,6 +16,7 @@ namespace MWRender
     {
         /// How far out the world is built, in cells — `Rtx::CellGrid::reachOf` puts it in units.
         Rtx::LandReach mReach;
+        Rtx::LampSettings mLamps{};
 
         /// `object paging`: whether the distance's statics stand at all.
         bool mDistantStatics = true;
