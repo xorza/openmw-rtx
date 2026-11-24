@@ -89,6 +89,12 @@ namespace Rtx
         /// A present took what is shown.
         void spendShown() { mShownCurrent = false; }
 
+        /// `getShown` was written over the current picture.
+        void markShownWritten() { mShownHasPicture = true; }
+
+        /// Whether `getShown` holds the current picture, with or without an interface over it.
+        bool hasShownPicture() const { return mShownHasPicture; }
+
         /// The last picture at sixteen bits a channel, where it was summed.
         const Image& getDeep() const
         {
@@ -102,6 +108,7 @@ namespace Rtx
         Image mDeep;
 
         bool mShownCurrent = false;
+        bool mShownHasPicture = false;
 
         /// Whether the last picture was summed, and so wrote `mDeep`: a picture after it that was
         /// not left the image a picture behind.

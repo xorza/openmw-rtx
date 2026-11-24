@@ -138,13 +138,7 @@ namespace Rtx::Testing
 
     void RendererProbe::readShown(std::vector<std::uint8_t>& pixels)
     {
-        assert(mRenderer.mTarget.isOpen());
-
-        // An interface the present would have recorded, drawn now: what is shown is what is read.
-        if (mRenderer.mGui.isPrepared())
-            mRenderer.mGui.submit(mRenderer.mTarget.getPicture(), mRenderer.mTarget.getShown());
-
-        mRenderer.mTarget.getShown().read(VK_IMAGE_LAYOUT_GENERAL, pixels);
+        mRenderer.readShownPixels(pixels);
     }
 
     void RendererProbe::readGuiTexture(const GuiSlot texture, std::vector<std::uint8_t>& pixels)

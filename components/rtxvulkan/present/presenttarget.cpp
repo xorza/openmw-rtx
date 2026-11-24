@@ -57,6 +57,7 @@ namespace Rtx
 
         mDeep = Image();
         mShownCurrent = false;
+        mShownHasPicture = true;
         mDeepCurrent = false;
     }
 
@@ -66,6 +67,7 @@ namespace Rtx
         mShown = Image();
         mDeep = Image();
         mShownCurrent = false;
+        mShownHasPicture = false;
         mDeepCurrent = false;
     }
 
@@ -85,6 +87,7 @@ namespace Rtx
         assert(isOpen());
 
         mShownCurrent = false;
+        mShownHasPicture = false;
         mDeepCurrent = deep;
         if (!deep)
             return nullptr;

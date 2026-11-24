@@ -738,10 +738,15 @@ namespace Rtx
         virtual const SceneStats& getSceneStats() const = 0;
 
         /// Copies the picture into `pixels`, four bytes per pixel, tightly packed: the frame last
-        /// traced, at the output extent, without the interface drawn over it since — what a
-        /// screenshot, a save's thumbnail and a frozen frame show, as the rasterizer's do. Not on a
-        /// frame path: it submits a copy and waits for it, so it is not const.
+        /// traced, at the output extent, without the interface drawn over it since — what a save's
+        /// thumbnail and a frozen frame show, as the rasterizer's do. Not on a frame path: it
+        /// submits a copy and waits for it, so it is not const.
         virtual void readPixels(std::vector<std::uint8_t>& pixels) = 0;
+
+        /// Copies what is shown into `pixels`, four bytes per pixel, tightly packed: the frame last
+        /// traced with the interface drawn over it, at the output extent — what the screenshot key
+        /// writes, matching the rasterizer. Submits and waits, as `readPixels` does.
+        virtual void readShownPixels(std::vector<std::uint8_t>& pixels) = 0;
 
         /// The same picture at sixteen bits a channel, four samples a pixel: written by a frame that
         /// sums (`FrameOptions::mAccumulate`) and by no other, since a mean of frames falls between

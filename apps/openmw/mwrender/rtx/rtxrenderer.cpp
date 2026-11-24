@@ -784,8 +784,9 @@ namespace MWRender
     {
         expectGameCall();
         // Three channels, as the rasterizer reads its screenshots: the JPEG writer `screenshot
-        // format` may name refuses four (`Rtx::Channels::Rgb`).
-        const osg::ref_ptr<osg::Image> taken = FrameReader::read(*mRenderer, 0, 0, Rtx::Channels::Rgb);
+        // format` may name refuses four (`Rtx::Channels::Rgb`). Includes the interface, matching
+        // `GlRenderer::saveScreenshot`.
+        const osg::ref_ptr<osg::Image> taken = FrameReader::read(*mRenderer, 0, 0, Rtx::Channels::Rgb, true);
         if (taken == nullptr)
         {
             Log(Debug::Warning) << "Ray tracing has no frame to write a screenshot from";

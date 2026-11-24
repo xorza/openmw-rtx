@@ -246,6 +246,11 @@ namespace Rtx
         pixels.assign(std::size_t{ mExtents.mOutputWidth } * mExtents.mOutputHeight * 4, 0);
     }
 
+    void NullRenderer::readShownPixels(std::vector<std::uint8_t>& pixels)
+    {
+        readPixels(pixels);
+    }
+
     void NullRenderer::readDeepPixels(std::vector<std::uint16_t>& samples)
     {
         samples.assign(std::size_t{ mExtents.mOutputWidth } * mExtents.mOutputHeight * 4, 0);

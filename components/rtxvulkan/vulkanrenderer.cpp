@@ -783,7 +783,10 @@ namespace Rtx
         // head barrier and queue trip every frame. A renderer with no window submits it here.
         mGui.prepare(vertices, batches);
         if (mPresenter == nullptr)
+        {
             mGui.submit(mTarget.getPicture(), mTarget.getShown());
+            mTarget.markShownWritten();
+        }
         mTarget.showInterface();
     }
 
@@ -798,6 +801,7 @@ namespace Rtx
         // **Left where the blit reads it**, so the GUI's last barrier is the one the blit needs.
         mPresenter->present(mTarget.getShown(), Use::sBlitRead, [&](const VkCommandBuffer commands) {
             mGui.record(commands, mTarget.getPicture(), mTarget.getShown(), Use::sBlitRead);
+            mTarget.markShownWritten();
         });
         mTarget.spendShown();
     }
@@ -1114,6 +1118,27 @@ namespace Rtx
         const Image& picture = mTarget.getPicture();
         pixels.resize(picture.getReadBytes());
         picture.read(VK_IMAGE_LAYOUT_GENERAL, mReadBack, std::as_writable_bytes(std::span(pixels)));
+    }
+
+    void VulkanRenderer::readShownPixels(std::vector<std::uint8_t>& pixels)
+    {
+        assert(mTarget.isOpen());
+
+        if (mGui.isPrepared())
+        {
+            mGui.submit(mTarget.getPicture(), mTarget.getShown());
+            mTarget.markShownWritten();
+        }
+        else if (!mTarget.hasShownPicture())
+        {
+            mGui.prepare({}, {});
+            mGui.submit(mTarget.getPicture(), mTarget.getShown());
+            mTarget.markShownWritten();
+        }
+
+        const Image& shown = mTarget.getShown();
+        pixels.resize(shown.getReadBytes());
+        shown.read(VK_IMAGE_LAYOUT_GENERAL, mReadBack, std::as_writable_bytes(std::span(pixels)));
     }
 
     std::optional<NotFiniteFrame> VulkanRenderer::takeNotFiniteFrame()

@@ -131,6 +131,7 @@ namespace Rtx
         bool takeGuiCopy(GuiSlot texture, std::span<std::uint8_t> into) override;
         void finishGuiTraces() override;
         void readPixels(std::vector<std::uint8_t>& pixels) override;
+        void readShownPixels(std::vector<std::uint8_t>& pixels) override;
         void readDeepPixels(std::vector<std::uint16_t>& samples) override;
         std::optional<NotFiniteFrame> takeNotFiniteFrame() override;
 

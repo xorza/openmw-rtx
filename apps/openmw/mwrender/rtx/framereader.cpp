@@ -12,15 +12,18 @@
 
 namespace MWRender
 {
-    osg::ref_ptr<osg::Image> FrameReader::read(
-        Rtx::Renderer& renderer, const std::int32_t width, const std::int32_t height, const Rtx::Channels channels)
+    osg::ref_ptr<osg::Image> FrameReader::read(Rtx::Renderer& renderer, const std::int32_t width,
+        const std::int32_t height, const Rtx::Channels channels, const bool includeGui)
     {
         const Rtx::FrameExtents extents = renderer.getExtents();
         if (extents.mOutputWidth == 0 || extents.mOutputHeight == 0)
             return nullptr;
 
         std::vector<std::uint8_t> pixels;
-        renderer.readPixels(pixels);
+        if (includeGui)
+            renderer.readShownPixels(pixels);
+        else
+            renderer.readPixels(pixels);
 
         const Rtx::TracedFrame frame{
             .mWidth = extents.mOutputWidth,

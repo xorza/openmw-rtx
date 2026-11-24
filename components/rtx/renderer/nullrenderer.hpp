@@ -108,6 +108,7 @@ namespace Rtx
         void setSystemBound(std::optional<std::uint64_t>) override {}
         const SceneStats& getSceneStats() const override { return mStats; }
         void readPixels(std::vector<std::uint8_t>& pixels) override;
+        void readShownPixels(std::vector<std::uint8_t>& pixels) override;
         void readDeepPixels(std::vector<std::uint16_t>& samples) override;
         std::optional<NotFiniteFrame> takeNotFiniteFrame() override { return std::nullopt; }
 

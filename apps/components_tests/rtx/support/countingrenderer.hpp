@@ -211,6 +211,7 @@ namespace Rtx::Testing
         }
         bool takeGuiCopy(Rtx::GuiSlot, std::span<std::uint8_t>) override { return false; }
         void readPixels(std::vector<std::uint8_t>&) override {}
+        void readShownPixels(std::vector<std::uint8_t>&) override {}
         void readDeepPixels(std::vector<std::uint16_t>&) override {}
 
         /// The first texel of each stood texture's second level, beside `mDescribedSlots`, or nought for one of one

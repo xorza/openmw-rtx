@@ -544,8 +544,18 @@ namespace Rtx
             EXPECT_EQ(at(1, 4), (std::array<std::uint8_t, 4>{ 17, 34, 51, 255 })) << "where the GUI drew";
             EXPECT_EQ(at(sExtent - 2, 4), traced) << "where it did not";
 
-            // And the picture a screenshot or a save's thumbnail reads holds none of the interface.
+            // And the picture a save's thumbnail reads holds none of the interface, while what a
+            // screenshot reads (`readShownPixels`) holds the interface over the picture.
             EXPECT_EQ(inPicture(1, 4), traced) << "the interface reached the picture";
+
+            mRenderer.readShownPixels(mPixels);
+            EXPECT_EQ(Testing::rgbaAt(mPixels, sExtent, 1, 4), (std::array<std::uint8_t, 4>{ 17, 34, 51, 255 }));
+            EXPECT_EQ(Testing::rgbaAt(mPixels, sExtent, sExtent - 2, 4), traced);
+
+            // A fresh trace with no GUI drawn over it yet still gives the new picture from `readShownPixels`.
+            mProbe.traceFrame(camera, FrameOptions{});
+            mRenderer.readShownPixels(mPixels);
+            EXPECT_EQ(Testing::rgbaAt(mPixels, sExtent, 1, 4), traced);
         }
 
         /// A level sheet of `extent` about the origin at z = 0, facing up.

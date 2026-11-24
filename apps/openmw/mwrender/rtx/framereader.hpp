@@ -36,8 +36,8 @@ namespace MWRender
         /// The frame as `renderer` last traced it, as an image `width` by `height` — the frame's own size at
         /// nought — or null before anything was traced. Bottom row first, because every reader here takes
         /// OpenGL's order: `LoadingScreen` inverts V for it, and `osgDB`'s writers expect it.
-        static osg::ref_ptr<osg::Image> read(
-            Rtx::Renderer& renderer, std::int32_t width, std::int32_t height, Rtx::Channels channels);
+        static osg::ref_ptr<osg::Image> read(Rtx::Renderer& renderer, std::int32_t width, std::int32_t height,
+            Rtx::Channels channels, bool includeGui = false);
 
         /// The frame frozen into the texture `gui` shows a loading screen through: the texture made on the first
         /// freeze and its image swapped on every one after, black where nothing was traced yet, which is what a
