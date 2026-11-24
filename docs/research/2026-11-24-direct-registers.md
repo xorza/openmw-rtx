@@ -24,10 +24,13 @@ over master.
 | `direct sea`, handheld | | 112 | 96 |
 | `direct maps relief`, handheld | | 144 | 128 |
 | `direct sea maps relief`, handheld | | 144 | 128 |
-| `direct`, AMD's Windows driver | | 112 | |
-| `direct sea`, AMD's Windows driver | | 112 | |
+| `direct`, AMD's Windows driver | 112 | 112 | 112 |
+| `direct sea`, AMD's Windows driver | 112 | 112 | 112 |
+| `direct maps`, AMD's Windows driver | 112 | 126 | 128 |
+| `direct maps relief`, AMD's Windows driver | 128 | 143 | 128 |
 
-No other kernel's registers moved on the handheld. The fix was not run under AMD's Windows driver.
+No other kernel's registers moved on the handheld. **AMD's own compiler held `direct` at 112 before the lift went
+toward each source**, and holds `direct maps` a tier over its parent's still.
 
 - **Each lifted point was three numbers through every traversal**: the parent carried one point for every ray. Lifting
   each ray at its turn from the shaded point and its lift brought `direct` to 95; the strata's lamp distances measured
@@ -47,6 +50,19 @@ side, medians:
 | guild | 9.28 → 8.72 ms (−6.0%) | 9.50 → 8.93 | 54.99 → 54.33 ms (−1.2%) | 55.98 → 55.21 |
 
 No other zone moved by more than 1%.
+
+## AMD's Windows driver
+
+`bench --size=1280x720 --window=false --frames=200`, a warm-up leg then one measured leg a side, medians; master's two
+legs within 0.2% of each other in `direct` and 0.4% in the frame:
+
+| place | `direct` | p99 | frame | p99 |
+|---|---|---|---|---|
+| ship, noon | 10.06 → 10.10 ms (+0.4%) | 10.57 → 10.76 | 63.83 → 63.69 ms (−0.2%) | 77.12 → 73.06 |
+| ship, dawn | 16.68 → 16.88 ms (+1.2%) | 17.25 → 17.49 | 73.72 → 74.11 ms (+0.5%) | 86.28 → 89.46 |
+| guild | 10.15 → 9.54 ms (−6.0%) | 10.51 → 9.92 | 50.04 → 49.36 ms (−1.4%) | 58.09 → 53.26 |
+
+Where the driver's registers did not move, each ray's start made again at its turn is what the stage pays.
 
 ## Pictures
 
