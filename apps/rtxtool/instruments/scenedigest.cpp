@@ -206,10 +206,11 @@ namespace RtxTool
         /// digested.
         auto fieldsOf(const Rtx::MeshRange& mesh)
         {
-            const auto& [vertices, indices, sharedIndexKey, secondTexCoords, unitStreams, tangents, shape, deformer,
-                bindOffset, poseOffset, posed, bounds, uvDensity, key, stands, rest] = mesh;
-            return std::tie(vertices, indices, secondTexCoords, unitStreams, shape, deformer, bindOffset, poseOffset,
-                posed, bounds, stands, rest.mResting);
+            const auto& [vertices, indices, sharedIndexKey, secondTexCoords, thirdTexCoords, unitStreams, tangents,
+                shape, deformer, bindOffset, poseOffset, posed, bounds, uvDensity, key, stands, rest]
+                = mesh;
+            return std::tie(vertices, indices, secondTexCoords, thirdTexCoords, unitStreams, shape, deformer,
+                bindOffset, poseOffset, posed, bounds, stands, rest.mResting);
         }
 
         auto fieldsOf(const Rtx::MeshInstance& instance)

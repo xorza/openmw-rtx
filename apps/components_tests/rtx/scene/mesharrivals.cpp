@@ -41,6 +41,7 @@ namespace Rtx
             EXPECT_EQ(first.mNormals.size(), 4u);
             EXPECT_EQ(first.mColours.size(), 4u);
             EXPECT_TRUE(first.mSecondTexCoords.empty());
+            EXPECT_TRUE(first.mThirdTexCoords.empty());
             EXPECT_EQ(first.mPositions[3].x(), 1.0f);
             EXPECT_EQ(first.mIndices.size(), 3u);
             EXPECT_EQ(arrivals.of(MeshIndex(3)).mPositions[0].x(), 2.0f) << "the second arrival read the first's run";

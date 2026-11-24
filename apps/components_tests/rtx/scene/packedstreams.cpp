@@ -47,7 +47,7 @@ namespace Rtx
             EXPECT_TRUE(one.mTangents.empty());
             EXPECT_TRUE(one.mShape.mSheet);
             EXPECT_EQ(one.mBounds, osg::BoundingBoxf(osg::Vec3f(), osg::Vec3f(1.0f, 1.0f, 0.0f)));
-            EXPECT_EQ(one.mUvDensity, uvDensityOf(Testing::sUnitQuad, {}, {}, Testing::sQuadIndices))
+            EXPECT_EQ(one.mUvDensity, uvDensityOf(Testing::sUnitQuad, {}, {}, {}, Testing::sQuadIndices))
                 << "measured where it is read, a mesh of no coordinates asking the finest";
 
             EXPECT_EQ(second.mVertices, (Rtx::Run{ .mOffset = 4, .mCount = 4 }));

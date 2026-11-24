@@ -24,17 +24,19 @@ namespace Rtx
                 osg::Vec2f(0.0f, 3.0f) };
             const std::array second{ osg::Vec2f(0.0f, 0.0f), osg::Vec2f(2.0f, 0.0f), osg::Vec2f(2.0f, 4.0f),
                 osg::Vec2f(0.0f, 4.0f) };
+            const std::array third{ osg::Vec2f(0.0f, 0.0f), osg::Vec2f(0.5f, 0.0f), osg::Vec2f(0.5f, 1.0f),
+                osg::Vec2f(0.0f, 1.0f) };
 
-            EXPECT_EQ(uvDensityOf(Testing::sUnitQuad, first, second, Testing::sQuadIndices),
-                (UvDensity{ .mFirst = 1.0f, .mSecond = 8.0f }));
+            EXPECT_EQ(uvDensityOf(Testing::sUnitQuad, first, second, third, Testing::sQuadIndices),
+                (UvDensity{ .mFirst = 1.0f, .mSecond = 8.0f, .mThird = 0.5f }));
 
             // The positions matter as the coordinates do: the quad doubled each way spans four times the area, and
             // lays a quarter of the texture on each unit of it.
             std::array<osg::Vec3f, 4> doubled = Testing::sUnitQuad;
             for (osg::Vec3f& corner : doubled)
                 corner *= 2.0f;
-            EXPECT_EQ(uvDensityOf(doubled, first, second, Testing::sQuadIndices),
-                (UvDensity{ .mFirst = 0.25f, .mSecond = 2.0f }));
+            EXPECT_EQ(uvDensityOf(doubled, first, second, third, Testing::sQuadIndices),
+                (UvDensity{ .mFirst = 0.25f, .mSecond = 2.0f, .mThird = 0.125f }));
         }
 
         /// **What the shader reads at its finest level is nought**, as `coneBaseOf` returns its sentinel or a level of
@@ -48,21 +50,22 @@ namespace Rtx
 
             const std::array line{ osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f),
                 osg::Vec3f(2.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f) };
-            EXPECT_EQ(uvDensityOf(line, coords, {}, Testing::sQuadIndices).mFirst, 0.0f)
+            EXPECT_EQ(uvDensityOf(line, coords, {}, {}, Testing::sQuadIndices).mFirst, 0.0f)
                 << "the first triangle, v0 v1 v2, spans no area in the world";
 
             const std::array oneTexel{ osg::Vec2f(0.5f, 0.5f), osg::Vec2f(0.5f, 0.5f), osg::Vec2f(0.5f, 0.5f),
                 osg::Vec2f(0.5f, 0.5f) };
-            EXPECT_EQ(uvDensityOf(Testing::sUnitQuad, coords, oneTexel, Testing::sQuadIndices),
-                (UvDensity{ .mFirst = 1.0f, .mSecond = 0.0f }));
+            EXPECT_EQ(uvDensityOf(Testing::sUnitQuad, coords, oneTexel, {}, Testing::sQuadIndices),
+                (UvDensity{ .mFirst = 1.0f, .mSecond = 0.0f, .mThird = 0.0f }));
 
-            EXPECT_EQ(uvDensityOf(Testing::sUnitQuad, coords, {}, Testing::sQuadIndices),
-                (UvDensity{ .mFirst = 1.0f, .mSecond = 0.0f }))
+            EXPECT_EQ(uvDensityOf(Testing::sUnitQuad, coords, {}, {}, Testing::sQuadIndices),
+                (UvDensity{ .mFirst = 1.0f, .mSecond = 0.0f, .mThird = 0.0f }))
                 << "a set the mesh does not bring reads nought everywhere";
 
             constexpr float none = std::numeric_limits<float>::infinity();
-            EXPECT_EQ(uvDensityOf(Testing::sUnitQuad, coords, {}, {}), (UvDensity{ .mFirst = none, .mSecond = none }));
-            EXPECT_EQ(UvDensity{}, (UvDensity{ .mFirst = 0.0f, .mSecond = 0.0f }));
+            EXPECT_EQ(
+                uvDensityOf(Testing::sUnitQuad, coords, {}, {}, {}), (UvDensity{ .mFirst = none, .mSecond = none, .mThird = none }));
+            EXPECT_EQ(UvDensity{}, (UvDensity{ .mFirst = 0.0f, .mSecond = 0.0f, .mThird = 0.0f }));
         }
     }
 }

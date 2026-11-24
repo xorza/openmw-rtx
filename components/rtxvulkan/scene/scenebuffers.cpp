@@ -252,6 +252,8 @@ namespace Rtx
 
             if (!range.mSecondTexCoords.empty())
                 mSecondTexCoords.writeAt(batch, range.mSecondTexCoords.mOffset, geometry.mSecondTexCoords);
+            if (!range.mThirdTexCoords.empty())
+                mSecondTexCoords.writeAt(batch, range.mThirdTexCoords.mOffset, geometry.mThirdTexCoords);
         }
 
         mMeshRows.resize(scene.meshes().getRows().size());
@@ -265,6 +267,8 @@ namespace Rtx
                 = (mesh.mShape.mSheet ? Shaders::MESH_SHEET : 0u) | (mesh.mTangents ? Shaders::MESH_TANGENTS : 0u),
                 .mSecondTexCoordOffset
                 = mesh.mSecondTexCoords.empty() ? Shaders::NO_RUN : mesh.mSecondTexCoords.mOffset,
+                .mThirdTexCoordOffset
+                = mesh.mThirdTexCoords.empty() ? Shaders::NO_RUN : mesh.mThirdTexCoords.mOffset,
                 .mUnitStreams = mesh.mUnitStreams,
                 .mBindOffset = mesh.deforms() ? mesh.mBindOffset : Shaders::NO_RUN,
                 .mNormalShift = mesh.deforms()

@@ -225,17 +225,18 @@ TexturePoint candidatePoint(
     return texturePoint(uv, bary, material.mTextureTransform, cone, coneWidth, detailed);
 }
 
-/// Where a map bound at `unit` reads the hit: at the diffuse's own `point`, or on the second set,
+/// Where a map bound at `unit` reads the hit: at the diffuse's own `point`, or on the second or third set,
 /// untransformed, where the mesh says that unit reads it — `GpuMesh::mUnitStreams`.
 TexturePoint pointAtUnit(uint unit, TexturePoint point, GpuMesh mesh, uvec3 corner, vec2 bary, SurfaceCone cone,
     float coneWidth, bool detailed)
 {
-    if (!readsSecondUvs(mesh, unit))
+    const uint offset = extraUvOffsetOf(mesh, unit);
+    if (offset == NO_RUN)
         return point;
 
-    vec2 second[3];
-    triangleSecondUvs(mesh, corner, second);
-    return texturePoint(second, bary, vec4(1.0, 1.0, 0.0, 0.0), cone, coneWidth, detailed);
+    vec2 extra[3];
+    triangleExtraUvs(mesh, offset, corner, extra);
+    return texturePoint(extra, bary, vec4(1.0, 1.0, 0.0, 0.0), cone, coneWidth, detailed);
 }
 
 /// What `map` paints where a ray crosses the hit, read at `unit` (`pointAtUnit`), or `absent` where it holds none:
@@ -1040,9 +1041,10 @@ float windowPortalTransmittance(SceneAnswer met)
     vec2 uv[3];
     vec4 transform = mat.mTextureTransform;
     const uint emissiveUnit = (mat.mFlags >> MATERIAL_EMISSIVE_UNIT_SHIFT) & MATERIAL_UNIT_MASK;
-    if (useEmissive && readsSecondUvs(mesh, emissiveUnit))
+    const uint extraOffset = useEmissive ? extraUvOffsetOf(mesh, emissiveUnit) : NO_RUN;
+    if (extraOffset != NO_RUN)
     {
-        triangleSecondUvs(mesh, corners, uv);
+        triangleExtraUvs(mesh, extraOffset, corners, uv);
         transform = vec4(1.0, 1.0, 0.0, 0.0);
     }
     else

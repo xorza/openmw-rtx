@@ -42,15 +42,18 @@ namespace Rtx
     }
 
     UvDensity uvDensityOf(const std::span<const osg::Vec3f> positions, const std::span<const osg::Vec2f> first,
-        const std::span<const osg::Vec2f> second, const std::span<const std::uint32_t> indices)
+        const std::span<const osg::Vec2f> second, const std::span<const osg::Vec2f> third,
+        const std::span<const std::uint32_t> indices)
     {
         assert(indices.size() % 3 == 0 && "indices that are not whole triangles");
         assert((first.empty() || first.size() == positions.size()) && "a first set apart from the positions");
         assert((second.empty() || second.size() == positions.size()) && "a second set apart from the positions");
+        assert((third.empty() || third.size() == positions.size()) && "a third set apart from the positions");
         assert(std::ranges::all_of(indices, [&](const std::uint32_t at) { return at < positions.size(); })
             && "an index past the positions");
 
         return UvDensity{ .mFirst = sparsestOf(positions, first, indices),
-            .mSecond = sparsestOf(positions, second, indices) };
+            .mSecond = sparsestOf(positions, second, indices),
+            .mThird = sparsestOf(positions, third, indices) };
     }
 }

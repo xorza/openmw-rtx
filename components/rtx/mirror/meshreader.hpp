@@ -191,6 +191,7 @@ namespace Rtx
         std::vector<osg::Vec3f> mPositionScratch;
         std::vector<osg::Vec2f> mTexCoordScratch;
         std::vector<osg::Vec2f> mSecondTexCoordScratch;
+        std::vector<osg::Vec2f> mThirdTexCoordScratch;
         std::vector<osg::Vec3f> mCopiedColourScratch;
         std::vector<osg::Vec4f> mTangentScratch;
 
@@ -200,6 +201,7 @@ namespace Rtx
         std::vector<osg::Vec4f> mReadTangentScratch;
         std::vector<osg::Vec2f> mReadTexCoordScratch;
         std::vector<osg::Vec2f> mReadSecondTexCoordScratch;
+        std::vector<osg::Vec2f> mReadThirdTexCoordScratch;
 
         /// The model's shapes, and what stands beside the drawable read: the faces the split cuts
         /// across (`CreaseSplit::Beside`). Refilled per drawable read, like the rest.

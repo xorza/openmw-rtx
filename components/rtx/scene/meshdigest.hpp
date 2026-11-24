@@ -12,7 +12,7 @@ namespace Rtx
     struct MeshDigest
     {
         /// Each stream's run as it stands: what says which stream a difference of layout landed in. The tangents are
-        /// the normals' and the second coordinates the first's, each only where the mesh has any.
+        /// the normals' and the second and third coordinates the first's, each only where the mesh has any.
         Misc::DigestWords mPositions{};
         Misc::DigestWords mNormals{};
         Misc::DigestWords mTexCoords{};

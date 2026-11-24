@@ -15,7 +15,7 @@
 namespace Rtx
 {
     /// One mesh's geometry in the device's form, as a hand-over writes it: each stream a run as long as the mesh's
-    /// vertices, the second texture coordinates empty where it brought none.
+    /// vertices, the second and third texture coordinates empty where it brought none.
     struct MeshGeometry
     {
         std::span<const osg::Vec3f> mPositions;
@@ -28,6 +28,7 @@ namespace Rtx
         /// `Shaders::packTangent`'s words, nought where the mesh brought none.
         std::span<const std::uint32_t> mTangents;
         std::span<const osg::Vec2f> mSecondTexCoords;
+        std::span<const osg::Vec2f> mThirdTexCoords;
 
         /// Empty where the mesh names a run of shared indices that another arrival or an earlier hand-over brought
         /// (`MeshArrays::mSharedIndices`): the device holds them, or this hand-over writes them once.
@@ -50,6 +51,7 @@ namespace Rtx
         {
             std::uint32_t mVertices = 0;
             std::uint32_t mSecondTexCoords = 0;
+            std::uint32_t mThirdTexCoords = 0;
             std::uint32_t mIndices = 0;
         };
 
@@ -62,6 +64,7 @@ namespace Rtx
             std::span<Shaders::GpuVertexColour> mColours;
             std::span<std::uint32_t> mTangents;
             std::span<osg::Vec2f> mSecondTexCoords;
+            std::span<osg::Vec2f> mThirdTexCoords;
             std::span<std::uint32_t> mIndices;
         };
 
@@ -87,6 +90,7 @@ namespace Rtx
         {
             std::uint32_t mVertexStart = 0;
             std::uint32_t mSecondStart = 0;
+            std::uint32_t mThirdStart = 0;
             std::uint32_t mIndexStart = 0;
             Lengths mLengths;
         };
@@ -106,6 +110,7 @@ namespace Rtx
         std::vector<Shaders::GpuVertexColour> mColours;
         std::vector<std::uint32_t> mTangents;
         std::vector<osg::Vec2f> mSecondTexCoords;
+        std::vector<osg::Vec2f> mThirdTexCoords;
         std::vector<std::uint32_t> mIndices;
     };
 }

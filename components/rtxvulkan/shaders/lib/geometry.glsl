@@ -91,23 +91,29 @@ void triangleUvs(uvec3 corner, out vec2 uv[3])
     uv[2] = block.at[at.z];
 }
 
-/// The same off the mesh's second set, which sits in blocks of its own at the mesh's own offset —
-/// `GpuMesh::mSecondTexCoordOffset`. The caller has asked whether there is one.
-void triangleSecondUvs(GpuMesh mesh, uvec3 corner, out vec2 uv[3])
+/// Where `unit`'s extra UV set starts in `mSecondTexCoordBlocks`, or `NO_RUN` where `unit` reads
+/// the mesh's first set (`GpuMesh::mUnitStreams`).
+uint extraUvOffsetOf(GpuMesh mesh, uint unit)
 {
-    const uvec3 second = corner - mesh.mVertexOffset + mesh.mSecondTexCoordOffset;
-    TexCoordBlock block = secondTexCoordBlockOf(second.x);
-    const uvec3 at = second % VERTEX_BLOCK;
+    const uint stream = meshUnitStream(mesh.mUnitStreams, unit);
+    if (stream == MESH_UV_SECOND)
+        return mesh.mSecondTexCoordOffset;
+    if (stream == MESH_UV_THIRD)
+        return mesh.mThirdTexCoordOffset;
+    return NO_RUN;
+}
+
+/// The same off one of the mesh's extra sets (`mSecondTexCoordOffset` or `mThirdTexCoordOffset`),
+/// which sit in `mSecondTexCoordBlocks`. The caller has asked that `offset != NO_RUN`.
+void triangleExtraUvs(GpuMesh mesh, uint offset, uvec3 corner, out vec2 uv[3])
+{
+    const uvec3 extra = corner - mesh.mVertexOffset + offset;
+    TexCoordBlock block = secondTexCoordBlockOf(extra.x);
+    const uvec3 at = extra % VERTEX_BLOCK;
 
     uv[0] = block.at[at.x];
     uv[1] = block.at[at.y];
     uv[2] = block.at[at.z];
-}
-
-/// Whether `unit` reads the mesh's second set — `GpuMesh::mUnitStreams` — and there is one.
-bool readsSecondUvs(GpuMesh mesh, uint unit)
-{
-    return mesh.mSecondTexCoordOffset != NO_RUN && ((mesh.mUnitStreams >> unit) & 1u) != 0u;
 }
 
 /// The corners of the triangle `corner` names, in the mesh's own space: the numbers its structure was

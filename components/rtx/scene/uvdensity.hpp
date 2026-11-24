@@ -21,12 +21,13 @@ namespace Rtx
     {
         float mFirst = 0.0f;
         float mSecond = 0.0f;
+        float mThird = 0.0f;
 
         bool operator==(const UvDensity&) const = default;
     };
 
-    /// `positions`' triangles, `indices` three at a time, read through `first` and `second`, each empty where the mesh
-    /// brings none of it or as long as `positions`.
+    /// `positions`' triangles, `indices` three at a time, read through `first`, `second`, and `third`, each empty where
+    /// the mesh brings none of it or as long as `positions`.
     UvDensity uvDensityOf(std::span<const osg::Vec3f> positions, std::span<const osg::Vec2f> first,
-        std::span<const osg::Vec2f> second, std::span<const std::uint32_t> indices);
+        std::span<const osg::Vec2f> second, std::span<const osg::Vec2f> third, std::span<const std::uint32_t> indices);
 }

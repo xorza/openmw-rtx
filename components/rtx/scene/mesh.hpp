@@ -40,9 +40,14 @@ namespace Rtx
         /// than unit nought's at any unit carries it here — `mUnitStreams` says which units.
         std::span<const osg::Vec2f> mSecondTexCoords{};
 
-        /// One bit per texture unit: set where that unit reads `mSecondTexCoords`, clear where it
-        /// reads `mTexCoords`. What the geometry bound at each unit, which a material sharing a
-        /// state set across geometries cannot know — `GpuMesh::mUnitStreams`.
+        /// A third distinct set of texture coordinates (for example, Glow in the Dahrk windows that
+        /// bind separate UV sets for their diffuse, dark, and emissive/detail maps). Empty where absent.
+        std::span<const osg::Vec2f> mThirdTexCoords{};
+
+        /// Two bits per texture unit (`Shaders::meshUnitStream` / `Shaders::packMeshUnitStream`) for
+        /// units `0..15`: `MESH_UV_FIRST` (`mTexCoords`), `MESH_UV_SECOND` (`mSecondTexCoords`), or
+        /// `MESH_UV_THIRD` (`mThirdTexCoords`). What the geometry bound at each unit, which a material
+        /// sharing a state set across geometries cannot know — `GpuMesh::mUnitStreams`.
         std::uint32_t mUnitStreams = 0;
 
         /// The per-vertex colour, in linear light. Empty is white. Decoded where it is read and not
@@ -213,13 +218,14 @@ namespace Rtx
         /// the last mesh naming it goes. Nothing for a mesh whose run is its own.
         std::optional<MeshKey> mSharedIndexKey;
 
-        /// Where its second set of texture coordinates sits, in a buffer of its own that only the
-        /// meshes carrying one take from — a count of nought for every other mesh, which is nearly
-        /// all of them. The shared attribute buffers hold every vertex of the world, and a fourth
-        /// one that mirrored them would hold megabytes of a cell for twenty-two models.
+        /// Where its second and third sets of texture coordinates sit, in blocks of their own that
+        /// only the meshes carrying them take from — counts of nought for every other mesh, which is
+        /// nearly all of them. The shared attribute buffers hold every vertex of the world, and extra
+        /// ones that mirrored them would hold megabytes of a cell for a handful of models.
         Run mSecondTexCoords;
+        Run mThirdTexCoords;
 
-        /// Which units read the second set — `MeshArrays::mUnitStreams`.
+        /// Which UV stream each unit reads — `MeshArrays::mUnitStreams`.
         std::uint32_t mUnitStreams = 0;
 
         /// Whether any of the mesh's vertices has a tangent — `MeshArrays::mTangents` — which is

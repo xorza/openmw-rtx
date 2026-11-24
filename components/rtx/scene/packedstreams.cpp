@@ -79,6 +79,7 @@ namespace Rtx
         hash.add(mesh.mNormals);
         hash.add(mesh.mTexCoords);
         hash.add(mesh.mSecondTexCoords);
+        hash.add(mesh.mThirdTexCoords);
         hash.add(mesh.mColours);
         hash.add(mesh.mTangents);
         hash.add(mesh.mIndices);
@@ -116,8 +117,16 @@ namespace Rtx
         assert(arrays.mNormals.empty() || arrays.mNormals.size() == positions.size());
         assert(arrays.mTexCoords.empty() || arrays.mTexCoords.size() == positions.size());
         assert(arrays.mSecondTexCoords.empty() || arrays.mSecondTexCoords.size() == positions.size());
-        assert((arrays.mUnitStreams == 0 || !arrays.mSecondTexCoords.empty())
-            && "a unit reads a second set the mesh did not bring");
+        assert(arrays.mThirdTexCoords.empty() || arrays.mThirdTexCoords.size() == positions.size());
+        for (std::uint32_t unit = 0; unit < Shaders::MESH_UNIT_STREAM_LIMIT; ++unit)
+        {
+            [[maybe_unused]] const std::uint32_t stream = Shaders::meshUnitStream(arrays.mUnitStreams, unit);
+            assert(stream <= Shaders::MESH_UV_THIRD && "a unit names an unknown UV stream");
+            assert((stream != Shaders::MESH_UV_SECOND || !arrays.mSecondTexCoords.empty())
+                && "a unit reads a second set the mesh did not bring");
+            assert((stream != Shaders::MESH_UV_THIRD || !arrays.mThirdTexCoords.empty())
+                && "a unit reads a third set the mesh did not bring");
+        }
         assert(arrays.mColours.empty() || arrays.mColours.size() == positions.size());
         assert(arrays.mTangents.empty() || arrays.mTangents.size() == positions.size());
         assert(std::ranges::all_of(positions, [](const osg::Vec3f& position) { return isFinite(position); })
@@ -132,6 +141,8 @@ namespace Rtx
             && "a texture coordinate that is not finite, which the reader reads as none");
         assert(std::ranges::all_of(arrays.mSecondTexCoords, [](const osg::Vec2f& coord) { return isFinite(coord); })
             && "a texture coordinate that is not finite in the second set, which the reader reads as none");
+        assert(std::ranges::all_of(arrays.mThirdTexCoords, [](const osg::Vec2f& coord) { return isFinite(coord); })
+            && "a texture coordinate that is not finite in the third set, which the reader reads as none");
         assert(arrays.mIndices.size() % 3 == 0);
         assert(std::ranges::all_of(arrays.mIndices, [&](const std::uint32_t at) { return at < positions.size(); }));
 
@@ -141,14 +152,17 @@ namespace Rtx
                 mNormals, arrays.mNormals, [](const osg::Vec3f& normal) { return Shaders::packNormal(normal); }),
             .mTexCoords = appendRun(mTexCoords, arrays.mTexCoords),
             .mSecondTexCoords = appendRun(mSecondTexCoords, arrays.mSecondTexCoords),
+            .mThirdTexCoords = appendRun(mThirdTexCoords, arrays.mThirdTexCoords),
             .mColours = appendPacked(mColours, arrays.mColours, packColour),
             .mTangents = appendPacked(mTangents, arrays.mTangents, packTangent),
             .mIndices = appendRun(mIndices, arrays.mIndices),
-            .mUnitStreams = arrays.mSecondTexCoords.empty() ? 0u : arrays.mUnitStreams,
+            .mUnitStreams
+            = (arrays.mSecondTexCoords.empty() && arrays.mThirdTexCoords.empty()) ? 0u : arrays.mUnitStreams,
             .mSharedIndices = arrays.mSharedIndices,
             .mShape = shape,
             .mBounds = {},
-            .mUvDensity = uvDensityOf(positions, arrays.mTexCoords, arrays.mSecondTexCoords, arrays.mIndices),
+            .mUvDensity
+            = uvDensityOf(positions, arrays.mTexCoords, arrays.mSecondTexCoords, arrays.mThirdTexCoords, arrays.mIndices),
             .mKey = {},
         };
 
@@ -174,6 +188,7 @@ namespace Rtx
             .mNormals = runs.mNormals.in(std::span<const std::uint32_t>(mNormals)),
             .mTexCoords = runs.mTexCoords.in(std::span<const osg::Vec2f>(mTexCoords)),
             .mSecondTexCoords = runs.mSecondTexCoords.in(std::span<const osg::Vec2f>(mSecondTexCoords)),
+            .mThirdTexCoords = runs.mThirdTexCoords.in(std::span<const osg::Vec2f>(mThirdTexCoords)),
             .mUnitStreams = runs.mUnitStreams,
             .mColours = runs.mColours.in(std::span<const Shaders::GpuVertexColour>(mColours)),
             .mTangents = runs.mTangents.in(std::span<const std::uint32_t>(mTangents)),
@@ -192,6 +207,7 @@ namespace Rtx
         mNormals.clear();
         mTexCoords.clear();
         mSecondTexCoords.clear();
+        mThirdTexCoords.clear();
         mColours.clear();
         mTangents.clear();
         mIndices.clear();
@@ -203,6 +219,7 @@ namespace Rtx
         Rtx::trimSlack(mNormals);
         Rtx::trimSlack(mTexCoords);
         Rtx::trimSlack(mSecondTexCoords);
+        Rtx::trimSlack(mThirdTexCoords);
         Rtx::trimSlack(mColours);
         Rtx::trimSlack(mTangents);
         Rtx::trimSlack(mIndices);
@@ -215,13 +232,13 @@ namespace Rtx
 
     std::size_t PackedStreams::getRoomBytes() const
     {
-        return roomOf(mPositions) + roomOf(mNormals) + roomOf(mTexCoords) + roomOf(mSecondTexCoords) + roomOf(mColours)
-            + roomOf(mTangents) + roomOf(mIndices);
+        return roomOf(mPositions) + roomOf(mNormals) + roomOf(mTexCoords) + roomOf(mSecondTexCoords)
+            + roomOf(mThirdTexCoords) + roomOf(mColours) + roomOf(mTangents) + roomOf(mIndices);
     }
 
     std::size_t PackedStreams::getContentBytes() const
     {
         return contentOf(mPositions) + contentOf(mNormals) + contentOf(mTexCoords) + contentOf(mSecondTexCoords)
-            + contentOf(mColours) + contentOf(mTangents) + contentOf(mIndices);
+            + contentOf(mThirdTexCoords) + contentOf(mColours) + contentOf(mTangents) + contentOf(mIndices);
     }
 }

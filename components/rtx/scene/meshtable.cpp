@@ -47,6 +47,7 @@ namespace Rtx
         assert(mesh.mNormals.empty() || mesh.mNormals.size() == positions.size());
         assert(mesh.mTexCoords.empty() || mesh.mTexCoords.size() == positions.size());
         assert(mesh.mSecondTexCoords.empty() || mesh.mSecondTexCoords.size() == positions.size());
+        assert(mesh.mThirdTexCoords.empty() || mesh.mThirdTexCoords.size() == positions.size());
         assert(mesh.mColours.empty() || mesh.mColours.size() == positions.size());
         assert(mesh.mTangents.empty() || mesh.mTangents.size() == positions.size());
         assert(indices.size() % 3 == 0);
@@ -79,12 +80,14 @@ namespace Rtx
         else
             elements = put(mIndexRuns, indices);
         const Run second = mesh.mSecondTexCoords.empty() ? Run{} : put(mSecondRuns, mesh.mSecondTexCoords);
+        const Run third = mesh.mThirdTexCoords.empty() ? Run{} : put(mSecondRuns, mesh.mThirdTexCoords);
 
         MeshRange range{
             .mVertices = vertices,
             .mIndices = elements,
             .mSharedIndexKey = sharedKey,
             .mSecondTexCoords = second,
+            .mThirdTexCoords = third,
             .mUnitStreams = mesh.mUnitStreams,
             .mTangents = !mesh.mTangents.empty(),
             .mShape = mesh.mShape,
@@ -119,6 +122,7 @@ namespace Rtx
         const MeshArrivals::Filling into = mArrivals.add(mesh,
             MeshArrivals::Lengths{ .mVertices = range.mVertices.mCount,
                 .mSecondTexCoords = range.mSecondTexCoords.mCount,
+                .mThirdTexCoords = range.mThirdTexCoords.mCount,
                 .mIndices = bringsIndices ? range.mIndices.mCount : 0u });
 
         // Filled where the mesh brought none, as the device's run still holds its last tenant's. A zero normal says
@@ -139,6 +143,7 @@ namespace Rtx
                 .mRedGreen = whiteHalf | (std::uint32_t{ whiteHalf } << 16), .mBlue = whiteHalf });
         fill(into.mTangents, packed.mTangents, 0u);
         std::ranges::copy(packed.mSecondTexCoords, into.mSecondTexCoords.begin());
+        std::ranges::copy(packed.mThirdTexCoords, into.mThirdTexCoords.begin());
         if (bringsIndices)
             std::ranges::copy(packed.mIndices, into.mIndices.begin());
 
@@ -269,12 +274,14 @@ namespace Rtx
         else
             mIndexRuns.release(range.mIndices);
         mSecondRuns.release(range.mSecondTexCoords);
+        mSecondRuns.release(range.mThirdTexCoords);
         deformers.release(range);
         mTriangles -= range.getTriangleCount();
 
         range.mVertices.mCount = 0;
         range.mIndices.mCount = 0;
         range.mSecondTexCoords.mCount = 0;
+        range.mThirdTexCoords.mCount = 0;
         range.mUnitStreams = 0;
         range.mTangents = false;
         range.mBounds = osg::BoundingBoxf();

@@ -451,6 +451,31 @@ namespace Rtx::Shaders
     /// mesh row it already holds: a vanilla scene has none, and every hit in it skips the fetch.
     const uint MESH_TANGENTS = 0x02u;
 
+    /// Encoding of `GpuMesh::mUnitStreams` (`Rtx::MeshArrays::mUnitStreams`): two bits per texture
+    /// unit for units `0..MESH_UNIT_STREAM_LIMIT - 1` (matching `MATERIAL_UNIT_MASK`).
+    const uint MESH_UNIT_STREAM_BITS = 2u;
+    const uint MESH_UNIT_STREAM_MASK = 3u;
+    const uint MESH_UNIT_STREAM_LIMIT = 16u;
+    const uint MESH_UV_FIRST = 0u;
+    const uint MESH_UV_SECOND = 1u;
+    const uint MESH_UV_THIRD = 2u;
+
+    /// The UV stream (`MESH_UV_FIRST`, `MESH_UV_SECOND`, or `MESH_UV_THIRD`) bound at `unit`.
+    RTX_SHADER uint meshUnitStream(uint unitStreams, uint unit)
+    {
+        return unit < MESH_UNIT_STREAM_LIMIT
+            ? ((unitStreams >> (unit * MESH_UNIT_STREAM_BITS)) & MESH_UNIT_STREAM_MASK)
+            : MESH_UV_FIRST;
+    }
+
+    /// Encodes `stream` for `unit` in `mUnitStreams`.
+    RTX_SHADER uint packMeshUnitStream(uint unit, uint stream)
+    {
+        return unit < MESH_UNIT_STREAM_LIMIT
+            ? ((stream & MESH_UNIT_STREAM_MASK) << (unit * MESH_UNIT_STREAM_BITS))
+            : 0u;
+    }
+
     /// Where a mesh's vertices and indices begin in the shared buffers.
     ///
     /// Indices are mesh-local, so a triangle's vertex is `mVertexOffset` plus what the index says.
@@ -463,13 +488,17 @@ namespace Rtx::Shaders
         /// two words**: every ray that lands fetches this row.
         uint mShape;
 
-        /// Where this mesh's second set of texture coordinates begins in the blocks of their own, or
+        /// Where this mesh's second set of texture coordinates begins in the extra UV blocks, or
         /// `NO_RUN` for a mesh that brought none (nearly every mesh). Mesh-local, as `mVertexOffset` is.
         uint mSecondTexCoordOffset;
 
-        /// One bit per texture unit, set where that unit reads the second set
-        /// (`Rtx::MeshArrays::mUnitStreams`): a material is shared across geometries and the binding
-        /// is each geometry's own.
+        /// Where this mesh's third set of texture coordinates begins in the extra UV blocks, or
+        /// `NO_RUN` for a mesh that brought none. Mesh-local, as `mVertexOffset` is.
+        uint mThirdTexCoordOffset;
+
+        /// Two bits per texture unit (`meshUnitStream`), saying whether that unit reads the first,
+        /// second, or third UV set (`Rtx::MeshArrays::mUnitStreams`): a material is shared across
+        /// geometries and the binding is each geometry's own.
         uint mUnitStreams;
 
         /// Where this mesh's posed vertices sit among the deforming meshes' (`Rtx::MeshRange::
@@ -484,8 +513,8 @@ namespace Rtx::Shaders
         uint mNormalShift;
     };
 
-    /// A run a mesh does not have: `GpuMesh::mSecondTexCoordOffset` for a mesh that brought no
-    /// second set of texture coordinates, and `GpuMesh::mBindOffset` for one that does not deform.
+    /// A run a mesh does not have: `GpuMesh::mSecondTexCoordOffset` or `GpuMesh::mThirdTexCoordOffset`
+    /// for a mesh that brought none, and `GpuMesh::mBindOffset` for one that does not deform.
     const uint NO_RUN = 0xFFFFFFFFu;
 
     /// A vertex's tangent as one word: the direction folded onto the octahedron, each coordinate
@@ -687,8 +716,8 @@ namespace Rtx::Shaders
         /// (`committedHit`); a deforming mesh's are its pose's, `mPoseBlocks`.
         uint64 mPositionBlocks;
 
-        /// The second texture coordinates, in blocks of their own that only meshes carrying a second
-        /// set take from (`GpuMesh::mSecondTexCoordOffset`).
+        /// The extra texture coordinates (second and third sets), in blocks of their own that only meshes
+        /// carrying them take from (`GpuMesh::mSecondTexCoordOffset`, `GpuMesh::mThirdTexCoordOffset`).
         uint64 mSecondTexCoordBlocks;
 
         uint64 mMeshes;
@@ -1076,7 +1105,7 @@ namespace Rtx::Shaders
     // pinned separately, by the `--scalar-block-layout` the build hands the validator.
 #ifdef RTX_HOST
     static_assert(sizeof(GpuVertexColour) == 8, "GpuVertexColour must be scalar-packed on every side");
-    static_assert(sizeof(GpuMesh) == 28, "GpuMesh must be scalar-packed on every side");
+    static_assert(sizeof(GpuMesh) == 32, "GpuMesh must be scalar-packed on every side");
     static_assert(sizeof(GpuInstance) == 160, "GpuInstance must be scalar-packed on every side");
     static_assert(INSTANCE_LAMP_BODY > (MASK_EVERY_CLASS | MASK_ADDITIVE | MASK_MEDIUM),
         "the lamp body's bit stands above every ray mask's");

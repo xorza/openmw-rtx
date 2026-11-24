@@ -97,6 +97,8 @@ namespace Rtx
         texCoords.add(geometry.mTexCoords);
         if (!geometry.mSecondTexCoords.empty())
             texCoords.add(geometry.mSecondTexCoords);
+        if (!geometry.mThirdTexCoords.empty())
+            texCoords.add(geometry.mThirdTexCoords);
 
         return MeshDigest{
             .mPositions = wordsOf(geometry.mPositions),

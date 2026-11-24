@@ -166,7 +166,8 @@ namespace Rtx
         // an arrival writes it on the queue, behind every frame in flight.
         BlockedBuffer mTexCoords{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec2f) };
 
-        /// The second set, in runs of their own: `Rtx::MeshRange::mSecondTexCoords`.
+        /// The second and third UV sets, in runs of their own: `Rtx::MeshRange::mSecondTexCoords`
+        /// and `Rtx::MeshRange::mThirdTexCoords`.
         BlockedBuffer mSecondTexCoords{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec2f) };
         BlockedBuffer mColours{ Shaders::VERTEX_BLOCK, sizeof(Shaders::GpuVertexColour) };
 

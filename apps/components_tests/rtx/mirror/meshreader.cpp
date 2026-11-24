@@ -40,6 +40,7 @@
 #include <components/rtx/scene/packedstreams.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sceneidentities.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/shader/automaps.hpp>
 
 namespace Rtx::Testing
@@ -623,7 +624,10 @@ namespace Rtx::Testing
                 (std::vector<osg::Vec4f>{ written[0], osg::Vec4f(), osg::Vec4f(), written[3] }));
 
             EXPECT_EQ(reading.mArrays.mSecondTexCoords.data(), second->asVector().data());
-            EXPECT_EQ(reading.mArrays.mUnitStreams, (1u << 2) | (1u << 3));
+            const std::uint32_t secondOnTwoAndThree
+                = Shaders::packMeshUnitStream(2, Shaders::MESH_UV_SECOND)
+                | Shaders::packMeshUnitStream(3, Shaders::MESH_UV_SECOND);
+            EXPECT_EQ(reading.mArrays.mUnitStreams, secondOnTwoAndThree);
 
             // **A coordinate that is not a finite number is read as none**, nought, in either set;
             // and a unit holding a copy of a set with one is still that set, as its bits are.
@@ -638,8 +642,52 @@ namespace Rtx::Testing
             EXPECT_EQ(std::vector<osg::Vec2f>(
                           reading.mArrays.mSecondTexCoords.begin(), reading.mArrays.mSecondTexCoords.end()),
                 (std::vector<osg::Vec2f>{ osg::Vec2f(), osg::Vec2f(0.5f, 0.0f), osg::Vec2f(), osg::Vec2f() }));
-            EXPECT_EQ(reading.mArrays.mUnitStreams, (1u << 2) | (1u << 3))
-                << "a copy holding a NaN was a set of its own";
+            EXPECT_EQ(reading.mArrays.mUnitStreams, secondOnTwoAndThree) << "a copy holding a NaN was a set of its own";
+        }
+
+        /// **A third distinct coordinate set is read into its own stream** (`mThirdTexCoords`), and
+        /// every unit binding it or a copy of it records `MESH_UV_THIRD`, even when the first and
+        /// second sets also appear on other units.
+        TEST(RtxMeshReaderTest, aThirdDistinctSetIsReadIntoItsOwnStream)
+        {
+            osg::ref_ptr<osg::Geometry> quad = makeQuad();
+            osg::ref_ptr<osg::Vec2Array> first = new osg::Vec2Array(4);
+            osg::ref_ptr<osg::Vec2Array> second = new osg::Vec2Array(4);
+            osg::ref_ptr<osg::Vec2Array> third = new osg::Vec2Array(4);
+            (*first)[1] = osg::Vec2f(1.0f, 0.0f);
+            (*second)[1] = osg::Vec2f(0.5f, 0.0f);
+            (*third)[2] = osg::Vec2f(0.25f, 0.75f);
+
+            quad->setTexCoordArray(0, first);
+            quad->setTexCoordArray(1, new osg::Vec2Array(*first));
+            quad->setTexCoordArray(2, second);
+            quad->setTexCoordArray(3, new osg::Vec2Array(*second));
+            quad->setTexCoordArray(4, third);
+            quad->setTexCoordArray(5, new osg::Vec2Array(*third));
+
+            ContentPreprocessor content;
+            MeshReader reader;
+            MeshReading reading;
+            ASSERT_EQ(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad), {}), nullptr, reading).value(),
+                MeshRead::Triangles);
+
+            EXPECT_EQ(reading.mArrays.mSecondTexCoords.data(), second->asVector().data());
+            EXPECT_EQ(reading.mArrays.mThirdTexCoords.data(), third->asVector().data());
+            const std::uint32_t expected
+                = Shaders::packMeshUnitStream(2, Shaders::MESH_UV_SECOND)
+                | Shaders::packMeshUnitStream(3, Shaders::MESH_UV_SECOND)
+                | Shaders::packMeshUnitStream(4, Shaders::MESH_UV_THIRD)
+                | Shaders::packMeshUnitStream(5, Shaders::MESH_UV_THIRD);
+            EXPECT_EQ(reading.mArrays.mUnitStreams, expected);
+
+            (*third)[1] = osg::Vec2f(std::numeric_limits<float>::quiet_NaN(), 0.0f);
+            quad->setTexCoordArray(5, new osg::Vec2Array(*third));
+            ASSERT_EQ(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad), {}), nullptr, reading).value(),
+                MeshRead::Triangles);
+            EXPECT_EQ(
+                std::vector<osg::Vec2f>(reading.mArrays.mThirdTexCoords.begin(), reading.mArrays.mThirdTexCoords.end()),
+                (std::vector<osg::Vec2f>{ osg::Vec2f(), osg::Vec2f(), osg::Vec2f(0.25f, 0.75f), osg::Vec2f() }));
+            EXPECT_EQ(reading.mArrays.mUnitStreams, expected);
         }
 
         /// The two halves land on one row: a mesh adopted from a reading is the mesh `resolve`

@@ -28,6 +28,7 @@ namespace Rtx
         std::span<const std::uint32_t> mNormals{};
         std::span<const osg::Vec2f> mTexCoords{};
         std::span<const osg::Vec2f> mSecondTexCoords{};
+        std::span<const osg::Vec2f> mThirdTexCoords{};
 
         /// `MeshArrays::mUnitStreams`.
         std::uint32_t mUnitStreams = 0;
@@ -68,6 +69,7 @@ namespace Rtx
         Run mNormals;
         Run mTexCoords;
         Run mSecondTexCoords;
+        Run mThirdTexCoords;
         Run mColours;
         Run mTangents;
         Run mIndices;
@@ -109,6 +111,7 @@ namespace Rtx
         std::vector<std::uint32_t> mNormals;
         std::vector<osg::Vec2f> mTexCoords;
         std::vector<osg::Vec2f> mSecondTexCoords;
+        std::vector<osg::Vec2f> mThirdTexCoords;
         std::vector<Shaders::GpuVertexColour> mColours;
         std::vector<std::uint32_t> mTangents;
         std::vector<std::uint32_t> mIndices;

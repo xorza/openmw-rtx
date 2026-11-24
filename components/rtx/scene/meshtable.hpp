@@ -65,7 +65,7 @@ namespace Rtx
         /// out of a content file, so whoever reads one asks this before `add`, which asserts it.
         static Result<void, std::string> checkFits(std::size_t vertices, std::size_t indices);
 
-        /// Where the vertex, the index and the second coordinates' runs are handed out: how far they reach against
+        /// Where the vertex, the index and the extra coordinates' runs are handed out: how far they reach against
         /// what stands in them, which is the room freed meshes left and nothing moves to close. How far a device's
         /// streams reach.
         const RunAllocator& getVertexRuns() const { return mVertexRuns; }
@@ -202,8 +202,8 @@ namespace Rtx
 
         /// Where a mesh's vertices and its indices live on the device — runs and not slots, because the geometry
         /// behind a row is as long as the model. One vertex run names the same elements of the five vertex streams;
-        /// the second texture coordinates are in runs of their own — `MeshRange::mSecondTexCoords`. In the device's
-        /// blocks, which is what lets its buffers grow without moving any.
+        /// the second and third texture coordinates are in runs of their own — `MeshRange::mSecondTexCoords` and
+        /// `MeshRange::mThirdTexCoords`. In the device's blocks, which is what lets its buffers grow without moving any.
         RunAllocator mVertexRuns{ sVertexBlock };
         RunAllocator mIndexRuns{ sIndexBlock };
         RunAllocator mSecondRuns{ sVertexBlock };

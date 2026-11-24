@@ -46,6 +46,8 @@ namespace Rtx
         assert(lengths.mVertices > 0 && "an arrival with no vertices");
         assert((lengths.mSecondTexCoords == 0 || lengths.mSecondTexCoords == lengths.mVertices)
             && "a second set of coordinates not one a vertex");
+        assert((lengths.mThirdTexCoords == 0 || lengths.mThirdTexCoords == lengths.mVertices)
+            && "a third set of coordinates not one a vertex");
 
         mRecordOf.growTo(mesh, sNoRecord);
         if (mRecordOf[mesh] == sNoRecord)
@@ -55,6 +57,7 @@ namespace Rtx
         mRecords.push_back(Record{
             .mVertexStart = static_cast<std::uint32_t>(mPositions.size()),
             .mSecondStart = static_cast<std::uint32_t>(mSecondTexCoords.size()),
+            .mThirdStart = static_cast<std::uint32_t>(mThirdTexCoords.size()),
             .mIndexStart = static_cast<std::uint32_t>(mIndices.size()),
             .mLengths = lengths,
         });
@@ -66,6 +69,7 @@ namespace Rtx
             .mColours = grow(mColours, lengths.mVertices),
             .mTangents = grow(mTangents, lengths.mVertices),
             .mSecondTexCoords = grow(mSecondTexCoords, lengths.mSecondTexCoords),
+            .mThirdTexCoords = grow(mThirdTexCoords, lengths.mThirdTexCoords),
             .mIndices = grow(mIndices, lengths.mIndices),
         };
     }
@@ -89,6 +93,7 @@ namespace Rtx
             .mColours = runOf(mColours, record.mVertexStart, lengths.mVertices),
             .mTangents = runOf(mTangents, record.mVertexStart, lengths.mVertices),
             .mSecondTexCoords = runOf(mSecondTexCoords, record.mSecondStart, lengths.mSecondTexCoords),
+            .mThirdTexCoords = runOf(mThirdTexCoords, record.mThirdStart, lengths.mThirdTexCoords),
             .mIndices = runOf(mIndices, record.mIndexStart, lengths.mIndices),
         };
     }
@@ -107,12 +112,14 @@ namespace Rtx
         empty(mColours, giveBack);
         empty(mTangents, giveBack);
         empty(mSecondTexCoords, giveBack);
+        empty(mThirdTexCoords, giveBack);
         empty(mIndices, giveBack);
     }
 
     std::size_t MeshArrivals::getBytes() const
     {
         return capacityBytes(mPositions) + capacityBytes(mNormals) + capacityBytes(mTexCoords) + capacityBytes(mColours)
-            + capacityBytes(mTangents) + capacityBytes(mSecondTexCoords) + capacityBytes(mIndices);
+            + capacityBytes(mTangents) + capacityBytes(mSecondTexCoords) + capacityBytes(mThirdTexCoords)
+            + capacityBytes(mIndices);
     }
 }

@@ -256,7 +256,8 @@ namespace Rtx
                 osg::Vec2f(0.0f, 1.0f) };
             const MeshIndex laid = Testing::addMesh(
                 scene, MeshArrays{ .mPositions = raised, .mTexCoords = coords, .mIndices = Testing::sQuadIndices });
-            EXPECT_EQ(scene.meshes().getRows()[laid].mUvDensity, (UvDensity{ .mFirst = 2.0f, .mSecond = 0.0f }));
+            EXPECT_EQ(
+                scene.meshes().getRows()[laid].mUvDensity, (UvDensity{ .mFirst = 2.0f, .mSecond = 0.0f, .mThird = 0.0f }));
         }
 
         /// A mesh without normals or texture coordinates must still leave the attribute buffers as
@@ -2359,6 +2360,15 @@ namespace Rtx
                     Testing::addMesh(scene,
                         MeshArrays{ .mPositions = Testing::sUnitQuad,
                             .mSecondTexCoords = coords,
+                            .mIndices = Testing::sQuadIndices });
+                },
+                "a texture coordinate that is not finite");
+            Testing::expectAssertDies(
+                [&] {
+                    SceneDesc scene(identities);
+                    Testing::addMesh(scene,
+                        MeshArrays{ .mPositions = Testing::sUnitQuad,
+                            .mThirdTexCoords = coords,
                             .mIndices = Testing::sQuadIndices });
                 },
                 "a texture coordinate that is not finite");

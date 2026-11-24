@@ -160,7 +160,7 @@ namespace Rtx
         // Bounded and keyed here, on the reader's thread, and not where the frame adopts it.
         for (const osg::Vec3f& position : into.mPositions)
             into.mBounds.expandBy(position);
-        into.mUvDensity = uvDensityOf(into.mPositions, into.mTexCoords, {}, into.mIndices);
+        into.mUvDensity = uvDensityOf(into.mPositions, into.mTexCoords, {}, {}, into.mIndices);
         into.mKey = keyOf(into.mesh());
 
         into.mStands = true;

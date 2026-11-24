@@ -629,15 +629,17 @@ namespace Rtx
         const auto meshes = mScene.meshes().getRows();
         held.mAsks.clear();
 
-        // `0.5 log2(density / scale²)`, the density of the sets the mesh brings at their least: a mesh with no second
-        // set reads every unit through its first (`MeshArrays::mUnitStreams`).
+        // `0.5 log2(density / scale²)`, the density of the sets the mesh brings at their least: units
+        // without an extra set read through the first (`MeshArrays::mUnitStreams`).
         const auto ask = [&](const Stood& stood) {
             if (stood.mMaterial == sNoRow || stood.mMesh == sNoRow)
                 return;
             const MeshRange& mesh = meshes[stood.mMesh];
-            const float density = mesh.mSecondTexCoords.mCount > 0
-                ? std::min(mesh.mUvDensity.mFirst, mesh.mUvDensity.mSecond)
-                : mesh.mUvDensity.mFirst;
+            float density = mesh.mUvDensity.mFirst;
+            if (mesh.mSecondTexCoords.mCount > 0)
+                density = std::min(density, mesh.mUvDensity.mSecond);
+            if (mesh.mThirdTexCoords.mCount > 0)
+                density = std::min(density, mesh.mUvDensity.mThird);
             held.mAsks.push_back(RingAsk{ .mMaterial = stood.mMaterial,
                 .mFootprint = 0.5f * std::log2(density) - std::log2(placedScale(stood.mTransform)) });
         };

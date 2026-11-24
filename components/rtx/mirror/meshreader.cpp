@@ -27,6 +27,7 @@
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/shape/creasesplit.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/riggeometry.hpp>
 #include <components/shader/automaps.hpp>
@@ -569,20 +570,23 @@ namespace Rtx
         if (!texCoords.isOk())
             return Err{ texCoords.error() };
 
-        // **A second set is the first coordinates bound at any unit that are not unit nought's**, and the units that
-        // bind it are noted for the material to look up its dark and glow maps' streams by. Told apart by what the
-        // arrays hold and not by which array they are: `NifOsg` gives every unit a fresh array, so the durzog's dark
-        // map, bound on the first set at unit one, is a second array holding the first set. No vanilla shape carries a
-        // third. Compared by their bits, because a copy is the same bits and a coordinate that is not a number equals
-        // nothing.
+        // **Distinct coordinate sets past unit nought** are noted for the material to look up its dark, glow, detail,
+        // decal, bump and gloss maps' streams by (`mUnitStreams`, 2 bits per unit up to `MESH_UNIT_STREAM_LIMIT`).
+        // Told apart by what the arrays hold and not by which array they are: `NifOsg` gives every unit a fresh array,
+        // so the durzog's dark map, bound on the first set at unit one, is a second array holding the first set. Up
+        // to two distinct extra sets (the second and third) are captured, which covers Glow in the Dahrk / Project
+        // Atlas meshes binding three separate UV sets. Compared by their bits, because a copy is the same bits and a
+        // coordinate that is not a number equals nothing.
         const auto holdsSame = [](const osg::Vec2Array* left, const osg::Vec2Array* right) {
             return left == right
                 || (left != nullptr && right != nullptr && left->size() == right->size()
                     && std::memcmp(left->getDataPointer(), right->getDataPointer(), left->getTotalDataSize()) == 0);
         };
         const osg::Vec2Array* second = nullptr;
+        const osg::Vec2Array* third = nullptr;
         std::uint32_t unitStreams = 0;
-        for (std::uint32_t unit = 1; unit < geometry.getNumTexCoordArrays() && unit < 32; ++unit)
+        for (std::uint32_t unit = 1; unit < geometry.getNumTexCoordArrays() && unit < Shaders::MESH_UNIT_STREAM_LIMIT;
+            ++unit)
         {
             if (unit == Shader::sTangentUnit)
                 continue;
@@ -595,7 +599,14 @@ namespace Rtx
             if (second == nullptr)
                 second = bound.value();
             if (holdsSame(bound.value(), second))
-                unitStreams |= 1u << unit;
+            {
+                unitStreams |= Shaders::packMeshUnitStream(unit, Shaders::MESH_UV_SECOND);
+                continue;
+            }
+            if (third == nullptr)
+                third = bound.value();
+            if (holdsSame(bound.value(), third))
+                unitStreams |= Shaders::packMeshUnitStream(unit, Shaders::MESH_UV_THIRD);
         }
 
         // The source geometry's colours even for a morph, whose positions came from its base
@@ -679,6 +690,10 @@ namespace Rtx
             = withCopies(second != nullptr ? finiteOrNone(second->asVector(), mReadSecondTexCoordScratch)
                                            : std::span<const osg::Vec2f>(),
                 sources, mSecondTexCoordScratch),
+            .mThirdTexCoords
+            = withCopies(third != nullptr ? finiteOrNone(third->asVector(), mReadThirdTexCoordScratch)
+                                          : std::span<const osg::Vec2f>(),
+                sources, mThirdTexCoordScratch),
             .mUnitStreams = unitStreams,
             .mColours = withCopies(colours.value(), sources, mCopiedColourScratch),
             .mTangents = withCopies(tangents.value(), sources, mTangentScratch),

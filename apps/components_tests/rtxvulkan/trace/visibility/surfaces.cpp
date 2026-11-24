@@ -1303,7 +1303,8 @@ namespace Rtx::Testing
             EXPECT_EQ(albedoUnder(TextureIndex(2), 0, 0), (std::array<std::int32_t, 3>{ 137, 137, 137 }));
 
             // The sheet on the second set, at a unit that reads it: red everywhere.
-            EXPECT_EQ(albedoUnder(TextureIndex(2), 1, 1u << 1), (std::array<std::int32_t, 3>{ 188, 0, 0 }));
+            EXPECT_EQ(albedoUnder(TextureIndex(2), 1, Shaders::packMeshUnitStream(1, Shaders::MESH_UV_SECOND)),
+                (std::array<std::int32_t, 3>{ 188, 0, 0 }));
 
             // And at a unit the mesh says reads the first set, the second set is not read.
             EXPECT_EQ(albedoUnder(TextureIndex(2), 1, 0), (std::array<std::int32_t, 3>{ 137, 137, 137 }));
@@ -1337,7 +1338,7 @@ namespace Rtx::Testing
                 return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2));
             };
 
-            const osg::Vec3f onSecond = glowUnder(1, 1u << 1);
+            const osg::Vec3f onSecond = glowUnder(1, Shaders::packMeshUnitStream(1, Shaders::MESH_UV_SECOND));
             EXPECT_EQ(onSecond, osg::Vec3f(Shaders::EMISSIVE_INTENSITY, 0.0f, 0.0f)) << "the glow read the first set";
 
             // The sampler weighs the four texels in fixed point, which moves the middle by parts in a
@@ -1376,6 +1377,8 @@ namespace Rtx::Testing
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
             const std::array<osg::Vec2f, 4> onRed{ osg::Vec2f(0.25f, 0.25f), osg::Vec2f(0.25f, 0.25f),
                 osg::Vec2f(0.25f, 0.25f), osg::Vec2f(0.25f, 0.25f) };
+            const std::array<osg::Vec2f, 4> onBlue{ osg::Vec2f(0.25f, 0.75f), osg::Vec2f(0.25f, 0.75f),
+                osg::Vec2f(0.25f, 0.75f), osg::Vec2f(0.25f, 0.75f) };
 
             struct Laid
             {
@@ -1392,6 +1395,7 @@ namespace Rtx::Testing
                         .mPositions = sWallQuad,
                         .mTexCoords = sQuadUv,
                         .mSecondTexCoords = onRed,
+                        .mThirdTexCoords = onBlue,
                         .mUnitStreams = laid.mUnitStreams,
                         .mIndices = sQuadIndices,
                     });
@@ -1432,9 +1436,13 @@ namespace Rtx::Testing
             expectNear(albedoUnder({ .mDetail = TextureIndex(1), .mDecal = TextureIndex(2), .mTint = tint }),
                 osg::componentMultiply(detailed, tint) * (1.0f - alpha) + red * alpha, 1e-5f);
 
-            // On the second set, at a unit that reads it: the red quadrant, alpha one, laid whole.
-            expectNear(
-                albedoUnder({ .mDecal = TextureIndex(3), .mDecalUnit = 1, .mUnitStreams = 1u << 1 }), red, 1e-6f);
+            // On the second and third sets, at units that read them: the red or blue quadrant, alpha one, laid whole.
+            const std::uint32_t secondAndThird = Shaders::packMeshUnitStream(1, Shaders::MESH_UV_SECOND)
+                | Shaders::packMeshUnitStream(2, Shaders::MESH_UV_THIRD);
+            expectNear(albedoUnder({ .mDecal = TextureIndex(3), .mDecalUnit = 1, .mUnitStreams = secondAndThird }), red,
+                1e-6f);
+            expectNear(albedoUnder({ .mDecal = TextureIndex(3), .mDecalUnit = 2, .mUnitStreams = secondAndThird }),
+                osg::Vec3f(0.0f, 0.0f, 1.0f), 1e-6f);
 
             // At a unit the mesh says reads the first set, the middle of the sheet: a half in every channel, alpha
             // one. The sampler weighs the four texels in fixed point, which moves the middle by parts in a hundred
