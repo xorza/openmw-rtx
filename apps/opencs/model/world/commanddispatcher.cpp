@@ -28,12 +28,13 @@
 #include "ref.hpp"
 #include "refcollection.hpp"
 #include "universalid.hpp"
+#include "variantconversion.hpp"
 
 std::vector<std::string> CSMWorld::CommandDispatcher::getDeletableRecords() const
 {
     std::vector<std::string> result;
 
-    auto& model = dynamic_cast<IdTable&>(*mDocument.getData().getTableModel(mId));
+    IdTable& model = mDocument.getData().getTableModel<IdTable>(mId);
 
     std::int32_t stateColumnIndex = model.findColumnIndex(Columns::ColumnId_Modification);
 
@@ -42,8 +43,7 @@ std::vector<std::string> CSMWorld::CommandDispatcher::getDeletableRecords() cons
         std::int32_t row = model.getModelIndex(entry, 0).row();
 
         // check record state
-        RecordBase::State state
-            = static_cast<RecordBase::State>(model.data(model.index(row, stateColumnIndex)).toInt());
+        RecordBase::State state = static_cast<RecordBase::State>(model.getData(row, stateColumnIndex).toInt());
 
         if (state == RecordBase::State_Deleted)
             continue;
@@ -53,7 +53,7 @@ std::vector<std::string> CSMWorld::CommandDispatcher::getDeletableRecords() cons
 
         if (dialogueTypeIndex != -1)
         {
-            std::int32_t type = model.data(model.index(row, dialogueTypeIndex)).toInt();
+            std::int32_t type = model.getData(row, dialogueTypeIndex).toInt();
 
             if (type != ESM::Dialogue::Topic && type != ESM::Dialogue::Journal)
                 continue;
@@ -69,7 +69,7 @@ std::vector<std::string> CSMWorld::CommandDispatcher::getRevertableRecords() con
 {
     std::vector<std::string> result;
 
-    auto& model = dynamic_cast<IdTable&>(*mDocument.getData().getTableModel(mId));
+    IdTable& model = mDocument.getData().getTableModel<IdTable>(mId);
 
     /// \todo Reverting temporarily disabled on tables that support reordering, because
     /// revert logic currently can not handle reordering.
@@ -83,8 +83,7 @@ std::vector<std::string> CSMWorld::CommandDispatcher::getRevertableRecords() con
         std::int32_t row = model.getModelIndex(entry, 0).row();
 
         // check record state
-        RecordBase::State state
-            = static_cast<RecordBase::State>(model.data(model.index(row, stateColumnIndex)).toInt());
+        RecordBase::State state = static_cast<RecordBase::State>(model.getData(row, stateColumnIndex).toInt());
 
         if (state == RecordBase::State_BaseOnly)
             continue;
@@ -173,15 +172,13 @@ void CSMWorld::CommandDispatcher::executeModify(
             std::int32_t row = proxy ? proxy->mapToSource(index).row() : index.row();
 
             // This is not guaranteed to be the same as \a model, since a proxy could be used.
-            auto& model2 = dynamic_cast<IdTable&>(*mDocument.getData().getTableModel(mId));
+            IdTable& model2 = mDocument.getData().getTableModel<IdTable>(mId);
 
             std::int32_t cellColumn = model2.searchColumnIndex(Columns::ColumnId_Cell);
 
             if (cellColumn != -1)
             {
-                QModelIndex cellIndex = model2.index(row, cellColumn);
-
-                std::string cellId = model2.data(cellIndex).toString().toUtf8().data();
+                std::string cellId = getString(model2.getData(row, cellColumn));
 
                 if (cellId.find('#') != std::string::npos)
                 {
@@ -214,22 +211,23 @@ void CSMWorld::CommandDispatcher::executeDelete()
     if (rows.empty())
         return;
 
-    auto& model = dynamic_cast<IdTable&>(*mDocument.getData().getTableModel(mId));
+    IdTable& model = mDocument.getData().getTableModel<IdTable>(mId);
 
     std::int32_t columnIndex = model.findColumnIndex(Columns::ColumnId_Id);
 
     CommandMacro macro(mDocument.getUndoStack(), rows.size() > 1 ? "Delete multiple records" : "");
-    for (const auto& row : rows)
+    for (const auto& entry : rows)
     {
-        std::string id = model.data(model.getModelIndex(row, columnIndex)).toString().toUtf8().constData();
+        std::string id = getString(model.data(model.getModelIndex(entry, columnIndex)));
 
         if (mId.getType() == UniversalId::Type_Referenceables)
         {
-            macro.push(new CSMWorld::DeleteCommand(model, id,
-                static_cast<CSMWorld::UniversalId::Type>(model
-                        .data(model.index(model.getModelIndex(id, columnIndex).row(),
-                            model.findColumnIndex(CSMWorld::Columns::ColumnId_RecordType)))
-                        .toInt())));
+            const std::int32_t row = model.getModelIndex(id, columnIndex).row();
+            const std::int32_t typeIndex = model.findColumnIndex(CSMWorld::Columns::ColumnId_RecordType);
+            CSMWorld::UniversalId::Type type
+                = static_cast<CSMWorld::UniversalId::Type>(model.getData(row, typeIndex).toInt());
+
+            macro.push(new CSMWorld::DeleteCommand(model, id, type));
         }
         else
             mDocument.getUndoStack().push(new CSMWorld::DeleteCommand(model, id));
@@ -246,14 +244,14 @@ void CSMWorld::CommandDispatcher::executeRevert()
     if (rows.empty())
         return;
 
-    auto& model = dynamic_cast<IdTable&>(*mDocument.getData().getTableModel(mId));
+    IdTable& model = mDocument.getData().getTableModel<IdTable>(mId);
 
     std::int32_t columnIndex = model.findColumnIndex(Columns::ColumnId_Id);
 
     CommandMacro macro(mDocument.getUndoStack(), rows.size() > 1 ? "Revert multiple records" : "");
     for (const auto& row : rows)
     {
-        std::string id = model.data(model.getModelIndex(row, columnIndex)).toString().toUtf8().constData();
+        std::string id = getString(model.data(model.getModelIndex(row, columnIndex)));
 
         macro.push(new CSMWorld::RevertCommand(model, id));
     }
@@ -270,7 +268,7 @@ void CSMWorld::CommandDispatcher::executeExtendedDelete()
             executeDelete();
         else if (extendedType == UniversalId::Type_References)
         {
-            auto& model = dynamic_cast<IdTable&>(*mDocument.getData().getTableModel(extendedType));
+            IdTable& model = mDocument.getData().getTableModel<IdTable>(extendedType);
 
             const RefCollection& collection = mDocument.getData().getReferences();
 
@@ -303,7 +301,7 @@ void CSMWorld::CommandDispatcher::executeExtendedRevert()
             executeRevert();
         else if (extendedType == UniversalId::Type_References)
         {
-            auto& model = dynamic_cast<IdTable&>(*mDocument.getData().getTableModel(extendedType));
+            IdTable& model = mDocument.getData().getTableModel<IdTable>(extendedType);
 
             const RefCollection& collection = mDocument.getData().getReferences();
 

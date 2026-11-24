@@ -458,7 +458,7 @@ void CSVWorld::EditWidget::createEditorContextMenu(
         && CSMWorld::TableMimeData::convertEnums(display) != CSMWorld::UniversalId::Type_None)
     {
         std::int32_t idColumn = mTable->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
-        QString id = mTable->data(mTable->index(currentRow, idColumn)).toString();
+        QString id = mTable->getData(currentRow, idColumn).toString();
 
         auto* menu = new IdContextMenu(editor, display);
         // Current ID is already opened, so no need to create Edit 'ID' action for it
@@ -552,7 +552,7 @@ void CSVWorld::EditWidget::remake(std::int32_t row)
     mainLayout->addStretch(1);
 
     std::int32_t blockedColumn = mTable->searchColumnIndex(CSMWorld::Columns::ColumnId_Blocked);
-    bool isBlocked = mTable->data(mTable->index(row, blockedColumn)).toInt();
+    bool isBlocked = mTable->getData(row, blockedColumn).toInt();
 
     std::int32_t unlocked = 0;
     std::int32_t locked = 0;
@@ -564,8 +564,7 @@ void CSVWorld::EditWidget::remake(std::int32_t row)
 
         if (flags & CSMWorld::ColumnBase::Flag_Dialogue)
         {
-            CSMWorld::ColumnBase::Display display = static_cast<CSMWorld::ColumnBase::Display>(
-                mTable->headerData(i, Qt::Horizontal, CSMWorld::ColumnBase::Role_Display).toInt());
+            CSMWorld::ColumnBase::Display display = mTable->getColumnDisplay(i);
 
             if (mTable->hasChildren(mTable->index(row, i)) && !(flags & CSMWorld::ColumnBase::Flag_Dialogue_List))
             {
@@ -573,12 +572,7 @@ void CSVWorld::EditWidget::remake(std::int32_t row)
                 mNestedModels.push_back(
                     new CSMWorld::NestedTableProxyModel(mTable->index(row, i), display, innerTable));
 
-                std::int32_t idColumn = mTable->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
-                std::int32_t typeColumn = mTable->findColumnIndex(CSMWorld::Columns::ColumnId_RecordType);
-
-                CSMWorld::UniversalId id = CSMWorld::UniversalId(
-                    static_cast<CSMWorld::UniversalId::Type>(mTable->data(mTable->index(row, typeColumn)).toInt()),
-                    mTable->data(mTable->index(row, idColumn)).toString().toUtf8().constData());
+                CSMWorld::UniversalId id = mTable->getUniversalId(row);
 
                 bool editable = true;
                 bool fixedRows = false;
@@ -792,7 +786,7 @@ void CSVWorld::SimpleDialogueSubView::setEditLock(bool locked)
     if (currentIndex.isValid())
     {
         CSMWorld::RecordBase::State state
-            = static_cast<CSMWorld::RecordBase::State>(mTable->data(mTable->index(currentIndex.row(), 1)).toInt());
+            = static_cast<CSMWorld::RecordBase::State>(mTable->getData(currentIndex.row(), 1).toInt());
 
         mEditWidget->setDisabled(state == CSMWorld::RecordBase::State_Deleted || locked);
 
@@ -808,7 +802,7 @@ void CSVWorld::SimpleDialogueSubView::dataChanged(const QModelIndex& index)
     if (currentIndex.isValid() && (index.parent().isValid() ? index.parent().row() : index.row()) == currentIndex.row())
     {
         CSMWorld::RecordBase::State state
-            = static_cast<CSMWorld::RecordBase::State>(mTable->data(mTable->index(currentIndex.row(), 1)).toInt());
+            = static_cast<CSMWorld::RecordBase::State>(mTable->getData(currentIndex.row(), 1).toInt());
 
         mEditWidget->setDisabled(state == CSMWorld::RecordBase::State_Deleted || mLocked);
 
@@ -958,7 +952,7 @@ void CSVWorld::DialogueSubView::switchToRow(std::int32_t row)
 
     std::int32_t stateColumn = getTable().findColumnIndex(CSMWorld::Columns::ColumnId_Modification);
     CSMWorld::RecordBase::State state
-        = static_cast<CSMWorld::RecordBase::State>(getTable().data(getTable().index(row, stateColumn)).toInt());
+        = static_cast<CSMWorld::RecordBase::State>(getTable().getData(row, stateColumn).toInt());
 
     getEditWidget().setDisabled(isLocked() || state == CSMWorld::RecordBase::State_Deleted);
 }

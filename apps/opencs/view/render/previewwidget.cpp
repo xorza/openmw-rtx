@@ -48,7 +48,7 @@ void CSVRender::PreviewWidget::referenceableDataChanged(const QModelIndex& topLe
     if (mObject.getReferenceId().empty())
     {
         CSMWorld::IdTable& referenceables
-            = dynamic_cast<CSMWorld::IdTable&>(*mData.getTableModel(CSMWorld::UniversalId::Type_Referenceables));
+            = mData.getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Referenceables);
 
         QModelIndex index = referenceables.getModelIndex(
             mObject.getReferenceableId(), referenceables.findColumnIndex(CSMWorld::Columns::ColumnId_Modification));
@@ -68,7 +68,7 @@ void CSVRender::PreviewWidget::referenceableAboutToBeRemoved(
         return;
 
     CSMWorld::IdTable& referenceables
-        = dynamic_cast<CSMWorld::IdTable&>(*mData.getTableModel(CSMWorld::UniversalId::Type_Referenceables));
+        = mData.getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Referenceables);
 
     QModelIndex index = referenceables.getModelIndex(mObject.getReferenceableId(), 0);
 
@@ -90,8 +90,7 @@ void CSVRender::PreviewWidget::referenceDataChanged(const QModelIndex& topLeft, 
     if (mObject.getReferenceId().empty())
         return;
 
-    CSMWorld::IdTable& references
-        = dynamic_cast<CSMWorld::IdTable&>(*mData.getTableModel(CSMWorld::UniversalId::Type_References));
+    CSMWorld::IdTable& references = mData.getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_References);
 
     // check for deleted state
     {
@@ -120,8 +119,7 @@ void CSVRender::PreviewWidget::referenceAboutToBeRemoved(
     if (mObject.getReferenceId().empty())
         return;
 
-    CSMWorld::IdTable& references
-        = dynamic_cast<CSMWorld::IdTable&>(*mData.getTableModel(CSMWorld::UniversalId::Type_References));
+    CSMWorld::IdTable& references = mData.getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_References);
 
     QModelIndex index = references.getModelIndex(mObject.getReferenceId(), 0);
 

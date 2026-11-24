@@ -19,6 +19,7 @@
 #include <apps/opencs/model/world/idtable.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
+#include <apps/opencs/model/world/variantconversion.hpp>
 #include <apps/opencs/view/doc/subview.hpp>
 #include <components/debug/debuglog.hpp>
 
@@ -125,7 +126,7 @@ CSVWorld::ScriptSubView::ScriptSubView(const CSMWorld::UniversalId& id, CSMDoc::
     widget->setLayout(&mLayout);
     setWidget(widget);
 
-    mModel = &dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Scripts));
+    mModel = &document.getData().getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_Scripts);
 
     mColumn = mModel->findColumnIndex(CSMWorld::Columns::ColumnId_ScriptText);
     mIdColumn = mModel->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
@@ -299,7 +300,7 @@ void CSVWorld::ScriptSubView::dataChanged(const QModelIndex& topLeft, const QMod
 
     for (std::int32_t i = topLeft.row(); i <= bottomRight.row(); ++i)
     {
-        std::string id = mModel->data(mModel->index(i, mIdColumn)).toString().toUtf8().constData();
+        std::string id = CSMWorld::getString(mModel->getData(i, mIdColumn));
         if (mErrors->clearLocals(id))
             updateRequired = true;
     }
@@ -361,7 +362,7 @@ void CSVWorld::ScriptSubView::rowsAboutToBeRemoved(const QModelIndex& parent, st
 
     for (std::int32_t i = start; i <= end; ++i)
     {
-        std::string id = mModel->data(mModel->index(i, mIdColumn)).toString().toUtf8().constData();
+        std::string id = CSMWorld::getString(mModel->getData(i, mIdColumn));
         if (mErrors->clearLocals(id))
             updateRequired = true;
     }
@@ -378,11 +379,11 @@ void CSVWorld::ScriptSubView::rowsAboutToBeRemoved(const QModelIndex& parent, st
 void CSVWorld::ScriptSubView::switchToRow(std::int32_t row)
 {
     std::int32_t idColumn = mModel->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
-    std::string id = mModel->data(mModel->index(row, idColumn)).toString().toUtf8().constData();
+    std::string id = CSMWorld::getString(mModel->getData(row, idColumn));
     setUniversalId(CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Script, id));
 
     bool oldSignalsState = mEditor->blockSignals(true);
-    mEditor->setPlainText(mModel->data(mModel->index(row, mColumn)).toString());
+    mEditor->setPlainText(mModel->getData(row, mColumn).toString());
     mEditor->blockSignals(oldSignalsState);
 
     std::vector<std::string> selection(1, id);

@@ -19,6 +19,7 @@
 #include "nestedtablewrapper.hpp"
 #include "pathgrid.hpp"
 #include "record.hpp"
+#include "variantconversion.hpp"
 
 namespace CSMWorld
 {
@@ -169,7 +170,7 @@ namespace CSMWorld
     {
         Pathgrid pathgrid = record.get();
 
-        pathgrid.mEdges = static_cast<const NestedTableWrapper<ESM::Pathgrid::EdgeList>&>(nestedTable).mNestedTable;
+        pathgrid.mEdges = nestedTable.get<ESM::Pathgrid::EdgeList>();
 
         record.setModified(pathgrid);
     }
@@ -337,8 +338,7 @@ namespace CSMWorld
             case 0:
             {
                 reactions.erase(iter);
-                reactions.insert(
-                    std::make_pair(ESM::RefId::stringRefId(value.toString().toUtf8().constData()), reaction));
+                reactions.insert(std::make_pair(getRefId(value), reaction));
                 break;
             }
             case 1:
@@ -397,8 +397,7 @@ namespace CSMWorld
     {
         ESM::Region region = record.get();
 
-        region.mSoundList
-            = static_cast<const NestedTableWrapper<std::vector<ESM::Region::SoundRef>>&>(nestedTable).mNestedTable;
+        region.mSoundList = nestedTable.get<std::vector<ESM::Region::SoundRef>>();
 
         record.setModified(region);
     }
@@ -457,7 +456,7 @@ namespace CSMWorld
         switch (subColIndex)
         {
             case 0:
-                soundRef.mSound = ESM::RefId::stringRefId(value.toString().toUtf8().constData());
+                soundRef.mSound = getRefId(value);
                 break;
             case 1:
                 soundRef.mChance = static_cast<std::uint8_t>(value.toInt());
@@ -568,8 +567,7 @@ namespace CSMWorld
     {
         Info info = record.get();
 
-        info.mSelects
-            = static_cast<const NestedTableWrapper<std::vector<ESM::DialogueCondition>>&>(nestedTable).mNestedTable;
+        info.mSelects = nestedTable.get<std::vector<ESM::DialogueCondition>>();
 
         record.setModified(info);
     }
@@ -640,7 +638,7 @@ namespace CSMWorld
             }
             case 1: // Variable
             {
-                infoSelectWrapper.setVariableName(value.toString().toUtf8().constData());
+                infoSelectWrapper.setVariableName(getString(value));
                 break;
             }
             case 2: // Relation
@@ -711,8 +709,7 @@ namespace CSMWorld
     {
         ESM::Race race = record.get();
 
-        race.mData = static_cast<const NestedTableWrapper<std::vector<ESM::Race::RADTstruct>>&>(nestedTable)
-                         .mNestedTable.at(0);
+        race.mData = nestedTable.get<std::vector<ESM::Race::RADTstruct>>().at(0);
 
         record.setModified(race);
     }
@@ -795,8 +792,7 @@ namespace CSMWorld
     {
         ESM::Race race = record.get();
 
-        race.mData = static_cast<const NestedTableWrapper<std::vector<ESM::Race::RADTstruct>>&>(nestedTable)
-                         .mNestedTable.at(0);
+        race.mData = nestedTable.get<std::vector<ESM::Race::RADTstruct>>().at(0);
 
         record.setModified(race);
     }
@@ -1150,7 +1146,7 @@ namespace CSMWorld
         switch (subColIndex)
         {
             case 0:
-                faction.mRanks[static_cast<std::size_t>(subRowIndex)] = value.toString().toUtf8().constData();
+                faction.mRanks[static_cast<std::size_t>(subRowIndex)] = getString(value);
                 break;
             case 1:
                 rankData.mAttribute1 = value.toInt();

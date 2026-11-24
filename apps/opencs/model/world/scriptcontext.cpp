@@ -17,6 +17,7 @@
 #include "idcollection.hpp"
 #include "record.hpp"
 #include "refidcollection.hpp"
+#include "variantconversion.hpp"
 
 CSMWorld::ScriptContext::ScriptContext(const Data& data)
     : mData(data)
@@ -69,8 +70,7 @@ std::pair<char, bool> CSMWorld::ScriptContext::getMemberType(const std::string& 
             // Referenceable found.
             std::int32_t columnIndex = mData.getReferenceables().findColumnIndex(Columns::ColumnId_Script);
 
-            id2 = ESM::RefId::stringRefId(
-                mData.getReferenceables().getData(index, columnIndex).toString().toUtf8().constData());
+            id2 = getRefId(mData.getReferenceables().getData(index, columnIndex));
 
             if (!id2.empty())
             {

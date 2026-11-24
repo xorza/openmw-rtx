@@ -31,7 +31,7 @@ std::string CSVWorld::CellCreator::getId() const
 
 void CSVWorld::CellCreator::configureCreateCommand(CSMWorld::CreateCommand& command) const
 {
-    CSMWorld::IdTree* model = &dynamic_cast<CSMWorld::IdTree&>(*getData().getTableModel(getCollectionId()));
+    CSMWorld::IdTree* model = &getData().getTableModel<CSMWorld::IdTree>(getCollectionId());
 
     std::int32_t parentIndex = model->findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
     std::int32_t index = model->findNestedColumnIndex(parentIndex, CSMWorld::Columns::ColumnId_Interior);

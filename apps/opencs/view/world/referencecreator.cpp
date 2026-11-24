@@ -26,7 +26,8 @@ std::string CSVWorld::ReferenceCreator::getId() const
 void CSVWorld::ReferenceCreator::configureCreateCommand(CSMWorld::CreateCommand& command) const
 {
     // Set cellID
-    std::int32_t cellIdColumn = dynamic_cast<CSMWorld::IdTable&>(*getData().getTableModel(getCollectionId()))
+    std::int32_t cellIdColumn = getData()
+                                    .getTableModel<CSMWorld::IdTable>(getCollectionId())
                                     .findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
 
     command.addValue(cellIdColumn, mCell->text());
@@ -87,7 +88,7 @@ void CSVWorld::ReferenceCreator::cellChanged()
 void CSVWorld::ReferenceCreator::cloneMode(const std::string& originId, const CSMWorld::UniversalId::Type type)
 {
     CSMWorld::IdTable& referenceTable
-        = dynamic_cast<CSMWorld::IdTable&>(*getData().getTableModel(CSMWorld::UniversalId::Type_References));
+        = getData().getTableModel<CSMWorld::IdTable>(CSMWorld::UniversalId::Type_References);
 
     std::int32_t cellIdColumn = referenceTable.findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
 

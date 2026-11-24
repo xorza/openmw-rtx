@@ -16,6 +16,7 @@
 #include "idtablebase.hpp"
 #include "record.hpp"
 #include "universalid.hpp"
+#include "variantconversion.hpp"
 
 CSMWorld::IdTable::IdTable(CollectionBase* idCollection, std::uint32_t features)
     : IdTableBase(features)
@@ -310,8 +311,8 @@ std::pair<CSMWorld::UniversalId, std::string> CSMWorld::IdTable::view(std::int32
 
         if (cellColumn != -1 && idColumn != -1)
         {
-            id = mIdCollection->getData(row, cellColumn).toString().toUtf8().constData();
-            hint = "r:" + std::string(mIdCollection->getData(row, idColumn).toString().toUtf8().constData());
+            id = getString(mIdCollection->getData(row, cellColumn));
+            hint = "r:" + getString(mIdCollection->getData(row, idColumn));
         }
     }
     else if (getFeatures() & Feature_ViewId)
@@ -320,7 +321,7 @@ std::pair<CSMWorld::UniversalId, std::string> CSMWorld::IdTable::view(std::int32
 
         if (column != -1)
         {
-            id = mIdCollection->getData(row, column).toString().toUtf8().constData();
+            id = getString(mIdCollection->getData(row, column));
             hint = "c:" + id;
         }
     }
