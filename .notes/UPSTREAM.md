@@ -518,7 +518,7 @@ or the install, which the merge places in this layout:
 - `docker/`, upstream's Ubuntu build, which cannot build through `omw`; the release container is
   `env/release-base.Dockerfile`.
 - Upstream's project files with no use here: `.resubmitted_merge_requests.txt`, `.readthedocs.yaml`, `CONTRIBUTING.md`
-  (the fork's rules are `AGENTS.md`), the Teal declarations and size scripts GitLab ran, `osg_stats.py` and
+  and `CODESTYLE.md` (the fork's rules are `AGENTS.md`), the Teal declarations and size scripts GitLab ran, `osg_stats.py` and
   `HOWTO-benchmark.md`; upstream's `docs/` (the user manual, its Docker build, the Doxygen reference and the `doc.hpp`
   files, `openmw-stage1.md`) and `manual/`. `docs/` holds the fork's own, the manual's `[RTX]` part in
   `docs/settings.md`; `.editorconfig` covers the fork's shaders and loses stages with no file.
