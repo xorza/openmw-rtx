@@ -28,7 +28,10 @@ namespace Rtx
         /// @param elapsedSeconds how far the world's clock moved since the previous frame.
         /// @param reset true where there is no previous share to move from — the first frame, and
         ///        any frame the renderer was told has no past. What the rays found is taken outright.
-        void record(VkCommandBuffer commands, float elapsedSeconds, bool reset, GpuTimer* timer) const;
+        /// @param fadeOutScale multiplier on `SUN_GLARE_RATE` while fading out (`found < share`);
+        ///        zero uses stock `1.0`, negative clears immediately on occlusion.
+        void record(
+            VkCommandBuffer commands, float elapsedSeconds, bool reset, float fadeOutScale, GpuTimer* timer) const;
 
         /// The two counts, which the trace is bound at `BIND_SUN_GLARE`.
         const Buffer& getCounts() const { return mCounts; }

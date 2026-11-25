@@ -1260,6 +1260,88 @@ namespace Rtx::Testing
             EXPECT_GT(open, shaded + 20) << "and there was a sun to take";
         }
 
+        /// Moving in front of a solid wall that blocks the sun must not leak any forward-scattered sunlight
+        /// from froxels sampled behind the wall, across slice boundaries or lateral camera motion.
+        TEST_F(RtxVisibilityTest, movingInFrontOfAWallBlockingTheSunLeaksNoneOfTheSunThroughIt)
+        {
+            SceneIdentities identities;
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr float irradiance = 10.0f;
+
+            SceneDesc wallScene(identities);
+            addQuad(wallScene, uprightQuadAt(40000.0f, 0.0f),
+                wallScene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(), .mTwoSided = true }));
+
+            const auto cameraAt = [&](float across, float distance, bool lit) {
+                Shaders::VisibilityConstants camera = Testing::makeCamera(osg::Vec3f(across, -distance, 0.0f),
+                    osg::Vec3f(across, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+
+                osg::Vec3f towards(0.0f, 1.0f, 0.05f);
+                towards.normalize();
+                camera.mSun
+                    = Shaders::sunSource(towards, lit ? osg::Vec3f(irradiance, irradiance, irradiance) : osg::Vec3f());
+                camera.mFogColour = osg::Vec3f(0.02f, 0.02f, 0.02f);
+                camera.mFogExtinction = 2.0e-4f;
+                camera.mFogUniform = 1.0f;
+                return camera;
+            };
+
+            struct Step
+            {
+                float mAcross;
+                float mDistance;
+            };
+            const std::array<Step, 17> walk{ {
+                { 0.0f, 1340.0f },
+                { 15.0f, 1315.0f },
+                { 30.0f, 1290.0f },
+                { 45.0f, 1265.0f },
+                { 60.0f, 1240.0f },
+                { 75.0f, 1215.0f },
+                { 90.0f, 1190.0f },
+                { 105.0f, 1165.0f },
+                { 120.0f, 1140.0f },
+                { 105.0f, 1165.0f },
+                { 90.0f, 1190.0f },
+                { 75.0f, 1215.0f },
+                { 60.0f, 1240.0f },
+                { 45.0f, 1265.0f },
+                { 30.0f, 1290.0f },
+                { 15.0f, 1315.0f },
+                { 0.0f, 1340.0f },
+            } };
+
+            const auto traceWalk = [&](bool lit) {
+                std::vector<std::int32_t> bytes;
+                bytes.reserve(walk.size());
+                std::uint32_t frameIndex = 0;
+                for (const Step& step : walk)
+                {
+                    const Frame frame = shoot(wallScene, {}, cameraAt(step.mAcross, step.mDistance, lit), size,
+                        Shot{ .mFrames = 1,
+                            .mAverage = false,
+                            .mFirstFrame = frameIndex,
+                            .mLoss = frameIndex == 0 ? HistoryLoss::Cut : HistoryLoss::None,
+                            .mSetScene = frameIndex == 0 });
+                    ++frameIndex;
+                    bytes.push_back(std::int32_t{ frame.byte(centre) });
+                }
+                return bytes;
+            };
+
+            const std::vector<std::int32_t> litBytes = traceWalk(true);
+            const std::vector<std::int32_t> sunlessBytes = traceWalk(false);
+            for (std::size_t i = 0; i < walk.size(); ++i)
+                EXPECT_EQ(litBytes[i], sunlessBytes[i]) << "behind-wall sun leaked at step " << i;
+
+            SceneDesc openScene(identities);
+            addQuad(openScene, sheetAt(4000.0f, -200000.0f));
+            const Frame openFrame = shoot(openScene, {}, cameraAt(0.0f, 1340.0f, true), size);
+            EXPECT_GT(std::int32_t{ openFrame.byte(centre) }, sunlessBytes.front() + 20)
+                << "and the sun was strong enough to show if unblocked";
+        }
+
         /// A point under a bank's top is lit as the clear air its slant to the sun crosses (`slantCoverage`).
         /// The field (`VulkanRenderer::setFogField`) is full in the lower half of the tile's height and empty in
         /// the upper at every level, each scale's offset putting the change at z = 600 (the turns and warp are

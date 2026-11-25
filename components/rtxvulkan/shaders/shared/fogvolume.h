@@ -35,9 +35,10 @@
 // Which binding of `SET_VOLUME` each image is, for the shaders that declare them and the owner that
 // writes them.
 //
-// **Eleven images and nineteen bindings, eight of them named twice**, because Vulkan has no descriptor a
+// **Thirteen images and twenty-one bindings, eight of them named twice**, because Vulkan has no descriptor a
 // shader may both sample and store through, and every one but a pair's history is written by one pass and
-// read by the next. The column depth is named once: both passes reach it through the one storage binding.
+// read by the next. The column depth is paired as `mScatter` and `mSunward` are, so `fogscatter.rgen`
+// knows where last frame's surface stood before reusing a froxel from `BIND_FOG_WAS_*`.
 //
 // **Sampled first and storage after**, so `FOG_SAMPLED_COUNT` is a bound rather than a table, and
 // the layout and the writes cannot disagree about which kind a binding is.
@@ -100,9 +101,14 @@ namespace Rtx::Shaders
     /// `fogscatter.rgen` says why the trace puts both back at the pixel's own angle rather than the column's.
     const uint BIND_FOG_COLUMN_MOONS = 19;
 
+    /// How far each column's ray ran on the previous trace before it met a surface: paired with
+    /// `BIND_FOG_WAS_SCATTER` and `BIND_FOG_WAS_SUNWARD` so `fogscatter.rgen` never blends
+    /// behind-surface history across a wall into air in front of it.
+    const uint BIND_FOG_WAS_COLUMN_DEPTH = 20;
+
     /// Where the sampled bindings end and the storage ones begin, and how many the set declares.
     const uint FOG_SAMPLED_COUNT = BIND_FOG_SCATTER_TARGET;
-    const uint FOG_BINDING_COUNT = BIND_FOG_COLUMN_MOONS + 1;
+    const uint FOG_BINDING_COUNT = BIND_FOG_WAS_COLUMN_DEPTH + 1;
 
     /// How many columns one workgroup of the integrate pass covers, on each axis.
     ///

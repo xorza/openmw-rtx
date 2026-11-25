@@ -410,7 +410,10 @@ namespace Rtx::Shaders
 
         /// Non-zero when direct sunlight enters an interior through `INSTANCE_WINDOW_PORTAL` panes.
         uint mInteriorSun RTX_ZERO;
-        uint mInteriorWindowPad RTX_ZERO;
+
+        /// Per-frame decay fraction for occluded volumetric sun scatter (`fogscatter.rgen`), in `[0, 1]`.
+        /// Zero uses stock `FOG_VOLUME_HISTORY` (`0.9`); one clears occluded sunlight on the next frame.
+        float mFogSunFade RTX_ZERO;
 
         /// Where every table a hit reads is. `GpuTables` says why it rides here. **Last, because it is
         /// eight-aligned and nothing before it is**: anywhere else it would pad the middle of a struct two
@@ -454,7 +457,7 @@ namespace Rtx::Shaders
     // them are different compilers.
     static_assert(offsetof(VisibilityConstants, mTables) == 1504, "GpuTables must land eight-aligned and last");
     static_assert(offsetof(VisibilityConstants, mTables)
-            == offsetof(VisibilityConstants, mInteriorWindowPad) + sizeof(VisibilityConstants::mInteriorWindowPad),
+            == offsetof(VisibilityConstants, mFogSunFade) + sizeof(VisibilityConstants::mFogSunFade),
         "no implicit pad before GpuTables: name one, so a copy carries it and a comparison reads it");
     static_assert(sizeof(VisibilityConstants) == 1728, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 152, "PuffConstants must be scalar-packed on every side");

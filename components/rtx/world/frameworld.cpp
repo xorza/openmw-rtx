@@ -169,6 +169,7 @@ namespace Rtx
         constants.mFogExtinction = air.mExtinction;
         constants.mFogUniform = air.mUniform;
         constants.mFogLift = air.mLift;
+        constants.mFogSunFade = reading.mFogSunFade;
 
         // On the deck's own heading, because there is one wind over a landscape. Swapped, because
         // `mBearing` is the cosine and sine of the rotation from north, which for a unit `(x, y)` is

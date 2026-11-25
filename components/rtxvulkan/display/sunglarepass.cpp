@@ -44,8 +44,8 @@ namespace Rtx
         mCounts.transition(commands, Use::sBufferClearWrite, Use::sBufferComputeReadWrite);
     }
 
-    void SunGlarePass::record(
-        const VkCommandBuffer commands, const float elapsedSeconds, const bool reset, GpuTimer* timer) const
+    void SunGlarePass::record(const VkCommandBuffer commands, const float elapsedSeconds, const bool reset,
+        const float fadeOutScale, GpuTimer* timer) const
     {
         const GpuZone timed(timer, commands, FrameZone::Glare);
 
@@ -61,6 +61,7 @@ namespace Rtx
         const Shaders::SunGlareConstants constants{
             .mElapsed = elapsedSeconds,
             .mReset = reset ? 1u : 0u,
+            .mFadeOutScale = fadeOutScale,
         };
 
         dispatch(commands, mPipeline, writes, constants, Groups{});

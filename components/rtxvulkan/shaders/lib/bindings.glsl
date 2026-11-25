@@ -583,6 +583,11 @@ layout(set = SET_VOLUME, binding = BIND_FOG_SEEING_TARGET, FOG_VOLUME_FORMAT) un
 /// its own texel and nothing between texels.
 layout(set = SET_VOLUME, binding = BIND_FOG_COLUMN_DEPTH, FOG_DEPTH_FORMAT) uniform image2D fogColumnDepth;
 
+/// How far each column's ray ran on the previous trace before it met a surface, paired with
+/// `fogWasScatter` and `fogWasSunward` so `fogscatter.rgen` rejects history on the far side of a surface.
+layout(set = SET_VOLUME, binding = BIND_FOG_WAS_COLUMN_DEPTH, FOG_DEPTH_FORMAT)
+    uniform readonly image2D fogWasColumnDepth;
+
 /// What each moon puts into the air along each column's ray, one layer a moon, which
 /// `fogdepth.rgen` writes and the scatter pass reads. `FogVolume::mColumnMoons` says why it is the
 /// column's and not the froxel's.

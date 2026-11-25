@@ -18,6 +18,10 @@ namespace Rtx
         /// nought where no sun is drawn: what `SunGlareCallback` multiplies the fader's most by.
         float mFade = 0.0f;
 
+        /// Multiplier applied to `SUN_GLARE_RATE` while glare fades out (`found < share`).
+        /// Zero uses the stock rate (`1.0`); negative drops the share immediately on occlusion.
+        float mFadeOutScale = 0.0f;
+
         /// How much of the colour `frame` lays over the picture before the share of the sun the
         /// eye could see is multiplied in: the fader's most, by the fade, by how far the eye's axis
         /// stands from the sun (`Sky::SunGlareFader::atAngle`). Nought for no fader, and nought

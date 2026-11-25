@@ -183,7 +183,7 @@ namespace Rtx
         const Buffer* share = &mSunGlare.getNoShare();
         if (look != nullptr)
         {
-            mSunGlare.record(commands, look->mSeconds, mGlareStale, timer);
+            mSunGlare.record(commands, look->mSeconds, mGlareStale, look->mGlare.mFadeOutScale, timer);
             mGlareStale = false;
             share = &mSunGlare.getShare();
         }

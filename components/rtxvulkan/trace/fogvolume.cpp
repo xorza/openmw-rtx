@@ -106,7 +106,8 @@ namespace Rtx
             Slice,
             SliceSunward,
             Seeing,
-            ColumnDepth,
+            ColumnDepth0,
+            ColumnDepth1,
             ColumnMoons,
         };
 
@@ -140,7 +141,8 @@ namespace Rtx
             { sFormat, sUsage, Shaders::FOG_VOLUME_SLICES, "fog slice" },
             { toVulkanFormat(FOG_SUNWARD_FORMAT), sUsage, Shaders::FOG_VOLUME_SLICES, "fog slice sunward" },
             { sFormat, sUsage, Shaders::FOG_VOLUME_SLICES, "fog seeing" },
-            { toVulkanFormat(FOG_DEPTH_FORMAT), sColumnUsage, 1, "fog column depth" },
+            { toVulkanFormat(FOG_DEPTH_FORMAT), sColumnUsage, 1, "fog column depth 0" },
+            { toVulkanFormat(FOG_DEPTH_FORMAT), sColumnUsage, 1, "fog column depth 1" },
             { toVulkanFormat(FOG_MOONS_FORMAT), sColumnUsage, Shaders::MOON_COUNT, "fog column moons" },
         } };
 
@@ -196,7 +198,8 @@ namespace Rtx
         for (std::size_t at = 0; at < sFogImages.size(); ++at)
         {
             const auto image = static_cast<FogImage>(at);
-            if (past == TracePast::Dropped && (image == FogImage::Scatter1 || image == FogImage::Sunward1))
+            if (past == TracePast::Dropped
+                && (image == FogImage::Scatter1 || image == FogImage::Sunward1 || image == FogImage::ColumnDepth1))
                 continue;
             bytes += Image::bytesFor(device, descriptionOf(image, columnsFor(width), columnsFor(height)));
         }
@@ -224,7 +227,8 @@ namespace Rtx
         , mSlice(makeFogImage(device, FogImage::Slice, mColumns, mRows))
         , mSliceSunward(makeFogImage(device, FogImage::SliceSunward, mColumns, mRows))
         , mSeeing(makeFogImage(device, FogImage::Seeing, mColumns, mRows))
-        , mColumnDepth(makeFogImage(device, FogImage::ColumnDepth, mColumns, mRows))
+        , mColumnDepth{ makeFogImage(device, FogImage::ColumnDepth0, mColumns, mRows),
+            past == TracePast::Kept ? makeFogImage(device, FogImage::ColumnDepth1, mColumns, mRows) : Image() }
         , mColumnMoons(makeFogImage(device, FogImage::ColumnMoons, mColumns, mRows))
         , mSampler(makeTargetSampler(device, "fog volume"))
         , mSets(device, sLayoutBindings, layout.get(), sParities)
@@ -256,8 +260,9 @@ namespace Rtx
             named[Shaders::BIND_FOG_SLICE_TARGET] = &mSlice;
             named[Shaders::BIND_FOG_SLICE_SUNWARD_TARGET] = &mSliceSunward;
             named[Shaders::BIND_FOG_SEEING_TARGET] = &mSeeing;
-            named[Shaders::BIND_FOG_COLUMN_DEPTH] = &mColumnDepth;
+            named[Shaders::BIND_FOG_COLUMN_DEPTH] = &pointOf(mColumnDepth, written);
             named[Shaders::BIND_FOG_COLUMN_MOONS] = &mColumnMoons;
+            named[Shaders::BIND_FOG_WAS_COLUMN_DEPTH] = &pointOf(mColumnDepth, history);
 
             DescriptorWrites writes(layout, mSets.get(parity));
             for (std::uint32_t binding = 0; binding < sBindings; ++binding)
@@ -276,7 +281,8 @@ namespace Rtx
             constexpr VkClearColorValue nothing{ .float32 = { 0.0f, 0.0f, 0.0f, 0.0f } };
 
             for (const Image* image : { mScatter.data(), &mScatter[1], mSunward.data(), &mSunward[1], &mLamps, &mAir,
-                     &mAirSunward, &mSlice, &mSliceSunward, &mSeeing, &mColumnDepth, &mColumnMoons })
+                     &mAirSunward, &mSlice, &mSliceSunward, &mSeeing, mColumnDepth.data(), &mColumnDepth[1],
+                     &mColumnMoons })
                 if (!image->isEmpty())
                     image->clear(commands, Use::sUndefined, nothing, Use::sAnyGeneral);
         });
@@ -294,7 +300,7 @@ namespace Rtx
         const ImageUse point = mPast == TracePast::Kept ? Use::sTraceWrite : sTraceWriteAndSample;
         for (const Image* image : { &pointOf(mScatter, written), &pointOf(mSunward, written) })
             image->addTransition(barriers, Use::sUndefined, point);
-        for (const Image* image : { &mLamps, &mColumnDepth, &mColumnMoons })
+        for (const Image* image : { &mLamps, &pointOf(mColumnDepth, written), &mColumnMoons })
             image->addTransition(barriers, Use::sUndefined, Use::sTraceWrite);
         for (const Image* image : { &mAir, &mAirSunward, &mSlice, &mSliceSunward, &mSeeing })
             image->addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
@@ -307,7 +313,7 @@ namespace Rtx
         // The depth is loaded by the scatter launch, by the integrate dispatch and by the trace,
         // so the one hand-over names both stages; the moons by the scatter launch alone.
         Barriers barriers(commands);
-        mColumnDepth.addTransition(barriers, Use::sTraceWrite, Use::sShaderStorageRead);
+        pointOf(mColumnDepth, mNow).addTransition(barriers, Use::sTraceWrite, Use::sShaderStorageRead);
         mColumnMoons.addTransition(barriers, Use::sTraceWrite, Use::sTraceRead);
         barriers.flush();
     }

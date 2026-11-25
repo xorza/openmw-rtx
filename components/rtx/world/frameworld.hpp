@@ -87,6 +87,10 @@ namespace Rtx
 
         /// Exterior sky and sun projected into interior `INSTANCE_WINDOW_PORTAL` panes, if active.
         std::optional<InteriorWindowSky> mInteriorWindowSky;
+
+        /// Per-frame decay fraction for occluded volumetric sun scatter (`fogscatter.rgen`), in `[0, 1]`.
+        /// Zero uses stock `FOG_VOLUME_HISTORY`; one clears occluded sunlight immediately.
+        float mFogSunFade = 0.0f;
     };
 
     /// What a frame's world decides beside its block: what the display chain washes and lifts the

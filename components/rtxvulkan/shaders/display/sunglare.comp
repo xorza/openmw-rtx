@@ -42,8 +42,12 @@ void main()
         return;
     }
 
-    // `OcclusionCallback::getVisibleRatio`, verbatim: at most `dt * 10` a frame either way.
-    const float most = frame.mElapsed * SUN_GLARE_RATE;
-    share = clamp(found, share - most, share + most);
+    // `OcclusionCallback::getVisibleRatio`, verbatim on the way in (`dt * 10`); fade-out can be
+    // accelerated via `mFadeOutScale` (negative drops to `found` on the same frame).
+    const float rise = frame.mElapsed * SUN_GLARE_RATE;
+    const float fall = frame.mFadeOutScale < 0.0
+        ? 1.0
+        : frame.mElapsed * SUN_GLARE_RATE * (frame.mFadeOutScale > 0.0 ? frame.mFadeOutScale : 1.0);
+    share = clamp(found, share - fall, share + rise);
     countNotFinite(share);
 }

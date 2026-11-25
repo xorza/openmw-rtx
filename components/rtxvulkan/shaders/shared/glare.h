@@ -58,11 +58,15 @@ namespace Rtx::Shaders
 
         /// One where there is no previous share to move from: the share is taken outright.
         uint mReset;
+
+        /// Multiplier on `SUN_GLARE_RATE` while fading out (`found < share`); zero uses `1.0`,
+        /// negative clears immediately on occlusion.
+        float mFadeOutScale;
     };
 
 #ifdef RTX_HOST
     static_assert(sizeof(SunGlareCount) == 8, "SunGlareCount must be scalar-packed on every side");
-    static_assert(sizeof(SunGlareConstants) == 8, "SunGlareConstants must be scalar-packed on every side");
+    static_assert(sizeof(SunGlareConstants) == 12, "SunGlareConstants must be scalar-packed on every side");
 }
 #endif
 

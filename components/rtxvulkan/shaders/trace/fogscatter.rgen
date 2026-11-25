@@ -106,6 +106,82 @@ FogSources froxelSources(ivec2 column, uint key)
         fogSkyDraws(key).mMoonPick);
 }
 
+/// Accumulates one corner of the previous frame's froxel history when that corner stood on the same
+/// side of its column's surface (`inFront`) as the froxel being filled.
+void addFogHistoryCorner(ivec2 at, int slice, float depth, float near, bool inFront, float weight,
+    inout vec4 scatterSum, inout vec4 sunwardSum, inout float total)
+{
+    if (weight > 0.0 && (depth > near) == inFront)
+    {
+        scatterSum += weight * texelFetch(fogWasScatter, ivec3(at, slice), 0);
+        sunwardSum += weight * texelFetch(fogWasSunward, ivec3(at, slice), 0);
+        total += weight;
+    }
+}
+
+/// Reads the previous frame's fog history at `was`, rejecting any corner whose surface depth puts it on
+/// the opposite side of a surface from `inFront`. Falls back to a single hardware trilinear fetch when
+/// all 8 corners agree with `inFront`.
+bool sampleFogHistory(vec3 was, bool inFront, out FogPoint before)
+{
+    const ivec2 limit = ivec2(frame.mFogTraced) - 1;
+    const vec2 xy = was.xy * vec2(frame.mFogColumns) - 0.5;
+    const float z = was.z * float(FOG_VOLUME_SLICES) - 0.5;
+
+    const ivec2 fxy = ivec2(floor(xy));
+    const int fz = int(floor(z));
+    const vec2 wxy = xy - vec2(fxy);
+    const float wz = z - float(fz);
+
+    const ivec2 c0 = clamp(fxy, ivec2(0), limit);
+    const ivec2 c1 = clamp(fxy + 1, ivec2(0), limit);
+    const int s0 = clamp(fz, 0, int(FOG_VOLUME_SLICES) - 1);
+    const int s1 = wz > 0.0 ? clamp(fz + 1, 0, int(FOG_VOLUME_SLICES) - 1) : s0;
+
+    const float d00 = imageLoad(fogWasColumnDepth, ivec2(c0.x, c0.y)).x;
+    const float d10 = imageLoad(fogWasColumnDepth, ivec2(c1.x, c0.y)).x;
+    const float d01 = imageLoad(fogWasColumnDepth, ivec2(c0.x, c1.y)).x;
+    const float d11 = imageLoad(fogWasColumnDepth, ivec2(c1.x, c1.y)).x;
+
+    const float near0 = froxelNear(uint(s0));
+    const float near1 = froxelNear(uint(s1));
+    const float minD = min(min(d00, d10), min(d01, d11));
+    const float maxD = max(max(d00, d10), max(d01, d11));
+
+    const bool inGrid = all(lessThanEqual(fxy + 1, limit)) || limit == ivec2(frame.mFogColumns) - 1;
+    if (inGrid && ((inFront && minD > near1) || (!inFront && maxD <= near0)))
+    {
+        before = unpackFogPoint(textureLod(fogWasScatter, was, 0.0), textureLod(fogWasSunward, was, 0.0));
+        return true;
+    }
+
+    const float wx0 = 1.0 - wxy.x;
+    const float wx1 = wxy.x;
+    const float wy0 = 1.0 - wxy.y;
+    const float wy1 = wxy.y;
+    const float wz0 = 1.0 - wz;
+    const float wz1 = wz;
+
+    vec4 scatterSum = vec4(0.0);
+    vec4 sunwardSum = vec4(0.0);
+    float total = 0.0;
+
+    addFogHistoryCorner(ivec2(c0.x, c0.y), s0, d00, near0, inFront, wx0 * wy0 * wz0, scatterSum, sunwardSum, total);
+    addFogHistoryCorner(ivec2(c1.x, c0.y), s0, d10, near0, inFront, wx1 * wy0 * wz0, scatterSum, sunwardSum, total);
+    addFogHistoryCorner(ivec2(c0.x, c1.y), s0, d01, near0, inFront, wx0 * wy1 * wz0, scatterSum, sunwardSum, total);
+    addFogHistoryCorner(ivec2(c1.x, c1.y), s0, d11, near0, inFront, wx1 * wy1 * wz0, scatterSum, sunwardSum, total);
+    addFogHistoryCorner(ivec2(c0.x, c0.y), s1, d00, near1, inFront, wx0 * wy0 * wz1, scatterSum, sunwardSum, total);
+    addFogHistoryCorner(ivec2(c1.x, c0.y), s1, d10, near1, inFront, wx1 * wy0 * wz1, scatterSum, sunwardSum, total);
+    addFogHistoryCorner(ivec2(c0.x, c1.y), s1, d01, near1, inFront, wx0 * wy1 * wz1, scatterSum, sunwardSum, total);
+    addFogHistoryCorner(ivec2(c1.x, c1.y), s1, d11, near1, inFront, wx1 * wy1 * wz1, scatterSum, sunwardSum, total);
+
+    if (!(total > 0.0))
+        return false;
+
+    before = unpackFogPoint(scatterSum / total, sunwardSum / total);
+    return true;
+}
+
 void main()
 {
     const ivec3 froxel = ivec3(gl_LaunchIDEXT);
@@ -143,7 +219,9 @@ void main()
     // otherwise — a froxel that starts past the surface included, for the reason the top of this file
     // gives.
     const vec2 surfaces = imageLoad(fogColumnDepth, column).xy;
-    const float clear = surfaces.x > behind ? min(ahead, surfaces.x) : ahead;
+    const bool inFront = surfaces.x > behind;
+    const float surfacePullback = max(0.05, surfaces.x * 1.0e-4);
+    const float sampleLimit = inFront ? min(ahead, max(0.0, surfaces.x - surfacePullback)) : ahead;
 
     // The same rule along the middle ray, which the lamps' stretch ends by: `fogdepth.rgen` says why.
     const float lampsClear = surfaces.y > behind ? min(ahead, surfaces.y) : ahead;
@@ -152,7 +230,7 @@ void main()
     // inside is a draw of its air on every frame rather than on the frames the draw happened to land short
     // of the ground — which for a froxel the surface barely enters was one frame in twenty, and left it
     // holding its first draw for as long as the eye stood still.
-    const float along = behind + alongJitter * (clear - behind);
+    const float along = sampleLimit > behind ? behind + alongJitter * (sampleLimit - behind) : sampleLimit;
     const vec3 position = origin + direction * along;
 
     // The froxel's own middle is what reprojects, not the point drawn inside it: the history holds this froxel's
@@ -292,14 +370,17 @@ void main()
     float seen = lampsSeen;
     float ambient = ambientSeen;
 
-    if (reprojected)
+    FogPoint before;
+    if (reprojected && sampleFogHistory(was, inFront, before))
     {
-        const FogPoint before
-            = unpackFogPoint(textureLod(fogWasScatter, was, 0.0), textureLod(fogWasSunward, was, 0.0));
+        const float sunFadeHistory
+            = frame.mFogSunFade > 0.0 ? clamp(1.0 - frame.mFogSunFade, 0.0, FOG_VOLUME_HISTORY) : FOG_VOLUME_HISTORY;
         source = mix(source, before.mSource, FOG_VOLUME_HISTORY);
         held = mix(held, before.mDensity, FOG_VOLUME_HISTORY);
-        transport = mix(transport, before.mSeeing.mTransport, FOG_VOLUME_HISTORY);
-        sunSource = mix(sunSource, before.mSeeing.mSunSource, FOG_VOLUME_HISTORY);
+        transport = mix(transport, before.mSeeing.mTransport,
+            transport < before.mSeeing.mTransport ? sunFadeHistory : FOG_VOLUME_HISTORY);
+        sunSource = mix(sunSource, before.mSeeing.mSunSource,
+            sunSource < before.mSeeing.mSunSource ? sunFadeHistory : FOG_VOLUME_HISTORY);
         seen = mix(seen, before.mSeeing.mLampsSeen, FOG_VOLUME_HISTORY);
         ambient = mix(ambient, before.mSeeing.mAmbientSeen, FOG_VOLUME_HISTORY);
     }

@@ -227,6 +227,91 @@ FogSlice fogSliceAt(vec2 across, float depth)
         textureLod(fogSliceSunward, vec3(across, depth), 0.0).x);
 }
 
+void addFogColumnCorner(ivec2 at, int sliceIndex, float depth, float near, float weight,
+    inout vec4 airSum, inout float sunSum, inout float total)
+{
+    if (weight > 0.0 && depth > near)
+    {
+        airSum += weight * texelFetch(fogVolumeAir, ivec3(at, sliceIndex), 0);
+        sunSum += weight * texelFetch(fogVolumeSunward, ivec3(at, sliceIndex), 0).x;
+        total += weight;
+    }
+}
+
+FogColumn fogColumnAtFiltered(vec2 across, ivec2 c0, ivec2 c1, vec2 wxy, vec4 depths, uint sliceIndex)
+{
+    const float near = froxelNear(sliceIndex);
+    const int s = int(sliceIndex);
+    const float wx0 = 1.0 - wxy.x;
+    const float wx1 = wxy.x;
+    const float wy0 = 1.0 - wxy.y;
+    const float wy1 = wxy.y;
+
+    vec4 airSum = vec4(0.0);
+    float sunSum = 0.0;
+    float total = 0.0;
+
+    addFogColumnCorner(ivec2(c0.x, c0.y), s, depths.x, near, wx0 * wy0, airSum, sunSum, total);
+    addFogColumnCorner(ivec2(c1.x, c0.y), s, depths.y, near, wx1 * wy0, airSum, sunSum, total);
+    addFogColumnCorner(ivec2(c0.x, c1.y), s, depths.z, near, wx0 * wy1, airSum, sunSum, total);
+    addFogColumnCorner(ivec2(c1.x, c1.y), s, depths.w, near, wx1 * wy1, airSum, sunSum, total);
+
+    if (total > 0.0)
+        return unpackFogColumn(airSum / total, sunSum / total);
+
+    const float edge = (float(sliceIndex) + 0.5) / float(FOG_VOLUME_SLICES);
+    return unpackFogColumn(textureLod(fogVolumeAir, vec3(across, edge), 0.0),
+        textureLod(fogVolumeSunward, vec3(across, edge), 0.0).x);
+}
+
+void addFogSliceCorner(ivec2 at, float depth, float weight, int s0, int s1, float wz, float near0, float near1,
+    inout vec4 sliceSum, inout float sunSum, inout float total)
+{
+    if (weight > 0.0 && depth > near0)
+    {
+        vec4 sliceVal = texelFetch(fogSlice, ivec3(at, s0), 0);
+        float sunVal = texelFetch(fogSliceSunward, ivec3(at, s0), 0).x;
+        if (s1 != s0 && depth > near1)
+        {
+            sliceVal = mix(sliceVal, texelFetch(fogSlice, ivec3(at, s1), 0), wz);
+            sunVal = mix(sunVal, texelFetch(fogSliceSunward, ivec3(at, s1), 0).x, wz);
+        }
+        sliceSum += weight * sliceVal;
+        sunSum += weight * sunVal;
+        total += weight;
+    }
+}
+
+FogSlice fogSliceAtFiltered(vec2 across, ivec2 c0, ivec2 c1, vec2 wxy, vec4 depths, float depth)
+{
+    const float z = depth * float(FOG_VOLUME_SLICES) - 0.5;
+    const int fz = int(floor(z));
+    const float wz = z - float(fz);
+    const int s0 = clamp(fz, 0, int(FOG_VOLUME_SLICES) - 1);
+    const int s1 = wz > 0.0 ? clamp(fz + 1, 0, int(FOG_VOLUME_SLICES) - 1) : s0;
+
+    const float near0 = froxelNear(uint(s0));
+    const float near1 = froxelNear(uint(s1));
+    const float wx0 = 1.0 - wxy.x;
+    const float wx1 = wxy.x;
+    const float wy0 = 1.0 - wxy.y;
+    const float wy1 = wxy.y;
+
+    vec4 sliceSum = vec4(0.0);
+    float sunSum = 0.0;
+    float total = 0.0;
+
+    addFogSliceCorner(ivec2(c0.x, c0.y), depths.x, wx0 * wy0, s0, s1, wz, near0, near1, sliceSum, sunSum, total);
+    addFogSliceCorner(ivec2(c1.x, c0.y), depths.y, wx1 * wy0, s0, s1, wz, near0, near1, sliceSum, sunSum, total);
+    addFogSliceCorner(ivec2(c0.x, c1.y), depths.z, wx0 * wy1, s0, s1, wz, near0, near1, sliceSum, sunSum, total);
+    addFogSliceCorner(ivec2(c1.x, c1.y), depths.w, wx1 * wy1, s0, s1, wz, near0, near1, sliceSum, sunSum, total);
+
+    if (total > 0.0)
+        return unpackFogSlice(sliceSum / total, sunSum / total);
+
+    return fogSliceAt(across, depth);
+}
+
 /// What the weather's own air takes out of what is behind it, and what it puts in on the way.
 ///
 /// Read out of `Rtx::FogVolume` rather than marched: the field, the sources and the arithmetic are
@@ -256,36 +341,74 @@ vec4 fogVolumeAlong(uvec2 pixel, vec3 direction, float distance)
     const uint slice = min(uint(along), FOG_VOLUME_SLICES - 1u);
     const float through = along - float(slice);
 
-    // What the ray had accumulated at that slice's near edge: the eye's nothing for the first, and
-    // the texel before for every other — exactly on its centre, so the sampler weighs no neighbour
-    // along the depth.
-    const float edge = (float(slice) - 0.5) / slices;
-    FogColumn air = slice > 0u ? unpackFogColumn(textureLod(fogVolumeAir, vec3(across, edge), 0.0),
-                                     textureLod(fogVolumeSunward, vec3(across, edge), 0.0).x)
-                               : FogColumn(vec3(0.0), 1.0, 0.0);
+    const vec2 xy = (vec2(pixel) + 0.5) / float(FOG_VOLUME_SCALE) - 0.5;
+    const ivec2 fxy = ivec2(floor(xy));
+    const vec2 wxy = xy - vec2(fxy);
+    const ivec2 limit = ivec2(frame.mFogTraced) - 1;
+    const ivec2 c0 = clamp(fxy, ivec2(0), limit);
+    const ivec2 c1 = clamp(fxy + 1, ivec2(0), limit);
+    const vec4 depths = vec4(
+        imageLoad(fogColumnDepth, ivec2(c0.x, c0.y)).x,
+        imageLoad(fogColumnDepth, ivec2(c1.x, c0.y)).x,
+        imageLoad(fogColumnDepth, ivec2(c0.x, c1.y)).x,
+        imageLoad(fogColumnDepth, ivec2(c1.x, c1.y)).x);
+    const uint highSlice = through > 0.5 ? min(slice + 1u, FOG_VOLUME_SLICES - 1u) : slice;
+    const bool fast = min(min(depths.x, depths.y), min(depths.z, depths.w)) > froxelNear(highSlice);
 
-    // The near half of the slice, as far as the surface reaches into it; then the far half, likewise.
-    // A straight piece's mean is its own middle, which is what each read is taken at.
     const float behind = froxelNear(slice);
     const float middle = froxelMiddle(slice);
-    if (through <= 0.5)
+    FogColumn air = FogColumn(vec3(0.0), 1.0, 0.0);
+
+    if (fast)
     {
-        air = fogThroughSplit(air,
-            fogSliceAt(across, (float(slice) + 0.5 * through) / slices), reach - behind, frame.mFogExtinction,
-            sunExtinction);
+        // What the ray had accumulated at that slice's near edge: the eye's nothing for the first, and
+        // the texel before for every other — exactly on its centre, so the sampler weighs no neighbour
+        // along the depth.
+        const float edge = (float(slice) - 0.5) / slices;
+        if (slice > 0u)
+            air = unpackFogColumn(textureLod(fogVolumeAir, vec3(across, edge), 0.0),
+                textureLod(fogVolumeSunward, vec3(across, edge), 0.0).x);
+
+        // The near half of the slice, as far as the surface reaches into it; then the far half, likewise.
+        // A straight piece's mean is its own middle, which is what each read is taken at.
+        if (through <= 0.5)
+        {
+            air = fogThroughSplit(air,
+                fogSliceAt(across, (float(slice) + 0.5 * through) / slices), reach - behind, frame.mFogExtinction,
+                sunExtinction);
+        }
+        else
+        {
+            air = fogThroughSplit(air,
+                fogSliceAt(across, (float(slice) + 0.25) / slices), middle - behind, frame.mFogExtinction,
+                sunExtinction);
+
+            air = fogThroughSplit(air,
+                fogSliceAt(across, (float(slice) + 0.25 + 0.5 * through) / slices), reach - middle,
+                frame.mFogExtinction, sunExtinction);
+        }
     }
     else
     {
-        air = fogThroughSplit(air,
-            fogSliceAt(across, (float(slice) + 0.25) / slices), middle - behind, frame.mFogExtinction, sunExtinction);
+        if (slice > 0u)
+            air = fogColumnAtFiltered(across, c0, c1, wxy, depths, slice - 1u);
 
-        // **Flat where the next slice starts past the column's own surface**, which is the rule the
-        // integrate pass carried the same half by: that slice holds none of this column's air, and a line
-        // bent toward it thinned the air in the last quarter of every slice a surface stood in.
-        const float surface = imageLoad(fogColumnDepth, ivec2(pixel / FOG_VOLUME_SCALE)).x;
-        const float onward = froxelNear(slice + 1u) < surface ? 0.25 + 0.5 * through : 0.5;
-        air = fogThroughSplit(air,
-            fogSliceAt(across, (float(slice) + onward) / slices), reach - middle, frame.mFogExtinction, sunExtinction);
+        if (through <= 0.5)
+        {
+            air = fogThroughSplit(air,
+                fogSliceAtFiltered(across, c0, c1, wxy, depths, (float(slice) + 0.5 * through) / slices),
+                reach - behind, frame.mFogExtinction, sunExtinction);
+        }
+        else
+        {
+            air = fogThroughSplit(air,
+                fogSliceAtFiltered(across, c0, c1, wxy, depths, (float(slice) + 0.25) / slices),
+                middle - behind, frame.mFogExtinction, sunExtinction);
+
+            air = fogThroughSplit(air,
+                fogSliceAtFiltered(across, c0, c1, wxy, depths, (float(slice) + 0.25 + 0.5 * through) / slices),
+                reach - middle, frame.mFogExtinction, sunExtinction);
+        }
     }
 
     const float phase = frame.mInteriorSun != 0u ? interiorDustPhase(dot(direction, frame.mSun.mDirection))

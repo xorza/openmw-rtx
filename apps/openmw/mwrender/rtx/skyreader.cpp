@@ -222,7 +222,7 @@ namespace MWRender
     }
 
     Rtx::WorldReading SkyReader::read(const SkyState& sky, const WorldState& world, const Precipitation& falling,
-        const double seconds, const float reach, const bool hasWindowPortals) const
+        const double seconds, const float reach, const bool hasWindowPortals, const float elapsedSeconds) const
     {
         const WeatherResult& weather = sky.mWeather;
 
@@ -317,6 +317,11 @@ namespace MWRender
             };
         }
 
+        constexpr float sunGlowFade = 0.5f;
+        const float dt = elapsedSeconds > 0.0f ? std::min(elapsedSeconds, 0.25f) : (1.0f / 60.0f);
+        const float fogSunFade = std::clamp(1.0f - std::pow(1.0f - sunGlowFade, dt * 60.0f), 0.0f, 1.0f);
+        constexpr float glareFadeOutScale = sunGlowFade / 0.1f;
+
         return Rtx::WorldReading{
             .mDaylight = Rtx::Daylight{
                 .mLight = light,
@@ -375,12 +380,14 @@ namespace MWRender
             .mSunGlare = Rtx::SunGlare{
                 .mFader = mGlare,
                 .mFade = skyShown && sky.mSunUp ? sky.mGlareFade * weather.mGlareView * weather.mSunDiscColor.a() : 0.0f,
+                .mFadeOutScale = glareFadeOutScale,
             },
 
             // **Out of the world's light, both indoors and out**: the room's fill and the sky's
             // ambient are read without it, and the display chain lays it over the picture.
             .mNightEye = osg::Vec3f(world.mNightEye.x(), world.mNightEye.y(), world.mNightEye.z()),
             .mInteriorWindowSky = interiorWindow,
+            .mFogSunFade = fogSunFade,
         };
     }
 

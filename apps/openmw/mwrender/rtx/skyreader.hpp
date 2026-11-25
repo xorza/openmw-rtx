@@ -101,8 +101,9 @@ namespace MWRender
         ///        a roof shelters from it.
         /// @param seconds the world's clock, which the sea is animated by.
         /// @param reach how far the world is built, in units, which the open air closes over.
+        /// @param elapsedSeconds wall-clock frame interval in seconds for rate-based glow fade-out.
         Rtx::WorldReading read(const SkyState& sky, const WorldState& world, const Precipitation& falling,
-            double seconds, float reach, bool hasWindowPortals = false) const;
+            double seconds, float reach, bool hasWindowPortals = false, float elapsedSeconds = 1.0f / 60.0f) const;
 
         /// Configures interior window sky portal sunlight, skylight, and volumetric dust shafts.
         void setInteriorWindowSunlight(bool enabled) { mInteriorWindowSunlight = enabled; }

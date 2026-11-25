@@ -1269,11 +1269,11 @@ namespace MWRender
     {
         mSky.follow(
             frame.mSky, mMirror.getScene(), *getResources().getSceneManager(), mMirror.getWalkContext().mContent);
-        request.mWorld = mSky.read(frame.mSky, frame.mWorld, frame.mPrecipitation, frame.mWhen.getSimulationTime(),
-            frame.mEye.closesAirAt(mMirror.getReach()), mMirror.getScene().placements().getCounts().mWindowPortals > 0);
-        request.mSky = &mSky.getContent();
-
         const TracedSeconds elapsed = mTraceClocks.trace(getLoopClock().getNow(), frame.mWhen.getSimulationTime());
+        request.mWorld = mSky.read(frame.mSky, frame.mWorld, frame.mPrecipitation, frame.mWhen.getSimulationTime(),
+            frame.mEye.closesAirAt(mMirror.getReach()), mMirror.getScene().placements().getCounts().mWindowPortals > 0,
+            elapsed.mHost);
+        request.mSky = &mSky.getContent();
 
         // What the eye resolves, which the ring asks its cells' textures by from the next walk on: the traced pixel's
         // angle and the bias the reconstruction narrows it by, `Reconstruction::resolve`'s: the traced extent against

@@ -149,8 +149,10 @@ namespace Rtx
 
         /// How far each column's ray runs this frame before it meets a surface, in world units: the
         /// jittered ray the froxels draw along in the first channel, the block's middle the lamps
-        /// are integrated along in the second.
-        Image mColumnDepth;
+        /// are integrated along in the second. Paired across traces alongside `mScatter` and `mSunward`
+        /// (a single image where `mPast` drops the past) so reprojection knows where the previous
+        /// trace's surfaces stood.
+        std::array<Image, sParities> mColumnDepth;
 
         /// What each moon puts into the air along each column's ray, one layer a moon.
         Image mColumnMoons;
