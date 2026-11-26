@@ -406,10 +406,17 @@ namespace CSVRender
             std::int32_t recordIndex = mPathgridCollection.getIndex(mId);
             std::int32_t parentColumn = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridPoints);
 
+<<<<<<< apps/opencs/view/render/pathgrid.cpp (ours)
             for (std::uint16_t& row : mSelected)
             {
                 commands.push(new CSMWorld::DeleteNestedCommand(
                     *model, mId.getRefIdString(), static_cast<std::int32_t>(row), parentColumn));
+=======
+            for (std::uint16_t pointIndex : mSelected)
+            {
+                commands.push(new CSMWorld::DeleteNestedCommand(
+                    *model, mId.getRefIdString(), static_cast<std::int32_t>(pointIndex), parentColumn));
+>>>>>>> apps/opencs/view/render/pathgrid.cpp (theirs)
             }
 
             // Fix/remove edges
@@ -550,11 +557,19 @@ namespace CSVRender
             {
                 temp = *source;
 
+<<<<<<< apps/opencs/view/render/pathgrid.cpp (ours)
                 for (std::uint16_t& it : mSelected)
                 {
                     temp.mPoints[it].mX = static_cast<std::int32_t>(temp.mPoints[it].mX + mMoveOffset.x());
                     temp.mPoints[it].mY = static_cast<std::int32_t>(temp.mPoints[it].mY + mMoveOffset.y());
                     temp.mPoints[it].mZ = static_cast<std::int32_t>(temp.mPoints[it].mZ + mMoveOffset.z());
+=======
+                for (std::uint16_t pointIndex : mSelected)
+                {
+                    temp.mPoints[pointIndex].mX += mMoveOffset.x();
+                    temp.mPoints[pointIndex].mY += mMoveOffset.y();
+                    temp.mPoints[pointIndex].mZ += mMoveOffset.z();
+>>>>>>> apps/opencs/view/render/pathgrid.cpp (theirs)
                 }
 
                 source = &temp;

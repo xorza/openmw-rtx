@@ -69,9 +69,13 @@ namespace CSMWorld
     template <typename ESXRecordT>
     NestedIdCollection<ESXRecordT>::~NestedIdCollection()
     {
+<<<<<<< apps/opencs/model/world/nestedidcollection.hpp (ours)
         for (auto iter(mAdapters.begin()); iter != mAdapters.end(); ++iter)
+=======
+        for (auto& [_, info] : mAdapters)
+>>>>>>> apps/opencs/model/world/nestedidcollection.hpp (theirs)
         {
-            delete (*iter).second;
+            delete info;
         }
     }
 

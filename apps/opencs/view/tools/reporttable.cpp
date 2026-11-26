@@ -72,9 +72,9 @@ void CSVTools::ReportTable::contextMenuEvent(QContextMenuEvent* event)
         menu.addAction(mRemoveAction);
 
         bool found = false;
-        for (QModelIndexList::const_iterator iter(selectedRows.begin()); iter != selectedRows.end(); ++iter)
+        for (const auto& modelIndex : selectedRows)
         {
-            QString hint = mProxyModel->data(mProxyModel->index(iter->row(), 2)).toString();
+            QString hint = mProxyModel->data(mProxyModel->index(modelIndex.row(), 2)).toString();
 
             if (!hint.isEmpty() && hint[0] == 'R')
             {
@@ -215,9 +215,9 @@ std::vector<CSMWorld::UniversalId> CSVTools::ReportTable::getDraggedRecords() co
 
     QModelIndexList selectedRows = selectionModel()->selectedRows();
 
-    for (QModelIndexList::const_iterator iter(selectedRows.begin()); iter != selectedRows.end(); ++iter)
+    for (const auto& modelIndex : selectedRows)
     {
-        ids.push_back(mModel->getUniversalId(mProxyModel->mapToSource(*iter).row()));
+        ids.push_back(mModel->getUniversalId(mProxyModel->mapToSource(modelIndex).row()));
     }
 
     return ids;
@@ -233,19 +233,28 @@ std::vector<std::int32_t> CSVTools::ReportTable::getReplaceIndices(bool selectio
 
         std::vector<std::int32_t> rows;
 
-        for (QModelIndexList::const_iterator iter(selectedRows.begin()); iter != selectedRows.end(); ++iter)
+        for (const auto& modelIndex : selectedRows)
         {
-            rows.push_back(mProxyModel->mapToSource(*iter).row());
+            rows.push_back(mProxyModel->mapToSource(modelIndex).row());
         }
 
         std::sort(rows.begin(), rows.end());
 
+<<<<<<< apps/opencs/view/tools/reporttable.cpp (ours)
         for (std::int32_t row : rows)
         {
             QString hint = mModel->data(mModel->index(row, 2)).toString();
 
             if (!hint.isEmpty() && hint[0] == 'R')
                 indices.push_back(row);
+=======
+        for (const auto& rowIndex : rows)
+        {
+            QString hint = mModel->data(mModel->index(rowIndex, 2)).toString();
+
+            if (!hint.isEmpty() && hint[0] == 'R')
+                indices.push_back(rowIndex);
+>>>>>>> apps/opencs/view/tools/reporttable.cpp (theirs)
         }
     }
     else
@@ -309,9 +318,9 @@ void CSVTools::ReportTable::showSelection()
 {
     QModelIndexList selectedRows = selectionModel()->selectedRows();
 
-    for (QModelIndexList::const_iterator iter(selectedRows.begin()); iter != selectedRows.end(); ++iter)
+    for (const auto& modelIndex : selectedRows)
     {
-        std::int32_t row = mProxyModel->mapToSource(*iter).row();
+        std::int32_t row = mProxyModel->mapToSource(modelIndex).row();
         emit editRequest(mModel->getUniversalId(row), mModel->getHint(row));
     }
 }
@@ -322,15 +331,20 @@ void CSVTools::ReportTable::removeSelection()
 
     std::vector<std::int32_t> rows;
 
-    for (QModelIndexList::iterator iter(selectedRows.begin()); iter != selectedRows.end(); ++iter)
+    for (auto& modelIndex : selectedRows)
     {
-        rows.push_back(mProxyModel->mapToSource(*iter).row());
+        rows.push_back(mProxyModel->mapToSource(modelIndex).row());
     }
 
     std::sort(rows.begin(), rows.end());
 
+<<<<<<< apps/opencs/view/tools/reporttable.cpp (ours)
     for (std::int32_t row : std::views::reverse(rows))
         mProxyModel->removeRows(row, 1);
+=======
+    for (auto iter(rows.crbegin()); iter != rows.rend(); ++iter)
+        mProxyModel->removeRows(*iter, 1);
+>>>>>>> apps/opencs/view/tools/reporttable.cpp (theirs)
 
     selectionModel()->clear();
 }

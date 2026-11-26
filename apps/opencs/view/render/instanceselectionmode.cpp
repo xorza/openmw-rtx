@@ -431,10 +431,10 @@ namespace CSVRender
         CSMWorld::IdTable& referencesTable = dynamic_cast<CSMWorld::IdTable&>(
             *getWorldspaceWidget().getDocument().getData().getTableModel(CSMWorld::UniversalId::Type_References));
 
-        for (auto& entry : selection)
+        for (auto& selectedTag : selection)
         {
             auto* command = new CSMWorld::DeleteCommand(
-                referencesTable, static_cast<ObjectTag*>(entry.get())->mObject->getReferenceId());
+                referencesTable, static_cast<ObjectTag*>(selectedTag.get())->mObject->getReferenceId());
 
             getWorldspaceWidget().getDocument().getUndoStack().push(command);
         }

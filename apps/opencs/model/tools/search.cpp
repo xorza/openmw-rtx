@@ -227,9 +227,15 @@ void CSMTools::Search::configure(const CSMWorld::IdTableBase* model)
 
 void CSMTools::Search::searchRow(const CSMWorld::IdTableBase* model, std::int32_t row, CSMDoc::Messages& messages) const
 {
+<<<<<<< apps/opencs/model/tools/search.cpp (ours)
     for (std::int32_t mColumn : mColumns)
     {
         QModelIndex index = model->index(row, mColumn);
+=======
+    for (std::int32_t columnIndex : mColumns)
+    {
+        QModelIndex index = model->index(row, columnIndex);
+>>>>>>> apps/opencs/model/tools/search.cpp (theirs)
 
         CSMWorld::UniversalId::Type type
             = static_cast<CSMWorld::UniversalId::Type>(model->getData(row, mTypeColumn).toInt());

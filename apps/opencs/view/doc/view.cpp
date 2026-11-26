@@ -471,8 +471,13 @@ void CSVDoc::View::updateActions()
     bool editing = !(mDocument->getState() & CSMDoc::State_Locked);
     bool running = mDocument->getState() & CSMDoc::State_Running;
 
+<<<<<<< apps/opencs/view/doc/view.cpp (ours)
     for (auto& editingAction : mEditingActions)
         editingAction->setEnabled(editing);
+=======
+    for (auto* action : mEditingActions)
+        action->setEnabled(editing);
+>>>>>>> apps/opencs/view/doc/view.cpp (theirs)
 
     mUndo->setEnabled(editing && mDocument->getUndoStack().canUndo());
     mRedo->setEnabled(editing && mDocument->getUndoStack().canRedo());
@@ -572,8 +577,8 @@ void CSVDoc::View::updateDocumentState()
 
     QList<CSVDoc::SubView*> subViews = findChildren<CSVDoc::SubView*>();
 
-    for (QList<CSVDoc::SubView*>::iterator iter(subViews.begin()); iter != subViews.end(); ++iter)
-        (*iter)->setEditLock(state & CSMDoc::State_Locked);
+    for (auto* subView : subViews)
+        subView->setEditLock(state & CSMDoc::State_Locked);
 }
 
 void CSVDoc::View::updateProgress(std::int32_t current, std::int32_t max, std::int32_t type, std::int32_t threads)
@@ -1100,7 +1105,11 @@ void CSVDoc::View::updateScrollbar()
         rect = this->rect();
 
     std::int32_t newWidth = 0;
+<<<<<<< apps/opencs/view/doc/view.cpp (ours)
     for (auto& subView : mSubViews)
+=======
+    for (auto* subView : mSubViews)
+>>>>>>> apps/opencs/view/doc/view.cpp (theirs)
     {
         newWidth += subView->width();
     }

@@ -40,9 +40,15 @@ void CSMWorld::IdTableProxyModel::updateColumnMap()
     if (mFilter)
     {
         std::vector<std::int32_t> columns = mFilter->getReferencedColumns();
+<<<<<<< apps/opencs/model/world/idtableproxymodel.cpp (ours)
         for (std::int32_t column : columns)
             mColumnMap.insert(std::make_pair(
                 column, mSourceModel->searchColumnIndex(static_cast<CSMWorld::Columns::ColumnId>(column))));
+=======
+        for (const auto& columnId : columns)
+            mColumnMap.insert(std::make_pair(
+                columnId, mSourceModel->searchColumnIndex(static_cast<CSMWorld::Columns::ColumnId>(columnId))));
+>>>>>>> apps/opencs/model/world/idtableproxymodel.cpp (theirs)
     }
 }
 

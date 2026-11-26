@@ -118,7 +118,11 @@ bool CSVRender::PagedWorldspaceWidget::adjustCells()
 
     if (modified)
     {
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
         for (Cell* cell : mCells | std::views::values)
+=======
+        for (const auto& [_, cell] : mCells)
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
         {
             std::int32_t mask = 0;
 
@@ -251,16 +255,26 @@ void CSVRender::PagedWorldspaceWidget::handleInteractionPress(const WorldspaceHi
 void CSVRender::PagedWorldspaceWidget::referenceableDataChanged(
     const QModelIndex& topLeft, const QModelIndex& bottomRight)
 {
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
     for (auto& cell : mCells)
         if (cell.second->referenceableDataChanged(topLeft, bottomRight))
+=======
+    for (auto iter(mCells.begin()); iter != mCells.end(); ++iter)
+        if (iter->second->referenceableDataChanged(topLeft, bottomRight))
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
             flagAsModified();
 }
 
 void CSVRender::PagedWorldspaceWidget::referenceableAboutToBeRemoved(
     const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
     for (auto& cell : mCells)
         if (cell.second->referenceableAboutToBeRemoved(parent, start, end))
+=======
+    for (auto iter(mCells.begin()); iter != mCells.end(); ++iter)
+        if (iter->second->referenceableAboutToBeRemoved(parent, start, end))
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
             flagAsModified();
 }
 
@@ -270,35 +284,58 @@ void CSVRender::PagedWorldspaceWidget::referenceableAdded(
     CSMWorld::IdTable& referenceables = dynamic_cast<CSMWorld::IdTable&>(
         *mDocument.getData().getTableModel(CSMWorld::UniversalId::Type_Referenceables));
 
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
     for (auto& cell : mCells)
+=======
+    for (auto& [_, cell] : mCells)
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
     {
         QModelIndex topLeft = referenceables.index(start, 0);
         QModelIndex bottomRight = referenceables.index(end, referenceables.columnCount());
 
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
         if (cell.second->referenceableDataChanged(topLeft, bottomRight))
+=======
+        if (cell->referenceableDataChanged(topLeft, bottomRight))
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
             flagAsModified();
     }
 }
 
 void CSVRender::PagedWorldspaceWidget::referenceDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight)
 {
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
     for (auto& cell : mCells)
         if (cell.second->referenceDataChanged(topLeft, bottomRight))
+=======
+    for (auto iter(mCells.begin()); iter != mCells.end(); ++iter)
+        if (iter->second->referenceDataChanged(topLeft, bottomRight))
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
             flagAsModified();
 }
 
 void CSVRender::PagedWorldspaceWidget::referenceAboutToBeRemoved(
     const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
     for (auto& cell : mCells)
         if (cell.second->referenceAboutToBeRemoved(parent, start, end))
+=======
+    for (auto iter(mCells.begin()); iter != mCells.end(); ++iter)
+        if (iter->second->referenceAboutToBeRemoved(parent, start, end))
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
             flagAsModified();
 }
 
 void CSVRender::PagedWorldspaceWidget::referenceAdded(const QModelIndex& parent, std::int32_t start, std::int32_t end)
 {
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
     for (auto& cell : mCells)
         if (cell.second->referenceAdded(parent, start, end))
+=======
+    for (auto iter(mCells.begin()); iter != mCells.end(); ++iter)
+        if (iter->second->referenceAdded(parent, start, end))
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
             flagAsModified();
 }
 
@@ -593,9 +630,15 @@ CSVRender::PagedWorldspaceWidget::PagedWorldspaceWidget(QWidget* parent, CSMDoc:
 
 CSVRender::PagedWorldspaceWidget::~PagedWorldspaceWidget()
 {
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
     for (auto& cell : mCells)
     {
         delete cell.second;
+=======
+    for (auto& [_, cell] : mCells)
+    {
+        delete cell;
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
     }
 }
 
@@ -751,8 +794,13 @@ std::uint32_t CSVRender::PagedWorldspaceWidget::getVisibilityMask() const
 
 void CSVRender::PagedWorldspaceWidget::clearSelection(std::int32_t elementMask)
 {
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
     for (auto& cell : mCells)
         cell.second->setSelection(elementMask, Cell::Selection_Clear);
+=======
+    for (auto& [_, cell] : mCells)
+        cell->setSelection(elementMask, Cell::Selection_Clear);
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
 
     flagAsModified();
     mSelectionMarker->detachMarker();
@@ -760,24 +808,39 @@ void CSVRender::PagedWorldspaceWidget::clearSelection(std::int32_t elementMask)
 
 void CSVRender::PagedWorldspaceWidget::invertSelection(std::int32_t elementMask)
 {
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
     for (auto& cell : mCells)
         cell.second->setSelection(elementMask, Cell::Selection_Invert);
+=======
+    for (auto& [_, cell] : mCells)
+        cell->setSelection(elementMask, Cell::Selection_Invert);
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
 
     flagAsModified();
 }
 
 void CSVRender::PagedWorldspaceWidget::selectAll(std::int32_t elementMask)
 {
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
     for (auto& cell : mCells)
         cell.second->setSelection(elementMask, Cell::Selection_All);
+=======
+    for (auto& [_, cell] : mCells)
+        cell->setSelection(elementMask, Cell::Selection_All);
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
 
     flagAsModified();
 }
 
 void CSVRender::PagedWorldspaceWidget::selectAllWithSameParentId(std::int32_t elementMask)
 {
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
     for (auto& cell : mCells)
         cell.second->selectAllWithSameParentId(elementMask);
+=======
+    for (auto& [_, cell] : mCells)
+        cell->selectAllWithSameParentId(elementMask);
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
 
     flagAsModified();
 }
@@ -873,9 +936,15 @@ std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::PagedWorldspaceWidget::
 {
     std::vector<osg::ref_ptr<CSVRender::TagBase>> result;
 
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
     for (auto cell : mCells)
     {
         std::vector<osg::ref_ptr<CSVRender::TagBase>> cellResult = cell.second->getSelection(elementMask);
+=======
+    for (const auto& [_, cell] : mCells)
+    {
+        std::vector<osg::ref_ptr<CSVRender::TagBase>> cellResult = cell->getSelection(elementMask);
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
 
         result.insert(result.end(), cellResult.begin(), cellResult.end());
     }
@@ -900,9 +969,15 @@ std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::PagedWorldspaceWidget::
 {
     std::vector<osg::ref_ptr<CSVRender::TagBase>> result;
 
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
     for (auto cell : mCells)
     {
         std::vector<osg::ref_ptr<CSVRender::TagBase>> cellResult = cell.second->getEdited(elementMask);
+=======
+    for (const auto& [_, cell] : mCells)
+    {
+        std::vector<osg::ref_ptr<CSVRender::TagBase>> cellResult = cell->getEdited(elementMask);
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
 
         result.insert(result.end(), cellResult.begin(), cellResult.end());
     }
@@ -912,15 +987,25 @@ std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::PagedWorldspaceWidget::
 
 void CSVRender::PagedWorldspaceWidget::setSubMode(std::int32_t subMode, std::uint32_t elementMask)
 {
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
     for (auto& cell : mCells)
         cell.second->setSubMode(subMode, elementMask);
+=======
+    for (const auto& [_, cell] : mCells)
+        cell->setSubMode(subMode, elementMask);
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
     mSelectionMarker->updateSelectionMarker();
 }
 
 void CSVRender::PagedWorldspaceWidget::reset(std::uint32_t elementMask)
 {
+<<<<<<< apps/opencs/view/render/pagedworldspacewidget.cpp (ours)
     for (auto& cell : mCells)
         cell.second->reset(elementMask);
+=======
+    for (const auto& [_, cell] : mCells)
+        cell->reset(elementMask);
+>>>>>>> apps/opencs/view/render/pagedworldspacewidget.cpp (theirs)
 }
 
 CSVWidget::SceneToolToggle2* CSVRender::PagedWorldspaceWidget::makeControlVisibilitySelector(

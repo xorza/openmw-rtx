@@ -204,8 +204,14 @@ std::int32_t CSMTools::ReportModel::countErrors() const
 {
     std::int32_t count = 0;
 
+<<<<<<< apps/opencs/model/tools/reportmodel.cpp (ours)
     for (const auto& row : mRows)
         if (row.mSeverity == CSMDoc::Message::Severity_Error || row.mSeverity == CSMDoc::Message::Severity_SeriousError)
+=======
+    for (const auto& message : mRows)
+        if (message.mSeverity == CSMDoc::Message::Severity_Error
+            || message.mSeverity == CSMDoc::Message::Severity_SeriousError)
+>>>>>>> apps/opencs/model/tools/reportmodel.cpp (theirs)
             ++count;
 
     return count;

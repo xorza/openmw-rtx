@@ -176,9 +176,15 @@ void CSVRender::WorldspaceWidget::centerOrbitCameraOnSelection()
 {
     std::vector<osg::ref_ptr<TagBase>> selection = getSelection(Mask_Reference);
 
+<<<<<<< apps/opencs/view/render/worldspacewidget.cpp (ours)
     for (auto& entry : selection)
     {
         if (auto* objectTag = static_cast<CSVRender::ObjectTag*>(entry.get()))
+=======
+    for (auto& selectedTag : selection)
+    {
+        if (CSVRender::ObjectTag* objectTag = static_cast<CSVRender::ObjectTag*>(selectedTag.get()))
+>>>>>>> apps/opencs/view/render/worldspacewidget.cpp (theirs)
         {
             mOrbitCamControl->setCenter(objectTag->mObject->getPosition().asVec3());
         }
@@ -295,7 +301,11 @@ CSVRender::WorldspaceWidget::DropType CSVRender::WorldspaceWidget::getDropType(
 {
     DropType output = Type_Other;
 
+<<<<<<< apps/opencs/view/render/worldspacewidget.cpp (ours)
     for (auto iter(data.begin()); iter != data.end(); ++iter)
+=======
+    for (auto iter(data.cbegin()); iter != data.end(); ++iter)
+>>>>>>> apps/opencs/view/render/worldspacewidget.cpp (theirs)
     {
         DropType type = Type_Other;
 
@@ -330,8 +340,13 @@ bool CSVRender::WorldspaceWidget::handleDrop(const std::vector<CSMWorld::Univers
     {
         if (mRun)
         {
+<<<<<<< apps/opencs/view/render/worldspacewidget.cpp (ours)
             for (const auto& entry : universalIdData)
                 mRun->addProfile(entry.getId());
+=======
+            for (const auto& universalId : universalIdData)
+                mRun->addProfile(universalId.getId());
+>>>>>>> apps/opencs/view/render/worldspacewidget.cpp (theirs)
         }
 
         return true;

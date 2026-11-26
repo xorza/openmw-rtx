@@ -618,9 +618,15 @@ void CSMPrefs::State::resetCategory(const std::string& category)
 
 void CSMPrefs::State::resetAll()
 {
+<<<<<<< apps/opencs/model/prefs/state.cpp (ours)
     for (auto& category : mCategories)
     {
         resetCategory(category.first);
+=======
+    for (auto& [categoryId, _] : mCategories)
+    {
+        resetCategory(categoryId);
+>>>>>>> apps/opencs/model/prefs/state.cpp (theirs)
     }
 }
 

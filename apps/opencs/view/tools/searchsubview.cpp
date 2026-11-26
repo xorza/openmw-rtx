@@ -41,7 +41,11 @@ void CSVTools::SearchSubView::replace(bool selection)
 
     // We are running through the indices in reverse order to avoid messing up multiple results
     // in a single string.
+<<<<<<< apps/opencs/view/tools/searchsubview.cpp (ours)
     for (std::int32_t indice : std::views::reverse(indices))
+=======
+    for (auto iter(indices.crbegin()); iter != indices.rend(); ++iter)
+>>>>>>> apps/opencs/view/tools/searchsubview.cpp (theirs)
     {
         const CSMWorld::UniversalId& id = model->getUniversalId(indice);
 

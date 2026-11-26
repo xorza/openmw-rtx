@@ -326,8 +326,8 @@ namespace CSMWorld
     template <typename ESXRecordT>
     Collection<ESXRecordT>::~Collection()
     {
-        for (auto iter(mColumns.begin()); iter != mColumns.end(); ++iter)
-            delete *iter;
+        for (auto* column : mColumns)
+            delete column;
     }
 
     template <typename ESXRecordT>
@@ -418,8 +418,8 @@ namespace CSMWorld
     template <typename ESXRecordT>
     void Collection<ESXRecordT>::merge()
     {
-        for (auto iter(mRecords.begin()); iter != mRecords.end(); ++iter)
-            (*iter)->merge();
+        for (auto& record : mRecords)
+            record->merge();
 
         purge();
     }

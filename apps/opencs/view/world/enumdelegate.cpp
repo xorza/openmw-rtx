@@ -35,12 +35,21 @@ void CSVWorld::EnumDelegate::setModelDataImp(QWidget* editor, QAbstractItemModel
     {
         QString value = comboBox->currentText();
 
+<<<<<<< apps/opencs/view/world/enumdelegate.cpp (ours)
         for (const auto& eachValue : mValues)
             if (eachValue.second == value)
             {
                 // do nothing if the value has not changed
                 if (model->data(index).toInt() != eachValue.first)
                     addCommands(model, index, eachValue.first);
+=======
+        for (const auto& [id, name] : mValues)
+            if (name == value)
+            {
+                // do nothing if the value has not changed
+                if (model->data(index).toInt() != id)
+                    addCommands(model, index, id);
+>>>>>>> apps/opencs/view/world/enumdelegate.cpp (theirs)
                 break;
             }
     }
@@ -72,8 +81,13 @@ QWidget* CSVWorld::EnumDelegate::createEditor(QWidget* parent, const QStyleOptio
 
     auto* comboBox = new QComboBox(parent);
 
+<<<<<<< apps/opencs/view/world/enumdelegate.cpp (ours)
     for (const auto& value : mValues)
         comboBox->addItem(value.second);
+=======
+    for (const auto& [_, name] : mValues)
+        comboBox->addItem(name);
+>>>>>>> apps/opencs/view/world/enumdelegate.cpp (theirs)
 
     comboBox->setMaxVisibleItems(20);
 

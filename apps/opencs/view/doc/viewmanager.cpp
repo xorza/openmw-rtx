@@ -35,6 +35,7 @@ void CSVDoc::ViewManager::updateIndices()
 {
     std::map<CSMDoc::Document*, std::pair<std::int32_t, std::int32_t>> documents;
 
+<<<<<<< apps/opencs/view/doc/viewmanager.cpp (ours)
     for (auto view : mViews)
     {
         auto document = documents.find(view->getDocument());
@@ -44,6 +45,15 @@ void CSVDoc::ViewManager::updateIndices()
                 = documents
                       .insert(std::make_pair(view->getDocument(), std::make_pair(0, countViews(view->getDocument()))))
                       .first;
+=======
+    for (auto* view : mViews)
+    {
+        std::map<CSMDoc::Document*, std::pair<std::int32_t, std::int32_t>>::iterator document
+            = documents.find(view->getDocument());
+
+        if (document == documents.end())
+            document = documents.emplace(view->getDocument(), std::make_pair(0, countViews(view->getDocument()))).first;
+>>>>>>> apps/opencs/view/doc/viewmanager.cpp (theirs)
 
         view->setIndex(document->second.first++, document->second.second);
     }
@@ -69,9 +79,15 @@ CSVDoc::ViewManager::ViewManager(CSMDoc::DocumentManager& documentManager)
     mDelegateFactories->add(CSMWorld::ColumnBase::Display_Colour, new CSVWorld::ColorDelegateFactory());
 
     std::vector<CSMWorld::ColumnBase::Display> idCompletionColumns = CSMWorld::IdCompletionManager::getDisplayTypes();
+<<<<<<< apps/opencs/view/doc/viewmanager.cpp (ours)
     for (auto& idCompletionColumn : idCompletionColumns)
     {
         mDelegateFactories->add(idCompletionColumn, new CSVWorld::IdCompletionDelegateFactory());
+=======
+    for (const auto& display : idCompletionColumns)
+    {
+        mDelegateFactories->add(display, new CSVWorld::IdCompletionDelegateFactory());
+>>>>>>> apps/opencs/view/doc/viewmanager.cpp (theirs)
     }
 
     struct Mapping
@@ -137,7 +153,11 @@ CSVDoc::ViewManager::~ViewManager()
 {
     delete mDelegateFactories;
 
+<<<<<<< apps/opencs/view/doc/viewmanager.cpp (ours)
     for (auto& view : mViews)
+=======
+    for (auto* view : mViews)
+>>>>>>> apps/opencs/view/doc/viewmanager.cpp (theirs)
         delete view;
 }
 
@@ -185,7 +205,11 @@ std::int32_t CSVDoc::ViewManager::countViews(const CSMDoc::Document* document) c
 {
     std::int32_t count = 0;
 
+<<<<<<< apps/opencs/view/doc/viewmanager.cpp (ours)
     for (auto view : mViews)
+=======
+    for (auto* view : mViews)
+>>>>>>> apps/opencs/view/doc/viewmanager.cpp (theirs)
         if (view->getDocument() == document)
             ++count;
 
@@ -360,7 +384,11 @@ bool CSVDoc::ViewManager::showSaveInProgressMessageBox(CSVDoc::View* view)
 
 void CSVDoc::ViewManager::documentStateChanged(std::int32_t state, CSMDoc::Document* document)
 {
+<<<<<<< apps/opencs/view/doc/viewmanager.cpp (ours)
     for (auto view : mViews)
+=======
+    for (auto* view : mViews)
+>>>>>>> apps/opencs/view/doc/viewmanager.cpp (theirs)
         if (view->getDocument() == document)
             view->updateDocumentState();
 }
@@ -368,7 +396,11 @@ void CSVDoc::ViewManager::documentStateChanged(std::int32_t state, CSMDoc::Docum
 void CSVDoc::ViewManager::progress(
     std::int32_t current, std::int32_t max, std::int32_t type, std::int32_t threads, CSMDoc::Document* document)
 {
+<<<<<<< apps/opencs/view/doc/viewmanager.cpp (ours)
     for (auto view : mViews)
+=======
+    for (auto* view : mViews)
+>>>>>>> apps/opencs/view/doc/viewmanager.cpp (theirs)
         if (view->getDocument() == document)
             view->updateProgress(current, max, type, threads);
 }

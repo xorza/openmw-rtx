@@ -165,14 +165,24 @@ void CSVWorld::TableSubView::createFilterRequest(std::vector<CSMWorld::Universal
         CSMWorld::TableMimeData::convertEnums(CSMWorld::UniversalId::Type_Referenceable));
     bool hasRefIdDisplay = !refIdColumns.empty();
 
+<<<<<<< apps/opencs/view/world/tablesubview.cpp (ours)
     for (auto& eachType : types)
     {
         CSMWorld::UniversalId::Type type = eachType.getType();
+=======
+    for (auto& universalId : types)
+    {
+        CSMWorld::UniversalId::Type type = universalId.getType();
+>>>>>>> apps/opencs/view/world/tablesubview.cpp (theirs)
         std::vector<std::string> col = mTable->getColumnsWithDisplay(CSMWorld::TableMimeData::convertEnums(type));
         if (!col.empty())
         {
             CSVFilter::FilterData filterData;
+<<<<<<< apps/opencs/view/world/tablesubview.cpp (ours)
             filterData.searchData = eachType.getId();
+=======
+            filterData.searchData = universalId.getId();
+>>>>>>> apps/opencs/view/world/tablesubview.cpp (theirs)
             filterData.columns = std::move(col);
             sourceFilter.emplace_back(filterData);
         }
@@ -180,7 +190,11 @@ void CSVWorld::TableSubView::createFilterRequest(std::vector<CSMWorld::Universal
         if (hasRefIdDisplay && CSMWorld::TableMimeData::isReferencable(type))
         {
             CSVFilter::FilterData filterData;
+<<<<<<< apps/opencs/view/world/tablesubview.cpp (ours)
             filterData.searchData = eachType.getId();
+=======
+            filterData.searchData = universalId.getId();
+>>>>>>> apps/opencs/view/world/tablesubview.cpp (theirs)
             filterData.columns = refIdColumns;
             sourceFilter.emplace_back(filterData);
         }

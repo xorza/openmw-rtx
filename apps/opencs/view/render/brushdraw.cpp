@@ -62,7 +62,11 @@ float CSVRender::BrushDraw::getIntersectionHeight(const osg::Vec3d& point)
 
     mParentNode->accept(visitor);
 
+<<<<<<< apps/opencs/view/render/brushdraw.cpp (ours)
     for (const auto& intersection : intersector->getIntersections())
+=======
+    for (auto it = intersector->getIntersections().begin(); it != intersector->getIntersections().end(); ++it)
+>>>>>>> apps/opencs/view/render/brushdraw.cpp (theirs)
     {
         // reject back-facing polygons
         if (direction * intersection.getWorldIntersectNormal() > 0)

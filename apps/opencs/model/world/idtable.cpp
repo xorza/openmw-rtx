@@ -194,9 +194,15 @@ void CSMWorld::IdTable::addRecordWithData(
 
     mIdCollection->appendBlankRecord(refId, type);
 
+<<<<<<< apps/opencs/model/world/idtable.cpp (ours)
     for (const auto& entry : data)
     {
         mIdCollection->setData(index, entry.first, entry.second);
+=======
+    for (const auto& [column, value] : data)
+    {
+        mIdCollection->setData(index, column, value);
+>>>>>>> apps/opencs/model/world/idtable.cpp (theirs)
     }
 
     endInsertRows();

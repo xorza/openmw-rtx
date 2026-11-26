@@ -23,9 +23,15 @@ CSMWorld::TableMimeData::TableMimeData(const std::vector<CSMWorld::UniversalId>&
     , mDocument(document)
     , mTableOfDragStart(nullptr)
 {
+<<<<<<< apps/opencs/model/world/tablemimedata.cpp (ours)
     for (auto& entry : mUniversalId)
     {
         mObjectsFormats << QString::fromUtf8(("tabledata/" + entry.getTypeName()).c_str());
+=======
+    for (auto& universalId : mUniversalId)
+    {
+        mObjectsFormats << QString::fromUtf8(("tabledata/" + universalId.getTypeName()).c_str());
+>>>>>>> apps/opencs/model/world/tablemimedata.cpp (theirs)
     }
 }
 
@@ -103,18 +109,30 @@ bool CSMWorld::TableMimeData::isReferencable(CSMWorld::UniversalId::Type type)
 bool CSMWorld::TableMimeData::holdsType(CSMWorld::UniversalId::Type type) const
 {
     bool referencable = (type == CSMWorld::UniversalId::Type_Referenceable);
+<<<<<<< apps/opencs/model/world/tablemimedata.cpp (ours)
     for (const auto& entry : mUniversalId)
     {
         if (referencable)
         {
             if (isReferencable(entry.getType()))
+=======
+    for (const auto& universalId : mUniversalId)
+    {
+        if (referencable)
+        {
+            if (isReferencable(universalId.getType()))
+>>>>>>> apps/opencs/model/world/tablemimedata.cpp (theirs)
             {
                 return true;
             }
         }
         else
         {
+<<<<<<< apps/opencs/model/world/tablemimedata.cpp (ours)
             if (entry.getType() == type)
+=======
+            if (universalId.getType() == type)
+>>>>>>> apps/opencs/model/world/tablemimedata.cpp (theirs)
             {
                 return true;
             }
@@ -127,18 +145,30 @@ bool CSMWorld::TableMimeData::holdsType(CSMWorld::UniversalId::Type type) const
 bool CSMWorld::TableMimeData::holdsType(CSMWorld::ColumnBase::Display type) const
 {
     bool referencable = (type == CSMWorld::ColumnBase::Display_Referenceable);
+<<<<<<< apps/opencs/model/world/tablemimedata.cpp (ours)
     for (const auto& entry : mUniversalId)
     {
         if (referencable)
         {
             if (isReferencable(entry.getType()))
+=======
+    for (const auto& universalId : mUniversalId)
+    {
+        if (referencable)
+        {
+            if (isReferencable(universalId.getType()))
+>>>>>>> apps/opencs/model/world/tablemimedata.cpp (theirs)
             {
                 return true;
             }
         }
         else
         {
+<<<<<<< apps/opencs/model/world/tablemimedata.cpp (ours)
             if (entry.getType() == convertEnums(type))
+=======
+            if (universalId.getType() == convertEnums(type))
+>>>>>>> apps/opencs/model/world/tablemimedata.cpp (theirs)
             {
                 return true;
             }
@@ -151,6 +181,7 @@ bool CSMWorld::TableMimeData::holdsType(CSMWorld::ColumnBase::Display type) cons
 CSMWorld::UniversalId CSMWorld::TableMimeData::returnMatching(CSMWorld::UniversalId::Type type) const
 {
     bool referencable = (type == CSMWorld::UniversalId::Type_Referenceable);
+<<<<<<< apps/opencs/model/world/tablemimedata.cpp (ours)
     for (const auto& entry : mUniversalId)
     {
         if (referencable)
@@ -158,13 +189,28 @@ CSMWorld::UniversalId CSMWorld::TableMimeData::returnMatching(CSMWorld::Universa
             if (isReferencable(entry.getType()))
             {
                 return entry;
+=======
+    for (const auto& universalId : mUniversalId)
+    {
+        if (referencable)
+        {
+            if (isReferencable(universalId.getType()))
+            {
+                return universalId;
+>>>>>>> apps/opencs/model/world/tablemimedata.cpp (theirs)
             }
         }
         else
         {
+<<<<<<< apps/opencs/model/world/tablemimedata.cpp (ours)
             if (entry.getType() == type)
             {
                 return entry;
+=======
+            if (universalId.getType() == type)
+            {
+                return universalId;
+>>>>>>> apps/opencs/model/world/tablemimedata.cpp (theirs)
             }
         }
     }
@@ -175,6 +221,7 @@ CSMWorld::UniversalId CSMWorld::TableMimeData::returnMatching(CSMWorld::Universa
 CSMWorld::UniversalId CSMWorld::TableMimeData::returnMatching(CSMWorld::ColumnBase::Display type) const
 {
     bool referencable = (type == CSMWorld::ColumnBase::Display_Referenceable);
+<<<<<<< apps/opencs/model/world/tablemimedata.cpp (ours)
     for (const auto& entry : mUniversalId)
     {
         if (referencable)
@@ -182,13 +229,28 @@ CSMWorld::UniversalId CSMWorld::TableMimeData::returnMatching(CSMWorld::ColumnBa
             if (isReferencable(entry.getType()))
             {
                 return entry;
+=======
+    for (const auto& universalId : mUniversalId)
+    {
+        if (referencable)
+        {
+            if (isReferencable(universalId.getType()))
+            {
+                return universalId;
+>>>>>>> apps/opencs/model/world/tablemimedata.cpp (theirs)
             }
         }
         else
         {
+<<<<<<< apps/opencs/model/world/tablemimedata.cpp (ours)
             if (entry.getType() == convertEnums(type))
             {
                 return entry;
+=======
+            if (universalId.getType() == convertEnums(type))
+            {
+                return universalId;
+>>>>>>> apps/opencs/model/world/tablemimedata.cpp (theirs)
             }
         }
     }

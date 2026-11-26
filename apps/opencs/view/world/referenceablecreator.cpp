@@ -36,7 +36,11 @@ CSVWorld::ReferenceableCreator::ReferenceableCreator(
     mType = new QComboBox(this);
     mType->setMaxVisibleItems(20);
 
+<<<<<<< apps/opencs/view/world/referenceablecreator.cpp (ours)
     for (auto type : types)
+=======
+    for (const auto& type : types)
+>>>>>>> apps/opencs/view/world/referenceablecreator.cpp (theirs)
     {
         CSMWorld::UniversalId id2(type, "");
 

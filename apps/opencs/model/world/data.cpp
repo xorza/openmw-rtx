@@ -684,7 +684,11 @@ CSMWorld::Data::Data(ToUTF8::FromType encoding, Files::PathContainer dataPaths,
 
 CSMWorld::Data::~Data()
 {
+<<<<<<< apps/opencs/model/world/data.cpp (ours)
     for (auto& model : mModels)
+=======
+    for (auto* model : mModels)
+>>>>>>> apps/opencs/model/world/data.cpp (theirs)
         delete model;
 }
 

@@ -45,7 +45,11 @@ void CSMTools::FactionCheckStage::perform(std::int32_t stage, CSMDoc::Messages& 
 
     // test for invalid attributes
     std::map<ESM::RefId, std::int32_t> attributeCount;
+<<<<<<< apps/opencs/model/tools/factioncheck.cpp (ours)
     for (auto attribute : faction.mData.mAttribute)
+=======
+    for (const ESM::RefId& attribute : faction.mData.mAttribute)
+>>>>>>> apps/opencs/model/tools/factioncheck.cpp (theirs)
     {
         if (!attribute.empty())
         {

@@ -202,9 +202,15 @@ namespace CSVRender
         {
             std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Pathgrid);
 
+<<<<<<< apps/opencs/view/render/pathgridmode.cpp (ours)
             for (auto& entry : selection)
             {
                 if (auto* tag = dynamic_cast<PathgridTag*>(entry.get()))
+=======
+            for (auto& selectedTag : selection)
+            {
+                if (PathgridTag* tag = dynamic_cast<PathgridTag*>(selectedTag.get()))
+>>>>>>> apps/opencs/view/render/pathgridmode.cpp (theirs)
                 {
                     osg::Vec3d eye, center, up, offset;
                     getWorldspaceWidget().getCamera()->getViewMatrix().getLookAt(eye, center, up);
@@ -241,9 +247,15 @@ namespace CSVRender
         if (mDragMode == DragMode::Move)
         {
             std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Pathgrid);
+<<<<<<< apps/opencs/view/render/pathgridmode.cpp (ours)
             for (auto& entry : selection)
             {
                 if (auto* tag = dynamic_cast<PathgridTag*>(entry.get()))
+=======
+            for (auto& selectedTag : selection)
+            {
+                if (PathgridTag* tag = dynamic_cast<PathgridTag*>(selectedTag.get()))
+>>>>>>> apps/opencs/view/render/pathgridmode.cpp (theirs)
                 {
                     QUndoStack& undoStack = getWorldspaceWidget().getDocument().getUndoStack();
                     QString description = "Move pathgrid node(s)";

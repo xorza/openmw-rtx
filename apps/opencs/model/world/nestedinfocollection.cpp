@@ -15,9 +15,15 @@ namespace CSMWorld
 {
     NestedInfoCollection::~NestedInfoCollection()
     {
+<<<<<<< apps/opencs/model/world/nestedinfocollection.cpp (ours)
         for (auto& adapter : mAdapters)
         {
             delete adapter.second;
+=======
+        for (auto& [_, info] : mAdapters)
+        {
+            delete info;
+>>>>>>> apps/opencs/model/world/nestedinfocollection.cpp (theirs)
         }
     }
 

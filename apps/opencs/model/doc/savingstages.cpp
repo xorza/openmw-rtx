@@ -97,7 +97,7 @@ void CSMDoc::WriteHeaderStage::perform(std::int32_t stage, Messages& messages)
         std::vector<std::filesystem::path> dependencies = mDocument.getContentFiles();
         std::vector<std::filesystem::path>::const_iterator end(--dependencies.end());
 
-        for (std::vector<std::filesystem::path>::const_iterator iter(dependencies.begin()); iter != end; ++iter)
+        for (auto iter(dependencies.cbegin()); iter != end; ++iter)
         {
             auto name = Files::pathToUnicodeString(iter->filename());
             auto size = std::filesystem::file_size(*iter);
@@ -291,9 +291,9 @@ void CSMDoc::WriteCellCollectionStage::writeReferences(const std::deque<std::int
 {
     ESM::ESMWriter& writer = mState.getWriter();
 
-    for (std::int32_t reference : references)
+    for (std::int32_t refIndex : references)
     {
-        const CSMWorld::Record<CSMWorld::CellRef>& ref = mDocument.getData().getReferences().getRecord(reference);
+        const CSMWorld::Record<CSMWorld::CellRef>& ref = mDocument.getData().getReferences().getRecord(refIndex);
 
         if (ref.isModified() || ref.mState == CSMWorld::RecordBase::State_Deleted)
         {
@@ -356,10 +356,10 @@ void CSMDoc::WriteCellCollectionStage::perform(std::int32_t stage, Messages& mes
 
         if (references != nullptr)
         {
-            for (std::int32_t reference : *references)
+            for (std::int32_t refIndex : *references)
             {
                 const CSMWorld::Record<CSMWorld::CellRef>& ref
-                    = mDocument.getData().getReferences().getRecord(reference);
+                    = mDocument.getData().getReferences().getRecord(refIndex);
 
                 CSMWorld::CellRef refRecord = ref.get();
 
@@ -370,9 +370,9 @@ void CSMDoc::WriteCellCollectionStage::perform(std::int32_t stage, Messages& mes
                     || localIndex.second == CSMWorld::UniversalId::Type_Npc;
 
                 if (isPersistent)
-                    persistentRefs.push_back(reference);
+                    persistentRefs.push_back(refIndex);
                 else
-                    tempRefs.push_back(reference);
+                    tempRefs.push_back(refIndex);
 
                 if (refRecord.mNew
                     || (!interior && ref.mState == CSMWorld::RecordBase::State_ModifiedOnly &&

@@ -8,8 +8,13 @@
 
 CSVDoc::SubViewFactoryManager::~SubViewFactoryManager()
 {
+<<<<<<< apps/opencs/view/doc/subviewfactory.cpp (ours)
     for (auto& subViewFactory : mSubViewFactories)
         delete subViewFactory.second;
+=======
+    for (auto& [_, factory] : mSubViewFactories)
+        delete factory;
+>>>>>>> apps/opencs/view/doc/subviewfactory.cpp (theirs)
 }
 
 void CSVDoc::SubViewFactoryManager::add(const CSMWorld::UniversalId::Type& id, SubViewFactoryBase* factory)

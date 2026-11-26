@@ -67,8 +67,13 @@ CSVWorld::CommandDelegateFactoryCollection::~CommandDelegateFactoryCollection()
 {
     sThis = nullptr;
 
+<<<<<<< apps/opencs/view/world/util.cpp (ours)
     for (auto& factory : mFactories)
         delete factory.second;
+=======
+    for (auto& [_, factory] : mFactories)
+        delete factory;
+>>>>>>> apps/opencs/view/world/util.cpp (theirs)
 }
 
 void CSVWorld::CommandDelegateFactoryCollection::add(

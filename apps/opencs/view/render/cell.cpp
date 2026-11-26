@@ -219,8 +219,13 @@ CSVRender::Cell::Cell(CSMDoc::Document& document, ObjectMarker* selectionMarker,
 
 CSVRender::Cell::~Cell()
 {
+<<<<<<< apps/opencs/view/render/cell.cpp (ours)
     for (auto& object : mObjects)
         delete object.second;
+=======
+    for (auto& [_, cell] : mObjects)
+        delete cell;
+>>>>>>> apps/opencs/view/render/cell.cpp (theirs)
 
     mCellNode->getParent(0)->removeChild(mCellNode);
 }
@@ -234,8 +239,13 @@ bool CSVRender::Cell::referenceableDataChanged(const QModelIndex& topLeft, const
 {
     bool modified = false;
 
+<<<<<<< apps/opencs/view/render/cell.cpp (ours)
     for (auto& object : mObjects)
         if (object.second->referenceableDataChanged(topLeft, bottomRight))
+=======
+    for (auto iter(mObjects.begin()); iter != mObjects.end(); ++iter)
+        if (iter->second->referenceableDataChanged(topLeft, bottomRight))
+>>>>>>> apps/opencs/view/render/cell.cpp (theirs)
             modified = true;
 
     return modified;
@@ -248,8 +258,13 @@ bool CSVRender::Cell::referenceableAboutToBeRemoved(const QModelIndex& parent, s
 
     bool modified = false;
 
+<<<<<<< apps/opencs/view/render/cell.cpp (ours)
     for (auto& object : mObjects)
         if (object.second->referenceableAboutToBeRemoved(parent, start, end))
+=======
+    for (auto iter(mObjects.begin()); iter != mObjects.end(); ++iter)
+        if (iter->second->referenceableAboutToBeRemoved(parent, start, end))
+>>>>>>> apps/opencs/view/render/cell.cpp (theirs)
             modified = true;
 
     return modified;
@@ -311,11 +326,19 @@ bool CSVRender::Cell::referenceDataChanged(const QModelIndex& topLeft, const QMo
     }
 
     // add new objects
+<<<<<<< apps/opencs/view/render/cell.cpp (ours)
     for (auto& id : ids)
     {
         if (!id.second)
         {
             mObjects.insert(std::make_pair(id.first, new Object(mData, mCellNode, id.first, false)));
+=======
+    for (auto& [id, deleted] : ids)
+    {
+        if (!deleted)
+        {
+            mObjects.insert(std::make_pair(id, new Object(mData, mCellNode, id, false)));
+>>>>>>> apps/opencs/view/render/cell.cpp (theirs)
 
             modified = true;
         }
@@ -425,7 +448,11 @@ void CSVRender::Cell::landTextureAdded(const QModelIndex& parent, std::int32_t s
 
 void CSVRender::Cell::reloadAssets()
 {
+<<<<<<< apps/opencs/view/render/cell.cpp (ours)
     for (Object* object : mObjects | std::views::values)
+=======
+    for (const auto& [_, object] : mObjects)
+>>>>>>> apps/opencs/view/render/cell.cpp (theirs)
     {
         object->reloadAssets();
     }
@@ -444,7 +471,11 @@ void CSVRender::Cell::setSelection(std::int32_t elementMask, Selection mode)
 {
     if (static_cast<std::uint32_t>(elementMask) & Mask_Reference)
     {
+<<<<<<< apps/opencs/view/render/cell.cpp (ours)
         for (Object* object : mObjects | std::views::values)
+=======
+        for (const auto& [_, object] : mObjects)
+>>>>>>> apps/opencs/view/render/cell.cpp (theirs)
         {
             bool selected = false;
 
@@ -494,15 +525,25 @@ void CSVRender::Cell::selectAllWithSameParentId(std::int32_t elementMask)
 {
     std::set<std::string> ids;
 
+<<<<<<< apps/opencs/view/render/cell.cpp (ours)
     for (Object* object : mObjects | std::views::values)
+=======
+    for (const auto& [_, object] : mObjects)
+>>>>>>> apps/opencs/view/render/cell.cpp (theirs)
     {
         if (object->getSelected())
             ids.insert(object->getReferenceableId());
     }
 
+<<<<<<< apps/opencs/view/render/cell.cpp (ours)
     for (Object* object : mObjects | std::views::values)
     {
         if (!object->getSelected() && ids.contains(object->getReferenceableId()))
+=======
+    for (const auto& [_, object] : mObjects)
+    {
+        if (!object->getSelected() && ids.find(object->getReferenceableId()) != ids.end())
+>>>>>>> apps/opencs/view/render/cell.cpp (theirs)
         {
             object->setSelected(true);
             mSelectionMarker->addToSelectionHistory(object->getReferenceId(), false);
@@ -655,9 +696,15 @@ std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::Cell::getSelection(std:
     std::vector<osg::ref_ptr<TagBase>> result;
 
     if (elementMask & Mask_Reference)
+<<<<<<< apps/opencs/view/render/cell.cpp (ours)
         for (const auto& object : mObjects)
             if (object.second->getSelected())
                 result.push_back(object.second->getTag());
+=======
+        for (const auto& [_, object] : mObjects)
+            if (object->getSelected())
+                result.push_back(object->getTag());
+>>>>>>> apps/opencs/view/render/cell.cpp (theirs)
     if (mPathgrid && elementMask & Mask_Pathgrid)
         if (mPathgrid->isSelected())
             result.emplace_back(mPathgrid->getTag());
@@ -670,9 +717,15 @@ std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::Cell::getEdited(std::ui
     std::vector<osg::ref_ptr<TagBase>> result;
 
     if (elementMask & Mask_Reference)
+<<<<<<< apps/opencs/view/render/cell.cpp (ours)
         for (const auto& object : mObjects)
             if (object.second->isEdited())
                 result.push_back(object.second->getTag());
+=======
+        for (const auto& [_, object] : mObjects)
+            if (object->isEdited())
+                result.push_back(object->getTag());
+>>>>>>> apps/opencs/view/render/cell.cpp (theirs)
 
     return result;
 }
@@ -689,7 +742,11 @@ void CSVRender::Cell::setSubMode(std::int32_t subMode, std::uint32_t elementMask
 void CSVRender::Cell::reset(std::uint32_t elementMask)
 {
     if (elementMask & Mask_Reference)
+<<<<<<< apps/opencs/view/render/cell.cpp (ours)
         for (Object* object : mObjects | std::views::values)
+=======
+        for (const auto& [_, object] : mObjects)
+>>>>>>> apps/opencs/view/render/cell.cpp (theirs)
             object->reset();
     if (mPathgrid && elementMask & Mask_Pathgrid)
         mPathgrid->resetIndicators();

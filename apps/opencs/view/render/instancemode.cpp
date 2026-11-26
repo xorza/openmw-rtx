@@ -129,9 +129,15 @@ osg::Vec3f CSVRender::InstanceMode::getSelectionCenter(const std::vector<osg::re
     osg::Vec3f center = osg::Vec3f(0, 0, 0);
     std::int32_t objectCount = 0;
 
+<<<<<<< apps/opencs/view/render/instancemode.cpp (ours)
     for (const auto& entry : selection)
     {
         if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(entry.get()))
+=======
+    for (const auto& selectedTag : selection)
+    {
+        if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(selectedTag.get()))
+>>>>>>> apps/opencs/view/render/instancemode.cpp (theirs)
         {
             const ESM::Position& position = objectTag->mObject->getPosition();
             center += osg::Vec3f(position.pos[0], position.pos[1], position.pos[2]);
@@ -566,9 +572,15 @@ bool CSVRender::InstanceMode::primaryEditStartDrag(const QPoint& pos)
 
     mObjectsAtDragStart.clear();
 
+<<<<<<< apps/opencs/view/render/instancemode.cpp (ours)
     for (auto& entry : selection)
     {
         if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(entry.get()))
+=======
+    for (auto& selectedTag : selection)
+    {
+        if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(selectedTag.get()))
+>>>>>>> apps/opencs/view/render/instancemode.cpp (theirs)
         {
             if (mSubModeId == "move")
             {
@@ -646,9 +658,15 @@ bool CSVRender::InstanceMode::secondaryEditStartDrag(const QPoint& pos)
 
     mObjectsAtDragStart.clear();
 
+<<<<<<< apps/opencs/view/render/instancemode.cpp (ours)
     for (auto& entry : selection)
     {
         if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(entry.get()))
+=======
+    for (auto& selectedTag : selection)
+    {
+        if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(selectedTag.get()))
+>>>>>>> apps/opencs/view/render/instancemode.cpp (theirs)
         {
             if (mSubModeId == "move")
             {
@@ -1047,9 +1065,15 @@ void CSVRender::InstanceMode::dragCompleted(const QPoint& pos)
     CSMWorld::CommandMacro macro(undoStack, description);
 
     // Is this even supposed to be here?
+<<<<<<< apps/opencs/view/render/instancemode.cpp (ours)
     for (auto& entry : selection)
     {
         if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(entry.get()))
+=======
+    for (auto& selectedTag : selection)
+    {
+        if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(selectedTag.get()))
+>>>>>>> apps/opencs/view/render/instancemode.cpp (theirs)
         {
             if (mDragMode == DragMode_Rotate_Snap)
             {
@@ -1243,8 +1267,13 @@ void CSVRender::InstanceMode::dropEvent(QDropEvent* event)
 
         std::vector<CSMWorld::UniversalId> ids = mime->getData();
 
+<<<<<<< apps/opencs/view/render/instancemode.cpp (ours)
         for (const auto& id : ids)
             if (mime->isReferencable(id.getType()))
+=======
+        for (const auto& universalId : ids)
+            if (mime->isReferencable(universalId.getType()))
+>>>>>>> apps/opencs/view/render/instancemode.cpp (theirs)
             {
                 // create reference
                 std::unique_ptr<CSMWorld::CreateCommand> createCommand(
@@ -1259,7 +1288,11 @@ void CSVRender::InstanceMode::dropEvent(QDropEvent* event)
                 createCommand->addValue(
                     referencesTable.findColumnIndex(CSMWorld::Columns::ColumnId_PositionZPos), hit.worldPos.z());
                 createCommand->addValue(referencesTable.findColumnIndex(CSMWorld::Columns::ColumnId_ReferenceableId),
+<<<<<<< apps/opencs/view/render/instancemode.cpp (ours)
                     QString::fromUtf8(id.getId().c_str()));
+=======
+                    QString::fromUtf8(universalId.getId().c_str()));
+>>>>>>> apps/opencs/view/render/instancemode.cpp (theirs)
 
                 document.getUndoStack().push(createCommand.release());
 

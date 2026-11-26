@@ -31,8 +31,13 @@ CSVDoc::Operations::Operations()
 
 void CSVDoc::Operations::setProgress(std::int32_t current, std::int32_t max, std::int32_t type, std::int32_t threads)
 {
+<<<<<<< apps/opencs/view/doc/operations.cpp (ours)
     for (auto& eachOperation : mOperations)
         if (eachOperation->getType() == type)
+=======
+    for (auto iter(mOperations.begin()); iter != mOperations.end(); ++iter)
+        if ((*iter)->getType() == type)
+>>>>>>> apps/opencs/view/doc/operations.cpp (theirs)
         {
             eachOperation->setProgress(current, max, threads);
             return;

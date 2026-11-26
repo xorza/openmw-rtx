@@ -47,12 +47,21 @@ CSMWorld::RefIdData::RefIdData()
 
 CSMWorld::RefIdData::LocalIndex CSMWorld::RefIdData::globalToLocalIndex(std::int32_t index) const
 {
+<<<<<<< apps/opencs/model/world/refiddata.cpp (ours)
     for (auto recordContainer : mRecordContainers)
     {
         if (index < recordContainer.second->getSize())
             return LocalIndex(index, recordContainer.first);
 
         index -= recordContainer.second->getSize();
+=======
+    for (const auto& [dataType, data] : mRecordContainers)
+    {
+        if (index < data->getSize())
+            return LocalIndex(index, dataType);
+
+        index -= data->getSize();
+>>>>>>> apps/opencs/model/world/refiddata.cpp (theirs)
     }
 
     throw std::runtime_error("RefIdData index out of range");
@@ -67,7 +76,11 @@ std::int32_t CSMWorld::RefIdData::localToGlobalIndex(const LocalIndex& index) co
 
     std::int32_t globalIndex = index.first;
 
+<<<<<<< apps/opencs/model/world/refiddata.cpp (ours)
     for (auto iter(mRecordContainers.begin()); iter != end; ++iter)
+=======
+    for (auto iter(mRecordContainers.cbegin()); iter != end; ++iter)
+>>>>>>> apps/opencs/model/world/refiddata.cpp (theirs)
         globalIndex += iter->second->getSize();
 
     return globalIndex;
@@ -203,11 +216,19 @@ std::int32_t CSMWorld::RefIdData::getAppendIndex(UniversalId::Type type) const
 {
     std::int32_t index = 0;
 
+<<<<<<< apps/opencs/model/world/refiddata.cpp (ours)
     for (auto recordContainer : mRecordContainers)
     {
         index += recordContainer.second->getSize();
 
         if (type == recordContainer.first)
+=======
+    for (const auto& [dataType, data] : mRecordContainers)
+    {
+        index += data->getSize();
+
+        if (type == dataType)
+>>>>>>> apps/opencs/model/world/refiddata.cpp (theirs)
             break;
     }
 

@@ -22,7 +22,11 @@ void CSVWidget::SceneToolToggle2::adjustToolTip()
 
     bool first = true;
 
+<<<<<<< apps/opencs/view/widget/scenetooltoggle2.cpp (ours)
     for (const auto& [button, desc] : mButtons)
+=======
+    for (const auto& [button, description] : mButtons)
+>>>>>>> apps/opencs/view/widget/scenetooltoggle2.cpp (theirs)
         if (button->isChecked())
         {
             if (!first)
@@ -30,7 +34,11 @@ void CSVWidget::SceneToolToggle2::adjustToolTip()
             else
                 first = false;
 
+<<<<<<< apps/opencs/view/widget/scenetooltoggle2.cpp (ours)
             toolTip += desc.mName;
+=======
+            toolTip += description.mName;
+>>>>>>> apps/opencs/view/widget/scenetooltoggle2.cpp (theirs)
         }
 
     if (first)
@@ -45,9 +53,15 @@ void CSVWidget::SceneToolToggle2::adjustIcon()
 {
     std::uint32_t buttonIds = 0;
 
+<<<<<<< apps/opencs/view/widget/scenetooltoggle2.cpp (ours)
     for (const auto& [button, desc] : mButtons)
         if (button->isChecked())
             buttonIds |= desc.mButtonId;
+=======
+    for (const auto& [button, description] : mButtons)
+        if (button->isChecked())
+            buttonIds |= description.mButtonId;
+>>>>>>> apps/opencs/view/widget/scenetooltoggle2.cpp (theirs)
 
     std::ostringstream stream;
     stream << mCompositeIcon << buttonIds;
@@ -118,17 +132,28 @@ std::uint32_t CSVWidget::SceneToolToggle2::getSelectionMask() const
 {
     std::uint32_t selection = 0;
 
+<<<<<<< apps/opencs/view/widget/scenetooltoggle2.cpp (ours)
     for (const auto& button : mButtons)
         if (button.first->isChecked())
             selection |= button.second.mMask;
+=======
+    for (const auto& [button, description] : mButtons)
+        if (button->isChecked())
+            selection |= description.mMask;
+>>>>>>> apps/opencs/view/widget/scenetooltoggle2.cpp (theirs)
 
     return selection;
 }
 
 void CSVWidget::SceneToolToggle2::setSelectionMask(std::uint32_t selection)
 {
+<<<<<<< apps/opencs/view/widget/scenetooltoggle2.cpp (ours)
     for (auto& button : mButtons)
         button.first->setChecked(selection & button.second.mMask);
+=======
+    for (auto& [button, description] : mButtons)
+        button->setChecked(selection & description.mMask);
+>>>>>>> apps/opencs/view/widget/scenetooltoggle2.cpp (theirs)
 
     adjustToolTip();
     adjustIcon();

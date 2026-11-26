@@ -19,7 +19,11 @@ CSMTools::SearchOperation::SearchOperation(CSMDoc::Document& document)
     std::vector<CSMWorld::UniversalId::Type> types = CSMWorld::UniversalId::listTypes(
         CSMWorld::UniversalId::Class_RecordList | CSMWorld::UniversalId::Class_ResourceList);
 
+<<<<<<< apps/opencs/model/tools/searchoperation.cpp (ours)
     for (auto type : types)
+=======
+    for (const auto& type : types)
+>>>>>>> apps/opencs/model/tools/searchoperation.cpp (theirs)
         appendStage(new SearchStage(&document.getData().getTableModel<CSMWorld::IdTableBase>(type)));
 
     setDefaultSeverity(CSMDoc::Message::Severity_Info);

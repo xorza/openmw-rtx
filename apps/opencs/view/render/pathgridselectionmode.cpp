@@ -49,9 +49,15 @@ namespace CSVRender
     {
         std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Pathgrid);
 
+<<<<<<< apps/opencs/view/render/pathgridselectionmode.cpp (ours)
         for (auto& entry : selection)
         {
             if (auto* tag = dynamic_cast<PathgridTag*>(entry.get()))
+=======
+        for (auto& selectedTag : selection)
+        {
+            if (PathgridTag* tag = dynamic_cast<PathgridTag*>(selectedTag.get()))
+>>>>>>> apps/opencs/view/render/pathgridselectionmode.cpp (theirs)
             {
                 QUndoStack& undoStack = getWorldspaceWidget().getDocument().getUndoStack();
                 QString description = "Remove selected nodes";
@@ -66,9 +72,15 @@ namespace CSVRender
     {
         std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Pathgrid);
 
+<<<<<<< apps/opencs/view/render/pathgridselectionmode.cpp (ours)
         for (auto& entry : selection)
         {
             if (auto* tag = dynamic_cast<PathgridTag*>(entry.get()))
+=======
+        for (auto& selectedTag : selection)
+        {
+            if (PathgridTag* tag = dynamic_cast<PathgridTag*>(selectedTag.get()))
+>>>>>>> apps/opencs/view/render/pathgridselectionmode.cpp (theirs)
             {
                 QUndoStack& undoStack = getWorldspaceWidget().getDocument().getUndoStack();
                 QString description = "Remove edges between selected nodes";

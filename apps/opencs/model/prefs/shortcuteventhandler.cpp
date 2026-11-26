@@ -151,7 +151,11 @@ namespace CSMPrefs
             assert(shortcutListIt != mWidgetShortcuts.end());
 
             // Find potential activations
+<<<<<<< apps/opencs/model/prefs/shortcuteventhandler.cpp (ours)
             for (auto shortcut : shortcutListIt->second)
+=======
+            for (auto it = shortcutListIt->second.begin(); it != shortcutListIt->second.end(); ++it)
+>>>>>>> apps/opencs/model/prefs/shortcuteventhandler.cpp (theirs)
             {
                 if (!shortcut->isEnabled())
                     continue;
@@ -219,7 +223,11 @@ namespace CSMPrefs
             auto shortcutListIt = mWidgetShortcuts.find(widget);
             assert(shortcutListIt != mWidgetShortcuts.end());
 
+<<<<<<< apps/opencs/model/prefs/shortcuteventhandler.cpp (ours)
             for (auto shortcut : shortcutListIt->second)
+=======
+            for (auto it = shortcutListIt->second.begin(); it != shortcutListIt->second.end(); ++it)
+>>>>>>> apps/opencs/model/prefs/shortcuteventhandler.cpp (theirs)
             {
                 if (checkModifier(keyCombination, shortcut, false))
                     used = true;

@@ -323,10 +323,17 @@ void CSMWorld::RefCollection::insertRecord(
 
     if (index < size - 1)
     {
+<<<<<<< apps/opencs/model/world/refcollection.cpp (ours)
         for (auto& entry : mRefIndex)
         {
             if (entry.second >= index)
                 ++(entry.second);
+=======
+        for (auto& [_, currentIndex] : mRefIndex)
+        {
+            if (currentIndex >= index)
+                ++(currentIndex);
+>>>>>>> apps/opencs/model/world/refcollection.cpp (theirs)
         }
     }
 

@@ -39,7 +39,7 @@ CSMDoc::DocumentManager::~DocumentManager()
     mLoader.hasThingsToDo().wakeAll();
     mLoaderThread.wait();
 
-    for (auto& document : mDocuments)
+    for (auto* document : mDocuments)
         delete document;
 }
 

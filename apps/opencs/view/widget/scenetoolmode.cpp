@@ -47,7 +47,11 @@ void CSVWidget::SceneToolMode::adjustToolTip(const ModeButton* activeMode)
 
 void CSVWidget::SceneToolMode::setButton(std::map<ModeButton*, std::string>::iterator iter)
 {
+<<<<<<< apps/opencs/view/widget/scenetoolmode.cpp (ours)
     for (auto iter2 = mButtons.begin(); iter2 != mButtons.end(); ++iter2)
+=======
+    for (auto iter2 = mButtons.cbegin(); iter2 != mButtons.end(); ++iter2)
+>>>>>>> apps/opencs/view/widget/scenetoolmode.cpp (theirs)
         iter2->first->setChecked(iter2 == iter);
 
     setIcon(iter->first->icon());

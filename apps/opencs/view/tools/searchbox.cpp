@@ -55,8 +55,13 @@ CSVTools::SearchBox::SearchBox(QWidget* parent)
         = CSMWorld::Columns::getEnums(CSMWorld::Columns::ColumnId_Modification);
     states.resize(states.size() - 1); // ignore erased state
 
+<<<<<<< apps/opencs/view/tools/searchbox.cpp (ours)
     for (const auto& state : states)
         mRecordState.addItem(QString::fromUtf8(state.second.c_str()));
+=======
+    for (const auto& [_, stateId] : states)
+        mRecordState.addItem(QString::fromUtf8(stateId.c_str()));
+>>>>>>> apps/opencs/view/tools/searchbox.cpp (theirs)
 
     mMode.addItem(tr("Text"));
     mMode.addItem(tr("Text (RegEx)"));

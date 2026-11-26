@@ -392,13 +392,13 @@ namespace MWWorld
     };
 
     template <typename X>
-    void CellRefList<X>::load(ESM::CellRef& ref, bool deleted, const MWWorld::ESMStore& esmStore)
+    void CellRefList<X>::load(ESM::CellRef& ref, bool deleted, bool replaceExisting, const MWWorld::ESMStore& esmStore)
     {
         const MWWorld::Store<X>& store = esmStore.get<X>();
 
         if (const X* ptr = store.search(ref.mRefID))
         {
-            auto iter = std::find(mList.begin(), mList.end(), ref.mRefNum);
+            auto iter = replaceExisting ? std::find(mList.begin(), mList.end(), ref.mRefNum) : mList.end();
 
             LiveRef liveCellRef(ref, ptr);
 
@@ -976,7 +976,8 @@ namespace MWWorld
         const MWWorld::ESMStore& store = mStore;
 
         auto it = refNumToID.find(ref.mRefNum);
-        if (it != refNumToID.end())
+        const bool replaceExisting = it != refNumToID.end();
+        if (replaceExisting)
         {
             if (it->second != ref.mRefID)
             {
@@ -995,12 +996,13 @@ namespace MWWorld
         bool handledType = false;
         if (foundType != 0)
         {
-            Misc::tupleForEach(
-                this->mCellStoreImp->mRefLists, [&ref, &deleted, &store, foundType, &handledType](auto& x) {
-                    recNameSwitcher(x, foundType, [&ref, &deleted, &store, &handledType](auto& storeIn) {
-                        handledType = true;
-                        storeIn.load(ref, deleted, store);
-                    });
+            Misc::tupleForEach(this->mCellStoreImp->mRefLists,
+                [&ref, &deleted, replaceExisting, &store, foundType, &handledType](auto& x) {
+                    recNameSwitcher(
+                        x, foundType, [&ref, &deleted, replaceExisting, &store, &handledType](auto& storeIn) {
+                            handledType = true;
+                            storeIn.load(ref, deleted, replaceExisting, store);
+                        });
                 });
         }
         else

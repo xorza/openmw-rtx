@@ -21,7 +21,7 @@ void CSVWidget::SceneToolToggle::adjustToolTip()
 
     bool first = true;
 
-    for (const auto& [button, desc] : mButtons)
+    for (const auto& [button, description] : mButtons)
         if (button->isChecked())
         {
             if (!first)
@@ -29,7 +29,7 @@ void CSVWidget::SceneToolToggle::adjustToolTip()
             else
                 first = false;
 
-            toolTip += desc.mName;
+            toolTip += description.mName;
         }
 
     if (first)
@@ -53,10 +53,12 @@ void CSVWidget::SceneToolToggle::adjustIcon()
         {
             QPainter painter(&pixmap);
 
-            for (const auto& [button, desc] : mButtons)
+            for (const auto& [button, description] : mButtons)
                 if (button->isChecked())
                 {
-                    painter.drawImage(getIconBox(desc.mIndex), QImage(QString::fromUtf8(desc.mSmallIcon.c_str())));
+                    painter.drawImage(
+                        getIconBox(description.mIndex), QImage(QString::fromUtf8(description.mSmallIcon.c_str())));
+>>>>>>> apps/opencs/view/widget/scenetooltoggle.cpp (theirs)
                 }
         }
 
@@ -170,17 +172,28 @@ std::uint32_t CSVWidget::SceneToolToggle::getSelectionMask() const
 {
     std::uint32_t selection = 0;
 
+<<<<<<< apps/opencs/view/widget/scenetooltoggle.cpp (ours)
     for (const auto& button : mButtons)
         if (button.first->isChecked())
             selection |= button.second.mMask;
+=======
+    for (const auto& [button, description] : mButtons)
+        if (button->isChecked())
+            selection |= description.mMask;
+>>>>>>> apps/opencs/view/widget/scenetooltoggle.cpp (theirs)
 
     return selection;
 }
 
 void CSVWidget::SceneToolToggle::setSelectionMask(std::uint32_t selection)
 {
+<<<<<<< apps/opencs/view/widget/scenetooltoggle.cpp (ours)
     for (auto& button : mButtons)
         button.first->setChecked(selection & button.second.mMask);
+=======
+    for (auto& [button, description] : mButtons)
+        button->setChecked(selection & description.mMask);
+>>>>>>> apps/opencs/view/widget/scenetooltoggle.cpp (theirs)
 
     adjustToolTip();
     adjustIcon();

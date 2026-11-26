@@ -884,9 +884,15 @@ void CSMTools::ReferenceableCheckStage::finalCheck(CSMDoc::Messages& messages)
 void CSMTools::ReferenceableCheckStage::inventoryListCheck(
     const std::vector<ESM::ContItem>& itemList, CSMDoc::Messages& messages, const std::string& id)
 {
+<<<<<<< apps/opencs/model/tools/referenceablecheck.cpp (ours)
     for (const auto& entry : itemList)
     {
         const ESM::RefId& item = entry.mItem;
+=======
+    for (const auto& contItem : itemList)
+    {
+        const ESM::RefId& item = contItem.mItem;
+>>>>>>> apps/opencs/model/tools/referenceablecheck.cpp (theirs)
         const auto& itemName = item.getRefIdString();
         CSMWorld::RefIdData::LocalIndex localIndex = mReferencables.searchId(item);
 
@@ -1020,14 +1026,14 @@ void CSMTools::ReferenceableCheckStage::listCheck(
             someID, "Chance that no object is used is over 100 percent", "", CSMDoc::Message::Severity_Warning);
     }
 
-    for (const auto& element : someList.mList)
+    for (const auto& listItem : someList.mList)
     {
-        if (mReferencables.searchId(element.mId).first == -1)
-            messages.add(someID, "Object '" + element.mId.getRefIdString() + "' does not exist", "",
+        if (mReferencables.searchId(listItem.mId).first == -1)
+            messages.add(someID, "Object '" + listItem.mId.getRefIdString() + "' does not exist", "",
                 CSMDoc::Message::Severity_Error);
 
-        if (element.mLevel < 1)
-            messages.add(someID, "Level of item '" + element.mId.getRefIdString() + "' is non-positive", "",
+        if (listItem.mLevel < 1)
+            messages.add(someID, "Level of item '" + listItem.mId.getRefIdString() + "' is non-positive", "",
                 CSMDoc::Message::Severity_Error);
     }
 }

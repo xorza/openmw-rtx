@@ -445,7 +445,11 @@ CSVWorld::Table::Table(const CSMWorld::UniversalId& id, bool createAndDelete, bo
 
 void CSVWorld::Table::setEditLock(bool locked)
 {
+<<<<<<< apps/opencs/view/world/table.cpp (ours)
     for (auto& delegate : mDelegates)
+=======
+    for (auto* delegate : mDelegates)
+>>>>>>> apps/opencs/view/world/table.cpp (theirs)
         delegate->setEditLock(locked);
 
     DragRecordTable::setEditLock(locked);
@@ -465,9 +469,13 @@ std::vector<std::string> CSVWorld::Table::getSelectedIds() const
     QModelIndexList selectedRows = selectionModel()->selectedRows();
     std::int32_t columnIndex = mModel->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
 
-    for (QModelIndexList::const_iterator iter(selectedRows.begin()); iter != selectedRows.end(); ++iter)
+    for (const auto& modelIndex : selectedRows)
     {
+<<<<<<< apps/opencs/view/world/table.cpp (ours)
         std::int32_t row = mProxyModel->mapToSource(mProxyModel->index(iter->row(), 0)).row();
+=======
+        int row = mProxyModel->mapToSource(mProxyModel->index(modelIndex.row(), 0)).row();
+>>>>>>> apps/opencs/view/world/table.cpp (theirs)
         ids.emplace_back(CSMWorld::getString(mModel->getData(row, columnIndex)));
     }
     return ids;

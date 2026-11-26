@@ -280,8 +280,15 @@ namespace CSMPrefs
         }
 
         // Generate inverse map
+<<<<<<< apps/opencs/model/prefs/shortcutmanager.cpp (ours)
         for (const auto& [key, name] : mNames)
             mKeys.insert(std::make_pair(name, key));
+=======
+        for (const auto& [buttonId, buttonName] : mNames)
+        {
+            mKeys.insert(std::make_pair(buttonName, buttonId));
+        }
+>>>>>>> apps/opencs/model/prefs/shortcutmanager.cpp (theirs)
     }
 
     QString ShortcutManager::processToolTip(const QString& toolTip) const

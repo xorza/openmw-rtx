@@ -82,7 +82,11 @@ namespace CSVRender
 
         if (mActive != wasActive)
         {
+<<<<<<< apps/opencs/view/render/cameracontroller.cpp (ours)
             for (auto shortcut : mShortcuts)
+=======
+            for (auto* shortcut : mShortcuts)
+>>>>>>> apps/opencs/view/render/cameracontroller.cpp (theirs)
             {
                 shortcut->enable(mActive);
             }

@@ -45,9 +45,9 @@ void CSVDoc::GlobalDebugProfileMenu::rebuild()
 
     std::sort(ids.begin(), ids.end());
 
-    for (const auto& id : ids)
+    for (const auto& universalId : ids)
     {
-        mActions->addAction(addAction(id));
+        mActions->addAction(addAction(universalId));
     }
 }
 

@@ -46,10 +46,10 @@ void CSMDoc::Operation::prepareStages()
     mTotalSteps = 0;
     mError = false;
 
-    for (auto& stage : mStages)
+    for (auto& [stage, stepsNumber] : mStages)
     {
-        stage.second = stage.first->setup();
-        mTotalSteps += stage.second;
+        stepsNumber = stage->setup();
+        mTotalSteps += stepsNumber;
     }
 }
 
@@ -69,8 +69,8 @@ CSMDoc::Operation::Operation(State type, bool finalAlways)
 
 CSMDoc::Operation::~Operation()
 {
-    for (auto& stage : mStages)
-        delete stage.first;
+    for (auto& [stage, _] : mStages)
+        delete stage;
 }
 
 void CSMDoc::Operation::run()
