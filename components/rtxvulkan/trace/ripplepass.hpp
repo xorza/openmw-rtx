@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -44,18 +43,16 @@ namespace Rtx
         /// Submits and waits.
         explicit RipplePass(const Device& device);
 
-        /// Steps the field by the time `waterSeconds` moved since the last step, in as few steps as keep each within
-        /// `getLongestStep` and no more than `RIPPLE_SUBSTEPS_MOST`, presses `impulses` with the first, for the time
-        /// the steps cover, and unpacks the tiles. The window follows `eye` by whole texels. Nothing at all where the
-        /// clock did not move: a press stands for time, and that frame's water had none.
+        /// Steps the field once for every whole sixtieth `waterSeconds` passed since the last frame, no more than
+        /// `RIPPLE_FRAME_STEPS_MOST`, presses with the first every impulse kept since the last step, and unpacks the
+        /// tiles; a frame that passes no sixtieth keeps `impulses` for the next that does. The window follows `eye` by
+        /// whole texels. Nothing at all where the clock did not move: a press stands for its frame's time
+        /// (`GpuRippleImpulse::mPress`), and that frame's water had none.
         ///
-        /// The impulses that reach the window are pressed nearest first, in the order the game gave them: one whose
-        /// ring presses no texel of it is no impulse, and past `RIPPLE_IMPULSES_MOST` the nearest the eye are shown.
+        /// The impulses that reach the window are pressed in the order the game gave them, and past
+        /// `RIPPLE_IMPULSES_MOST` the nearest the eye are kept: one whose ring presses no texel of it is no impulse.
         /// Nothing is done while the field is still and nothing presses it: once a frame's last step reports every
         /// texel nought (`RIPPLE_STILL`) each step would step nought to nought, so the frame skips both, exactly.
-        ///
-        /// Every frame and not once a sixtieth, as upstream steps: the same springs over the same time, and a wake that
-        /// keeps its pace under sixty frames a second. AGENTS.md names it among the fixes declined.
         ///
         /// @param uploads what writes the impulses, ordered ahead of the steps that read them.
         /// @param slot the frame's, which names the copy of the impulse buffer this frame writes.
@@ -63,17 +60,6 @@ namespace Rtx
         ///        only on a frame that steps, so a frame that stands still reports no zone.
         void record(VkCommandBuffer commands, Uploads& uploads, FrameSlot slot, std::span<const RippleImpulse> impulses,
             const osg::Vec2f& eye, double waterSeconds, GpuTimer* timer);
-
-        /// The longest step the springs stand, in sixtieths: the five-point Laplacian's highest mode, the checkerboard,
-        /// is pulled by `8 a + udamp` a sixtieth squared, and a step of `s` keeps it bounded while `s² (8 a + udamp) ≤
-        /// 2 (1 + c)`, `c` the carry `(1 − vdamp)^s`. Under two sixtieths the carry is at least `(1 − vdamp)²`, which
-        /// this takes: 1.298 sixtieths, a frame of 46 a second.
-        static float getLongestStep()
-        {
-            const float carried = (1.0f - Shaders::RIPPLE_VELOCITY_DAMPING) * (1.0f - Shaders::RIPPLE_VELOCITY_DAMPING);
-            return std::sqrt(
-                2.0f * (1.0f + carried) / (8.0f * Shaders::RIPPLE_STIFFNESS + Shaders::RIPPLE_HEIGHT_DAMPING));
-        }
 
         /// Drops what the field holds, for a world that was replaced rather than moved through.
         void reset() { mReset = true; }
@@ -98,6 +84,9 @@ namespace Rtx
         /// half the grid, so the eye stands in the middle.
         static osg::Vec2i windowOf(const osg::Vec2f& eye);
 
+        /// Where `window` begins, in world units.
+        static osg::Vec2f originOf(const osg::Vec2i& window);
+
         /// Moves the window to `window`, in texels and in world units together.
         void standWindow(const osg::Vec2i& window);
 
@@ -117,18 +106,22 @@ namespace Rtx
         Image mSurface;
         Image mCurvature;
 
-        /// The frame's impulses, one copy a frame slot so a write never lands under a submit, and
-        /// the ones of them the field takes, beside the eye's distance and the game's order for
-        /// choosing the nearest.
+        /// The step's impulses, one copy a frame slot so a write never lands under a submit, and
+        /// those kept since the last step, each with how long its frame stood, the eye's distance
+        /// when it was given and the game's order, for choosing the nearest.
         PerSlot<Buffer> mImpulses;
         std::vector<Shaders::GpuRippleImpulse> mImpulseScratch;
         struct Candidate
         {
             float mDistance{};
             std::uint32_t mOrder{};
-            Shaders::GpuRippleImpulse mImpulse;
+            RippleImpulse mImpulse;
+            float mPress{};
         };
         std::vector<Candidate> mCandidates;
+
+        /// The order the next impulse given is kept in, from nought after each step.
+        std::uint32_t mOrder = 0;
 
         /// Whether the field moves once a frame's last step has written it, a word a frame slot,
         /// and which frame wrote each, nothing for a slot whose frame took no step.
@@ -145,10 +138,8 @@ namespace Rtx
         osg::Vec2i mWindow;
         osg::Vec2f mOrigin;
 
-        /// The water's clock at the last step, and how long that step was in sixtieths, or nought
-        /// for a field that has taken none since it was reset.
-        double mSteppedSeconds = 0.0;
-        float mLastStep = 0.0f;
+        /// The water's clock at the last frame it moved on, whose whole sixtieths are stepped or dropped.
+        double mSeenSeconds = 0.0;
         bool mReset = true;
     };
 }

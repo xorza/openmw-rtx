@@ -11,7 +11,8 @@
 //
 // **The rasterizer's own simulation, in its own numbers.** `MWRender::RipplesSurface` runs a
 // thousand-and-twenty-four-texel field at two and a half units a texel, centred on the player and stepped
-// sixty times a second, with `lib/water/ripples.glsl`'s springs. The trace takes the same field and reads it
+// sixty times a second, with `lib/water/ripples.glsl`'s springs, and so does this field: a step of a whole
+// sixtieth whatever the frame rate (`RIPPLE_STEP_RATE` says why). The trace takes the same field and reads it
 // as a wave tile (a slope and a curvature with a chain each), so a wake is lit, reflected and refracted the
 // way a swell is, and focuses light on the bed under it as a swell does.
 
@@ -48,17 +49,25 @@ namespace Rtx::Shaders
     /// across, so 1280 from the eye in every direction.
     const float RIPPLE_TEXEL = 2.5f;
 
-    /// The rate the springs below are stated against, a second: upstream steps its field at it,
-    /// and a step of `dt` is `RIPPLE_STEP_RATE × dt` of these (`RippleStepConstants`).
+    /// The steps a second, which the springs below are stated against: upstream steps its field at
+    /// it, and so does `RipplePass`, a whole step each, carrying a frame's part of one to the next.
+    ///
+    /// **One fixed step and not the frame's time**: a step of each frame's own length, Verlet
+    /// corrected for the ratio of two steps, ran the checkerboard up by the ratio's swings, each
+    /// step within the length a constant step is stable at. Frames alternating 12.5 and 20.8 ms
+    /// took the field to a half's largest within a second and to NaNs across the window in twenty.
     const float RIPPLE_STEP_RATE = 60.0f;
 
-    /// How many steps one frame may take of the field, each no longer than the springs stay stable
-    /// over (`RipplePass::getLongestStep`): a frame slower than that many of the longest steps drops
-    /// the rest of its time, as upstream drops whatever a frame takes past a sixtieth.
-    const uint RIPPLE_SUBSTEPS_MOST = 4u;
+    /// How many steps one frame may take of the field: a frame slower than that many sixtieths
+    /// drops the rest of its time, as upstream drops whatever a frame takes past a sixtieth.
+    const uint RIPPLE_FRAME_STEPS_MOST = 4u;
 
-    /// How many impulses one frame may stamp. Upstream keeps a hundred positions a frame.
+    /// How many impulses one step may stamp, from every frame since the last. Upstream keeps a
+    /// hundred positions a step.
     const uint RIPPLE_IMPULSES_MOST = 128u;
+
+    /// The height an impulse presses both heights toward, upstream's blobber's.
+    const float RIPPLE_PRESS_DEPTH = -1.0f;
 
     /// The height under which the step writes nought: 2^-26.
     ///
@@ -87,40 +96,29 @@ namespace Rtx::Shaders
         /// Where it lands, in texels from the field's origin.
         vec2 mAt;
 
-        /// How wide the stamp is, in texels, and how deep it presses.
+        /// How wide the stamp is, in texels.
         float mRadius;
-        float mStrength;
+
+        /// How long it presses, in sixtieths: the time of the frame that gave it, which a step
+        /// presses for (`ripplestep.comp`'s `pressed`).
+        float mPress;
     };
 
     /// What the step is told: how far the field's window moved since the last step, in texels,
     /// so the old field is read where it now stands, how many impulses to press on the way out,
-    /// and how long a step it is. The springs and the texel are the constants above, which both
-    /// kernels read for themselves.
-    ///
-    /// **A step of `s` sixtieths after one of `p`, as time-corrected Verlet takes it**: the height
-    /// moves on by what it moved over the last step, `s / p` of it, under the velocity's damping
-    /// over `s` sixtieths, `(1 − vdamp)^s`, which is `mCarry`; and by the springs' pull and the
-    /// height's damping, stated per sixtieth squared, over `s (s + p) / 2` of them, `mScale`. At
-    /// `s = p = 1` that is `applySprings` to the term.
-    ///
-    /// **And a press as long as the time it stands for**, `mPress` sixtieths: the frame's steps
-    /// together, which the first step presses for. Upstream presses once a sixtieth, a fifth of the
-    /// way; pressed once over `n` of them by the fifth to the `n`, a still field takes what `n`
-    /// presses would, so a wake is as deep at any frame rate. `mReport` on the frame's last step,
-    /// which says whether any of the field still moves.
+    /// and `mReport` on the frame's last step, which says whether any of the field still moves.
+    /// The springs, the step and the texel are the constants above, which both kernels read for
+    /// themselves.
     struct RippleStepConstants
     {
         ivec2 mShift;
         uint mCount;
-        float mCarry;
-        float mScale;
-        float mPress;
         uint mReport;
     };
 
 #ifdef RTX_HOST
     static_assert(sizeof(GpuRippleImpulse) == 16, "GpuRippleImpulse must be scalar-packed on every side");
-    static_assert(sizeof(RippleStepConstants) == 28, "RippleStepConstants must be scalar-packed on every side");
+    static_assert(sizeof(RippleStepConstants) == 16, "RippleStepConstants must be scalar-packed on every side");
 }
 #endif
 

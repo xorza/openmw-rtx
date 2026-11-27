@@ -33,8 +33,8 @@ answers does not belong here.
     jitter, and the edges converged harder, with more fireflies;
   - Shader Execution Reordering (`VK_EXT_ray_tracing_invocation_reorder`): its sorting cost 17–23% of the trace, and it
     shuts out Mesa's drivers;
-  - fixes to the rasterizer alone where the ray tracer already does right, such as its ripple field's fixed sixtieth
-    step and its object paging's copy of a `NightDaySwitch`'s authored child.
+  - fixes to the rasterizer alone where the ray tracer already does right, such as its object paging's copy of a
+    `NightDaySwitch`'s authored child.
 
 ## Where things live
 

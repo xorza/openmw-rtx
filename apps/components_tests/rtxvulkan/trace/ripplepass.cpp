@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <span>
 #include <vector>
 
@@ -38,21 +39,31 @@ namespace Rtx
             return (static_cast<std::size_t>(y) * Shaders::RIPPLE_GRID + static_cast<std::size_t>(x)) * 4;
         }
 
-        /// Presses `impulses` and records `frames` frames on the water's clock, each `sixtieths`
-        /// long — one sixtieth unless a test of the step's length says otherwise.
+        /// Records a frame of each of `frames` sixtieths on the water's clock, and gives `impulses`
+        /// on the first.
+        void walk(RipplePass& ripples, CommandPool& pool, std::span<const RippleImpulse> impulses,
+            std::span<const double> frames)
+        {
+            Testing::submitAndWaitWriting(pool, [&](VkCommandBuffer commands, Uploads& uploads) {
+                // The first record stands the window, at a clock that steps nothing.
+                ripples.record(commands, uploads, FrameSlot{ 0 }, {}, osg::Vec2f(0.0f, 0.0f), 0.0, nullptr);
+                double clock = 0.0;
+                for (std::size_t at = 0; at < frames.size(); ++at)
+                {
+                    clock += frames[at] / static_cast<double>(Shaders::RIPPLE_STEP_RATE);
+                    ripples.record(commands, uploads, FrameSlot{ 0 },
+                        at == 0 ? impulses : std::span<const RippleImpulse>(), osg::Vec2f(0.0f, 0.0f), clock, nullptr);
+                }
+            });
+        }
+
+        /// `walk` through `frames` frames each `sixtieths` long — one sixtieth unless a test of the
+        /// frame's length says otherwise.
         void run(RipplePass& ripples, CommandPool& pool, std::span<const RippleImpulse> impulses,
             const std::int32_t frames, const double sixtieths = 1.0)
         {
-            const double frame = sixtieths / static_cast<double>(Shaders::RIPPLE_STEP_RATE);
-            Testing::submitAndWaitWriting(pool, [&](VkCommandBuffer commands, Uploads& uploads) {
-                // The first record stands the window, at a clock that steps nothing; each one after
-                // steps, and the first step presses the impulses, for the time it covers.
-                ripples.record(commands, uploads, FrameSlot{ 0 }, {}, osg::Vec2f(0.0f, 0.0f), 0.0, nullptr);
-                for (std::int32_t at = 1; at <= frames; ++at)
-                    ripples.record(commands, uploads, FrameSlot{ 0 },
-                        at == 1 ? impulses : std::span<const RippleImpulse>(), osg::Vec2f(0.0f, 0.0f), at * frame,
-                        nullptr);
-            });
+            const std::vector<double> lengths(static_cast<std::size_t>(frames), sixtieths);
+            walk(ripples, pool, impulses, lengths);
         }
 
         /// How far from the middle texel the ring's outermost crest stands along +x: the last
@@ -170,71 +181,55 @@ namespace Rtx
             EXPECT_NEAR(surface[at + 2], slopeSquared, 1.0e-3f * std::max(slopeSquared, 1.0e-3f));
         }
 
-        /// **The wake keeps its pace at any frame rate**: a second of the water's clock spreads the ring as far in 120
-        /// frames of half a sixtieth, in 240 of a quarter, and in 20 frames of three that each take three steps, as in
-        /// 60 of one.
+        /// **The field is the clock's and not the frame rate's**: a footfall pressed for a sixtieth and then sixty
+        /// sixtieths more of the water's clock leave the same field to the bit, walked in frames of one, of a half, of
+        /// a quarter, of three that take three steps each, and of 0.75 and 1.25 by turns, which take none and two —
+        /// sixty-one steps of a sixtieth each, the same dispatches, and one compose after the last.
         ///
-        /// **Measured by where the slope's energy stands**, `Σ r s² / Σ s²` out along +x, which moves with the ring
-        /// smoothly where its outermost crest jumps a lobe at a time. At 60 steps of one it is 21.59 texels; shorter
-        /// steps bring it in by the lattice's dispersion alone, which a step of one partly cancels (21.32 at half and
-        /// 21.18 at a quarter), so every pace stands within half a texel of it. Stepped once a sixtieth as upstream
-        /// steps, the 20 frames took 20 steps, and the ring stood where a third of a second leaves it.
-        TEST_F(RtxRipplePassTest, theWakeKeepsItsPaceAtAnyFrameRate)
+        /// **And so the field stays as stable as one fixed step is.** Stepped by each frame's own length, the turns
+        /// of 0.75 and 1.25 ran the checkerboard up to a half's largest within a second and to NaNs across the window
+        /// in twenty, each step within the length a constant step is stable at.
+        TEST_F(RtxRipplePassTest, theFieldIsTheClocksAtAnyFrameRate)
         {
             const float middle = 0.5f * Shaders::RIPPLE_TEXEL;
             const std::array<RippleImpulse, 1> footfall{ RippleImpulse{
                 .mAt = osg::Vec2f(middle, middle), .mSize = 12.0f } };
 
-            const auto spreadAt = [&](const std::int32_t frames, const double sixtieths) {
+            const auto field = [&](const double each, const std::size_t count, const bool turns) {
+                std::vector<double> frames{ 1.0 };
+                for (std::size_t at = 0; at < count; ++at)
+                    frames.push_back(turns ? (at % 2 == 0 ? 0.75 : 1.25) : each);
                 RipplePass ripples(getDevice());
-                run(ripples, getPool(), footfall, frames, sixtieths);
-                const std::vector<float> surface = Testing::readHalves(ripples.getSurface(), 0);
-
-                constexpr auto centre = static_cast<std::int32_t>(Shaders::RIPPLE_GRID / 2);
-                double moment = 0.0;
-                double total = 0.0;
-                for (std::int32_t away = 0; away <= 80; ++away)
-                {
-                    const double slope = surface[texelOf(centre + away, centre)];
-                    moment += away * slope * slope;
-                    total += slope * slope;
-                }
-                return moment / total;
+                walk(ripples, getPool(), footfall, frames);
+                return Testing::readHalves(ripples.getSurface(), 0);
             };
 
-            const double sixty = spreadAt(60, 1.0);
-            EXPECT_NEAR(sixty, 21.59, 0.01);
-            EXPECT_NEAR(spreadAt(120, 0.5), sixty, 0.5) << "120 frames of half a sixtieth";
-            EXPECT_NEAR(spreadAt(240, 0.25), sixty, 0.5) << "240 frames of a quarter";
-            EXPECT_NEAR(spreadAt(20, 3.0), sixty, 0.5) << "20 frames of three sixtieths";
+            const std::vector<float> sixty = field(1.0, 60, false);
+            EXPECT_TRUE(std::ranges::any_of(sixty, [](float value) { return value != 0.0f; })) << "nothing was pressed";
+            EXPECT_EQ(field(0.5, 120, false), sixty) << "frames of half a sixtieth";
+            EXPECT_EQ(field(0.25, 240, false), sixty) << "frames of a quarter";
+            EXPECT_EQ(field(3.0, 20, false), sixty) << "frames of three sixtieths";
+            EXPECT_EQ(field(0.0, 60, true), sixty) << "frames of 0.75 and 1.25 by turns";
         }
 
         /// **A frame longer than the steps it may take drops the rest of its time**: one frame of a whole second steps
-        /// `RIPPLE_SUBSTEPS_MOST` of the longest steps and no more, which is the field one frame of exactly that long
-        /// leaves, to the bit.
-        ///
-        /// **And the longest step is the springs' bound**: `√(2 (1 + 0.96²) / (8 × 0.28 + 0.04))`, 1.2983 sixtieths,
-        /// under which the checkerboard's pull over the step stays within what the carry of the step holds back, `s² ×
-        /// 2.28 ≤ 2 (1 + 0.96^s)`.
+        /// `RIPPLE_FRAME_STEPS_MOST` sixtieths and presses for as long, which is the field one frame of exactly that
+        /// long leaves, to the bit; and owes nothing after, so a frame of one sixtieth after each takes one step.
         TEST_F(RtxRipplePassTest, aFrameLongerThanItsStepsDropsTheRestOfItsTime)
         {
-            const float longest = RipplePass::getLongestStep();
-            EXPECT_NEAR(longest, 1.2983f, 1.0e-4f);
-            EXPECT_LE(longest * longest * 2.28f, 2.0f * (1.0f + std::pow(0.96f, longest)));
-
             const std::array<RippleImpulse, 1> footfall{ RippleImpulse{
                 .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f } };
             const auto field = [&](const double sixtieths) {
                 RipplePass ripples(getDevice());
-                run(ripples, getPool(), footfall, 1, sixtieths);
+                const std::array<double, 2> frames{ sixtieths, 1.0 };
+                walk(ripples, getPool(), footfall, frames);
                 return Testing::readHalves(ripples.getSurface(), 0);
             };
 
-            const std::vector<float> capped
-                = field(static_cast<double>(Shaders::RIPPLE_SUBSTEPS_MOST) * static_cast<double>(longest));
+            const std::vector<float> capped = field(static_cast<double>(Shaders::RIPPLE_FRAME_STEPS_MOST));
             EXPECT_TRUE(std::ranges::any_of(capped, [](float value) { return value != 0.0f; }))
                 << "nothing was pressed";
-            EXPECT_EQ(field(60.0), capped) << "a second's frame stepped past the cap";
+            EXPECT_EQ(field(60.0), capped) << "a second's frame stepped past the cap, or owed the rest";
         }
 
         /// **What a step presses is what reaches the window, and past what the buffer holds the nearest the eye.** Ten
@@ -242,11 +237,16 @@ namespace Rtx
         /// then `RIPPLE_IMPULSES_MOST` a hundred texels east, and last one at the eye, which makes one too many. The
         /// one at the eye is pressed, being the nearest, and the east ones are too, a hundred and twenty-seven of
         /// them; pressed oldest first, the ten off the window would have taken ten of the room and the last none.
+        ///
+        /// **And one at no place reaches nothing**: an impulse the world handed a NaN, given first, takes no room and
+        /// presses no texel, where pressed it was NaN across the window.
         TEST_F(RtxRipplePassTest, thePressesThatReachTheWindowAndTheNearestOfThemAreKept)
         {
             RipplePass ripples(getDevice());
 
-            std::vector<RippleImpulse> impulses(10, RippleImpulse{ .mAt = osg::Vec2f(5000.0f, 0.0f), .mSize = 12.0f });
+            std::vector<RippleImpulse> impulses{ RippleImpulse{
+                .mAt = osg::Vec2f(std::numeric_limits<float>::quiet_NaN(), 0.0f), .mSize = 12.0f } };
+            impulses.insert(impulses.end(), 10, RippleImpulse{ .mAt = osg::Vec2f(5000.0f, 0.0f), .mSize = 12.0f });
             impulses.insert(impulses.end(), Shaders::RIPPLE_IMPULSES_MOST,
                 RippleImpulse{ .mAt = osg::Vec2f(100.0f * Shaders::RIPPLE_TEXEL, 0.0f), .mSize = 12.0f });
             impulses.push_back(RippleImpulse{ .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f });
@@ -263,13 +263,19 @@ namespace Rtx
             }
             EXPECT_GT(east, 0.0f) << "the east impulses pressed nothing";
             EXPECT_GT(near, 0.0f) << "the nearest was dropped";
+            EXPECT_TRUE(std::ranges::all_of(surface, [](float value) { return std::isfinite(value); }))
+                << "the impulse at no place was pressed";
         }
 
         /// **A press stands for the time its frame covers**: what a single step leaves on the ring, where a texel
         /// stands its radius from the impulse and keeps 0.8 a sixtieth, is the height pulled from still water toward
-        /// -1 by `1 - 0.8^n` over `n` sixtieths: a fifth at one, 0.1056 at a half, 0.2434 at a sixtieth and a quarter,
-        /// each a single step. The surface tile holds the square of the height, so `(1 - 0.8^n)^2`; a press a frame of
-        /// a fixed fifth pressed 41% a sixtieth at 144 frames a second and half that at 30.
+        /// -1 by `1 - 0.8^n` over `n` sixtieths: a fifth at one, 0.1056 at a half, 0.2434 at a sixtieth and a quarter.
+        /// Each is a single step: the frame of a half crosses no sixtieth, and the press waits for the next frame's
+        /// step, which gives none of its own. The surface tile holds the square of the height, so `(1 - 0.8^n)^2`; a
+        /// press a frame of a fixed fifth pressed 41% a sixtieth at 144 frames a second and half that at 30.
+        ///
+        /// **So a wake is as deep at any frame rate**: a footfall given on both of two frames of a half, pressed by
+        /// one step, keeps `0.8^½ × 0.8^½` of the still water, a fifth pulled as one frame of one pulls it.
         TEST_F(RtxRipplePassTest, aPressIsAsDeepAsTheTimeItStandsFor)
         {
             // The impulse on a texel's centre and four texels wide, so the texel four east stands on
@@ -283,12 +289,23 @@ namespace Rtx
             {
                 SCOPED_TRACE(sixtieths);
                 RipplePass ripples(getDevice());
-                run(ripples, getPool(), footfall, 1, sixtieths);
+                run(ripples, getPool(), footfall, sixtieths < 1.0 ? 2 : 1, sixtieths);
                 const std::vector<float> surface = Testing::readHalves(ripples.getSurface(), 0);
 
                 const double pulled = 1.0 - std::pow(0.8, sixtieths);
                 EXPECT_NEAR(surface[texelOf(centre + 4, centre) + 3], pulled * pulled, 2.0e-3 * pulled * pulled);
             }
+
+            RipplePass ripples(getDevice());
+            const double half = 0.5 / static_cast<double>(Shaders::RIPPLE_STEP_RATE);
+            Testing::submitAndWaitWriting(getPool(), [&](VkCommandBuffer commands, Uploads& uploads) {
+                ripples.record(commands, uploads, FrameSlot{ 0 }, {}, osg::Vec2f(0.0f, 0.0f), 0.0, nullptr);
+                ripples.record(commands, uploads, FrameSlot{ 0 }, footfall, osg::Vec2f(0.0f, 0.0f), half, nullptr);
+                ripples.record(
+                    commands, uploads, FrameSlot{ 0 }, footfall, osg::Vec2f(0.0f, 0.0f), 2.0 * half, nullptr);
+            });
+            const std::vector<float> surface = Testing::readHalves(ripples.getSurface(), 0);
+            EXPECT_NEAR(surface[texelOf(centre + 4, centre) + 3], 0.04f, 2.0e-3f * 0.04f) << "two frames of a half";
         }
 
         /// The window follows the eye by whole texels and the ring stays where it was pressed.
@@ -364,7 +381,7 @@ namespace Rtx
         /// made leaves, to the bit: nothing of the first survived to be pressed on, and nothing the skipped frames did
         /// not do mattered.
         ///
-        /// **The decay at `RIPPLE_SUBSTEPS_MOST` sixtieths a frame**, each a step of one sixtieth as a frame of one
+        /// **The decay at `RIPPLE_FRAME_STEPS_MOST` sixtieths a frame**, each a step of one sixtieth as a frame of one
         /// takes, under one compose where four frames take four: every step reads and writes the whole field, and two
         /// thousand frames of one were three seconds on a low-end AMD integrated GPU. The footfall has a frame of one
         /// sixtieth to itself, as a press is as deep as the time its frame stands for.
@@ -380,7 +397,7 @@ namespace Rtx
 
             RipplePass ripples(getDevice());
             run(ripples, getPool(), footfall, 1);
-            constexpr std::uint32_t substeps = Shaders::RIPPLE_SUBSTEPS_MOST;
+            constexpr std::uint32_t substeps = Shaders::RIPPLE_FRAME_STEPS_MOST;
             double clock = sixtieth;
             Testing::submitAndWaitWriting(getPool(), [&](VkCommandBuffer commands, Uploads& uploads) {
                 for (std::uint32_t frame = 0; frame < 1000 / substeps; ++frame)

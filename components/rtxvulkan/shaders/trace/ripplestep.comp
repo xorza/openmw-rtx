@@ -41,14 +41,16 @@ layout(push_constant, scalar) uniform Push
 shared uint movingHere;
 
 /// What `ripples_blobber.frag` presses at `texel` for one impulse: a ring of the impulse's radius, pressing
-/// both heights a fifth of the way to `mStrength` on the ring and less either side of it, a sixtieth — over
-/// `mPress` of them, what that many presses keep (`RippleStepConstants`).
+/// both heights a fifth of the way to `RIPPLE_PRESS_DEPTH` on the ring and less either side of it, a sixtieth —
+/// over the `mPress` sixtieths its frame stood for, what that many presses keep. Upstream presses once a step
+/// for every frame since the last, so a wake presses deeper the higher the frame rate; pressed for its frame's
+/// time, a wading actor presses as deep at any.
 vec2 pressed(vec2 heights, GpuRippleImpulse impulse, vec2 texel)
 {
     const float away = length(impulse.mAt - texel) / max(impulse.mRadius, 1.0e-3);
-    const float kept = pow(clamp(0.2 * abs(away - 1.0) + 0.8, 0.0, 1.0), step.mPress);
+    const float kept = pow(clamp(0.2 * abs(away - 1.0) + 0.8, 0.0, 1.0), impulse.mPress);
 
-    return mix(vec2(impulse.mStrength), heights, kept);
+    return mix(vec2(RIPPLE_PRESS_DEPTH), heights, kept);
 }
 
 /// The height a step before at `texel` of the new window, off the old one, or nought past it.
@@ -68,11 +70,11 @@ void stepTexel(ivec2 texel)
     const float neighbours = was(texel + ivec2(1, 0)).x + was(texel - ivec2(1, 0)).x + was(texel + ivec2(0, 1)).x
         + was(texel - ivec2(0, 1)).x;
 
-    // `applySprings` over a step of any length, `RippleStepConstants` says how: what the height
-    // moved over the last step carried on, and the coupling to the four neighbours less what the
-    // height gives away and its own damping, as an acceleration.
+    // `applySprings`: what the height moved over the last step carried on under the velocity's
+    // damping, and the coupling to the four neighbours less what the height gives away and its own
+    // damping.
     const float pull = RIPPLE_STIFFNESS * (neighbours - 4.0 * held.x) - RIPPLE_HEIGHT_DAMPING * held.x;
-    const float stepped = held.x + (held.x - held.y) * step.mCarry + pull * step.mScale;
+    const float stepped = held.x + (held.x - held.y) * (1.0 - RIPPLE_VELOCITY_DAMPING) + pull;
     const float next = abs(stepped) < RIPPLE_STILL ? 0.0 : stepped;
 
     // Bounded by the constant as every loop here is, and the count below it: the host never hands

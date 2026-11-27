@@ -47,6 +47,16 @@ namespace Rtx
         constexpr std::uint32_t sGrid = Shaders::RIPPLE_GRID;
 
         constexpr Groups sGroups = Groups::covering(sGrid, sGrid, Shaders::RIPPLE_WORKGROUP);
+
+        /// The whole sixtieths the water's clock stands past its start at `seconds`. **A millionth of a sixtieth
+        /// over**, so a clock that reaches a sixtieth as a sum of frame times, a rounding short of it, takes that
+        /// step on that frame and not the next: a double's rounding of a clock a month on is under a tenth of it,
+        /// and a frame is a million times over it.
+        std::int64_t ticksOf(const double seconds)
+        {
+            return static_cast<std::int64_t>(
+                std::floor(seconds * static_cast<double>(Shaders::RIPPLE_STEP_RATE) + 1.0e-6));
+        }
     }
 
     RipplePass::RipplePass(const Device& device)
@@ -107,10 +117,15 @@ namespace Rtx
         return osg::Vec2i(texel(eye.x()), texel(eye.y()));
     }
 
+    osg::Vec2f RipplePass::originOf(const osg::Vec2i& window)
+    {
+        return osg::Vec2f(static_cast<float>(window.x()), static_cast<float>(window.y())) * Shaders::RIPPLE_TEXEL;
+    }
+
     void RipplePass::standWindow(const osg::Vec2i& window)
     {
         mWindow = window;
-        mOrigin = osg::Vec2f(static_cast<float>(window.x()), static_cast<float>(window.y())) * Shaders::RIPPLE_TEXEL;
+        mOrigin = originOf(window);
     }
 
     void RipplePass::record(const VkCommandBuffer commands, Uploads& uploads, const FrameSlot slot,
@@ -134,8 +149,9 @@ namespace Rtx
         if (mReset)
         {
             standWindow(windowOf(eye));
-            mSteppedSeconds = waterSeconds;
-            mLastStep = 0.0f;
+            mSeenSeconds = waterSeconds;
+            mCandidates.clear();
+            mOrder = 0;
             mReset = false;
 
             // The tiles too, because the step below is due only once the clock moves and the trace
@@ -149,55 +165,50 @@ namespace Rtx
             mStill = true;
         }
 
-        // **Every frame the clock moved, by the time it moved**, where `RipplesSurface::updateState`
-        // steps once a sixtieth: at 120 frames a second that left every other frame the whole cost
-        // of a step and the frames between none, and under 60 the wake slowed. A clock that stood
-        // still or ran backwards steps nothing, moves no window and presses nothing.
-        const double elapsed = (waterSeconds - mSteppedSeconds) * static_cast<double>(Shaders::RIPPLE_STEP_RATE);
+        // A clock that stood still or ran backwards steps nothing, moves no window and presses
+        // nothing.
+        const double elapsed = (waterSeconds - mSeenSeconds) * static_cast<double>(Shaders::RIPPLE_STEP_RATE);
         if (!(elapsed > 0.0))
             return;
 
-        mSteppedSeconds = waterSeconds;
-
-        // As few steps as keep each under the longest the springs stand, and no more than
-        // `RIPPLE_SUBSTEPS_MOST`: a frame slower than those drops the rest of its time.
+        // A step for every sixtieth the clock crossed, and no more than `RIPPLE_FRAME_STEPS_MOST`: a
+        // frame slower than those drops the rest of its time, its press included.
+        const std::int64_t crossed = ticksOf(waterSeconds) - ticksOf(mSeenSeconds);
+        assert(crossed >= 0);
         const auto steps
-            = static_cast<std::uint32_t>(std::min<double>(std::ceil(elapsed / static_cast<double>(getLongestStep())),
-                static_cast<double>(Shaders::RIPPLE_SUBSTEPS_MOST)));
-        const float step = std::min(static_cast<float>(elapsed / static_cast<double>(steps)), getLongestStep());
+            = static_cast<std::uint32_t>(std::min<std::int64_t>(crossed, Shaders::RIPPLE_FRAME_STEPS_MOST));
+        mSeenSeconds = waterSeconds;
+        const auto press = static_cast<float>(std::min(elapsed, static_cast<double>(Shaders::RIPPLE_FRAME_STEPS_MOST)));
 
-        // The window follows the eye by whole texels, and the step reads the old field at the
-        // offset the window moved by.
+        // The window this frame's eye would stand, which a kept impulse's ring must reach: the step
+        // that presses it may stand the window a few texels on, where a ring that misses it presses
+        // no texel.
         const osg::Vec2i window = windowOf(eye);
-        const osg::Vec2i shift = window - mWindow;
-        standWindow(window);
-
-        // The impulses in the new window's texels, those whose ring reaches a texel of it: a press
-        // takes a texel only within twice its radius, where `pressed` keeps less than all.
+        const osg::Vec2f origin = originOf(window);
         const auto grid = static_cast<float>(sGrid);
-        const osg::Vec2f eyeAt = (eye - mOrigin) / Shaders::RIPPLE_TEXEL;
+        const osg::Vec2f eyeAt = (eye - origin) / Shaders::RIPPLE_TEXEL;
 
         // **Past what the buffer holds, the nearest the eye, and of two as near the one the game gave
         // first**, kept in a heap of the buffer's size whose top is the one to give up: a crowded
         // frame grows nothing, where every candidate kept and trimmed after grew the list past its
-        // reserve. Pressed in the game's order still.
+        // reserve. Kept across the frames that take no step, and pressed in the game's order.
         const auto nearer = [](const Candidate& left, const Candidate& right) {
             return left.mDistance != right.mDistance ? left.mDistance < right.mDistance : left.mOrder < right.mOrder;
         };
-        mCandidates.clear();
-        std::uint32_t order = 0;
         for (const RippleImpulse& impulse : impulses)
         {
-            const osg::Vec2f at = (impulse.mAt - mOrigin) / Shaders::RIPPLE_TEXEL;
-            const float radius = impulse.mSize / Shaders::RIPPLE_TEXEL;
-            const float reach = 2.0f * radius;
-            if (at.x() + reach <= 0.5f || at.x() - reach >= grid - 0.5f || at.y() + reach <= 0.5f
-                || at.y() - reach >= grid - 0.5f)
+            // Asked as whether it reaches, so an impulse at no place, a NaN the world handed on,
+            // reaches nothing: pressed, it would be NaN in every texel of the window.
+            const osg::Vec2f at = (impulse.mAt - origin) / Shaders::RIPPLE_TEXEL;
+            const float reach = 2.0f * impulse.mSize / Shaders::RIPPLE_TEXEL;
+            const bool reaches = at.x() + reach > 0.5f && at.x() - reach < grid - 0.5f && at.y() + reach > 0.5f
+                && at.y() - reach < grid - 0.5f;
+            if (!reaches)
                 continue;
 
-            const Candidate candidate{ .mDistance = (at - eyeAt).length2(),
-                .mOrder = order++,
-                .mImpulse = Shaders::GpuRippleImpulse{ .mAt = at, .mRadius = radius, .mStrength = -1.0f } };
+            const Candidate candidate{
+                .mDistance = (at - eyeAt).length2(), .mOrder = mOrder++, .mImpulse = impulse, .mPress = press
+            };
             if (mCandidates.size() < Shaders::RIPPLE_IMPULSES_MOST)
             {
                 mCandidates.push_back(candidate);
@@ -212,18 +223,27 @@ namespace Rtx
         }
         assert(mCandidates.size() <= Shaders::RIPPLE_IMPULSES_MOST);
 
+        if (steps == 0)
+            return;
+
+        // The window follows the eye by whole texels, and the step reads the old field at the
+        // offset the window moved by.
+        const osg::Vec2i shift = window - mWindow;
+        standWindow(window);
+
         std::ranges::sort(mCandidates, {}, &Candidate::mOrder);
         mImpulseScratch.clear();
         for (const Candidate& candidate : mCandidates)
-            mImpulseScratch.push_back(candidate.mImpulse);
+            mImpulseScratch.push_back(
+                Shaders::GpuRippleImpulse{ .mAt = (candidate.mImpulse.mAt - mOrigin) / Shaders::RIPPLE_TEXEL,
+                    .mRadius = candidate.mImpulse.mSize / Shaders::RIPPLE_TEXEL,
+                    .mPress = candidate.mPress });
+        mCandidates.clear();
+        mOrder = 0;
 
-        // A still field nothing presses: nothing to step and nothing to compose. The next step
-        // after it starts from a field of nought, whose last step is moot.
+        // A still field nothing presses: nothing to step and nothing to compose.
         if (mStill && mImpulseScratch.empty())
-        {
-            mLastStep = 0.0f;
             return;
-        }
         mStill = false;
         if (!mImpulseScratch.empty())
             mPressedAt = mFrames;
@@ -243,9 +263,8 @@ namespace Rtx
         moving.clear(commands);
         moving.transition(commands, Use::sBufferClearWrite, Use::sBufferComputeReadWrite);
 
-        // The first step reads the old window at its shift and presses the frame's impulses for
-        // the time every step together covers; the steps after it carry on from it, and the last
-        // says whether anything still moves.
+        // The first step reads the old window at its shift and presses the impulses; the steps
+        // after it carry on from it, and the last says whether anything still moves.
         for (std::uint32_t at = 0; at < steps; ++at)
         {
             const Image& before = mFields[mLatest];
@@ -258,17 +277,11 @@ namespace Rtx
             writes.buffer(Shaders::RIPPLE_STEP_BIND_IMPULSES, impulseBuffer.describe());
             writes.buffer(Shaders::RIPPLE_STEP_BIND_MOVING, moving.describe());
 
-            // A field that has taken no step yet holds two equal heights, so the ratio is moot; one.
-            const float last = mLastStep > 0.0f ? mLastStep : step;
             const Shaders::RippleStepConstants stepped{
                 .mShift = at == 0 ? shift : osg::Vec2i(),
                 .mCount = at == 0 ? static_cast<std::uint32_t>(mImpulseScratch.size()) : 0u,
-                .mCarry = step / last * std::pow(1.0f - Shaders::RIPPLE_VELOCITY_DAMPING, step),
-                .mScale = 0.5f * step * (step + last),
-                .mPress = step * static_cast<float>(steps),
                 .mReport = at + 1 == steps ? 1u : 0u,
             };
-            mLastStep = step;
 
             dispatch(commands, mStepPipeline, writes, stepped, sGroups);
 
