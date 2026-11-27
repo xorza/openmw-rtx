@@ -2697,11 +2697,11 @@ namespace Rtx::Testing
         /// **The frame is the layers' one**: the tangent x less its part along N, the bitangent
         /// `cross(N, T)` — for N of `(0, -1, 0)` that is `(0, 0, 1)` — and N. Column 0 is layer zero alone, so its
         /// normal is `normalize(0.498039 x + 0.003922 z - 0.733333 y)`, and it has no lobe: a roughness of one and no
-        /// reflectance. Column 63 is layer one alone: N, its roughness, and `DIELECTRIC_F0`. Column 31 weighs layer one
-        /// 0.484375 (the ramp above), so it reflects 0.484375 of 0.04 at a roughness of `0.515625 + 0.484375 ×
+        /// reflectance. Column 63 is layer one alone: N, its roughness, and `TERRAIN_DIELECTRIC_F0`. Column 31 weighs layer one
+        /// 0.484375 (the ramp above), so it reflects 0.484375 of 0.006 at a roughness of `0.515625 + 0.484375 ×
         /// 0.250980`, under the blend of the two normals.
         ///
-        /// **Flattened, the chunk reads its gloss**: a reflectance of `DIELECTRIC_F0` times its red and
+        /// **Flattened, the chunk reads its gloss**: a reflectance of `TERRAIN_DIELECTRIC_F0` times its red and
         /// a roughness of its green, under the card's own normal. The game's `CompositeQueue` bakes
         /// the two images; here they are stood as the textures a bake leaves, a gloss of
         /// `(128, 64)`, since this renderer has no queue and `RtxGroundCompositePassTest` holds the
@@ -2735,7 +2735,8 @@ namespace Rtx::Testing
             // The three columns of the middle row, in the view `show`, with the texture in slot
             // `standsIn` described as the stand-in.
             const auto render
-                = [&](SurfaceView show, bool flattened, std::optional<TextureIndex> standsIn = std::nullopt) {
+                = [&](SurfaceView show, bool flattened, std::optional<TextureIndex> standsIn = std::nullopt,
+                      float rain = 0.0f, std::optional<float> waterLevel = std::nullopt) {
                       std::array<TextureData, 4> described = textures;
                       if (standsIn.has_value())
                           described[standsIn->at()].mSource = TextureSource::StandIn;
@@ -2773,7 +2774,12 @@ namespace Rtx::Testing
 
                       scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = scene.addMaterial(material) });
 
-                      const Frame frame = shoot(scene, described, camera, size, Shot{ .mShow = show });
+                      Shaders::VisibilityConstants shotCamera = camera;
+                      shotCamera.mRainOnWater = rain;
+                      if (waterLevel.has_value())
+                          shotCamera.mWaterLevel = *waterLevel;
+
+                      const Frame frame = shoot(scene, described, shotCamera, size, Shot{ .mShow = show });
                       EXPECT_EQ(frame.mHits, size * size);
 
                       std::array<osg::Vec3f, 3> columns;
@@ -2815,8 +2821,8 @@ namespace Rtx::Testing
 
             const std::array stackSpecular = render(SurfaceView::Specular, false);
             EXPECT_EQ(stackSpecular[0].x(), 0.0f) << "a Lambert layer alone reflects nothing";
-            EXPECT_NEAR(stackSpecular[1].x(), Shaders::DIELECTRIC_F0 * second, 1e-7f);
-            EXPECT_NEAR(stackSpecular[2].x(), Shaders::DIELECTRIC_F0, 1e-7f);
+            EXPECT_NEAR(stackSpecular[1].x(), Shaders::TERRAIN_DIELECTRIC_F0 * second, 1e-7f);
+            EXPECT_NEAR(stackSpecular[2].x(), Shaders::TERRAIN_DIELECTRIC_F0, 1e-7f);
 
             const std::array flatNormal = render(SurfaceView::Normal, true);
             const std::array flatRough = render(SurfaceView::Roughness, true);
@@ -2827,7 +2833,7 @@ namespace Rtx::Testing
                     EXPECT_NEAR(flatNormal[at][axis], carried(osg::Vec3f(0.0f, 0.0f, 1.0f))[axis], 1e-6f)
                         << "flattened column " << at << " axis " << axis;
                 EXPECT_EQ(flatRough[at].x(), 64.0f / 255.0f) << "flattened column " << at;
-                EXPECT_NEAR(flatSpecular[at].x(), Shaders::DIELECTRIC_F0 * 128.0f / 255.0f, 1e-7f)
+                EXPECT_NEAR(flatSpecular[at].x(), Shaders::TERRAIN_DIELECTRIC_F0 * 128.0f / 255.0f, 1e-7f)
                     << "flattened column " << at;
             }
 
@@ -2845,6 +2851,20 @@ namespace Rtx::Testing
                 EXPECT_EQ(noGlossSpecular[at].x(), 0.0f) << "a gloss that stands in, column " << at;
                 EXPECT_EQ(noGlossRough[at].x(), 1.0f) << "a gloss that stands in, column " << at;
             }
+
+            const std::array rainStackRough = render(SurfaceView::Roughness, false, std::nullopt, 1.0f, -100.0f);
+            EXPECT_EQ(rainStackRough[0].x(), 1.0f) << "unmapped terrain ignores rain roughness reduction";
+            EXPECT_NEAR(rainStackRough[2].x(),
+                std::max(rough - Shaders::TERRAIN_RAIN_ROUGHNESS_DROP, Shaders::ROUGHNESS_FLOOR), 1e-6f);
+
+            const std::array rainFlatRough = render(SurfaceView::Roughness, true, std::nullopt, 1.0f, -100.0f);
+            EXPECT_NEAR(rainFlatRough[1].x(),
+                std::max(64.0f / 255.0f - Shaders::TERRAIN_RAIN_ROUGHNESS_DROP * (128.0f / 255.0f),
+                    Shaders::ROUGHNESS_FLOOR),
+                1e-6f);
+
+            const std::array underwaterRainRough = render(SurfaceView::Roughness, false, std::nullopt, 1.0f, 100.0f);
+            EXPECT_NEAR(underwaterRainRough[2].x(), rough, 1e-6f);
         }
 
         /// **On a slope the layers' frame stays unit**: a map tilts the normal as far across the

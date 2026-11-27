@@ -402,6 +402,15 @@ namespace Rtx::Shaders
     /// Morrowind mesh).
     const float DIELECTRIC_F0 = 0.04f;
 
+    /// The reflectance at normal incidence of authored terrain layers (`_diffusespec`): lower than
+    /// `DIELECTRIC_F0` so rough soil and dry grass do not glaze silver at grazing angles
+    /// (`SPECULAR_EDGE_SCALE` scales grazing F90 down to 0.30 with it).
+    const float TERRAIN_DIELECTRIC_F0 = 0.006f;
+
+    /// How much perceptual roughness rain takes off exposed reflecting terrain at full rain
+    /// (`mRainOnWater == 1`), held at `ROUGHNESS_FLOOR` before footprint widening.
+    const float TERRAIN_RAIN_ROUGHNESS_DROP = 0.2f;
+
     /// How far a normal map's height shifts the texture coordinates toward the eye, as the
     /// rasterizer's `parallax.glsl` has it: `eye.xy * (height * SCALE + BIAS)`, the eye in the
     /// tangent frame. OpenMW's numbers and not chosen, so a surface is the one the content was

@@ -103,7 +103,7 @@ float groundLod(uint slot, GpuLayer layer, uint extent)
 
 /// What a stack sums to, layer by layer in its own order — a float sum is the order it was added in, and
 /// the hit and the bake add in one: the albedo, and for the gloss the weight, the share of it on authored
-/// layers, which reflect `DIELECTRIC_F0`, and the roughness over every layer with a Lambert one at one.
+/// layers, which reflect `TERRAIN_DIELECTRIC_F0`, and the roughness over every layer with a Lambert one at one.
 struct GroundSum
 {
     vec3 mAlbedo;

@@ -747,7 +747,7 @@ namespace Rtx::Shaders
 
     /// A ground layer whose diffuse is an authored albedo with the perceptual roughness in its alpha
     /// — a `_diffusespec`, as Wareya's shaders read it. **A dielectric**: painted as a surface, so its F0
-    /// is `DIELECTRIC_F0`.
+    /// is `TERRAIN_DIELECTRIC_F0`.
     const uint LAYER_AUTHORED = 0x01u;
 
     /// A ground layer whose normal map's alpha is a height, as `MATERIAL_PARALLAX` is for a surface:

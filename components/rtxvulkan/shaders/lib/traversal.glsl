@@ -1375,6 +1375,17 @@ vec2 shiftToRelief(inout TexturePoint point, Hit hit, GpuMaterial material, vec3
     return vec2(0.0);
 }
 
+/// Applies a terrain gloss reading (`reflecting`, `roughness`) with `TERRAIN_DIELECTRIC_F0` and
+/// lowers perceptual roughness on exposed terrain during rain.
+void applyGroundGloss(inout Surface surface, vec2 gloss, vec3 tint)
+{
+    surface.mSpecular = vec3(TERRAIN_DIELECTRIC_F0 * gloss.x) * tint;
+    surface.mRoughness = gloss.y;
+    if (frame.mRainOnWater > 0.0 && surface.mPosition.z >= frame.mWaterLevel)
+        surface.mRoughness
+            = max(surface.mRoughness - TERRAIN_RAIN_ROUGHNESS_DROP * frame.mRainOnWater * gloss.x, ROUGHNESS_FLOOR);
+}
+
 /// What a hit is made of.
 ///
 /// **Everything a hit leads to and nothing the traversal already answered.** Every table this reads is keyed
@@ -1726,17 +1737,9 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint normal
     // layers, a flattened chunk from the gloss baked beside its composite — and the tint darkens it for the
     // same reason.
     if (HAS_MAPS && ground.mReflecting > 0.0)
-    {
-        const vec2 gloss = groundGloss(ground);
-        surface.mSpecular = vec3(DIELECTRIC_F0 * gloss.x) * tint;
-        surface.mRoughness = gloss.y;
-    }
+        applyGroundGloss(surface, groundGloss(ground), tint);
     else if (specularMap && surface.mGround)
-    {
-        const vec2 gloss = sampleDiffuse(materialPast.mSpecular, point).rg;
-        surface.mSpecular = vec3(DIELECTRIC_F0 * gloss.x) * tint;
-        surface.mRoughness = gloss.y;
-    }
+        applyGroundGloss(surface, sampleDiffuse(materialPast.mSpecular, point).rg, tint);
     else if (specularMap)
     {
         // **A `_spec` map is a metalness, a perceptual roughness and an occlusion**, a classic one converted
