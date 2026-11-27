@@ -120,6 +120,7 @@ namespace Rtx
             .mSampled = sampled,
             .mFilters = reconstruction.mFilters,
             .mWrittenBefore = step.mWrittenBefore,
+            .mHistoryFrames = history.historyFrames(request.mSinceLast, reconstruction.mFilters.mHistorySeconds),
             .mExposure = request.mExposure,
         };
 

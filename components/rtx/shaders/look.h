@@ -1057,27 +1057,29 @@ namespace Rtx::Shaders
     /// curvature has taken over from its slant.
     const float MEDIUM_GRAZE_LIMIT = 4.0f;
 
-    /// The longest history a pixel may keep, in frames.
-    ///
-    /// **This is the one dial on the trade the accumulator exists to make**, and it is a trade
-    /// rather than a setting with a right answer: a longer history is a quieter picture and a later
-    /// one. The estimator's error falls as `1/sqrt(n)`, so the return on each further frame is
-    /// shrinking while the lag it costs is not, and lag on a bounce shows up as light sliding off a
-    /// wall a moment after the lamp that lit it moved.
-    ///
-    /// **Thirty-two, half a second at sixty frames, and only the bounce pays the lag.** The lamps'
-    /// direct light and the sky's are the shadow denoiser's, so a lamp that moves or goes out moves
-    /// its own light at once. The history is the cascade's own output, so each frame it keeps is
-    /// blurred again, and a longer one is quieter standing and further from the truth. At the
-    /// guild's planter at night, 16, 32 and 64 frames give a frame noise of 1.28, 0.96 and 0.72 and
-    /// a bias of 2.14, 2.30 and 2.42 levels of 255; thirty-two is under the bias the rooms had at
-    /// sixteen while the lamps rode the wavelet, at two thirds of their noise.
-    ///
-    /// **A reach that narrows as the history grows did not get out of that trade**: ReBLUR's
-    /// `1 / (1 + N)` (Zhdan, GTC 2020) of 28 pixels, and the same over `sqrt(N)`, lie on the curve
-    /// the history length draws, the noise of the first in sparse bright points the narrowed cascade
-    /// no longer spread.
+    /// The longest history the glossy and the pane filters keep, in frames: their running means'
+    /// (`runningmean.glsl`), which the bounce's accumulator, kept in seconds (`ACCUMULATE_SECONDS`), is
+    /// not. Thirty-two, half a second at sixty frames; the longest history any filter keeps, which a
+    /// picture warms up over four times (`RtxTool::sHistoryFrames`).
     const float ACCUMULATE_FRAMES = 32.0f;
+
+    /// The longest history the accumulator keeps of the bounce, **in seconds and not in frames**, as NVIDIA's
+    /// denoisers keep theirs (NRD's `GetMaxAccumulatedFrameNum`, "always accumulate in seconds"): a history of
+    /// frames is twice as long in time at thirty frames a second as at sixty, and so is the light it drags.
+    /// `Rtx::HistoryLength` turns it into frames over a frame time smoothed as NRD smooths it.
+    ///
+    /// **A quarter of a second, Lumen's ten frames at forty**, where it was thirty-two frames. Under the
+    /// antilag the history seldom reaches its length, so a shorter one costs almost nothing: over the bounce
+    /// suite (`benches.cfg`), still, strafed and walked, 15 frames against 32 moved no place's noise by more
+    /// than 0.01 and its p99 by more than 0.09, and the glow-lit chamber's still bias fell from 1.92 to 1.60.
+    /// Nor did it shorten a moving lamp's trail, which the antilag's box decides: what is left of a frame's
+    /// lag is a change of the light the box takes for noise. It bounds how long the bounce trails where the
+    /// frames are slow.
+    const float ACCUMULATE_SECONDS = 0.25f;
+
+    /// The frame rate a frame with no clock is taken at — a picture's, a test's — which turns
+    /// `ACCUMULATE_SECONDS` into frames where nothing measured the frame time.
+    const float ACCUMULATE_REFERENCE_RATE = 60.0f;
 
     /// The longest history the accumulator's fast mean keeps, which the slow one is clamped to: the
     /// mean that follows a change of the light on a surface that did not move, as an actor's darkness

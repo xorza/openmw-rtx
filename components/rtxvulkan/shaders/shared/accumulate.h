@@ -211,6 +211,10 @@ namespace Rtx::Shaders
         /// before was shown at, nought where the run asked for the A/B without it (`FilterSwitches::mAntiFirefly`):
         /// a factor, so both runs take one path.
         uint mFireflyHold;
+
+        /// The longest history a pixel keeps, in frames: `ACCUMULATE_SECONDS` at this frame's rate
+        /// (`Rtx::HistoryLength`).
+        float mHistoryFrames;
     };
 
     /// The luminance a slow mean `lit` keeps under the fast means around it: no more than the mean of
@@ -272,7 +276,7 @@ namespace Rtx::Shaders
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(HistoryConstants) == 224, "HistoryConstants must be scalar-packed on every side");
-    static_assert(sizeof(AccumulateConstants) == 232, "AccumulateConstants must be scalar-packed on every side");
+    static_assert(sizeof(AccumulateConstants) == 236, "AccumulateConstants must be scalar-packed on every side");
     static_assert(
         sizeof(AccumulateClampConstants) == 160, "AccumulateClampConstants must be scalar-packed on every side");
     static_assert(ACCUMULATE_RING_REACH >= ACCUMULATE_CLAMP_REACH && ACCUMULATE_RING_HOLE < ACCUMULATE_RING_REACH,

@@ -44,6 +44,11 @@ namespace Rtx::Testing
 {
     namespace
     {
+        /// The frames the accumulator's history spans in a test, whose frames no clock measured: a quarter of a
+        /// second at a sixtieth (`ACCUMULATE_SECONDS`, `ACCUMULATE_REFERENCE_RATE`).
+        const auto sBounceHistory
+            = static_cast<std::uint32_t>(Shaders::ACCUMULATE_SECONDS * Shaders::ACCUMULATE_REFERENCE_RATE);
+
         /// The denoiser, measured against the estimator it is smoothing. One flat floor under an open sky, so
         /// every pixel has the same expected answer: the mean is fixed and the scatter is pure sampling noise.
         /// Both halves are asserted (noise gone, mean where it was), since a filter that dimmed the picture
@@ -292,8 +297,7 @@ namespace Rtx::Testing
                 return values;
             };
 
-            const std::vector<float> settledPixels
-                = renderSequence(static_cast<std::uint32_t>(Shaders::ACCUMULATE_FRAMES));
+            const std::vector<float> settledPixels = renderSequence(sBounceHistory);
             const float settled = errorAgainstReference(settledPixels);
 
             // The accumulator may not make this worse, which on this surface is the whole of what it can be
@@ -597,7 +601,7 @@ namespace Rtx::Testing
 
             // The same trace with a history behind it, at indices the sampler has not drawn yet so
             // the mean is over genuinely different draws.
-            for (std::uint32_t frame = 0; static_cast<float>(frame) < Shaders::ACCUMULATE_FRAMES; ++frame)
+            for (std::uint32_t frame = 0; frame < sBounceHistory; ++frame)
                 renderOne(frame + 100, true);
 
             renderOne(measured, true);
@@ -619,7 +623,7 @@ namespace Rtx::Testing
             // **And an unfiltered frame with no reset ends the history behind it all the same**: the
             // filtered frame after it reads none, rather than the one from the frame before it as if
             // it were the last frame's.
-            for (std::uint32_t frame = 0; static_cast<float>(frame) < Shaders::ACCUMULATE_FRAMES; ++frame)
+            for (std::uint32_t frame = 0; frame < sBounceHistory; ++frame)
                 renderOne(frame + 200, true);
             renderOne(measured + 2, false);
             renderOne(measured, true);
@@ -1342,20 +1346,19 @@ namespace Rtx::Testing
                 return std::sqrt(squares / static_cast<double>(counted));
             };
 
-            const std::vector<float> settledPixels
-                = renderSequence(static_cast<std::uint32_t>(Shaders::ACCUMULATE_FRAMES));
+            const std::vector<float> settledPixels = renderSequence(sBounceHistory);
             const double settled = errorAgainstReference(settledPixels);
 
             // The cascade alone over the same sixteen draws the history averaged, pooled as a root mean square:
             // one frame's error swings by four per cent with its draw, which put a single-frame ratio at the
             // mercy of the sampler's stream, where sixteen pooled swing by one per cent.
             double pooled = 0.0;
-            for (std::uint32_t frame = 0; static_cast<float>(frame) < Shaders::ACCUMULATE_FRAMES; ++frame)
+            for (std::uint32_t frame = 0; frame < sBounceHistory; ++frame)
             {
                 std::vector<float> one;
                 one = shoot(scene, {}, camera, size, filteredRun(1, frame)).mRadiance;
                 const double error = errorAgainstReference(one);
-                pooled += error * error / static_cast<double>(Shaders::ACCUMULATE_FRAMES);
+                pooled += error * error / static_cast<double>(sBounceHistory);
             }
             const double alone = std::sqrt(pooled);
 
@@ -1365,9 +1368,9 @@ namespace Rtx::Testing
             // 0.011 about its mean, so the bound below stands far over the 0.30 measured.
             EXPECT_GT(alone, 0.003) << "the cascade alone leaves enough error here for the question to mean something: "
                                     << alone;
-            EXPECT_LT(settled, alone * 0.65) << "and a history of " << Shaders::ACCUMULATE_FRAMES
-                                             << " frames takes over a third of what the cascade "
-                                             << "cannot: " << alone << " becomes " << settled;
+            EXPECT_LT(settled, alone * 0.65)
+                << "and a history of " << sBounceHistory << " frames takes over a third of what the cascade "
+                << "cannot: " << alone << " becomes " << settled;
 
             // **And it converges on the reference rather than on its own opinion.** Quieter is not
             // the claim — an average that drifted would be quieter too, and wrong.

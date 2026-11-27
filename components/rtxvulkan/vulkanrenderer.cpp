@@ -945,6 +945,7 @@ namespace Rtx
                 .mReconstruction = reconstruction,
                 .mExposure = mDisplay.getFrameExposure(),
                 .mAccumulate = options.mAccumulate,
+                .mSinceLast = options.mSinceLast,
                 .mPastLost = past.mReprojectionLost,
                 .mTimer = &timer,
             });

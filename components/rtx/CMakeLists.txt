@@ -234,6 +234,7 @@ openmw_rtx_layer(
         frame/camera.cpp
         frame/framepast.cpp
         frame/framesampling.cpp
+        frame/historylength.cpp
         frame/specularalbedo.cpp
         frame/spritelistsize.cpp
         frame/upscale.cpp
@@ -245,6 +246,7 @@ openmw_rtx_layer(
         frame/frameoptions.hpp
         frame/framepast.hpp
         frame/framesampling.hpp
+        frame/historylength.hpp
         frame/reconstruction.hpp
         frame/specularalbedo.hpp
         frame/spritelistsize.hpp

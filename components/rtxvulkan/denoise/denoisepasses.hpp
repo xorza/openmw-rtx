@@ -57,6 +57,9 @@ namespace Rtx
 
             /// What the frame before was shown at (`TraceRecording::mExposure`).
             const Buffer& mExposure;
+
+            /// How long since the frame before was traced, in seconds (`TraceRecording::mSinceLast`).
+            float mSinceLast;
         };
 
         /// Records every pass over `buffer`, which must have been handed over, and hands back where

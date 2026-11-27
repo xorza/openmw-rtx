@@ -18,8 +18,8 @@ struct RunningMean
 };
 
 /// The weight this frame takes in a running mean of `frames` frames: an exact mean while the
-/// history is short, an exponential one once it reaches `ACCUMULATE_FRAMES`. **One for every running
-/// mean**, the accumulator's, the glossy filter's and the pane filter's.
+/// history is short, an exponential one once it reaches `ACCUMULATE_FRAMES`. **One for the glossy filter's
+/// and the pane filter's running means**; the accumulator's keeps its span in seconds (`ACCUMULATE_SECONDS`).
 float historyAlpha(float frames)
 {
     return 1.0 / min(frames + 1.0, ACCUMULATE_FRAMES);

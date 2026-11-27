@@ -111,6 +111,7 @@ namespace Rtx
             .mHistory = frame.history(images.mFresh),
             .mDualMotion = frame.mFilters.mDualMotion ? 1u : 0u,
             .mFireflyHold = frame.mFilters.mAntiFirefly ? 1u : 0u,
+            .mHistoryFrames = frame.mHistoryFrames,
         };
 
         dispatch(commands, pipeline, writes, constants,

@@ -110,6 +110,8 @@ namespace RtxTool
                 [](const Value& value, Request& request) { request.mFilters.mDualMotion = value.as<bool>(); } },
             { "antifirefly",
                 [](const Value& value, Request& request) { request.mFilters.mAntiFirefly = value.as<bool>(); } },
+            { "history-seconds",
+                [](const Value& value, Request& request) { request.mFilters.mHistorySeconds = value.as<float>(); } },
         } };
 
         constexpr bool readsEverySwitch()
@@ -604,6 +606,12 @@ namespace RtxTool
                         "the light around it, so a bounce that found a small bright thing is not a speck. Off is the "
                         "A/B",
                 Rtx::Shaders::ACCUMULATE_FIREFLY_CEILING, Rtx::Shaders::ACCUMULATE_RING_FRAMES));
+
+        option(sFramed, "history-seconds",
+            number(atLeast(0.0f, true))
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mFilters.mHistorySeconds),
+            "the longest history the denoiser keeps of the bounce, in seconds of the frames' own clock, a frame with "
+            "no clock taken at a sixtieth");
 
         option(sFramed, "level-epsilon", number(anyNumber<float>())->default_value(0.0f),
             "levels added to the texture level bias past the ratio the upscaler sets, negative for "

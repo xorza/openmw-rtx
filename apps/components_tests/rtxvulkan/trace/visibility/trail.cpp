@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -168,19 +169,21 @@ namespace Rtx::Testing
             EXPECT_LT(trail.mTail, 0.25f);
         }
 
-        /// **The clamp shortens the trail the sky's fill leaves**: measured at 15.95 pixels of lag without it and 5.24
-        /// with it (`ACCUMULATE_FAST_FRAMES` gives the sweep), and the darkness left behind at 2.04 and 0.66 columns.
+        /// **The clamp shortens the trail the sky's fill leaves**: measured at 8.72 pixels of lag without it and 5.31
+        /// with it (`ACCUMULATE_FAST_FRAMES` gives the sweep), and the darkness left behind at 1.46 and 0.67 columns,
+        /// under a quarter of a second of history (`ACCUMULATE_SECONDS`). Under thirty-two frames the drag was 15.95
+        /// pixels and the clamp's 5.24: the shorter history took most of what the clamp had to take.
         ///
         /// **The history fix takes part of what the clamp did.** The floor the bar uncovers behind it
-        /// is rebuilt from the floor around it (`ACCUMULATE_FIX_FRAMES`): without the fix the clamp
-        /// took the lag from 17.84 to 5.35 and the darkness from 2.39 to 0.82, so the fix leaves a
-        /// fifth less darkness behind the bar.
+        /// is rebuilt from the floor around it (`ACCUMULATE_FIX_FRAMES`): under thirty-two frames, without
+        /// the fix the clamp took the lag from 17.84 to 5.35 and the darkness from 2.39 to 0.82, so the fix
+        /// left a fifth less darkness behind the bar.
         TEST_F(RtxBounceTrailTest, theClampShortensTheSkysTrail)
         {
             const Trail held = trailOf(Blocked::Sky, true);
             const Trail dragged = trailOf(Blocked::Sky, false);
             EXPECT_LT(held.mLag, 7.0f);
-            EXPECT_LT(held.mLag, 0.5f * dragged.mLag) << "the clamp took little off the trail: " << dragged.mLag;
+            EXPECT_LT(held.mLag, 0.75f * dragged.mLag) << "the clamp took little off the trail: " << dragged.mLag;
             EXPECT_LT(held.mTail, 0.9f);
             EXPECT_LT(held.mTail, dragged.mTail);
         }
@@ -193,9 +196,10 @@ namespace Rtx::Testing
             static constexpr std::uint32_t sFloorSize = 64;
             static inline const osg::Vec3f sGrey{ 0.6f, 0.6f, 0.6f };
 
-            /// The floor's mean radiance in `channel` after each of `frames` frames under a sky of `sky`.
-            std::vector<double> meansOf(bool antilag, std::uint32_t frames, std::uint32_t first, const osg::Vec3f& sky,
-                bool cut, std::size_t channel = 1)
+            /// The floor's mean radiance in `channel` after each of `frames` frames under a sky of `sky`, filtered by
+            /// `filters`.
+            std::vector<double> meansOf(const FilterSwitches& filters, std::uint32_t frames, std::uint32_t first,
+                const osg::Vec3f& sky, bool cut, std::size_t channel = 1)
             {
                 Shaders::VisibilityConstants camera = overheadSun(sFloorSize);
                 camera.mSun.mIrradiance = osg::Vec3f();
@@ -211,8 +215,7 @@ namespace Rtx::Testing
                     sampled.mFrame = first + at;
                     mProbe.traceFrame(sampled,
                         FrameOptions{ .mLoss = cut && at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
-                            .mReconstruction
-                            = ReconstructionRequest{ .mDenoise = true, .mFilters = { .mAntilag = antilag } },
+                            .mReconstruction = ReconstructionRequest{ .mDenoise = true, .mFilters = filters },
                             .mExposure = FixedExposure{ 1.0f } });
                     EXPECT_TRUE(mRenderer.finishFrame().has_value());
                     mProbe.readComposite(radiance);
@@ -239,27 +242,28 @@ namespace Rtx::Testing
         };
 
         /// **The clamp leaves light that does not move nearly alone.** After 64 still frames the
-        /// floor's mean with the clamp is 0.75% over the mean without it: the box of two-frame fast
+        /// floor's mean with the clamp is 0.36% over the mean without it (0.75% under thirty-two frames of
+        /// history): the box of two-frame fast
         /// means is one draw's spread wide, and a still slow mean stands outside it on a few frames —
         /// the trade `ACCUMULATE_FAST_FRAMES` takes for the trail. Under the spatiotemporal reuse,
         /// whose reservoirs smooth the bounce the box is made of, the two stood 0.06% apart.
         TEST_F(RtxBounceClampTest, theClampLeavesStillLightAlone)
         {
-            const double held = meansOf(true, 64, 100, sGrey, true).back();
-            const double dragged = meansOf(false, 64, 100, sGrey, true).back();
+            const double held = meansOf({ .mAntilag = true }, 64, 100, sGrey, true).back();
+            const double dragged = meansOf({ .mAntilag = false }, 64, 100, sGrey, true).back();
             EXPECT_NEAR(held / dragged, 1.0, 0.01);
         }
 
         /// **The floor follows a sky whose light halves.** Every term the floor's light holds is
         /// linear in the sky, so the new level is half the old one exactly. With the clamp the mean
-        /// came within a tenth of it on frame 31 (0.1588 against 0.1449); without it, it stood at
-        /// 0.201 on frame 40, where both are held.
+        /// stood within 2% of it on frame 21 (0.1480 against 0.1451); without it at 0.1787, 24% over,
+        /// though the quarter-second history (`ACCUMULATE_SECONDS`) had turned over since.
         TEST_F(RtxBounceClampTest, theFloorFollowsASkyWhoseLightHalves)
         {
             for (const bool antilag : { true, false })
             {
-                const double before = meansOf(antilag, 64, 100, sGrey, true).back();
-                const std::vector<double> after = meansOf(antilag, 40, 200, sGrey * 0.5f, false);
+                const double before = meansOf({ .mAntilag = antilag }, 64, 100, sGrey, true).back();
+                const std::vector<double> after = meansOf({ .mAntilag = antilag }, 21, 200, sGrey * 0.5f, false);
                 const double share = after.back() / (0.5 * before);
                 if (antilag)
                     EXPECT_LT(share, 1.1) << "the clamp did not follow the sky down";
@@ -268,12 +272,31 @@ namespace Rtx::Testing
             }
         }
 
+        /// **Unclamped, the history drags for as long as it spans** (`ACCUMULATE_SECONDS`): a history of `N` frames
+        /// keeps `(1 - 1/N)^k` of the old light `k` frames on, so 21 frames after the sky halved a quarter of a
+        /// second, 15 frames, keeps `(14/15)^21` = 0.2350 of the excess and half a second, 30 frames, `(29/30)^21` =
+        /// 0.4908, 2.09 times as much. The floor's light is linear in the sky, so the excess over the new level
+        /// stands in that ratio.
+        TEST_F(RtxBounceClampTest, anUnclampedHistoryDragsForAsLongAsItSpans)
+        {
+            const auto excessOf = [&](float seconds) {
+                const FilterSwitches filters{ .mAntilag = false, .mHistorySeconds = seconds };
+                const double before = meansOf(filters, 64, 100, sGrey, true).back();
+                const double after = meansOf(filters, 21, 200, sGrey * 0.5f, false).back();
+                return after / (0.5 * before) - 1.0;
+            };
+            const double quarter = excessOf(0.25f);
+            const double half = excessOf(0.5f);
+            EXPECT_GT(quarter, 0.1) << "the history still drags a quarter of a second on, or this proves nothing";
+            EXPECT_NEAR(half / quarter, std::pow(29.0 / 30.0, 21.0) / std::pow(14.0 / 15.0, 21.0), 0.2);
+        }
+
         /// **The floor follows a sky that changes its hue and keeps its luminance.** From
         /// `(0.9, 0.5, 0.3)` to `(0.3, 0.5, 2.0668)`, both 0.5706 by Rec. 709's weights: a box over
         /// luminance alone holds the old red, and one over YCoCg's axes does not. The floor's red is
-        /// linear in the sky's, so it falls to a third exactly. With the clamp it stood at 1.077 of it
-        /// 30 frames on; without it at 2.026, and under the luminance box the clamp kept before, at
-        /// 1.941.
+        /// linear in the sky's, so it falls to a third exactly. With the clamp it stood at 1.001 of it
+        /// 30 frames on; without it at 1.253. Under thirty-two frames of history those were 1.077 and
+        /// 2.026, and under the luminance box the clamp kept before, 1.941.
         TEST_F(RtxBounceClampTest, theFloorFollowsASkyThatChangesHueAtOneLuminance)
         {
             const osg::Vec3f warm(0.9f, 0.5f, 0.3f);
@@ -282,8 +305,8 @@ namespace Rtx::Testing
 
             for (const bool antilag : { true, false })
             {
-                const double before = meansOf(antilag, 64, 100, warm, true, 0).back();
-                const double after = meansOf(antilag, 30, 200, cold, false, 0).back();
+                const double before = meansOf({ .mAntilag = antilag }, 64, 100, warm, true, 0).back();
+                const double after = meansOf({ .mAntilag = antilag }, 30, 200, cold, false, 0).back();
                 const double share = after / (before / 3.0);
                 if (antilag)
                     EXPECT_LT(share, 1.1) << "the clamp did not follow the sky's hue";

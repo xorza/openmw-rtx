@@ -11,6 +11,7 @@
 
 #include <components/rtx/common/namedenum.hpp>
 #include <components/rtx/shaders/gbuffer.h>
+#include <components/rtx/shaders/look.h>
 
 #include "frameextents.hpp"
 #include "surfaceview.hpp"
@@ -127,11 +128,15 @@ namespace Rtx
         /// 2.60 against 1.90 under the ring alone).
         bool mAntiFirefly = true;
 
+        /// The longest history the accumulator keeps of the bounce, in seconds (`ACCUMULATE_SECONDS`), which a
+        /// run names for the A/B.
+        float mHistorySeconds = Shaders::ACCUMULATE_SECONDS;
+
         bool operator==(const FilterSwitches& other) const = default;
     };
 
     /// Every filter switch off: a picture's, which has no previous frame to hold a history to.
-    inline constexpr FilterSwitches sNoFilterSwitches{
+    inline const FilterSwitches sNoFilterSwitches{
         .mAntilag = false, .mHistoryFix = false, .mDualMotion = false, .mAntiFirefly = false
     };
 

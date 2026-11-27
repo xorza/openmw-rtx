@@ -55,6 +55,10 @@ namespace Rtx
         /// nothing is averaging (`FrameOptions::mAccumulate`).
         std::uint32_t mAccumulate = 0;
 
+        /// How long since the frame before was traced, in seconds of the host's clock, or nought where
+        /// nothing measured it (`FrameOptions::mSinceLast`): what the bounce's history spans in frames.
+        float mSinceLast = 0.0f;
+
         /// Whether the camera has no past to reproject from: a picture never has one, and a frame
         /// after a jump no motion vector can describe has lost it. Then `mSampled` carries a basis
         /// of nothing, which is how every reprojection hears it.

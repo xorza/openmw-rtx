@@ -186,7 +186,11 @@ namespace RtxTool
                     .mIndirect = false,
                     .mBounceRays = 3u,
                     .mRelief = false },
-                .mFilters = { .mAntilag = true, .mHistoryFix = false, .mDualMotion = true, .mAntiFirefly = true },
+                .mFilters = { .mAntilag = true,
+                    .mHistoryFix = false,
+                    .mDualMotion = true,
+                    .mAntiFirefly = true,
+                    .mHistorySeconds = 0.5f },
                 .mSoftEdgeDither = false };
             header.mValidating = true;
 
@@ -198,7 +202,7 @@ namespace RtxTool
             const std::string expected = "\nrun  " + build
                 + ", layers on, not a figure to quote, not measured, every frame hashed, the weather turned\n"
                   "     1920x1080 from 960x540, upscale performance, filter off, jitter on, noise white-hash, "
-                  "level bias -1.000, antilag on, history fix off, dual motion on, anti-firefly on, "
+                  "level bias -1.000, antilag on, history 0.5 s, history fix off, dual motion on, anti-firefly on, "
                   "shadow floor 0.0625, lamp candidates 4, indirect off, bounce rays 3, relief off, soft edge "
                   "dither off, water interleave on\n"
                   "     gamma 2.20, show albedo, exposure fixed at 1.500, variants off, hold 8.0 ms\n"
@@ -326,7 +330,7 @@ namespace RtxTool
             EXPECT_NE(json.find(setup), std::string::npos) << json;
             EXPECT_NE(json.find(mirror), std::string::npos) << json;
             EXPECT_NE(
-                json.find(R"("antilag": true, "historyFix": false, "dualMotion": true, )"
+                json.find(R"("antilag": true, "historySeconds": 0.500, "historyFix": false, "dualMotion": true, )"
                           R"("antiFirefly": true, "shadowFloor": 0.0625, "lampCandidates": 4, "indirect": false, )"
                           R"("bounceRays": 3, "relief": false,)"),
                 std::string::npos)

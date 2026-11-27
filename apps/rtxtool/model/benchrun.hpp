@@ -630,9 +630,10 @@ namespace RtxTool
 
     /// How many frames a picture warms up over once the world stands whole, so it shows what a player standing
     /// there sees and every draw of it is a frame of its own: every command but `bench`, and a film's take after
-    /// its cut. Four times the accumulator's length `N` (`ACCUMULATE_FRAMES`): its weight on the frame the cut left
-    /// is `(1 - 1/N)^4N`, under `e^-4` whatever `N` is (1.7% at 32), and the air's `0.9^4N` is 1.4 in a million at
-    /// 32. Derived rather than stated, so a longer accumulator lengthens it.
+    /// its cut. Four times the longest history's length `N` (`ACCUMULATE_FRAMES`, the glossy and the pane filters'; the
+    /// accumulator's is shorter at any rate a frame runs at, `ACCUMULATE_SECONDS`): its weight on the frame the cut
+    /// left is `(1 - 1/N)^4N`, under `e^-4` whatever `N` is (1.7% at 32), and the air's `0.9^4N` is 1.4 in a million
+    /// at 32. Derived rather than stated, so a longer history lengthens it.
     inline const std::uint32_t sHistoryFrames = 4 * static_cast<std::uint32_t>(Rtx::Shaders::ACCUMULATE_FRAMES);
 
     /// Runs `stop` for `frames` once the world stood whole and its histories converged over

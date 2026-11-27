@@ -37,6 +37,7 @@ target_sources(
         rtx/frame/camera.cpp
         rtx/frame/framepast.cpp
         rtx/frame/framesampling.cpp
+        rtx/frame/historylength.cpp
         rtx/frame/reconstruction.cpp
         rtx/frame/specularalbedo.cpp
         rtx/frame/spritelistsize.cpp

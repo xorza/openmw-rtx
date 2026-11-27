@@ -117,6 +117,7 @@ namespace RtxTool
                 { "history-fix", "false" },
                 { "dual-motion", "false" },
                 { "antifirefly", "false" },
+                { "history-seconds", "0.5" },
             } };
             const Rtx::ReconstructionRequest plain = lineOf(options, {}, Verb::Noise).mFrame.mReconstruction;
             EXPECT_EQ(plain, Rtx::ReconstructionRequest{});
@@ -130,7 +131,7 @@ namespace RtxTool
             EXPECT_EQ(Rtx::Testing::refusalOf([&] { options.versus(played, "gamma=2.2"); }),
                 "--versus=gamma=2.2 names no switch of the reconstruction, which are filter, jitter, noise, "
                 "level-epsilon, shadow-floor, lamp-candidates, indirect, bounce-rays, relief, soft-edge-dither, "
-                "water-interleave, antilag, history-fix, dual-motion, antifirefly");
+                "water-interleave, antilag, history-fix, dual-motion, antifirefly, history-seconds");
             EXPECT_EQ(Rtx::Testing::refusalOf([&] { options.versus(played, "noise=sideways"); }),
                 "\"sideways\" is not a noise source: blue-noise or white-hash");
             EXPECT_EQ(Rtx::Testing::refusalOf([&] { options.versus(played, "antifirefly=maybe"); }),
@@ -145,6 +146,9 @@ namespace RtxTool
             EXPECT_EQ(Rtx::Testing::refusalOf([&] { options.versus(played, "shadow-floor=0.5"); }),
                 "--versus=shadow-floor=0.5: the argument ('0.5') for option '--shadow-floor' is not a number 0..0.25")
                 << "a floor over a quarter, which can leave a pixel nothing to draw";
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { options.versus(played, "history-seconds=0"); }),
+                "--versus=history-seconds=0: the argument ('0') for option '--history-seconds' is not a number >0")
+                << "a history of no time";
         }
 
         /// **A stop runs `--frames` where it is named and `--seconds` otherwise**, and never both:

@@ -274,7 +274,8 @@ namespace Rtx
             .mMapped = inputs.mSubject.mMapped,
             .mLamps = inputs.mSubject.mLamps,
             .mReconstruction = what.mReconstruction,
-            .mExposure = what.mExposure };
+            .mExposure = what.mExposure,
+            .mSinceLast = what.mSinceLast };
         std::optional<Denoised> resolved;
         if (composesInCascade)
             mPasses.mDenoise.recordComposing(commands, *mDenoise, *mChannels, request, mComposed, what.mTimer);

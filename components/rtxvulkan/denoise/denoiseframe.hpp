@@ -19,6 +19,9 @@ namespace Rtx
         /// The number of the frame the histories were written in (`TemporalTurns::Step`).
         std::uint32_t mWrittenBefore{};
 
+        /// The longest history the accumulator keeps this frame, in frames (`Rtx::HistoryLength`).
+        float mHistoryFrames{};
+
         /// What the frame before was shown at, one float (`DisplayChain::getFrameExposure`).
         const Buffer& mExposure;
 

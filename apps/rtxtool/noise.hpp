@@ -23,7 +23,7 @@ namespace RtxTool
     /// How many frames an unfiltered picture at a held exposure warms up over: its one history is
     /// the air's, which keeps `FOG_VOLUME_HISTORY` of itself a frame, so this is where the air's
     /// weight on the frame the cut left falls under what `sHistoryFrames` leaves of the
-    /// accumulator's, `(1 - 1/N)^4N`: 39 at a history of 0.9 and an `N` of 32, against 128.
+    /// longest history's, `(1 - 1/N)^4N`: 39 at a history of 0.9 and an `N` of 32, against 128.
     inline const std::uint32_t sAirFrames = static_cast<std::uint32_t>(
         std::ceil(std::log(std::pow(1.0 - 1.0 / static_cast<double>(Rtx::Shaders::ACCUMULATE_FRAMES),
                       static_cast<double>(sHistoryFrames)))

@@ -7,6 +7,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/frame/historylength.hpp>
 #include <components/rtx/renderer/denoiserimage.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
@@ -108,6 +109,10 @@ namespace Rtx
 
         /// Says every history is worthless, until each filter next runs.
         void reset() { mTurns.reset(); }
+
+        /// How many frames the accumulator's history keeps this frame, a span of `seconds` at the frame time
+        /// `sinceLast` moves the smoothed one by (`Rtx::HistoryLength`).
+        float historyFrames(float sinceLast, float seconds) { return mLength.advance(sinceLast, seconds); }
 
         /// Turns to the other half of every pair for the frame being recorded, number `frame`, on
         /// which `runs` run: which halves each filter reads and writes, which have nothing to read,
@@ -240,6 +245,7 @@ namespace Rtx
 
         /// Started again by `resize`, so the first frame after one reads no image nothing wrote.
         TemporalTurns mTurns;
+        HistoryLength mLength;
 
         /// What `turn` last handed out, which `written` reads.
         TemporalTurns::Step mLast;
