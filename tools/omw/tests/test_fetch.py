@@ -53,7 +53,7 @@ class SettleTest(unittest.TestCase):
         self.assertFalse(file.exists())
 
         partial.write_bytes(b"content")
-        settle(partial, file, "https://x", sha256=right, sha512=hashlib.sha512(b"content").hexdigest())
+        settle(partial, file, "https://x", sha256=right)
         self.assertFalse(partial.exists())
         self.assertEqual(file.read_bytes(), b"content")
 

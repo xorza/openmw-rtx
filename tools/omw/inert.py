@@ -1,44 +1,28 @@
-"""Text across the review's two boundaries. **In**, what a person wrote is cut to what a reader of the page sees
-(`visible`), as the action does to what it fetches itself, so an instruction hidden from the maintainer is not one
-only the agent reads. **Out**, what the agent wrote is made inert before it is posted (`neutral`), in the order
-GitHub's agentic workflows' safe outputs sanitize: characters, protocols, mentions and commands, markup, length. A
-link may name any host over HTTPS: the review cites papers, specifications and other engines wherever they are, and
-the agent holds nothing a link could carry away."""
+"""`omw inert <file>`: a text an agent wrote after reading upstream, made safe to post in this repository, as
+`upstream.yml` posts a merge's reports, printed. The rules go in the order GitHub's agentic workflows' safe outputs
+sanitize: characters, protocols, mentions and commands, markup, length. A link may name any host over HTTPS: a
+report cites upstream's commits, issues and the sources it read wherever they are. No build is configured for it."""
 
+import os
 import re
+import sys
 import unicodedata
 from collections.abc import Callable
-from dataclasses import dataclass
+from pathlib import Path
 from urllib.parse import urlsplit
 
-# Characters a page does not show: zero-width ones, bidirectional controls, which reorder what is shown, Unicode's
-# tag characters, which spell text no font draws, and the soft hyphen.
+from omw.system import Refusal, Switches, read_text
+
+# The most a pull request's body or a comment holds: GitHub refuses one past 65,536 characters.
+BODY = 60_000
+
+# Characters a page does not show: the soft hyphen, the Arabic letter mark, the Mongolian vowel separator,
+# zero-width ones, bidirectional controls, which reorder what is shown, the invisible operators, the byte order
+# mark, and Unicode's tag characters, which spell text no font draws.
 _INVISIBLE = re.compile("[­؜᠎​-‏‪-‮⁠-⁤⁦-⁯﻿"
                         "\U000e0000-\U000e007f]")
 # Control characters but the tab, the line feed and the carriage return.
 _CONTROL = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
-# An HTML comment, which GitHub does not show; one never closed hides the rest of the text.
-_COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
-# What a hidden comment is kept to in the list of what was taken out.
-HIDDEN_SHOWN = 300
-
-
-@dataclass(frozen=True)
-class Visible:
-    """A text as a reader sees it, and what was taken out of it to make it so."""
-
-    text: str
-    hidden: list[str]
-
-
-def visible(text: str) -> Visible:
-    hidden = [f"an HTML comment: {comment[:HIDDEN_SHOWN]!r}" for comment in _COMMENT.findall(text)]
-    text = _COMMENT.sub("", text)
-    if invisible := len(_INVISIBLE.findall(text)) + len(_CONTROL.findall(text)):
-        hidden.append(f"{invisible} invisible or control characters")
-    return Visible(_CONTROL.sub("", _INVISIBLE.sub("", text)), hidden)
-
-
 # A fenced block or an inline code span, which GitHub shows as written and links nothing in.
 _FENCE = re.compile(r"(?m)^[ \t]*(```|~~~)")
 # An inline span's backticks are a whole run, so a fence's three are never read as a span's one and one.
@@ -57,6 +41,23 @@ _COMMAND = re.compile(r"(?m)^([ \t]*)(/[A-Za-z][\w-]*)")
 _NUMBER = re.compile(r"(?i)(?<![\w/`&#])(?:#|GH-)[0-9]+\b")
 REMOVED = "[URL removed: not HTTPS]"
 TRUNCATED = "\n\n[Text cut at its length limit]"
+
+
+def inert(args: list[str]) -> int:
+    switches = Switches("inert", "")
+    switches.add_argument("text", type=Path)
+    parsed = switches.parse_args(args)
+    # As bytes of UTF-8, whatever the locale's encoding: the text goes back into a file GitHub is handed.
+    sys.stdout.buffer.write(neutral(read_text(parsed.text), _repository(), BODY).encode())
+    return 0
+
+
+def _repository() -> str:
+    """The repository the run stands in, which Actions names in `GITHUB_REPOSITORY`."""
+    named = os.environ.get("GITHUB_REPOSITORY", "")
+    if "/" not in named:
+        raise Refusal("GITHUB_REPOSITORY names no repository: `owner/name`, as Actions sets it")
+    return named
 
 
 def _code(text: str) -> str:
@@ -95,38 +96,26 @@ def _links(text: str, repository: str) -> str:
 
 
 def _inert(text: str) -> str:
+    """The numbers ahead of the other rules, whose code spans a number inside one would break out of."""
+    text = _NUMBER.sub(lambda match: _code(match[0]), text)
     text = _MENTION.sub(lambda match: _code(match[0]), text)
     text = _CROSS_REFERENCE.sub(lambda match: _code(match[0]), text)
     text = _COMMAND.sub(lambda match: match[1] + _code(match[2]), text)
     return text.replace("<", "&lt;")
 
 
-def _numbers(text: str) -> str:
-    return _NUMBER.sub(lambda match: _code(match[0]), text)
-
-
-def _neutral(text: str, repository: str, limit: int, inert: Callable[[str], str]) -> str:
-    """The order every text the agent wrote goes through: the characters first, so nothing a later rule reads is
-    spelled around it, then the links, then `inert` over what is still prose, then the length."""
+def neutral(text: str, repository: str, limit: int) -> str:
+    """`text`, which an agent wrote about upstream's work, made safe to post in `repository`: invisible and control
+    characters out, links over HTTPS alone, no mention that notifies anyone, no cross-reference written into another
+    repository, **no `#12` that links this repository's item of that number** — the number is upstream's tracker's,
+    and GitHub would close this repository's item at the merge where a closing word stands before it — no slash
+    command, no markup a page would render as HTML, and at most `limit` characters. The characters go first, so
+    nothing a later rule reads is spelled around them, then the links, then the rest over what is still prose, then
+    the length."""
     text = _CONTROL.sub("", _INVISIBLE.sub("", unicodedata.normalize("NFC", text)))
     text = _outside_code(text, lambda prose: _links(prose, repository))
     # A link made a code span above is code now, which the rules below leave as it is.
-    return cut(_outside_code(text, inert), limit)
-
-
-def neutral(text: str, repository: str, limit: int) -> str:
-    """`text`, which the agent wrote, made safe to post in `repository`: invisible and control characters out, links
-    over HTTPS alone, no mention that notifies anyone, no cross-reference written into another repository, no slash
-    command, no markup a page would render as HTML, and at most `limit` characters."""
-    return _neutral(text, repository, limit, _inert)
-
-
-def neutral_upstream(text: str, repository: str, limit: int) -> str:
-    """`neutral` for a text about another project's work, an upstream merge's reports, **with each `#12` a code span
-    too**: the number is that project's tracker's, and GitHub would link this repository's item of that number, and
-    close it at the merge where a closing word stands before it. The numbers ahead of the other rules, whose code
-    spans a number inside one would break out of."""
-    return _neutral(text, repository, limit, lambda prose: _inert(_numbers(prose)))
+    return cut(_outside_code(text, _inert), limit)
 
 
 def cut(text: str, limit: int) -> str:

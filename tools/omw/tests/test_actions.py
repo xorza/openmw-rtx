@@ -45,47 +45,27 @@ class ActionsTest(unittest.TestCase):
         self.addCleanup(shutil.rmtree, folder)
         return folder
 
-    def caged(self, edits: str, web: str) -> dict[str, str]:
+    def test_the_cage_lets_the_agent_edit_the_tree_and_nothing_past_it(self):
         folder = self.folder()
-        done = ran(script("agent", "cage"), folder, EDITS=edits, WEB=web, GITHUB_OUTPUT=str(folder / "output"))
+        done = ran(script("agent", "cage"), folder, GITHUB_OUTPUT=str(folder / "output"))
         self.assertEqual(done.returncode, 0, done.stderr)
-        return dict(line.split("=", 1) for line in read_text(folder / "output").splitlines())
-
-    def test_the_cage_denies_and_allows_by_whether_the_agent_edits_and_reads_the_web(self):
-        always = ["Read(//proc/**)", "Read(~/.claude/**)", "Read(~/.claude.json)", "Read(./.git/**)", "Bash",
-                  "NotebookEdit", "Skill"]
-        kept_out = ["Edit(./.git/**)", "Edit(./.github/**)", "Edit(./.claude/**)", "Edit(./.mcp.json)"]
-        cases = {
-            ("true", "false"): ([*always, *kept_out, "WebFetch", "WebSearch"], "Read(./**),Grep,Glob,Edit(./**)"),
-            ("false", "true"): ([*always, "Edit", "Write"], "Read(./**),Grep,Glob,WebSearch,WebFetch"),
-            ("true", "true"): ([*always, *kept_out], "Read(./**),Grep,Glob,Edit(./**),WebSearch,WebFetch"),
-            ("false", "false"): ([*always, "Edit", "Write", "WebFetch", "WebSearch"], "Read(./**),Grep,Glob"),
-        }
-        for (edits, web), (denied, tools) in cases.items():
-            with self.subTest(edits=edits, web=web):
-                cage = self.caged(edits, web)
-                settings = json.loads(cage["settings"])
-                self.assertEqual(settings["permissions"], {"deny": denied})
-                self.assertEqual(cage["tools"], tools)
-                # No tool the cage allows is one it denies by its bare name.
-                self.assertFalse({tool.split("(")[0] for tool in tools.split(",")} & set(denied))
-                self.assertIs(settings["disableAllHooks"], True)
-                self.assertEqual(settings["sandbox"], {
-                    "enabled": True, "failIfUnavailable": True, "allowUnsandboxedCommands": False,
-                    "network": {"allowedDomains": []},
-                    "credentials": {"envVars": [{"name": name, "mode": "deny"} for name in (
-                        "GITHUB_TOKEN", "GH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN", "ACTIONS_RUNTIME_TOKEN",
-                        "ACTIONS_ID_TOKEN_REQUEST_TOKEN")]},
-                })
-
-    def test_the_cage_refuses_a_switch_that_is_neither_true_nor_false(self):
-        folder = self.folder()
-        for edits, web in (("yes", "false"), ("true", ""), ("True", "false")):
-            with self.subTest(edits=edits, web=web):
-                done = ran(script("agent", "cage"), folder, EDITS=edits, WEB=web, GITHUB_OUTPUT=str(folder / "output"))
-                self.assertEqual(done.returncode, 1)
-                self.assertIn("true or false", done.stdout)
-                self.assertFalse((folder / "output").exists(), "a refused cage wrote settings")
+        cage = dict(line.split("=", 1) for line in read_text(folder / "output").splitlines())
+        settings = json.loads(cage["settings"])
+        denied = ["Read(//proc/**)", "Read(~/.claude/**)", "Read(~/.claude.json)", "Read(./.git/**)", "Bash",
+                  "NotebookEdit", "Skill", "Edit(./.git/**)", "Edit(./.github/**)", "Edit(./.claude/**)",
+                  "Edit(./.mcp.json)", "WebFetch", "WebSearch"]
+        self.assertEqual(settings["permissions"], {"deny": denied})
+        self.assertEqual(cage["tools"], "Read(./**),Grep,Glob,Edit(./**)")
+        # No tool the cage allows is one it denies by its bare name.
+        self.assertFalse({tool.split("(")[0] for tool in cage["tools"].split(",")} & set(denied))
+        self.assertIs(settings["disableAllHooks"], True)
+        self.assertEqual(settings["sandbox"], {
+            "enabled": True, "failIfUnavailable": True, "allowUnsandboxedCommands": False,
+            "network": {"allowedDomains": []},
+            "credentials": {"envVars": [{"name": name, "mode": "deny"} for name in (
+                "GITHUB_TOKEN", "GH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN", "ACTIONS_RUNTIME_TOKEN",
+                "ACTIONS_ID_TOKEN_REQUEST_TOKEN")]},
+        })
 
     def tree(self) -> Path:
         """A repository mid-merge as an agent leaves one: two files committed, one of them edited since, a file the

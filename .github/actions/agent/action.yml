@@ -1,9 +1,7 @@
-# The cage every agent of the workflows runs in, stated once: `upstream.yml`'s three and `auto-review-item.yml`'s
-# one read text a stranger wrote, so each holds nothing worth stealing and can run nothing. A read token, no shell,
-# no settings of the checkout's own, every credential's variable denied, and the file tools kept to the tree and out
-# of `.git`, where the action leaves its token. What a caller chooses is whether the agent edits the tree and
-# whether it reads the web; the rules it is denied and the tools it is allowed both follow from the two, so neither
-# list can name what the other forgot.
+# The cage every agent of the workflows runs in, stated once: `upstream.yml`'s three read text upstream wrote, so
+# each holds nothing worth stealing and can run nothing. A read token, no shell, no web, no settings of the
+# checkout's own, every credential's variable denied, and the file tools kept to the tree: out of `.git`, where the
+# action leaves its token, and out of `.github/`, `.claude/` and `.mcp.json`.
 #
 # Named by `$/`, which is the workflow's own commit and never the workspace: a tree an agent edited, or one upstream's
 # merge stands in, cannot change the cage it runs in.
@@ -20,26 +18,9 @@ inputs:
   max-turns:
     description: How many turns the agent has.
     required: true
-  edits:
-    description: Whether the agent changes files of the tree, `.git`, `.github/`, `.claude/` and `.mcp.json` aside; false, and it reads alone.
-    required: true
-  web:
-    description: Whether the agent searches and fetches the web; false for one whose edits are pushed.
-    required: true
-  json-schema:
-    description: The schema of the agent's structured output, in no single quote; none, and it answers none.
-    default: ""
   allowed-bots:
     description: The bots whose run the agent may answer, as the action's `allowed_bots`.
     default: ""
-  transcript:
-    description: The artifact the whole transcript is kept as; none, and the log's summary is all that is kept.
-    default: ""
-
-outputs:
-  structured_output:
-    description: The agent's answer to `json-schema`.
-    value: ${{ steps.agent.outputs.structured_output }}
 
 runs:
   using: composite
@@ -60,27 +41,16 @@ runs:
     - name: The cage
       id: cage
       shell: bash
-      env:
-        EDITS: ${{ inputs.edits }}
-        WEB: ${{ inputs.web }}
       run: |
-        for flag in "$EDITS" "$WEB"; do
-          if [ "$flag" != true ] && [ "$flag" != false ]; then
-            echo "::error::the cage's edits and web are true or false, and one is '$flag'"
-            exit 1
-          fi
-        done
-        settings=$(jq -cn --argjson edits "$EDITS" --argjson web "$WEB" '{
+        settings=$(jq -cn '{
           disableAllHooks: true,
           permissions: {
-            deny: (
-              ["Read(//proc/**)", "Read(~/.claude/**)", "Read(~/.claude.json)", "Read(./.git/**)",
-               "Bash", "NotebookEdit", "Skill"]
-              + (if $edits
-                 then ["Edit(./.git/**)", "Edit(./.github/**)", "Edit(./.claude/**)", "Edit(./.mcp.json)"]
-                 else ["Edit", "Write"] end)
-              + (if $web then [] else ["WebFetch", "WebSearch"] end)
-            )
+            deny: [
+              "Read(//proc/**)", "Read(~/.claude/**)", "Read(~/.claude.json)", "Read(./.git/**)",
+              "Bash", "NotebookEdit", "Skill",
+              "Edit(./.git/**)", "Edit(./.github/**)", "Edit(./.claude/**)", "Edit(./.mcp.json)",
+              "WebFetch", "WebSearch"
+            ]
           },
           sandbox: {
             enabled: true,
@@ -95,16 +65,9 @@ runs:
             }
           }
         }')
-        tools="Read(./**),Grep,Glob"
-        if [ "$EDITS" = true ]; then
-          tools="$tools,Edit(./**)"
-        fi
-        if [ "$WEB" = true ]; then
-          tools="$tools,WebSearch,WebFetch"
-        fi
         {
           echo "settings=$settings"
-          echo "tools=$tools"
+          echo "tools=Read(./**),Grep,Glob,Edit(./**)"
         } >> "$GITHUB_OUTPUT"
 
     - uses: anthropics/claude-code-action@d535f5172dec02b204866b393d6b20b9b2aaf98d # v1.0.266
@@ -132,19 +95,16 @@ runs:
           --max-turns ${{ inputs.max-turns }}
           --setting-sources user
           --allowedTools "${{ steps.cage.outputs.tools }}"
-          ${{ inputs.json-schema != '' && format('--json-schema ''{0}''', inputs.json-schema) || '' }}
 
     # The action hides the transcript: how the run ended, its last message and every tool call the cage refused
-    # are what the log keeps. Workflow commands are stopped: the text is the agent's, written after reading a
-    # stranger's. The transcript in a folder of its own, as an artifact is a folder.
+    # are what the log keeps. Workflow commands are stopped: the text is the agent's, written after reading
+    # upstream's.
     - name: What the agent reported
       if: always() && steps.agent.outputs.execution_file != ''
       shell: bash
       env:
         EXECUTION_FILE: ${{ steps.agent.outputs.execution_file }}
       run: |
-        mkdir -p "$RUNNER_TEMP/transcript"
-        cp "$EXECUTION_FILE" "$RUNNER_TEMP/transcript/transcript.json"
         stop=$(cat /proc/sys/kernel/random/uuid)
         echo "::stop-commands::$stop"
         jq -r '.[] | select(.type == "result")
@@ -154,11 +114,3 @@ runs:
               | "refused \(.tool_name): \(.tool_input.command // .tool_input.file_path // .tool_input.url // (.tool_input | tostring))")' \
           "$EXECUTION_FILE"
         echo "::$stop::"
-
-    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-      if: always() && inputs.transcript != '' && steps.agent.outputs.execution_file != ''
-      with:
-        name: ${{ inputs.transcript }}
-        path: ${{ runner.temp }}/transcript
-        if-no-files-found: error
-        retention-days: 3

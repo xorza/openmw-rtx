@@ -50,26 +50,9 @@ def build_beside(final: Path, make: Callable[[Path], object], within: str = "") 
     return final
 
 
-def digest_of(path: Path, algorithm: str) -> str:
-    with path.open("rb") as file:
-        return hashlib.file_digest(file, algorithm).hexdigest()
-
-
-def _copy_bounded(source: IO[bytes], out: IO[bytes], limit: int | None, url: str) -> None:
-    """`source` into `out`, refused once it passes `limit` bytes, before the rest of it is read."""
-    copied = 0
-    while chunk := source.read(1 << 20):
-        copied += len(chunk)
-        if limit is not None and copied > limit:
-            raise Refusal(f"{url} is larger than {limit} bytes")
-        out.write(chunk)
-
-
-def download(url: str, file: Path, *, sha256: str | None = None, sha512: str | None = None,
-             limit: int | None = None) -> None:
-    """`url` into `file`, checked against the digest given and refused past `limit` bytes, for a file a stranger
-    chose: three tries against a network or a server that fails once in a while, a connection cut mid-file among
-    them, and one against a 4xx or a checksum that fails."""
+def download(url: str, file: Path, *, sha256: str | None = None) -> None:
+    """`url` into `file`, checked against the digest given: three tries against a network or a server that fails
+    once in a while, a connection cut mid-file among them, and one against a 4xx or a checksum that fails."""
     if not url.startswith("https://"):
         raise Refusal(f"{url} is not HTTPS")
     print(f"fetching {file.name}", file=sys.stderr)
@@ -78,11 +61,8 @@ def download(url: str, file: Path, *, sha256: str | None = None, sha512: str | N
     for attempt in range(3):
         try:
             with _opener.open(url, timeout=60) as response, partial.open("wb") as out:
-                _copy_bounded(response, out, limit, url)
+                shutil.copyfileobj(response, out)
             break
-        except Refusal:
-            partial.unlink(missing_ok=True)
-            raise
         except (urllib.error.URLError, http.client.HTTPException, TimeoutError, ConnectionError) as error:
             refused = isinstance(error, urllib.error.HTTPError) and error.code < 500
             if refused or attempt == 2:
@@ -90,18 +70,17 @@ def download(url: str, file: Path, *, sha256: str | None = None, sha512: str | N
                 raise Refusal(f"could not fetch {url}: {error}") from error
             time.sleep(2 ** attempt)
 
-    settle(partial, file, url, sha256=sha256, sha512=sha512)
+    settle(partial, file, url, sha256=sha256)
 
 
-def settle(partial: Path, file: Path, url: str, *, sha256: str | None = None, sha512: str | None = None) -> None:
-    """A download given its final name once each digest asked for has passed, and removed where one has not."""
-    for algorithm, expected in (("sha256", sha256), ("sha512", sha512)):
-        if expected is None:
-            continue
-        found = digest_of(partial, algorithm)
-        if found != expected.lower():
+def settle(partial: Path, file: Path, url: str, *, sha256: str | None = None) -> None:
+    """A download given its final name once the digest asked for has passed, and removed where it has not."""
+    if sha256 is not None:
+        with partial.open("rb") as file_in:
+            found = hashlib.file_digest(file_in, "sha256").hexdigest()
+        if found != sha256.lower():
             partial.unlink()
-            raise Refusal(f"{url} has the {algorithm} {found}, and {expected} is pinned")
+            raise Refusal(f"{url} has the sha256 {found}, and {sha256} is pinned")
     partial.replace(file)
 
 

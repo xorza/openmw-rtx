@@ -1,8 +1,8 @@
 # The review's two passes
 
-What every review of a change in this repository judges, by an agent or by a person: the upstream merge's
-(`.github/upstream-merge/review.md`) and a pull request's (`.github/auto-review/pull-request.md`). Each of those
-says what it covers, what it does with a finding, and how it reports; this file says only what a finding is.
+What every review of a change in this repository judges, by an agent or by a person. The upstream merge's
+(`.github/upstream-merge/review.md`) says what it covers, what it does with a finding, and how it reports; this
+file says only what a finding is.
 
 State the change's intent in one sentence and judge against it.
 

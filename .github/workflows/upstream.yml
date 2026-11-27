@@ -306,8 +306,6 @@ jobs:
               with:
                   oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
                   max-turns: ${{ steps.merge.outputs.turns }}
-                  edits: true
-                  web: false
                   prompt: |
                       Merge upstream OpenMW into this fork.
 
@@ -552,8 +550,6 @@ jobs:
               with:
                   oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
                   max-turns: ${{ steps.read.outputs.turns }}
-                  edits: true
-                  web: false
                   prompt: |
                       Review this fork's merge of upstream OpenMW, and fix what the review finds.
 
@@ -692,7 +688,7 @@ jobs:
                   } >> "$RUNNER_TEMP/upstream-merge/body.md"
 
             # The body is the agents', written after reading upstream: made inert before any of it is searched or
-            # posted (`omw review inert`), so it notifies no account, writes no cross-reference into another
+            # posted (`omw inert`), so it notifies no account, writes no cross-reference into another
             # repository, renders no HTML, and fits a pull request's body, which GitHub refuses past 65,536
             # characters, here after the branch is pushed. Ahead of the search for the credential, which a
             # zero-width character between two of its letters would hide from a search of the text as written. Into
@@ -702,7 +698,7 @@ jobs:
               run: |
                   body="$RUNNER_TEMP/upstream-merge/body.md"
                   if [ -f "$body" ]; then
-                    python3 omw review inert "$body" > "$RUNNER_TEMP/body.md"
+                    python3 omw inert "$body" > "$RUNNER_TEMP/body.md"
                   fi
 
             # As the Claude GitHub App: GitHub starts no workflow on a pull request `GITHUB_TOKEN` opens. Asked for
@@ -977,8 +973,6 @@ jobs:
               with:
                   oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
                   max-turns: ${{ steps.read.outputs.turns }}
-                  edits: true
-                  web: false
 
                   # The run this answers was started by the app: it opened the pull request and pushes each fix,
                   # and the action refuses a bot's run unless it is named.
@@ -1114,14 +1108,14 @@ jobs:
                   name: upstream-fix
                   path: ${{ runner.temp }}/upstream-fix
 
-            # What the fix's agent wrote, made inert before any of it is searched or posted (`omw review inert`): it
+            # What the fix's agent wrote, made inert before any of it is searched or posted (`omw inert`): it
             # notifies no account, writes no cross-reference into another repository, renders no HTML, and fits a
             # comment. Ahead of the search for the credential, which a zero-width character between two of its
             # letters would hide from a search of the text as written. Into a file of its own, the only one a later
             # step searches or posts, so a step that failed here leaves nothing raw to post.
             - name: The report, made inert
               if: needs.fix.result == 'success'
-              run: python3 omw review inert "$RUNNER_TEMP/upstream-fix/report.md" > "$RUNNER_TEMP/report.md"
+              run: python3 omw inert "$RUNNER_TEMP/upstream-fix/report.md" > "$RUNNER_TEMP/report.md"
 
             - uses: $/.github/actions/app-token
               id: app
