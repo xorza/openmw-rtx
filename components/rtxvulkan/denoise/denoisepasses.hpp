@@ -48,10 +48,10 @@ namespace Rtx
             const Shaders::VisibilityConstants& mSampled;
 
             /// `TraceSubject::mMapped`: whether any surface of the frame has a lobe.
-            bool mMapped;
+            bool mMapped{};
 
             /// `TraceSubject::mLamps`: whether the scene holds a lamp.
-            bool mLamps;
+            bool mLamps{};
 
             /// What puts the frame back together, of which this reads the accumulator's and the
             /// wavelet's switches.
@@ -61,10 +61,10 @@ namespace Rtx
             const Buffer& mExposure;
 
             /// How long since the frame before was traced, in seconds (`TraceRecording::mSinceLast`).
-            float mSinceLast;
+            float mSinceLast{};
 
             /// The lamps that changed since the frame before (`TraceRecording::mLampChanges`).
-            std::span<const Shaders::GpuLampChange> mLampChanges;
+            std::span<const Shaders::GpuLampChange> mLampChanges{};
         };
 
         /// Records every pass over `buffer`, which must have been handed over, and hands back where
