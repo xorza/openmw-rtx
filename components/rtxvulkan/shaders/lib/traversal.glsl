@@ -13,6 +13,7 @@
 
 #include "shared/traceconstants.h"
 
+#include "colour.h"
 #include "gbuffer.h"
 #include "look.h"
 #include "scene.h"
@@ -96,11 +97,12 @@ bool isSoftEdged(GpuMaterial material)
 }
 
 /// What a texel of `material` is cut at, for a ray whose dither is `dither`: the material's own reference,
-/// or on a soft edge one drawn under it.
+/// or on a soft edge one drawn under `ALPHA_BLEND_CUTOFF`, no lower than its floor.
 ///
 /// **The eye meets a soft texel under the cut with a chance of its alpha**, stochastic transparency
 /// (Enderton et al. 2010): a reference drawn uniformly below the cut, which a texel of alpha `a` under it
-/// passes with a chance of `a`, and one at or over it always.
+/// passes with a chance of `a`, and one at or over it always. Never one under the floor, where the blend
+/// draws nothing or the content's own test discards.
 ///
 /// **Drawn again each frame, not fixed to the surface**, so a pixel's coverage at dense foliage is a mean
 /// that only the upscaler's history takes, and a moving frame, which keeps less of it, is noisier than its
@@ -110,7 +112,7 @@ bool isSoftEdged(GpuMaterial material)
 ///        apart so two soft layers are met apart; one for every other ray, which keeps the cut.
 float cutAt(GpuMaterial material, float dither)
 {
-    return isSoftEdged(material) ? clamp(dither, ALPHA_PANE_CUTOFF, material.mAlphaReference)
+    return isSoftEdged(material) ? clamp(dither, material.mAlphaReference, ALPHA_BLEND_CUTOFF)
                                  : material.mAlphaReference;
 }
 
@@ -1792,14 +1794,25 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint normal
     if (seenThrough)
         surface.mOpacity *= dark.a;
 
+    // **A see-through surface glows by the share a blend in display values draws** (`displayBlendShare`), as
+    // every reader weighs a layer's light by its alpha after: a Dunmer Lanterns Replacer glow card, bright
+    // everywhere and faded by its alpha alone, stood out as a card where the rasterizer draws it barely there.
+    // The colour's glow by the colour the albedo puts it at, and `litSurface` scales it by `EMISSIVE_INTENSITY`.
+    //
+    // **A pane glows at a layer's scale** (`LAYER_GLOW_INTENSITY`), by its material and not by a texel or a
+    // fade, so a glow does not jump where an actor starts to fade.
+    const float glowIntensity = isTranslucent(materialPast) ? LAYER_GLOW_INTENSITY : EMISSIVE_INTENSITY;
+    surface.mEmissiveColour *= displayBlendShare(surface.mAlbedo * surface.mEmissiveColour, surface.mOpacity)
+        * (glowIntensity / EMISSIVE_INTENSITY);
+
     // At its own unit too: the draugrs' eye glow is bound on their second set.
     if (holdsTexture(materialPast.mEmissive))
     {
         const uint unit = (materialPast.mFlags >> MATERIAL_EMISSIVE_UNIT_SHIFT) & MATERIAL_UNIT_MASK;
-        surface.mEmitted = EMISSIVE_INTENSITY
-            * sampleDiffuse(materialPast.mEmissive,
-                pointAtUnit(unit, point, meshPast, corner, hit.mBary, cone, surface.mFootprint, detailed))
-                  .rgb;
+        const vec3 glow = sampleDiffuse(materialPast.mEmissive,
+            pointAtUnit(unit, point, meshPast, corner, hit.mBary, cone, surface.mFootprint, detailed))
+                              .rgb;
+        surface.mEmitted = glowIntensity * glow * displayBlendShare(glow, surface.mOpacity);
     }
 
     // **Light of its own, or colour the light falls on**, as the player set the rasterizer's `preLightEnv`:

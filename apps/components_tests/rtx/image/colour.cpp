@@ -271,6 +271,33 @@ namespace Rtx
                 << "a greater gamma did not lift the value further";
         }
 
+        /// **A glow blended in display values, as a share of the linear blend**, `decode(a encode(g)) / (a g)`, by
+        /// hand in each of the curve's stretches. A glow card's texel of 145 at an alpha of two levels lands in the
+        /// curve's straight foot, 2 × 145 / 255² = 0.0045 under 0.04045, so it decodes as itself over 12.92 and the
+        /// share is `encode(g) / (12.92 g)`: 0.5686 / (12.92 × 0.2831), 0.155, the 1.1 levels over black the
+        /// rasterizer draws where a linear blend draws 7.3. At an alpha of a half over a glow that encodes to 0.8,
+        /// the share is `decode(0.4) / (0.5 g)`, past the foot. The ends hold: all there is the linear blend, and so
+        /// is a glow of nought, where the curve is a straight line through nought; at no coverage the share is the
+        /// limit. A glow past one is drawn as one.
+        TEST(RtxDisplayBlendTest, aGlowBlendedInDisplayValuesIsTheShareTheCurveLeavesIt)
+        {
+            const float card = Shaders::decodeSrgb(145.0f / 255.0f);
+            const float faint = 2.0f / 255.0f;
+            EXPECT_FLOAT_EQ(Shaders::displayBlendShare(card, faint), (145.0f / 255.0f) / (12.92f * card));
+            EXPECT_NEAR(Shaders::displayBlendShare(card, faint), 0.155f, 5.0e-4f);
+
+            const float bright = Shaders::decodeSrgb(0.8f);
+            EXPECT_FLOAT_EQ(Shaders::displayBlendShare(bright, 0.5f), Shaders::decodeSrgb(0.4f) / (0.5f * bright));
+            EXPECT_LT(Shaders::displayBlendShare(bright, 0.5f), 1.0f) << "a blend in display values draws less";
+
+            EXPECT_EQ(Shaders::displayBlendShare(card, 1.0f), 1.0f) << "all there is the linear blend";
+            EXPECT_EQ(Shaders::displayBlendShare(0.0f, faint), 1.0f) << "a glow of nought is nought either way";
+            EXPECT_FLOAT_EQ(Shaders::displayBlendShare(card, 0.0f), (145.0f / 255.0f) / (12.92f * card))
+                << "at no coverage, the share's limit";
+            EXPECT_EQ(Shaders::displayBlendShare(2.0f, 0.5f), Shaders::displayBlendShare(1.0f, 0.5f))
+                << "a glow past one is drawn as one";
+        }
+
         /// **The curve's grey, by hand in each of its stretches**, the offset 0.04 and the
         /// compression starting at 0.76 (`look.h`). Below the ramp's end, 3 × 0.04 = 0.12, the offset
         /// comes off in proportion: 0.06 loses 0.04 × 0.06 / 0.12 = 0.02, to 0.04. At and past it the

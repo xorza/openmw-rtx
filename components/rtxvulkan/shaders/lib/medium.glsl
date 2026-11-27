@@ -323,12 +323,10 @@ PuffLayer mediumAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Con
 
     const GatheredLight lit = gatheredLight(pixel, origin, direction, limit, gathered);
 
-    // The unit cancels in a ratio of two sums, so neither is scaled back.
-    //
-    // **The glow is not scaled by `EMISSIVE_INTENSITY`**, as a surface's and a sheet's are: the Ghostfence
-    // is a medium that glows, and at that scale a night's exposure washes it to white and loses the orbs
-    // painted on it.
-    layer.mColour = (vec3(gathered.mUnlit) * lit.mLight + vec3(gathered.mGlowed)) / float(gathered.mCoverage)
+    // The unit cancels in a ratio of two sums, so neither is scaled back. The glow is a layer's
+    // (`LAYER_GLOW_INTENSITY`), as a pane's is.
+    layer.mColour
+        = (vec3(gathered.mUnlit) * lit.mLight + vec3(gathered.mGlowed) * LAYER_GLOW_INTENSITY) / float(gathered.mCoverage)
         * lit.mReaching;
     layer.mCoveredAt = lit.mSeen;
     layer.mWeight = float(gathered.mCoverage) / SHARE_UNIT;

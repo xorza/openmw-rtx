@@ -206,6 +206,14 @@ namespace Rtx::Testing
         /// A mask's texel under the cut is nothing to a light ray, which keeps the cut: at an alpha of 64 no
         /// ray to the sun is stopped anywhere, where the eye meets it a quarter of the time
         /// (`aCutoutStopsARayOnItsMaskAndLetsItThroughTheHoles`).
+        ///
+        /// **A test of the content's own only takes texels away**, as `objects.frag` discards what fails it and
+        /// blends the rest. The pane under `GREATER` nought, a Dunmer Lanterns Replacer glow card's, is the same
+        /// pane, where the test was the cut and drew it whole and black; under a test over its alpha it is gone.
+        /// And the eye meets no texel of a mask the test drops: at an alpha of 115 under `GREATER` 120/255 the
+        /// frame is the one a mask of nought draws, to the byte, where with no test the eye meets it by its
+        /// alpha; and none standing on the test's reference, 120, which `GREATER` drops and the floor's draw
+        /// would otherwise land on with the chance of the floor.
         TEST_F(RtxVisibilityTest, aBlendIsAPaneWhereItsTextureNeverClosesAndACutWhereItIsAMask)
         {
             SceneIdentities identities;
@@ -217,24 +225,51 @@ namespace Rtx::Testing
             Testing::paintFlat(texture, 2, glass, "soft glass");
             const std::span<const TextureData> textures(&texture.mData, 1);
 
-            const auto render = [&](bool neverSolid, std::span<const TextureData> painted) {
+            const auto shootPane = [&](bool neverSolid, std::span<const TextureData> painted, AlphaTest test) {
                 SceneDesc scene = makeWall(identities);
                 const MeshIndex mesh = Testing::addMesh(
                     scene, MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 const MaterialIndex material = scene.addMaterial(Material{
                     .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("glass.dds")),
                     .mDiffuseColour = osg::Vec3f(0.0f, 0.0f, 0.0f),
+                    .mAlphaTest = test,
                     .mAlphaMode = AlphaMode::Blend,
                     .mDiffuseNeverSolid = neverSolid,
                 });
                 scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
 
-                const Frame frame = shoot(scene, painted, wallCamera(size, osg::Vec3f(2.0f, 2.0f, 2.0f)), size);
-                return frame.byte(centreValueOf(size));
+                return shoot(scene, painted, wallCamera(size, osg::Vec3f(2.0f, 2.0f, 2.0f)), size);
+            };
+            const auto render = [&](bool neverSolid, std::span<const TextureData> painted, AlphaTest test = {}) {
+                return shootPane(neverSolid, painted, test).byte(centreValueOf(size));
             };
 
             EXPECT_EQ(render(true, textures), 111) << "a pane lets the wall through by its alpha";
             EXPECT_EQ(render(false, textures), 0) << "a mask is cut at a half, which 128 passes";
+
+            const AlphaTest overNought{ .mReference = 0.0f, .mPasses = Shaders::ALPHA_PASSES_ABOVE };
+            EXPECT_EQ(render(true, textures, overNought), 111) << "a test over nought takes nothing the pane draws";
+            EXPECT_EQ(render(true, textures, AlphaTest{ .mReference = 0.6f }), 153)
+                << "and a test over its alpha takes it all";
+
+            const auto flat = [](std::uint8_t alpha) {
+                return std::array<std::uint8_t, 16>{ 0, 0, 0, alpha, 0, 0, 0, alpha, 0, 0, 0, alpha, 0, 0, 0, alpha };
+            };
+            Testing::TestTexture under;
+            Testing::paintFlat(under, 2, flat(115), "a fringe under the test");
+            Testing::TestTexture none;
+            Testing::paintFlat(none, 2, flat(0), "no mask at all");
+            const AlphaTest overFringe{ .mReference = 120.0f / 255.0f, .mPasses = Shaders::ALPHA_PASSES_ABOVE };
+            const std::vector<std::uint8_t> nothing
+                = shootPane(false, std::span<const TextureData>(&none.mData, 1), overFringe).bytes();
+            EXPECT_EQ(shootPane(false, std::span<const TextureData>(&under.mData, 1), overFringe).bytes(), nothing)
+                << "the eye met a texel the content's test drops";
+            EXPECT_NE(shootPane(false, std::span<const TextureData>(&under.mData, 1), AlphaTest{}).bytes(), nothing)
+                << "and with no test it meets the fringe";
+            Testing::TestTexture onTheTest;
+            Testing::paintFlat(onTheTest, 2, flat(120), "a fringe on the test");
+            EXPECT_EQ(shootPane(false, std::span<const TextureData>(&onTheTest.mData, 1), overFringe).bytes(), nothing)
+                << "the eye met a texel on the reference `GREATER` drops";
 
             constexpr std::array<std::uint8_t, 16> faint{ 0, 0, 0, 64, 0, 0, 0, 64, 0, 0, 0, 64, 0, 0, 0, 64 };
             Testing::TestTexture faintTexture;
@@ -245,6 +280,70 @@ namespace Rtx::Testing
             for (std::size_t value = 3; value < bits.size(); value += 4)
                 ASSERT_TRUE(Testing::shadowOpen(bits[value]))
                     << "a light ray stopped on a texel under the cut at " << value / 4;
+        }
+
+        /// **A pane glows by the share a blend in display values draws**, `Shaders::displayBlendShare`: a Dunmer
+        /// Lanterns Replacer glow card, a black pane of alpha two levels wearing a glow of 145 everywhere, over
+        /// nothing. The test's textures are not display-encoded, so the glow is 145/255 = 0.569 in linear light,
+        /// which the curve encodes to 0.780; at an alpha of two levels that is 0.0061, in the curve's straight
+        /// foot, and the share is 0.780 / (12.92 × 0.569) = 0.106. Unlit, the pixel is the glow the pane draws
+        /// and nothing else: `LAYER_GLOW_INTENSITY × 2/255 × 0.569 × 0.106`, a layer's scale, where the linear
+        /// blend drew it at the share of one and at `EMISSIVE_INTENSITY`, and stood the card out against the dark.
+        /// The same glow on a surface that is all there keeps its whole, at a surface's scale.
+        TEST_F(RtxVisibilityTest, aPaneGlowsByTheShareABlendInDisplayValuesDraws)
+        {
+            SceneIdentities identities;
+            constexpr std::uint32_t size = 17;
+            constexpr std::size_t centre = centreValueOf(size);
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+
+            constexpr std::uint8_t faint = 2;
+            constexpr std::uint8_t glowByte = 145;
+            Testing::TestTexture alpha;
+            Testing::paintFlat(alpha, 2,
+                std::array<std::uint8_t, 16>{ 0, 0, 0, faint, 0, 0, 0, faint, 0, 0, 0, faint, 0, 0, 0, faint },
+                "glow card");
+            Testing::TestTexture glow;
+            Testing::paintFlat(glow, 2,
+                std::array<std::uint8_t, 16>{ glowByte, glowByte, glowByte, 255, glowByte, glowByte, glowByte, 255,
+                    glowByte, glowByte, glowByte, 255, glowByte, glowByte, glowByte, 255 },
+                "glow");
+            const std::array<TextureData, 2> textures{ alpha.mData, glow.mData };
+
+            const auto glowAt = [&](AlphaMode mode) {
+                std::array<osg::Vec3f, 4> quad = uprightQuadAt(32.0f, 0.0f);
+                for (osg::Vec3f& corner : quad)
+                    corner = osg::Vec3f(corner.x(), 0.0f, corner.z());
+
+                SceneDesc scene(identities);
+                const MeshIndex mesh = Testing::addMesh(
+                    scene, MeshArrays{ .mPositions = quad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const MaterialIndex material = scene.addMaterial(Material{
+                    .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("glowcard.dds")),
+                    .mEmissive = scene.textures().add(VFS::Path::NormalizedView("glow.dds")),
+                    .mDiffuseColour = osg::Vec3f(),
+                    .mAlphaMode = mode,
+                    .mDiffuseNeverSolid = true,
+                });
+                scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
+
+                return shoot(scene, textures, camera, size).at(centre);
+            };
+
+            const float coverage = static_cast<float>(faint) / 255.0f;
+            const float texel = static_cast<float>(glowByte) / 255.0f;
+            const float share = Shaders::displayBlendShare(texel, coverage);
+            EXPECT_FLOAT_EQ(share, Shaders::encodeSrgb(texel) / (12.92f * texel)) << "the curve's straight foot";
+            EXPECT_NEAR(share, 0.106f, 5.0e-4f);
+            const float layer = Shaders::LAYER_GLOW_INTENSITY * coverage * texel * share;
+            EXPECT_NEAR(glowAt(AlphaMode::Blend), layer, 1.0e-3f * layer)
+                << "a pane glows at a layer's scale, by its alpha and the share";
+            const float whole = Shaders::EMISSIVE_INTENSITY * texel;
+            EXPECT_NEAR(glowAt(AlphaMode::Opaque), whole, 1.0e-3f * whole) << "a surface all there glows whole";
         }
 
         /// Every layer of a stack is peeled, and not only the nearest of them. A person is a stack: a cuirass

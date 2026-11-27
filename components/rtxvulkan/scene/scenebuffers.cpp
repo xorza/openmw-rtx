@@ -66,10 +66,14 @@ namespace Rtx
             const AlphaTest test
                 = material.isCutout() ? material.getAlphaTest() : AlphaTest{ .mPasses = Shaders::ALPHA_PASSES_ALL };
             const Material::Traversed traversed = material.getTraversed();
+            // A soft edge's row carries its floor where the reference stands, its cut being the one every soft
+            // edge has (`GpuMaterial::mAlphaReference`).
+            if (material.isSoftEdged())
+                assert(test.mReference == Shaders::ALPHA_BLEND_CUTOFF);
 
             return Shaders::GpuMaterial{
                 .mDiffuse = untextured ? Shaders::TEXTURE_NEUTRAL : material.mDiffuse.at(),
-                .mAlphaReference = test.mReference,
+                .mAlphaReference = material.isSoftEdged() ? material.getSoftEdgeFloor() : test.mReference,
 
                 // One where the surface is all there, so traversal branches on a number rather than
                 // on a mode it was never sent. A blend and not a translucency: `isTranslucent` asks

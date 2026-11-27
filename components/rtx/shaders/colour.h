@@ -72,6 +72,28 @@ namespace Rtx::Shaders
         return pow((encoded + 0.055f) / 1.055f, 2.4f);
     }
 
+    /// What a blend in display values draws of a glow `glow`, linear and at most one, at a coverage of
+    /// `alpha` over black, as a share of what a blend in linear light draws: `decode(alpha encode(glow))`
+    /// over `alpha glow`. **`objects.frag` adds a see-through surface's glow to its colour and blends the
+    /// two in display values**, where the curve lifts nothing, and a trace blends in linear light: a glow
+    /// texel of 145 at an alpha of two levels draws 1.1 levels over black there, and 7.3 here.
+    ///
+    /// **One where the blend is all there**, which a round trip through the curve would only nearly give.
+    /// Where `alpha glow` is nought, the share's limit: one where the glow is in the curve's straight foot,
+    /// which nought is, and `encode(glow) / 12.92 glow` for a glow at no coverage.
+    RTX_SHADER float displayBlendShare(float glow, float alpha)
+    {
+        if (!(alpha < 1.0f))
+            return 1.0f;
+
+        const float bounded = min(glow, 1.0f);
+        const float linear = alpha * bounded;
+        if (linear > 0.0f)
+            return decodeSrgb(alpha * encodeSrgb(bounded)) / linear;
+
+        return bounded > 0.0f ? encodeSrgb(bounded) / (12.92f * bounded) : 1.0f;
+    }
+
     /// `[Video] gamma` over a display-encoded value in [0, 1]: the value to the power of
     /// `inverseGamma`, one over the setting, so a gamma over one lifts the darks and leaves black
     /// and white where they are. The curve upstream's hardware ramp applied at scan-out, which SDL3
@@ -200,6 +222,11 @@ RTX_SHADER vec3 encodeSrgb(vec3 linear)
 RTX_SHADER vec3 decodeSrgb(vec3 encoded)
 {
     return vec3(decodeSrgb(encoded.x), decodeSrgb(encoded.y), decodeSrgb(encoded.z));
+}
+
+RTX_SHADER vec3 displayBlendShare(vec3 glow, float alpha)
+{
+    return vec3(displayBlendShare(glow.x, alpha), displayBlendShare(glow.y, alpha), displayBlendShare(glow.z, alpha));
 }
 
 RTX_SHADER vec3 displayGamma(vec3 encoded, float inverseGamma)

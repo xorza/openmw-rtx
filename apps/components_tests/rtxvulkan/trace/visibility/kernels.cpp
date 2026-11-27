@@ -249,7 +249,10 @@ namespace Rtx
             // it, 94 and 128 registers in every tuple, the trace's own 80 where it has no sea with 1152 bytes of
             // shared memory. Measured again under 620.73.04, where `direct` keeps 3456 bytes in shared memory with the
             // maps and 2688 without, `panes` up to 80 of a lane's local memory, and the bounce with the maps 112
-            // registers and 96 with a relief.
+            // registers and 96 with a relief. The landing with 896 bytes of shared memory since a see-through surface's
+            // glow is weighted as a blend in display values draws it: a spill held in shared memory, which no bench
+            // showed
+            // (`docs/research/2026-11-14-nvidia-register-spills.md`).
             // `fog integrate` holds its column depths, floats a thread read at an index the tent's loop leaves
             // unrolled, which the compiler keeps in shared memory and not a lane's local memory. `lamp lists`
             // holds its tile's tables, three words a lamp a tile's rays can reach and the list,
@@ -261,7 +264,7 @@ namespace Rtx
                 { "direct", { .mMaps = false }, { 0, 96, 2688 } },
                 { "media", {}, { 0, 128, 5504 } },
                 { "panes", {}, { 80, 128, 6272 } },
-                { "landing", {}, { 0, 96, 384 } },
+                { "landing", {}, { 0, 96, 896 } },
                 { "bounce", { .mMaps = false }, { 0, 80, 0 } },
                 { "bounce", { .mMaps = true }, { 0, 96, 896 } },
                 { "bounce", { .mMaps = true, .mRelief = false }, { 0, 112, 0 } },

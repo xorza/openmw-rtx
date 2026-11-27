@@ -323,15 +323,20 @@ namespace Rtx::Shaders
     const uint MATERIAL_NO_LAMPS = 0x100000u;
 
     /// The surface is a blended mask — `Rtx::Material::isSoftEdged`: a blend over what is behind it,
-    /// with no test of its own, whose texture reaches solid. The eye meets a texel its
-    /// `mAlphaReference` would drop with a chance of its alpha (`cutAt`), so the frames average to
-    /// the blend `objects.frag` draws, and every other ray keeps the cut.
+    /// whose texture reaches solid. The eye meets a texel `ALPHA_BLEND_CUTOFF` would drop with a
+    /// chance of its alpha, down to `mAlphaReference` (`cutAt`), so the frames average to the blend
+    /// `objects.frag` draws, and every other ray keeps the cut.
     const uint MATERIAL_SOFT_EDGE = 0x200000u;
 
     /// What a pane is cut at, and the least a soft edge's dither cuts at: half a step of an 8-bit alpha.
     /// **A blend draws a texel of alpha nought as nothing**, so such a texel is a hole to every ray,
     /// exactly; a filtered sample below half a step covers less than the display resolves.
     const float ALPHA_PANE_CUTOFF = 0.5f / 255.0f;
+
+    /// What a blended mask is cut at, for every ray but the eye's on a soft edge: a mask is solid
+    /// wherever its paint is, so the cut and the blend differ only along its fringe, and half splits
+    /// that fringe evenly between the leaf and the hole.
+    const float ALPHA_BLEND_CUTOFF = 0.5f;
 
     /// The same colour replaces this material's glow instead — `Rtx::VertexColour::Glow`. The
     /// light mode that goes with it already took the diffuse and the ambient to nought, so such a
@@ -972,6 +977,10 @@ namespace Rtx::Shaders
         /// The alpha test's reference, which the sides in `mFlags` (`MATERIAL_ALPHA_PASSES_SHIFT`) pass
         /// on. The mode does not survive the trip: a cutout costs traversal one comparison and a
         /// material that wants none passes on every side; the build settles which instances stop.
+        ///
+        /// **On a soft edge, the least alpha its eye meets** (`Material::getSoftEdgeFloor`), its cut
+        /// being `ALPHA_BLEND_CUTOFF` for every soft edge: one float a row, where a second would grow
+        /// every row traversal reads by sixteen bytes.
         float mAlphaReference;
 
         /// How much of the surface is there, or one for a surface that is all there. **The mode does

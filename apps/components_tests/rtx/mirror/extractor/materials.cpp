@@ -301,8 +301,10 @@ namespace Rtx::Testing
         /// an alpha test.
         ///
         /// **The texture's alpha decides between a cut and a pane.** A mask stays a cut however soft its fringe; a
-        /// texture that never reaches solid is no mask (the Imperial lantern's glass peaks at 119). A test cuts at
-        /// its reference whatever the texture holds; a file nothing here reads is a cut.
+        /// texture that never reaches solid is no mask (the Imperial lantern's glass peaks at 119). A test of the
+        /// content's own only takes texels away, as `objects.frag` discards and then blends the rest: a pane under
+        /// one stays a pane, cut at the test where it drops more than the pane's own cut. A file nothing here reads
+        /// is a cut.
         TEST_F(RtxSceneExtractorTest, aBlendIsACutWhereItsTextureIsAMaskAndAPaneWhereItNeverCloses)
         {
             Rtx::SceneIdentities identities;
@@ -313,26 +315,27 @@ namespace Rtx::Testing
                 return image;
             };
 
-            const auto extractOne = [&identities](bool blend, osg::Image* image, float test = 0.0f) {
-                osg::ref_ptr<osg::Geometry> quad = makeQuad();
-                osg::StateSet& state = *quad->getOrCreateStateSet();
-                if (image != nullptr)
-                    paint(state, *image);
-                else
-                    paint(state, "textures/tx_leaves.dds");
-                if (blend)
-                    state.setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON);
-                if (test > 0.0f)
-                    state.setAttributeAndModes(new osg::AlphaFunc(osg::AlphaFunc::GREATER, test));
+            const auto extractOne
+                = [&identities](bool blend, osg::Image* image, std::optional<float> test = std::nullopt) {
+                      osg::ref_ptr<osg::Geometry> quad = makeQuad();
+                      osg::StateSet& state = *quad->getOrCreateStateSet();
+                      if (image != nullptr)
+                          paint(state, *image);
+                      else
+                          paint(state, "textures/tx_leaves.dds");
+                      if (blend)
+                          state.setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON);
+                      if (test.has_value())
+                          state.setAttributeAndModes(new osg::AlphaFunc(osg::AlphaFunc::GREATER, *test));
 
-                Rtx::SceneDesc scene(identities);
-                WalkContext context{};
-                SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
-                extractor.extract(*quad, osg::Matrixf::identity(), 0);
+                      Rtx::SceneDesc scene(identities);
+                      WalkContext context{};
+                      SceneExtractor extractor(scene, context, sSubjectExtractorRoom, HoldTier::Shown);
+                      extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
-                EXPECT_EQ(scene.materials().getRows().size(), 1u);
-                return scene.materials().getRows().items().front();
-            };
+                      EXPECT_EQ(scene.materials().getRows().size(), 1u);
+                      return scene.materials().getRows().items().front();
+                  };
 
             const Rtx::Material unread = extractOne(true, nullptr);
             EXPECT_EQ(unread.mAlphaMode, AlphaMode::Blend);
@@ -347,7 +350,7 @@ namespace Rtx::Testing
             const Rtx::Material leaf = extractOne(true, leaves);
             EXPECT_FALSE(leaf.isTranslucent()) << "a mask with a soft fringe is cut";
             EXPECT_TRUE(leaf.getTraversed().mCutout);
-            EXPECT_EQ(leaf.getAlphaTest().mReference, Material::sBlendCutoff);
+            EXPECT_EQ(leaf.getAlphaTest().mReference, Shaders::ALPHA_BLEND_CUTOFF);
 
             osg::ref_ptr<osg::Image> glass = imageOf({ 119, 102, 119, 0 });
             const Rtx::Material pane = extractOne(true, glass);
@@ -358,8 +361,15 @@ namespace Rtx::Testing
             EXPECT_FALSE(pane.getTraversed().placedAt(1.0f).mCutout);
 
             const Rtx::Material tested = extractOne(true, glass, 0.5f);
-            EXPECT_FALSE(tested.isTranslucent()) << "a test cuts whatever the texture holds";
-            EXPECT_EQ(tested.getAlphaTest().mReference, 0.5f);
+            EXPECT_TRUE(tested.isTranslucent()) << "a test takes texels away, and the rest are a pane";
+            EXPECT_EQ(tested.getAlphaTest().mReference, 0.5f) << "cut at the test, which drops more";
+
+            // A Dunmer Lanterns Replacer glow card: a blend under `GREATER` nought, which cut at its test was a
+            // solid sheet of every texel over nought.
+            const Rtx::Material card = extractOne(true, glass, 0.0f);
+            EXPECT_TRUE(card.isTranslucent());
+            EXPECT_EQ(card.getAlphaTest().mReference, Shaders::ALPHA_PANE_CUTOFF)
+                << "the test drops less than the pane's own cut";
 
             // The ring's reader hands over the same facts with its reading.
             PreparedModel model;

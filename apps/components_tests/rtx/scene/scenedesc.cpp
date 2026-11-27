@@ -590,27 +590,60 @@ namespace Rtx
             EXPECT_EQ(lantern.getAlphaTest().mReference, Shaders::ALPHA_PANE_CUTOFF)
                 << "what its blend draws as nothing is a hole";
             EXPECT_EQ(pane.getAlphaTest().mReference, Shaders::ALPHA_PANE_CUTOFF);
-            EXPECT_EQ(leaf.getAlphaTest().mReference, Material::sBlendCutoff);
+            EXPECT_EQ(leaf.getAlphaTest().mReference, Shaders::ALPHA_BLEND_CUTOFF);
+            EXPECT_EQ(leaf.getSoftEdgeFloor(), Shaders::ALPHA_PANE_CUTOFF) << "down to where its blend draws nothing";
 
             // **The leaf is soft-edged, and nothing beside it is**: the eye meets the texels its cut
             // drops by their alpha, and every other ray keeps the cut its alpha test says. A pane is see-through
-            // everywhere already, an untextured blend has no texel to read, and a test the content
-            // asked for is the rasterizer's discard.
+            // everywhere already, and an untextured blend has no texel to read.
             EXPECT_TRUE(leaf.isSoftEdged());
             EXPECT_FALSE(pane.isSoftEdged()) << "a material alpha below one is a pane for every ray";
             EXPECT_FALSE(lantern.isSoftEdged()) << "a texture that never closes is a pane for every ray";
             EXPECT_FALSE((Material{ .mAlphaMode = AlphaMode::Blend }.isSoftEdged())) << "no texel to composite";
 
+            // **A test of the content's own only takes texels away**: `objects.frag` discards what fails it and
+            // blends the rest at its alpha, so a pane stays a pane and a mask a soft edge under one, and a test
+            // that drops only what is under its reference raises the cut where it stands over the blend's.
             const Material testedWisp{ .mDiffuse = texture,
                 .mAlphaTest = { .mReference = 0.3f },
                 .mAlphaMode = AlphaMode::Blend,
                 .mDiffuseNeverSolid = true };
-            EXPECT_FALSE(testedWisp.isTranslucent()) << "a test cuts at its reference";
-            EXPECT_EQ(testedWisp.getAlphaTest().mReference, 0.3f);
-            EXPECT_FALSE(
-                (Material{ .mDiffuse = texture, .mAlphaTest = { .mReference = 0.3f }, .mAlphaMode = AlphaMode::Blend }
-                        .isSoftEdged()))
-                << "a test cuts at its reference for the eye as well";
+            EXPECT_TRUE(testedWisp.isTranslucent()) << "a pane under a test is a pane";
+            EXPECT_EQ(testedWisp.getAlphaTest().mReference, 0.3f) << "cut at the test, which drops more";
+
+            const Material glowCard{ .mDiffuse = texture,
+                .mAlphaTest = { .mReference = 0.0f, .mPasses = Shaders::ALPHA_PASSES_ABOVE },
+                .mAlphaMode = AlphaMode::Blend,
+                .mDiffuseNeverSolid = true };
+            EXPECT_TRUE(glowCard.isTranslucent()) << "a glow card under `GREATER` nought, which was a solid sheet";
+            EXPECT_EQ(glowCard.getAlphaTest(),
+                (AlphaTest{ .mReference = Shaders::ALPHA_PANE_CUTOFF, .mPasses = Shaders::ALPHA_PASSES_ABOVE }))
+                << "the test drops less than the pane's own cut, on the side it passes";
+
+            const Material testedLeaf{
+                .mDiffuse = texture, .mAlphaTest = { .mReference = 0.3f }, .mAlphaMode = AlphaMode::Blend
+            };
+            EXPECT_TRUE(testedLeaf.isSoftEdged()) << "a mask under a test keeps the fringe the test passes";
+            EXPECT_EQ(testedLeaf.getAlphaTest(), AlphaTest{ .mReference = Shaders::ALPHA_BLEND_CUTOFF });
+            EXPECT_EQ(testedLeaf.getSoftEdgeFloor(), 0.3f) << "and the eye meets nothing the test drops";
+            const Material greaterLeaf{ .mDiffuse = texture,
+                .mAlphaTest = { .mReference = 0.3f, .mPasses = Shaders::ALPHA_PASSES_ABOVE },
+                .mAlphaMode = AlphaMode::Blend };
+            EXPECT_EQ(greaterLeaf.getAlphaTest(),
+                (AlphaTest{ .mReference = Shaders::ALPHA_BLEND_CUTOFF, .mPasses = Shaders::ALPHA_PASSES_ABOVE }))
+                << "on the sides the content's test passes, so a texel on its floor is dropped";
+
+            const Material highLeaf{
+                .mDiffuse = texture, .mAlphaTest = { .mReference = 0.75f }, .mAlphaMode = AlphaMode::Blend
+            };
+            EXPECT_FALSE(highLeaf.isSoftEdged()) << "a test over the mask's cut leaves no fringe";
+            EXPECT_EQ(highLeaf.getAlphaTest(), highLeaf.mAlphaTest);
+
+            const Material keepsUnder{ .mDiffuse = texture,
+                .mAlphaTest = { .mReference = 0.3f, .mPasses = Shaders::ALPHA_PASSES_BELOW },
+                .mAlphaMode = AlphaMode::Blend };
+            EXPECT_FALSE(keepsUnder.isSoftEdged()) << "a test that keeps what is under it folds into no cut";
+            EXPECT_EQ(keepsUnder.getAlphaTest(), keepsUnder.mAlphaTest);
 
             const Material addsWisp{ .mDiffuse = texture,
                 .mAlphaMode = AlphaMode::Blend,

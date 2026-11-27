@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <optional>
 
@@ -247,14 +249,13 @@ namespace Rtx
         /// frame and usually says exactly what it said last time.
         bool operator==(const Material& other) const = default;
 
-        /// What a blended material is cut at when it named no threshold of its own and is no pane:
-        /// a mask, solid wherever its paint is, so the cut and the blend differ only along its
-        /// fringe, and half splits that fringe evenly between the leaf and the hole.
-        static constexpr float sBlendCutoff = 0.5f;
-
         /// The test a texel is a hole by, or one that passes every alpha where the surface has
-        /// none. A blended material that never asked for a test is cut at least `sBlendCutoff`,
-        /// because that is where the game keeps its foliage, or `Shaders::ALPHA_PANE_CUTOFF` where it is a pane.
+        /// none. A blend is cut at `Shaders::ALPHA_PANE_CUTOFF` where it is a pane and at
+        /// `Shaders::ALPHA_BLEND_CUTOFF` where it is a mask, because that is where the game keeps its
+        /// foliage — or at the content's own test where that cuts more (`foldsTest`), and at the
+        /// content's own test alone where it cuts otherwise. **On the sides the content's test passes**
+        /// where the two fold: a soft edge's floor is that test's reference (`getSoftEdgeFloor`), and a
+        /// texel standing on it under `GREATER` is one the content drops.
         AlphaTest getAlphaTest() const
         {
             switch (mAlphaMode)
@@ -264,11 +265,37 @@ namespace Rtx
                 case AlphaMode::Cutout:
                     return mAlphaTest;
                 case AlphaMode::Blend:
-                    return mAlphaTest.cuts()
+                {
+                    const AlphaTest blends{ .mReference
+                        = isTranslucent() ? Shaders::ALPHA_PANE_CUTOFF : Shaders::ALPHA_BLEND_CUTOFF };
+                    if (!mAlphaTest.cuts())
+                        return blends;
+                    if (!foldsTest())
+                        return mAlphaTest;
+                    return mAlphaTest.mReference >= blends.mReference
                         ? mAlphaTest
-                        : AlphaTest{ .mReference = isTranslucent() ? Shaders::ALPHA_PANE_CUTOFF : sBlendCutoff };
+                        : AlphaTest{ .mReference = blends.mReference, .mPasses = mAlphaTest.mPasses };
+                }
             }
             return AlphaTest{ .mPasses = Shaders::ALPHA_PASSES_ALL };
+        }
+
+        /// The least alpha the eye meets of a soft edge (`isSoftEdged`), whose cut is
+        /// `Shaders::ALPHA_BLEND_CUTOFF`: where its blend draws nothing, or what the content's own test
+        /// drops, whichever is more.
+        float getSoftEdgeFloor() const
+        {
+            assert(isSoftEdged());
+            return mAlphaTest.cuts() ? std::max(mAlphaTest.mReference, Shaders::ALPHA_PANE_CUTOFF)
+                                     : Shaders::ALPHA_PANE_CUTOFF;
+        }
+
+        /// Whether the content's own test drops only what stands under its reference (`GREATER`,
+        /// `GEQUAL`), the kind of cut a blend makes of its own, so the two are one test: the higher.
+        bool foldsTest() const
+        {
+            return (mAlphaTest.mPasses & Shaders::ALPHA_PASSES_BELOW) == 0u
+                && (mAlphaTest.mPasses & Shaders::ALPHA_PASSES_ABOVE) != 0u;
         }
 
         /// Every texture slot this material names in its own right, each once, whichever of them
@@ -334,8 +361,14 @@ namespace Rtx
         /// mode. A mask is solid wherever its paint is, so a cut at a half differs from the blend
         /// along its fringe alone, and a cut is what traversal resolves cheaply. A texture that
         /// never reaches solid is no mask: the lantern's glass peaks at 119, and a cut drops all of
-        /// it. So a material alpha below one, or such a texture with no test, is a pane. A test cuts
-        /// at its reference. An additive surface is neither: it covers nothing.
+        /// it. So a material alpha below one, or such a texture, is a pane. An additive surface is
+        /// neither: it covers nothing.
+        ///
+        /// **A test of the content's own only takes texels away**: `objects.frag` discards what fails
+        /// it and blends the rest at its alpha, so a pane or a mask stays one under it, and the test
+        /// raises the cut where it stands over the blend's (`getAlphaTest`). A mod's glow card blends
+        /// a texture that never closes under a test of alpha over nought, and cut there it was a
+        /// solid sheet glowing whole.
         ///
         /// **A mask's soft fringe stays a cut for every ray but the eye's** (`isSoftEdged`): traced
         /// as panes, the soft edges of every DXT3 leaf, banner and rope turned the trace's sun and
@@ -343,20 +376,22 @@ namespace Rtx
         bool isTranslucent() const
         {
             return mAlphaMode == AlphaMode::Blend && mBlend == BlendKind::Over
-                && (mOpacity < 1.0f || (!mAlphaTest.cuts() && mDiffuseNeverSolid));
+                && (mOpacity < 1.0f || mDiffuseNeverSolid);
         }
 
-        /// Whether this is a blended mask: a blend over what is behind it, with no test of its own and
-        /// a material alpha of one, whose texture reaches solid — every leaf card, banner, rope and
-        /// sail the game ships, and a cobweb or a crystal that is solid anywhere at all. Cut at
-        /// `sBlendCutoff` for every ray but the eye's: **the eye meets a texel the cut drops with a
-        /// chance of its alpha** (`Shaders::MATERIAL_SOFT_EDGE`), so the frames average to the blend
-        /// the rasterizer draws; what it meets is the solid it is. A light ray keeps the cut, which is
-        /// noiseless and cheap.
+        /// Whether this is a blended mask: a blend over what is behind it with a material alpha of one,
+        /// whose texture reaches solid — every leaf card, banner, rope and sail the game ships, and a
+        /// cobweb or a crystal that is solid anywhere at all. Cut at `Shaders::ALPHA_BLEND_CUTOFF` for
+        /// every ray but the eye's: **the eye meets a texel the cut drops with a chance of its alpha**
+        /// (`Shaders::MATERIAL_SOFT_EDGE`), down to `getSoftEdgeFloor`, so the frames average to the
+        /// blend the rasterizer draws; what it meets is the solid it is. A light ray keeps the cut,
+        /// which is noiseless and cheap. Under a test of the content's own that drops more than the
+        /// cut, or that keeps what is under it, there is no fringe to draw, and the test is the cut.
         bool isSoftEdged() const
         {
-            return mAlphaMode == AlphaMode::Blend && mBlend == BlendKind::Over && !mAlphaTest.cuts() && mOpacity >= 1.0f
-                && !mDiffuseNeverSolid && mDiffuse != sNoRow;
+            return mAlphaMode == AlphaMode::Blend && mBlend == BlendKind::Over && mOpacity >= 1.0f
+                && !mDiffuseNeverSolid && mDiffuse != sNoRow
+                && (!mAlphaTest.cuts() || (foldsTest() && mAlphaTest.mReference < Shaders::ALPHA_BLEND_CUTOFF));
         }
 
         /// Whether the eye passes through this rather than meeting it: a medium, not a surface.

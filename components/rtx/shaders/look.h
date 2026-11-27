@@ -372,6 +372,16 @@ namespace Rtx::Shaders
     /// light even so**: its `LIGH` lamp already lights for it (`INSTANCE_LAMP_BODY`).
     const float EMISSIVE_INTENSITY = 8.0f;
 
+    /// What an emissive of one is worth on a layer the eye sees through, a pane's glow and a medium's:
+    /// one, the original's own number, and not `EMISSIVE_INTENSITY`.
+    ///
+    /// **A layer's glow is painted light the content composites by its alpha** — the halo a lantern's card
+    /// stands around its flame, the orbs on the Ghostfence — and the rasterizer drew it at one over rooms
+    /// its flat ambient lit. Here a room is as dark as its lamps leave it and the exposure lifts it, so at
+    /// `EMISSIVE_INTENSITY` the layer washes to white: the Ghostfence lost its orbs, and a Dunmer Lanterns
+    /// Replacer glow card stood out as a card where the mod's own pictures show a faint halo.
+    const float LAYER_GLOW_INTENSITY = 1.0f;
+
     /// What light on the far side of a leaf is worth to the side being looked at, against the same
     /// light on the near side.
     ///
