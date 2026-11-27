@@ -69,7 +69,8 @@ namespace Rtx::Shaders
     const uint ACCUMULATE_BIND_FAST_OUT = 12;
     const uint ACCUMULATE_BIND_MATCH_OUT = 13;
     const uint ACCUMULATE_BIND_EXPOSURE = 14;
-    const uint ACCUMULATE_BINDINGS = 15;
+    const uint ACCUMULATE_BIND_LAMP_CHANGES = 15;
+    const uint ACCUMULATE_BINDINGS = 16;
 
     /// Threads along each edge of the accumulator's workgroup, and of the clamp's.
     const uint ACCUMULATE_WORKGROUP = 8;
@@ -215,6 +216,10 @@ namespace Rtx::Shaders
         /// The longest history a pixel keeps, in frames: `ACCUMULATE_SECONDS` at this frame's rate
         /// (`Rtx::HistoryLength`).
         float mHistoryFrames;
+
+        /// How many of the lamp changes bound beside the images the frame reads (`Rtx::LampChanges`), nought
+        /// where the run asked for the A/B without them (`FilterSwitches::mLampMotion`).
+        uint mLampChanges;
     };
 
     /// The luminance a slow mean `lit` keeps under the fast means around it: no more than the mean of
@@ -276,7 +281,7 @@ namespace Rtx::Shaders
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(HistoryConstants) == 224, "HistoryConstants must be scalar-packed on every side");
-    static_assert(sizeof(AccumulateConstants) == 236, "AccumulateConstants must be scalar-packed on every side");
+    static_assert(sizeof(AccumulateConstants) == 240, "AccumulateConstants must be scalar-packed on every side");
     static_assert(
         sizeof(AccumulateClampConstants) == 160, "AccumulateClampConstants must be scalar-packed on every side");
     static_assert(ACCUMULATE_RING_REACH >= ACCUMULATE_CLAMP_REACH && ACCUMULATE_RING_HOLE < ACCUMULATE_RING_REACH,

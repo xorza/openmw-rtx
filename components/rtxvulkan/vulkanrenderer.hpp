@@ -14,6 +14,7 @@
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/framepast.hpp>
+#include <components/rtx/frame/lampchanges.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -264,6 +265,10 @@ namespace Rtx
         DisplayChain mDisplay;
 
         TraceMedia mMedia;
+
+        /// The world's lamps as each placement left them, and as the last frame was traced under: what the
+        /// bounce's history is dropped by where a lamp moved.
+        LampChanges mLampChanges;
 
         /// After the passes above, which every scene holds by reference.
         SceneSlots mScenes;

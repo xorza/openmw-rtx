@@ -363,12 +363,24 @@ namespace Rtx
                 ReconstructionRequest{ .mFilters = { .mAntiFirefly = false } }, sUnscaled)
                     .mFilters.mAntiFirefly);
             EXPECT_FALSE(Reconstruction::forPicture().mFilters.mAntiFirefly);
+            EXPECT_TRUE(ReconstructionRequest{}.mFilters.mLampMotion);
+            EXPECT_TRUE(
+                Reconstruction::resolve(Upscale::Off, UpscalerInput::Filtered, ReconstructionRequest{}, sUnscaled)
+                    .mFilters.mLampMotion);
+            EXPECT_FALSE(Reconstruction::resolve(Upscale::Off, UpscalerInput::Filtered,
+                ReconstructionRequest{ .mFilters = { .mLampMotion = false } }, sUnscaled)
+                    .mFilters.mLampMotion);
+            EXPECT_FALSE(Reconstruction::forPicture().mFilters.mLampMotion);
 
             // **An unfiltered request keeps what the trace reads and nothing the filters read**: a
             // request with every filter switch turned from its default is the default request once
             // unfiltered, and one switch the trace reads keeps two apart.
-            const ReconstructionRequest turned{ .mFilters
-                = { .mAntilag = false, .mHistoryFix = false, .mDualMotion = false, .mAntiFirefly = false } };
+            const ReconstructionRequest turned{ .mFilters = { .mAntilag = false,
+                                                    .mHistoryFix = false,
+                                                    .mDualMotion = false,
+                                                    .mAntiFirefly = false,
+                                                    .mLampMotion = false,
+                                                    .mHistorySeconds = 0.5f } };
             EXPECT_FALSE(turned.unfiltered().mDenoise);
             EXPECT_EQ(turned.unfiltered(), ReconstructionRequest{}.unfiltered());
             for (const ReconstructionRequest& traced :

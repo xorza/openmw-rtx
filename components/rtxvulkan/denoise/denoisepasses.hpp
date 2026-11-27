@@ -1,10 +1,12 @@
 #pragma once
 
 #include <optional>
+#include <span>
 
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 
@@ -60,6 +62,9 @@ namespace Rtx
 
             /// How long since the frame before was traced, in seconds (`TraceRecording::mSinceLast`).
             float mSinceLast;
+
+            /// The lamps that changed since the frame before (`TraceRecording::mLampChanges`).
+            std::span<const Shaders::GpuLampChange> mLampChanges;
         };
 
         /// Records every pass over `buffer`, which must have been handed over, and hands back where

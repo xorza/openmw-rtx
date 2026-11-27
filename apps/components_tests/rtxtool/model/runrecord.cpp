@@ -190,6 +190,7 @@ namespace RtxTool
                     .mHistoryFix = false,
                     .mDualMotion = true,
                     .mAntiFirefly = true,
+                    .mLampMotion = false,
                     .mHistorySeconds = 0.5f },
                 .mSoftEdgeDither = false };
             header.mValidating = true;
@@ -203,8 +204,8 @@ namespace RtxTool
                 + ", layers on, not a figure to quote, not measured, every frame hashed, the weather turned\n"
                   "     1920x1080 from 960x540, upscale performance, filter off, jitter on, noise white-hash, "
                   "level bias -1.000, antilag on, history 0.5 s, history fix off, dual motion on, anti-firefly on, "
-                  "shadow floor 0.0625, lamp candidates 4, indirect off, bounce rays 3, relief off, soft edge "
-                  "dither off, water interleave on\n"
+                  "lamp motion off, shadow floor 0.0625, lamp candidates 4, indirect off, bounce rays 3, relief off, "
+                  "soft edge dither off, water interleave on\n"
                   "     gamma 2.20, show albedo, exposure fixed at 1.500, variants off, hold 8.0 ms\n"
                   "     land 4.0 cells, viewing distance 7168, distant statics off, maps player, step 0.0625 s, "
                   "walks streamed, memory budget 512.0 MiB, cache budget 256.0 MiB, host pages ";
@@ -331,7 +332,8 @@ namespace RtxTool
             EXPECT_NE(json.find(mirror), std::string::npos) << json;
             EXPECT_NE(
                 json.find(R"("antilag": true, "historySeconds": 0.500, "historyFix": false, "dualMotion": true, )"
-                          R"("antiFirefly": true, "shadowFloor": 0.0625, "lampCandidates": 4, "indirect": false, )"
+                          R"("antiFirefly": true, "lampMotion": false, "shadowFloor": 0.0625, "lampCandidates": 4, )"
+                          R"("indirect": false, )"
                           R"("bounceRays": 3, "relief": false,)"),
                 std::string::npos)
                 << json;

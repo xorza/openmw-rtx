@@ -128,6 +128,11 @@ namespace Rtx
         /// 2.60 against 1.90 under the ring alone).
         bool mAntiFirefly = true;
 
+        /// Whether the accumulator drops its history where a lamp that moved, came or went changed the light
+        /// (`Rtx::LampChanges`), so the bounce follows a lamp carried through a room and is not dragged behind
+        /// it. On unless a run names it off, which is the A/B.
+        bool mLampMotion = true;
+
         /// The longest history the accumulator keeps of the bounce, in seconds (`ACCUMULATE_SECONDS`), which a
         /// run names for the A/B.
         float mHistorySeconds = Shaders::ACCUMULATE_SECONDS;
@@ -137,7 +142,7 @@ namespace Rtx
 
     /// Every filter switch off: a picture's, which has no previous frame to hold a history to.
     inline const FilterSwitches sNoFilterSwitches{
-        .mAntilag = false, .mHistoryFix = false, .mDualMotion = false, .mAntiFirefly = false
+        .mAntilag = false, .mHistoryFix = false, .mDualMotion = false, .mAntiFirefly = false, .mLampMotion = false
     };
 
     /// What a frame asks of the reconstruction, before the upscaler has its say.

@@ -681,6 +681,11 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   mean, a disoccluded surface taking the occluder's history (Zeng et al.'s dual motion vector), NRD's history fix,
   then SVGF's and ReLAX's wavelet. The composite puts the bounce back by the diffuse albedo, as the rasterizer's
   `D × lit + A × ambient`.
+- **Where a lamp moved, came or went, the bounce's history is dropped by how much of the lamp's light changed there**,
+  A-SVGF's antilag (Schied et al. 2018) with a gradient the host knows of exactly, from the two frames' lamps matched by
+  place and not by index. Refused: the clamp alone, whose box is as wide as a frame's noise and let through the small
+  change of a lamp carried at a walk; A-SVGF's gradients re-shaded from the samples, which would trace again what the
+  host already knows.
 - **The shadows**: FidelityFX's Shadow Denoiser over the sky's source and the lamps apart, its reach the penumbra's
   (SIGMA). **The glossy light and the layers**: temporal filters holding a slow mean.
 - **A rare bright bounce is held to a ceiling of the frame's white and the rest dropped**, as Lumen's `MaxRayIntensity`

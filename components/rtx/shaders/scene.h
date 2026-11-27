@@ -614,6 +614,84 @@ namespace Rtx::Shaders
         return ((traits >> LIGHT_CLASS_SHIFT) & rayMask) != 0u ? 1.0f : 0.0f;
     }
 
+    /// The size a lamp's singularity is softened by: its own extent, and one unit where it carries less.
+    ///
+    /// **The lamp's own extent, because that is what a lamp is.** An inverse square is a point's field and runs
+    /// away within a flame's own radius, drawing a hard bright bead in the fog beside a lamp; a sphere's
+    /// irradiance flattens inside its own surface instead.
+    RTX_SHADER float lampSoftening(float source)
+    {
+        return max(source, 1.0f);
+    }
+
+    /// How much of a light `distance` away arrives, per unit intensity.
+    RTX_SHADER float falloff(float distance, float reach, float source)
+    {
+        const float ratio = distance / reach;
+        const float window = clamp(1.0f - ratio * ratio * ratio * ratio, 0.0f, 1.0f);
+        const float held = lampSoftening(source);
+
+        return window * window / (distance * distance + held * held);
+    }
+
+    /// How many lamp changes one frame tells the accumulator of (`Rtx::LampChanges`): past it the nearest the
+    /// eye are kept.
+    const uint LAMP_CHANGES_MOST = 16u;
+
+    /// Where a lamp stood or stands, relative to the eye of the frame told of it, as far as a lamp change
+    /// needs it: how far it reaches, nought where there was no lamp, and its source's radius
+    /// (`GpuLight::mSourceRadius`).
+    struct GpuLampSphere
+    {
+        vec3 mCentre;
+        float mReach;
+        float mSource;
+    };
+
+    /// One lamp that moved, came or went between the lights the bounce's history was written under and those
+    /// the frame is traced under: where it stood, and where it stands.
+    struct GpuLampChange
+    {
+        GpuLampSphere mFrom;
+        GpuLampSphere mTo;
+    };
+
+    /// The lamp's light per unit intensity a squared distance `squared` from its centre, without its
+    /// window: what `lampChangeShare` measures a change against. Nought where there is no lamp.
+    RTX_SHADER float lampUnwindowed(GpuLampSphere sphere, float squared)
+    {
+        const float held = lampSoftening(sphere.mSource);
+        return sphere.mReach > 0.0f ? 1.0f / (squared + held * held) : 0.0f;
+    }
+
+    /// The same with its window: `falloff`. Nought where there is no lamp.
+    RTX_SHADER float lampWindowed(GpuLampSphere sphere, float squared)
+    {
+        return sphere.mReach > 0.0f ? falloff(sqrt(squared), sphere.mReach, sphere.mSource) : 0.0f;
+    }
+
+    /// How much of the light `change`'s lamp casts at `at`, relative to the eye, changed, as a share of
+    /// what the nearer of its two places would cast there without the window: one where it came or went
+    /// at its middle, falling to nought at its reach, and where it moved, about twice how far it moved over
+    /// how far `at` stands from it, which is the share of a lamp's light a frame's step changes.
+    ///
+    /// **Against the light without the window, and not against the light**: the window falls to nought at
+    /// the reach, so a lamp whose reach breathed by a hundredth changed nearly all of the little light it
+    /// casts at its rim, and the whole rim's history would be dropped every frame. A glow's ball does
+    /// that (`Rtx::Glow::makeLight`).
+    RTX_SHADER float lampChangeShare(GpuLampChange change, vec3 at)
+    {
+        const vec3 fromOffset = at - change.mFrom.mCentre;
+        const vec3 toOffset = at - change.mTo.mCentre;
+        const float fromSquared
+            = fromOffset[0] * fromOffset[0] + fromOffset[1] * fromOffset[1] + fromOffset[2] * fromOffset[2];
+        const float toSquared = toOffset[0] * toOffset[0] + toOffset[1] * toOffset[1] + toOffset[2] * toOffset[2];
+
+        const float scale = max(lampUnwindowed(change.mFrom, fromSquared), lampUnwindowed(change.mTo, toSquared));
+        const float changed = abs(lampWindowed(change.mTo, toSquared) - lampWindowed(change.mFrom, fromSquared));
+        return scale > 0.0f ? changed / scale : 0.0f;
+    }
+
     /// Where the lamps were binned, so a shader can find the few that reach a point. **Carried in the
     /// frame's block** (`VisibilityConstants::mLightGrid`): a set of its own would cost a descriptor,
     /// a buffer per frame in flight and a storage read at every lamp lookup. A position outside the
@@ -1088,6 +1166,8 @@ namespace Rtx::Shaders
     static_assert(INSTANCE_LAMP_BODY > (MASK_EVERY_CLASS | MASK_ADDITIVE | MASK_MEDIUM),
         "the lamp body's bit stands above every ray mask's");
     static_assert(sizeof(GpuLight) == 40, "GpuLight must be scalar-packed on every side");
+    static_assert(sizeof(GpuLampSphere) == 20, "GpuLampSphere must be scalar-packed on every side");
+    static_assert(sizeof(GpuLampChange) == 40, "GpuLampChange must be scalar-packed on every side");
     static_assert(sizeof(GpuLightGrid) == 28, "GpuLightGrid must be scalar-packed on every side");
     static_assert(sizeof(GpuLightCell) == 16, "GpuLightCell must be scalar-packed on every side");
     static_assert(sizeof(GpuLayer) == 64, "GpuLayer must be scalar-packed on every side");

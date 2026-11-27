@@ -122,26 +122,6 @@ uvec2 lampRunOf(uvec2 reaching, bool lampLit)
     return frame.mNoLamps != 0u || !lampLit ? uvec2(0u) : lampsWithin(reaching);
 }
 
-/// The size a lamp's singularity is softened by: its own extent, and one unit where it carries less.
-///
-/// **The lamp's own extent, because that is what a lamp is.** An inverse square is a point's field and runs
-/// away within a flame's own radius, drawing a hard bright bead in the fog beside a lamp; a sphere's
-/// irradiance flattens inside its own surface instead.
-float lampSoftening(float source)
-{
-    return max(source, 1.0);
-}
-
-/// How much of a light `distance` away arrives, per unit intensity.
-float falloff(float distance, float reach, float source)
-{
-    const float ratio = distance / reach;
-    const float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
-    const float held = lampSoftening(source);
-
-    return window * window / (distance * distance + held * held);
-}
-
 /// The integral of `falloff` along a ray, over the stretch of it between `from` and `to`.
 ///
 /// **The same window and the same inverse square, integrated instead of sampled**: a froxel's whole share of

@@ -121,6 +121,8 @@ namespace Rtx
             .mFilters = reconstruction.mFilters,
             .mWrittenBefore = step.mWrittenBefore,
             .mHistoryFrames = history.historyFrames(request.mSinceLast, reconstruction.mFilters.mHistorySeconds),
+            .mLampChanges
+            = reconstruction.mFilters.mLampMotion ? request.mLampChanges : std::span<const Shaders::GpuLampChange>{},
             .mExposure = request.mExposure,
         };
 

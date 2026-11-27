@@ -1,10 +1,12 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
 
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
@@ -58,6 +60,10 @@ namespace Rtx
         /// How long since the frame before was traced, in seconds of the host's clock, or nought where
         /// nothing measured it (`FrameOptions::mSinceLast`): what the bounce's history spans in frames.
         float mSinceLast = 0.0f;
+
+        /// The lamps that changed since the frame before was traced (`Rtx::LampChanges::spend`), relative to the
+        /// eye, which the accumulator drops its history by: none for a picture, which keeps no history.
+        std::span<const Shaders::GpuLampChange> mLampChanges{};
 
         /// Whether the camera has no past to reproject from: a picture never has one, and a frame
         /// after a jump no motion vector can describe has lost it. Then `mSampled` carries a basis

@@ -110,6 +110,8 @@ namespace RtxTool
                 [](const Value& value, Request& request) { request.mFilters.mDualMotion = value.as<bool>(); } },
             { "antifirefly",
                 [](const Value& value, Request& request) { request.mFilters.mAntiFirefly = value.as<bool>(); } },
+            { "lamp-motion",
+                [](const Value& value, Request& request) { request.mFilters.mLampMotion = value.as<bool>(); } },
             { "history-seconds",
                 [](const Value& value, Request& request) { request.mFilters.mHistorySeconds = value.as<float>(); } },
         } };
@@ -606,6 +608,13 @@ namespace RtxTool
                         "the light around it, so a bounce that found a small bright thing is not a speck. Off is the "
                         "A/B",
                 Rtx::Shaders::ACCUMULATE_FIREFLY_CEILING, Rtx::Shaders::ACCUMULATE_RING_FRAMES));
+
+        option(sFramed, "lamp-motion",
+            bpo::value<bool>()
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mFilters.mLampMotion)
+                ->implicit_value(true),
+            "drop the denoiser's history of the bounce where a lamp that moved, came or went changed the light, so "
+            "the bounce follows a lamp carried through a room and is not dragged behind it. Off is the A/B");
 
         option(sFramed, "history-seconds",
             number(atLeast(0.0f, true))

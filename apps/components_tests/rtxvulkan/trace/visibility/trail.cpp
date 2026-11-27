@@ -1,7 +1,9 @@
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -12,6 +14,7 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/scenestander.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sceneidentities.hpp>
 #include <components/rtx/shaders/colour.h>
@@ -186,6 +189,142 @@ namespace Rtx::Testing
             EXPECT_LT(held.mLag, 0.75f * dragged.mLag) << "the clamp took little off the trail: " << dragged.mLag;
             EXPECT_LT(held.mTail, 0.9f);
             EXPECT_LT(held.mTail, dragged.mTail);
+        }
+
+        /// How the bounce of a lamp carried down a corridor follows it.
+        struct LampTrail
+        {
+            /// The light left where the lamp was, over the still picture of it where it stopped, in columns of
+            /// the still picture's brightest.
+            float mTail = 0.0f;
+
+            /// The root mean square of the green, over the still picture's brightest, of the moved picture
+            /// against the still one: the trail and the noise together.
+            float mError = 0.0f;
+        };
+
+        /// **A lamp carried down a corridor**, seen from above: a floor between two walls 60 units apart, lit by
+        /// nothing but a lamp of reach 150 30 units over it, which moves 4 units a frame for 40 frames after 32
+        /// still ones, a walk's pace at sixty frames. The lamp's own light follows it at once (the shadow
+        /// denoiser's), and what the walls bounce onto the floor is the accumulator's, which trails.
+        class RtxLampTrailTest : public RtxSettlingTest
+        {
+        protected:
+            /// The picture after `frames` frames with the lamp at `from`, moving from the 32nd where `moves`.
+            std::vector<float> pictureOf(
+                std::uint32_t frames, std::uint32_t first, bool moves, float from, const FilterSwitches& filters)
+            {
+                constexpr std::uint32_t still = 32;
+                constexpr float step = 4.0f;
+                std::vector<float> radiance;
+                for (std::uint32_t at = 0; at < frames; ++at)
+                {
+                    const float x = moves && at >= still ? from + step * static_cast<float>(at + 1 - still) : from;
+                    mScene->clearPlacement();
+                    mScene->addLight(Light{ .mPosition = osg::Vec3f(x, 0.0f, 30.0f),
+                        .mIntensity = osg::Vec3f(3000.0f, 3000.0f, 3000.0f),
+                        .mReach = 150.0f });
+                    Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), *mScene);
+                    mScene->placements().advance();
+
+                    Shaders::VisibilityConstants sampled = mCamera;
+                    sampled.mFrame = first + at;
+                    mProbe.traceFrame(sampled,
+                        FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
+                            .mReconstruction = ReconstructionRequest{ .mDenoise = true, .mFilters = filters },
+                            .mExposure = FixedExposure{ 1.0f } });
+                    EXPECT_TRUE(mRenderer.finishFrame().has_value());
+                }
+                mProbe.readComposite(radiance);
+                return radiance;
+            }
+
+            /// The green of each column of `radiance`, averaged over the rows the frame's edges leave alone.
+            static std::vector<float> columnsOf(const std::vector<float>& radiance)
+            {
+                std::vector<float> column(sSize);
+                for (std::uint32_t x = 0; x < sSize; ++x)
+                {
+                    float sum = 0.0f;
+                    for (std::uint32_t y = 12; y < sSize - 12; ++y)
+                        sum += radiance[(std::size_t{ y } * sSize + x) * 4 + 1];
+                    column[x] = sum / static_cast<float>(sSize - 24);
+                }
+                return column;
+            }
+
+            LampTrail trailOf(const FilterSwitches& filters)
+            {
+                constexpr float start = -80.0f;
+                const float end = start + 4.0f * 40.0f;
+                const std::vector<float> standing = pictureOf(96, 5000, false, end, filters);
+                const std::vector<float> moved = pictureOf(72, 100, true, start, filters);
+
+                const std::vector<float> standingColumns = columnsOf(standing);
+                const std::vector<float> movedColumns = columnsOf(moved);
+                const float peak = *std::max_element(standingColumns.begin(), standingColumns.end());
+
+                LampTrail trail;
+                for (std::uint32_t x = 0; x < sSize; ++x)
+                    trail.mTail += std::max(movedColumns[x] - standingColumns[x], 0.0f) / peak;
+                double squares = 0.0;
+                for (std::size_t value = 1; value < moved.size(); value += 4)
+                {
+                    const auto off = static_cast<double>(moved[value] - standing[value]);
+                    squares += off * off;
+                }
+                // A whole-number division on purpose: four floats a pixel.
+                // NOLINTNEXTLINE(bugprone-integer-division)
+                trail.mError = static_cast<float>(std::sqrt(squares / static_cast<double>(moved.size() / 4))) / peak;
+                return trail;
+            }
+
+            void SetUp() override
+            {
+                mCamera = overheadSun(sSize);
+                mCamera.mSun.mIrradiance = osg::Vec3f();
+                mCamera.mSkyHorizon = osg::Vec3f();
+                mCamera.mSkyZenith = osg::Vec3f();
+                mCamera.mAmbient = osg::Vec3f();
+
+                mScene.emplace(mIdentities);
+                addQuad(*mScene, sheetAt(4000.0f, 0.0f));
+                addQuad(*mScene,
+                    std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, 30.0f, 0.0f), osg::Vec3f(4000.0f, 30.0f, 0.0f),
+                        osg::Vec3f(4000.0f, 30.0f, 200.0f), osg::Vec3f(-4000.0f, 30.0f, 200.0f) });
+                addQuad(*mScene,
+                    std::array<osg::Vec3f, 4>{ osg::Vec3f(4000.0f, -30.0f, 0.0f), osg::Vec3f(-4000.0f, -30.0f, 0.0f),
+                        osg::Vec3f(-4000.0f, -30.0f, 200.0f), osg::Vec3f(4000.0f, -30.0f, 200.0f) });
+                mRenderer.resize(sSize, sSize);
+                Testing::standerOf(mRenderer).setScene(mRenderer, Rtx::SceneSlot::world(), *mScene, {});
+            }
+
+            Shaders::VisibilityConstants mCamera;
+            SceneIdentities mIdentities;
+            std::optional<SceneDesc> mScene;
+        };
+
+        /// **The bounce follows a lamp carried down a corridor** (`FilterSwitches::mLampMotion`): the light left
+        /// behind fell from 1.117 columns to 0.149, and the picture's error against the still one where the lamp
+        /// stopped from 0.0476 of its brightest to 0.0222, though what the history dropped is noisier. The
+        /// antilag's box alone, as wide as a frame's noise, let the trail through
+        /// (`ACCUMULATE_LAMP_CHANGE_GAIN` gives the sweep).
+        TEST_F(RtxLampTrailTest, theBounceFollowsALampCarriedDownACorridor)
+        {
+            const LampTrail dragged = trailOf(FilterSwitches{ .mLampMotion = false });
+            const LampTrail followed = trailOf(FilterSwitches{ .mLampMotion = true });
+            EXPECT_GT(dragged.mTail, 0.9f) << "the bounce follows the lamp without it, so this proves nothing";
+            EXPECT_LT(followed.mTail, 0.3f);
+            EXPECT_LT(followed.mError, 0.75f * dragged.mError);
+        }
+
+        /// **A lamp that stands still drops nothing**: no lamp changed, so every frame is the frame without the
+        /// switch, to the bit.
+        TEST_F(RtxLampTrailTest, aLampThatStandsStillDropsNothing)
+        {
+            const std::vector<float> followed = pictureOf(24, 100, false, 0.0f, FilterSwitches{ .mLampMotion = true });
+            const std::vector<float> dragged = pictureOf(24, 100, false, 0.0f, FilterSwitches{ .mLampMotion = false });
+            EXPECT_EQ(followed, dragged);
         }
 
         /// A floor under a sky that lights it, with a bar standing still on it, for the two tests of

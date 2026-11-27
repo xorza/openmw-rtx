@@ -117,6 +117,7 @@ namespace RtxTool
                 { "history-fix", "false" },
                 { "dual-motion", "false" },
                 { "antifirefly", "false" },
+                { "lamp-motion", "false" },
                 { "history-seconds", "0.5" },
             } };
             const Rtx::ReconstructionRequest plain = lineOf(options, {}, Verb::Noise).mFrame.mReconstruction;
@@ -131,7 +132,7 @@ namespace RtxTool
             EXPECT_EQ(Rtx::Testing::refusalOf([&] { options.versus(played, "gamma=2.2"); }),
                 "--versus=gamma=2.2 names no switch of the reconstruction, which are filter, jitter, noise, "
                 "level-epsilon, shadow-floor, lamp-candidates, indirect, bounce-rays, relief, soft-edge-dither, "
-                "water-interleave, antilag, history-fix, dual-motion, antifirefly, history-seconds");
+                "water-interleave, antilag, history-fix, dual-motion, antifirefly, lamp-motion, history-seconds");
             EXPECT_EQ(Rtx::Testing::refusalOf([&] { options.versus(played, "noise=sideways"); }),
                 "\"sideways\" is not a noise source: blue-noise or white-hash");
             EXPECT_EQ(Rtx::Testing::refusalOf([&] { options.versus(played, "antifirefly=maybe"); }),

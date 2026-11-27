@@ -461,6 +461,7 @@ namespace Rtx
 
         held.readStats(mStats);
         mMedia.keepRipples(scene);
+        mLampChanges.see(scene.lights());
     }
 
     DeviceEpoch VulkanRenderer::handOver(
@@ -627,6 +628,7 @@ namespace Rtx
 
         held.readStats(mStats);
         mMedia.keepRipples(scene);
+        mLampChanges.see(scene.lights());
     }
 
     std::optional<std::uint64_t> VulkanRenderer::getSystemHeld() const
@@ -946,6 +948,7 @@ namespace Rtx
                 .mExposure = mDisplay.getFrameExposure(),
                 .mAccumulate = options.mAccumulate,
                 .mSinceLast = options.mSinceLast,
+                .mLampChanges = mLampChanges.spend(sampled.mOrigin),
                 .mPastLost = past.mReprojectionLost,
                 .mTimer = &timer,
             });

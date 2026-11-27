@@ -4,6 +4,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/accumulate.h>
 
@@ -28,6 +29,8 @@ namespace Rtx
         /// `images.mBlended` where the cascade can read it — an image of the history's own, or
         /// `Channel::Indirect` would mean two different things — its moments beside it, and the fast
         /// blend in the scratch. `DenoiseHistory::discard` has readied what this reads and writes.
+        ///
+        /// Writes the frame's lamp changes (`DenoiseFrame::mLampChanges`) into the queue ahead of it.
         void record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images, const GBuffer& buffer,
             const DenoiseFrame& frame) const;
 
@@ -43,5 +46,9 @@ namespace Rtx
 
         /// The clamp by `ring << 1 | fill` (`ACCUMULATE_CLAMP_SPEC_RING`, `ACCUMULATE_CLAMP_SPEC_FILL`).
         std::array<ComputePipeline<Shaders::AccumulateClampConstants>, 4> mClamps;
+
+        /// The frame's lamp changes, `Shaders::LAMP_CHANGES_MOST` of them. Written inline, in queue order, so one
+        /// buffer serves every frame and every chain.
+        Buffer mLampChanges;
     };
 }

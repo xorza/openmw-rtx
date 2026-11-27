@@ -19,12 +19,18 @@
 // **What an occluder uncovered takes the history beside it** (`occluderMotion`, Zeng et al. 2021's dual
 // motion vector, which ReSTIR PT Enhanced applies to its temporal reuse): a surface the previous frame did
 // not see is fetched along the motion of what hid it, held to its own plane.
+//
+// **Where a lamp moved, came or went, the history is dropped by how much of its light changed**
+// (`lampChangeShare`), A-SVGF's antilag (Schied et al. 2018) with a gradient the host knows exactly
+// (`Rtx::LampChanges`): the clamp's box is as wide as the bounce's noise, and lets through a change of light
+// smaller than that every frame, which a lamp carried at a walk is.
 
 #include "shared/accumulate.h"
 #include "shared/atrous.h"
 #include "camera.h"
 #include "colour.h"
 #include "gbuffer.h"
+#include "scene.h"
 #include "shared/sets.h"
 
 #include "lib/census.glsl"
@@ -102,10 +108,26 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_EXPOSURE, scalar) readonly buff
     float exposure;
 };
 
+/// The lamps that changed since the frame the history was written in, the first `mLampChanges` of them.
+layout(set = SET_PASS, binding = ACCUMULATE_BIND_LAMP_CHANGES, scalar) readonly buffer LampChanges
+{
+    GpuLampChange lampChanges[];
+};
+
 layout(push_constant, scalar) uniform Push
 {
     AccumulateConstants frame;
 };
+
+/// How much of the history at `at`, relative to the eye, the lamp changes drop: the most any one of them
+/// changed the light there (`lampChangeShare`), by `ACCUMULATE_LAMP_CHANGE_GAIN`, at most all of it.
+float lampChangeAt(vec3 at)
+{
+    float most = 0.0;
+    for (uint change = 0u; change < frame.mLampChanges; ++change)
+        most = max(most, lampChangeShare(lampChanges[change], at));
+    return min(most * ACCUMULATE_LAMP_CHANGE_GAIN, 1.0);
+}
 
 /// What the history holds of this pixel's surface, summed over the taps that are it, each by its
 /// bilinear share.
@@ -303,8 +325,18 @@ void main()
         moments /= weight;
         frames /= weight;
 
-        // One over the count, floored at the longest history a pixel may keep (`ACCUMULATE_SECONDS`).
-        count = min(frames + 1.0, frame.mHistoryFrames);
+        // One over the count, floored at the longest history a pixel may keep (`ACCUMULATE_SECONDS`), and
+        // moved toward one by what a lamp change dropped of it, as A-SVGF moves its weight toward one by its
+        // gradient. The count it stores is what the weight stands for, so the next frame goes on from it: one
+        // over `mix(1 / longest, 1, changed)`, written so that where nothing changed it is the count to the bit.
+        //
+        // **Never under one**, which it is exactly where a change dropped everything: AMD's divide is a multiply by
+        // a reciprocal, and took `longest / longest` to 0.99999994, so the weight stood over one and the running
+        // variance's `1 - alpha` under nought, whose root is not a number (the handheld's `check`, crossing the
+        // island, where lamps come and go every frame).
+        const float changed = lampChangeAt(positionAlong(eyeOfPixel(seen.y, frame.mHistory.mEyes), at, away));
+        const float longest = min(frames + 1.0, frame.mHistoryFrames);
+        count = max(longest / mix(1.0, longest, changed), 1.0);
         const float alpha = 1.0 / count;
 
         // **No outlier clamp on the sample by its deviations**, past the exposure's ceiling above, which the
@@ -322,7 +354,7 @@ void main()
         const float variance = (1.0 - alpha) * (momentVariance(moments.x, moments.y) + alpha * offMean * offMean);
         blendedMoments = vec2(mix(moments.x, lit, alpha), sqrt(variance));
 
-        const float fastAlpha = 1.0 / min(frames + 1.0, ACCUMULATE_FAST_FRAMES);
+        const float fastAlpha = mix(1.0 / min(frames + 1.0, ACCUMULATE_FAST_FRAMES), 1.0, changed);
         blendedFast = mix(fast, sampled, fastAlpha);
         blendedFastFill = mix(fastFill, sampledFill, fastAlpha);
     }

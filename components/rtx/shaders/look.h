@@ -1077,6 +1077,18 @@ namespace Rtx::Shaders
     /// frames are slow.
     const float ACCUMULATE_SECONDS = 0.25f;
 
+    /// How much of the bounce's history a lamp change drops, over the share of the lamp's light it changed
+    /// (`lampChangeShare`): A-SVGF's antilag weight over its gradient, which Q2RTX scales the same way
+    /// (`flt_antilag_hf`). A history `N` frames long spans `N` frames' steps of a lamp carried at a constant
+    /// pace, so a gain of `g` holds it to about `1 / g` of the lamp's light changed across it.
+    ///
+    /// **Two, which held the history to half of it.** A lamp carried down a corridor at four units a frame
+    /// (`RtxLampTrailTest`) left 1.117 columns of its bounce behind it without the change; at gains of a half,
+    /// one, two, four and sixteen, 0.743, 0.353, 0.149, 0.083 and 0.233, at an error against the still
+    /// picture of 0.0225, 0.0166, 0.0222, 0.0298 and 0.0338 of its brightest, against 0.0476. Past two the
+    /// noise of the dropped history took more than the trail gave back.
+    const float ACCUMULATE_LAMP_CHANGE_GAIN = 2.0f;
+
     /// The frame rate a frame with no clock is taken at — a picture's, a test's — which turns
     /// `ACCUMULATE_SECONDS` into frames where nothing measured the frame time.
     const float ACCUMULATE_REFERENCE_RATE = 60.0f;

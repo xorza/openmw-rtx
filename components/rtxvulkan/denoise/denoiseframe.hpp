@@ -1,6 +1,9 @@
 #pragma once
 
+#include <span>
+
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/shaders/shared/accumulate.h>
@@ -21,6 +24,10 @@ namespace Rtx
 
         /// The longest history the accumulator keeps this frame, in frames (`Rtx::HistoryLength`).
         float mHistoryFrames{};
+
+        /// The lamps that changed since the frame the histories were written in (`Rtx::LampChanges`), none where
+        /// the run asked for the A/B without them (`FilterSwitches::mLampMotion`).
+        std::span<const Shaders::GpuLampChange> mLampChanges;
 
         /// What the frame before was shown at, one float (`DisplayChain::getFrameExposure`).
         const Buffer& mExposure;

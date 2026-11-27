@@ -5,10 +5,12 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <string_view>
 
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/camera.h>
+#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/frame/gbuffer.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/accumulate.h>
@@ -20,13 +22,15 @@ namespace Rtx
         /// Every binding is a storage image. The slow colour histories are read and not written, because
         /// the first wavelet level writes the history this reads next frame — SVGF's feedback.
         ///
-        /// And the exposure the frame before was shown at, a buffer, last.
+        /// And two buffers last: the exposure the frame before was shown at, and the frame's lamp changes.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_BINDINGS> sBindings = [] {
             std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_BINDINGS> bindings{};
             const auto images = computeBindings<Shaders::ACCUMULATE_BIND_EXPOSURE>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
             std::copy(images.begin(), images.end(), bindings.begin());
             bindings[Shaders::ACCUMULATE_BIND_EXPOSURE]
                 = computeBinding(Shaders::ACCUMULATE_BIND_EXPOSURE, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+            bindings[Shaders::ACCUMULATE_BIND_LAMP_CHANGES]
+                = computeBinding(Shaders::ACCUMULATE_BIND_LAMP_CHANGES, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
             return bindings;
         }();
 
@@ -79,6 +83,8 @@ namespace Rtx
             makeClamp(device, false, true, "accumulate-clamp"),
             makeClamp(device, true, false, "accumulate-clamp-ring-no-fill"),
             makeClamp(device, true, true, "accumulate-clamp-ring") }
+        , mLampChanges(Buffer::deviceLocal(device, sizeof(Shaders::GpuLampChange) * Shaders::LAMP_CHANGES_MOST,
+              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "lamp changes"))
     {
     }
 
@@ -88,6 +94,11 @@ namespace Rtx
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         assert(images.mBlended.getWidth() >= camera.mWidth);
         assert(images.mBlended.getHeight() >= camera.mHeight);
+        assert(frame.mLampChanges.size() <= Shaders::LAMP_CHANGES_MOST);
+
+        // Nothing written where nothing changed: the count says how many the shader reads.
+        if (!frame.mLampChanges.empty())
+            mLampChanges.updateInline(commands, Use::sBufferComputeRead, std::as_bytes(frame.mLampChanges));
 
         const ComputePipeline<Shaders::AccumulateConstants>& pipeline = mPipelines[fillOf(frame)];
         DescriptorWrites writes(pipeline);
@@ -106,12 +117,14 @@ namespace Rtx
         writes.image(Shaders::ACCUMULATE_BIND_FAST_OUT, images.mFastBlended.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_MATCH_OUT, images.mMatch.describeStorage());
         writes.buffer(Shaders::ACCUMULATE_BIND_EXPOSURE, frame.mExposure.describe());
+        writes.buffer(Shaders::ACCUMULATE_BIND_LAMP_CHANGES, mLampChanges.describe());
 
         const Shaders::AccumulateConstants constants{
             .mHistory = frame.history(images.mFresh),
             .mDualMotion = frame.mFilters.mDualMotion ? 1u : 0u,
             .mFireflyHold = frame.mFilters.mAntiFirefly ? 1u : 0u,
             .mHistoryFrames = frame.mHistoryFrames,
+            .mLampChanges = static_cast<std::uint32_t>(frame.mLampChanges.size()),
         };
 
         dispatch(commands, pipeline, writes, constants,
