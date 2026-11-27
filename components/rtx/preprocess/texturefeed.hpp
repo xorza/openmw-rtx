@@ -25,6 +25,28 @@ namespace Rtx
     {
     };
 
+    /// **Whether the feed's room is still open to an ask that takes some**: closed once an ask before it in the same
+    /// hand-over was refused for room, so the one refused is never passed by those behind it, while an ask that takes
+    /// no room still goes.
+    enum class FeedRoom : std::uint8_t
+    {
+        Open,
+        Closed,
+    };
+
+    /// What the feed answers an ask.
+    enum class FeedAdmission : std::uint8_t
+    {
+        /// In flight, every room its making takes reserved with it.
+        Admitted,
+
+        /// Refused for the room its making takes: none left, or `FeedRoom::Closed`. The rest may still go.
+        NoRoom,
+
+        /// Refused because every request the feed keeps in flight is: nothing more goes.
+        NoSlot,
+    };
+
     /// A run of a chain's levels, `mFirst` up to and not including `mEnd`, level 0 the finest.
     struct LevelSpan
     {
@@ -92,10 +114,11 @@ namespace Rtx
     class TextureFeed
     {
     public:
-        virtual bool hasCredit() const = 0;
-
-        /// Asserts `hasCredit`.
-        virtual void ask(FeedRequest request) = 0;
+        /// **Admits `request` where the feed has credit for it**, every room its making takes reserved with it, and
+        /// answers whether it did and why not: what is admitted is made without waiting on anything a later request
+        /// holds, and what is refused is charged nothing and asked again later. One that takes room is refused where
+        /// `room` is closed.
+        [[nodiscard]] virtual FeedAdmission ask(FeedRequest request, FeedRoom room) = 0;
 
         /// The next completion in the order asked, or nothing where it has not come; never blocks.
         virtual std::optional<FeedArrival> take() = 0;

@@ -2,21 +2,52 @@
 
 #include <array>
 #include <bit>
-#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <span>
-#include <stop_token>
 #include <vector>
 
 namespace Rtx
 {
     class BufferPool;
+    class PooledBuffer;
 
-    /// A buffer of a `BufferPool`, its bytes the pool's until it goes, when they go back to it: moved, never copied.
+    /// **Room in a `BufferPool` reserved for one buffer** before what fills it knows its size: the bytes of the most it
+    /// may be, charged to the pool until the buffer it is spent on goes back, or until it goes unspent. Moved, never
+    /// copied.
+    class PoolCredit
+    {
+    public:
+        PoolCredit() = default;
+        PoolCredit(PoolCredit&& other) noexcept;
+        PoolCredit& operator=(PoolCredit&& other) noexcept;
+        PoolCredit(const PoolCredit&) = delete;
+        PoolCredit& operator=(const PoolCredit&) = delete;
+        ~PoolCredit();
+
+        bool isEmpty() const { return mPool == nullptr; }
+
+        /// The bytes charged: the class of the most reserved.
+        std::size_t getCharged() const { return mCharged; }
+
+        /// A buffer of `bytes`, at most what was reserved, in place of the credit, which carries the charge with it.
+        /// Never waits: the room was the credit's from the start.
+        PooledBuffer spend(std::size_t bytes) &&;
+
+    private:
+        friend class BufferPool;
+        friend class PooledBuffer;
+        PoolCredit(BufferPool& pool, std::size_t charged);
+
+        BufferPool* mPool = nullptr;
+        std::size_t mCharged = 0;
+    };
+
+    /// A buffer of a `BufferPool`, its bytes the pool's until it goes, when they go back to it with the charge of the
+    /// credit it was spent from: moved, never copied.
     class PooledBuffer
     {
     public:
@@ -36,9 +67,15 @@ namespace Rtx
         /// Keeps the first `size` bytes as what was asked for, of the ones it holds.
         void truncate(std::size_t size);
 
+        /// Gives the bytes back and keeps their charge, as the credit they were spent from: what a read that failed
+        /// into them hands to the run that makes them instead.
+        PoolCredit refund() &&;
+
     private:
         friend class BufferPool;
-        PooledBuffer(BufferPool& pool, std::unique_ptr<std::byte[]> data, std::size_t capacity, std::size_t size);
+        friend class PoolCredit;
+        PooledBuffer(BufferPool& pool, std::unique_ptr<std::byte[]> data, std::size_t capacity, std::size_t size,
+            std::size_t charged);
 
         /// The pool it goes back to, which outlives every buffer it hands out by its owner's order: the renderer holds
         /// it ahead of everything that holds a buffer.
@@ -46,25 +83,28 @@ namespace Rtx
         std::unique_ptr<std::byte[]> mData;
         std::size_t mCapacity = 0;
         std::size_t mSize = 0;
+        std::size_t mCharged = 0;
     };
 
-    /// What a pool holds: its buffers handed out, and those it keeps free for the next take, in bytes of their
-    /// classes.
+    /// What a pool holds: the credits and buffers it charged, and the buffers it keeps free for the next, in bytes of
+    /// their classes.
     struct PoolHeld
     {
-        std::size_t mInUse = 0;
+        std::size_t mCharged = 0;
         std::size_t mFree = 0;
     };
 
     /// **The buffers a texture's bytes are read into, bounded in bytes and by size class** (`docs/architecture.md`,
-    /// "A texture's levels are read by position, into a buffer the reader owns"): a take reuses a free buffer of its
-    /// class, and a buffer given back is kept for the next, so a hand-over allocates nothing once the classes a run
-    /// asks are warm, as DirectStorage reads into a bounded staging buffer. What it holds, in use and free, stays
-    /// under its most: a take past it drops free buffers of other classes, and waits for one given back where every
-    /// byte is in use, a worker's wait and never the frame's thread. One buffer larger than the most is made where
-    /// nothing else is in use, so no take waits for ever. Used by every thread that takes and gives. **A buffer given
-    /// back is kept and never freed on the giving thread**, the frame's among them: what is past the most is dropped
-    /// by the next take, on the taker's thread and past the lock.
+    /// "A made chain is handed over in a buffer of a bounded pool, read a segment at a time"): a buffer given back is
+    /// kept free for the next of its class, so a hand-over allocates nothing once the classes a run asks are warm.
+    ///
+    /// **Reserved when the work is admitted, and never waited for** (`docs/architecture.md`, "A request is admitted
+    /// with the room its texels take"): a credit is the room of the most a buffer may be, taken where the request is
+    /// asked, and spent on the buffer once its size is known. What the credits and buffers charge stays under the most,
+    /// but one past it made where nothing else is charged; a reserve that does not fit is refused, and nothing waits
+    /// on a buffer given back, so no thread holding one can stand between another and the room it needs. **A buffer
+    /// given back is kept and never freed on the giving thread**, the frame's among them: what stands past the most is
+    /// dropped by the next spend, on the spender's thread and past the lock.
     class BufferPool
     {
     public:
@@ -76,43 +116,40 @@ namespace Rtx
 
         explicit BufferPool(std::size_t mostBytes);
 
-        /// Asserts that every buffer it handed out came back.
+        /// Asserts that every credit and buffer it charged came back.
         ~BufferPool();
 
         BufferPool(const BufferPool&) = delete;
         BufferPool& operator=(const BufferPool&) = delete;
 
-        /// A buffer of `bytes`, at most `sClassMost`, waiting while every byte of the most is in use and no
-        /// `Overdraft` stands; nothing where `stop` asks before one is given back.
-        std::optional<PooledBuffer> take(std::size_t bytes, const std::stop_token& stop);
-
-        /// **Every take past the most while it stands**, for a waiter that holds whatever it waits for until it has
-        /// it all and gives back nothing meanwhile: a settled hand-over, which stands an arrival's every chain at once
-        /// (`TextureHands::flush`). Under the most, its workers would wait for buffers only the waiter gives back,
-        /// and the waiter for them. What it lets past is what that waiter asked, bounded by what it holds.
-        class [[nodiscard]] Overdraft
-        {
-        public:
-            explicit Overdraft(BufferPool& pool);
-            ~Overdraft();
-
-            Overdraft(const Overdraft&) = delete;
-            Overdraft& operator=(const Overdraft&) = delete;
-
-        private:
-            BufferPool& mPool;
-        };
+        /// Room for a buffer of `bytes` at most, at most `sClassMost`, where its class fits under the most beside what
+        /// is charged, or nothing is; nothing where it does not.
+        std::optional<PoolCredit> reserve(std::size_t bytes);
 
         PoolHeld getHeld() const;
 
-        /// The class a take of `bytes` is made in: the power of two at or past it, `sClassLeast` at the least.
+        /// The class a buffer of `bytes` is made in: the power of two at or past it, `sClassLeast` at the least.
         static std::size_t classBytesOf(std::size_t bytes);
 
     private:
+        friend class PoolCredit;
         friend class PooledBuffer;
 
-        /// Takes back what a buffer of `capacity` held, keeping it free for its class.
-        void give(std::unique_ptr<std::byte[]> data, std::size_t capacity) noexcept;
+        /// A buffer of `bytes` charged `charged`, which its credit reserved.
+        PooledBuffer spend(std::size_t bytes, std::size_t charged);
+
+        /// Takes back what a buffer of `capacity` charged `charged` held, keeping it free for its class.
+        void give(std::unique_ptr<std::byte[]> data, std::size_t capacity, std::size_t charged) noexcept;
+
+        /// Takes back what a buffer of `capacity` held and keeps its charge, for the credit it goes back to.
+        void refund(std::unique_ptr<std::byte[]> data, std::size_t capacity) noexcept;
+
+        /// Keeps `data` free for its class where its list has room, and hands it back to be freed past the lock
+        /// otherwise. Under the lock.
+        std::unique_ptr<std::byte[]> keepFree(std::unique_ptr<std::byte[]> data, std::size_t capacity) noexcept;
+
+        /// Lets go of what a credit charged, unspent.
+        void uncharge(std::size_t charged) noexcept;
 
         /// Moves into `into` the free buffers that stand past the most, the largest first, for the caller to free past
         /// the lock. Under the lock.
@@ -122,12 +159,8 @@ namespace Rtx
 
         const std::size_t mMostBytes;
         mutable std::mutex mMutex;
-        std::condition_variable_any mGiven;
         std::array<std::vector<std::unique_ptr<std::byte[]>>, sClassCount> mFree;
-        std::size_t mInUse = 0;
+        std::size_t mCharged = 0;
         std::size_t mFreeBytes = 0;
-
-        /// How many `Overdraft`s stand.
-        std::uint32_t mOverdrafts = 0;
     };
 }

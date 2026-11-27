@@ -161,11 +161,15 @@ namespace Rtx
         mBlocks.erase(block.at());
     }
 
-    void NullFeed::ask(FeedRequest request)
+    FeedAdmission NullFeed::ask(FeedRequest request, const FeedRoom room)
     {
-        assert(hasCredit() && "a request past the feed's credit");
+        if (mInFlight.size() >= sInFlightMost)
+            return FeedAdmission::NoSlot;
+        if (std::ranges::find(mRoomy, request.mTexture) != mRoomy.end() && (room == FeedRoom::Closed || !mHasRoom))
+            return FeedAdmission::NoRoom;
         mAllAsked.push_back(request);
         mInFlight.push_back(InFlight{ .mRequest = std::move(request) });
+        return FeedAdmission::Admitted;
     }
 
     void NullFeed::nextFrame()

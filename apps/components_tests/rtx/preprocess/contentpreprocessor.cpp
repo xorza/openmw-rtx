@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <optional>
 #include <span>
 #include <string>
@@ -746,12 +747,12 @@ namespace Rtx
             {
                 ContentPreprocessor content(&store);
                 PooledChain made;
-                ASSERT_TRUE(content.chain(input, 0, pool, {}, made));
+                ASSERT_TRUE(content.chain(input, 0, *pool.reserve(5488), made));
                 EXPECT_EQ(made.mForm, ChainForm::Bc7);
                 ASSERT_EQ(made.mBytes.bytes().size(), 5488u);
                 madeBytes.assign(made.mBytes.bytes().begin(), made.mBytes.bytes().end());
                 buffer = made.mBytes.bytes().data();
-                EXPECT_EQ(pool.getHeld().mInUse, std::size_t{ 64 } << 10);
+                EXPECT_EQ(pool.getHeld().mCharged, std::size_t{ 64 } << 10);
                 EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 0u);
             }
             store.flush();
@@ -761,7 +762,7 @@ namespace Rtx
             next.flush();
             ContentPreprocessor content(&next);
             PooledChain found;
-            ASSERT_TRUE(content.chain(input, 0, pool, {}, found));
+            ASSERT_TRUE(content.chain(input, 0, *pool.reserve(5488), found));
             EXPECT_EQ(found.mForm, ChainForm::Bc7);
             EXPECT_EQ(found.mFirst, 0u);
             EXPECT_EQ(Misc::ByteBuffer(found.mBytes.bytes().begin(), found.mBytes.bytes().end()), madeBytes);
@@ -778,14 +779,14 @@ namespace Rtx
             EXPECT_EQ(sFromThird.offsetOf(2), 5120u);
             EXPECT_EQ(sFromThird.bytes(), 5488u - 5120u);
             PooledChain coarse;
-            ASSERT_TRUE(content.chain(input, 2, pool, {}, coarse));
+            ASSERT_TRUE(content.chain(input, 2, *pool.reserve(368), coarse));
             EXPECT_EQ(coarse.mFirst, 2u);
             EXPECT_EQ(Misc::ByteBuffer(coarse.mBytes.bytes().begin(), coarse.mBytes.bytes().end()),
                 Misc::ByteBuffer(madeBytes.begin() + 5120, madeBytes.end()))
                 << "the levels read from the file are the levels made";
             coarse = PooledChain();
             ContentPreprocessor alone(nullptr);
-            ASSERT_TRUE(alone.chain(input, 2, pool, {}, coarse));
+            ASSERT_TRUE(alone.chain(input, 2, *pool.reserve(368), coarse));
             EXPECT_EQ(coarse.mFirst, 2u);
             EXPECT_EQ(Misc::ByteBuffer(coarse.mBytes.bytes().begin(), coarse.mBytes.bytes().end()),
                 Misc::ByteBuffer(madeBytes.begin() + 5120, madeBytes.end()))
@@ -795,6 +796,56 @@ namespace Rtx
             EXPECT_EQ(held->getLevels()[2].mOffset, 0u) << "the first level held begins the bytes";
             EXPECT_EQ(held->getLevels()[3].mOffset, 256u);
             EXPECT_EQ(held->getLevels()[2].mWidth, 16u);
+        }
+
+        /// **A level that fails its digest gives its buffer back and keeps its room for the run made instead**: the
+        /// 8 by 8 chain's file with its first byte flipped opens and reads its form's byte, its credit is spent on the
+        /// 112 bytes of its levels, and the first level's digest is wrong, which the store refuses once. Refunded, the
+        /// credit is spent again on the chain made, the run's own 112 bytes, and the pool charges the credit's 64 KiB
+        /// while it stands and nothing after. Spent and not refunded, the run had no room to spend.
+        TEST(RtxContentPreprocessorTest, aLevelThatFailsItsDigestKeepsItsRoomForTheRun)
+        {
+            const osg::ref_ptr<osg::Image> single = makeBc1(8, 8, 1);
+            const ChainPass::Input input{ .mImage = *single, .mEncoding = TextureEncoding::Colour };
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
+            TexelScratch scratch;
+            ContentStore::Digest digest(sContentPasses.name(ContentPassId::Chain), ChainPass::sVersion);
+            digest.add(hashFile(*single, scratch));
+            digest.add(TextureEncoding::Colour);
+            BufferPool pool(std::size_t{ 1 } << 20);
+
+            Misc::ByteBuffer madeBytes;
+            std::filesystem::path path;
+            {
+                ContentStore::Store store(folder, sContentStorePolicy);
+                ContentPreprocessor content(&store);
+                PooledChain made;
+                ASSERT_TRUE(content.chain(input, 0, *pool.reserve(112), made));
+                madeBytes.assign(made.mBytes.bytes().begin(), made.mBytes.bytes().end());
+                store.flush();
+                path = store.pathOf(digest.getKey(), storeKindOf(ContentPassId::Chain));
+            }
+            {
+                std::fstream file(path, std::ios::in | std::ios::out | std::ios::binary);
+                ASSERT_TRUE(file.is_open());
+                char first = 0;
+                file.read(&first, 1);
+                file.seekp(0);
+                first = static_cast<char>(~first);
+                file.write(&first, 1);
+            }
+
+            ContentStore::Store next(folder, sContentStorePolicy);
+            next.flush();
+            ContentPreprocessor content(&next);
+            PooledChain again;
+            ASSERT_TRUE(content.chain(input, 0, *pool.reserve(112), again));
+            EXPECT_EQ(Misc::ByteBuffer(again.mBytes.bytes().begin(), again.mBytes.bytes().end()), madeBytes);
+            EXPECT_EQ(pool.getHeld().mCharged, std::size_t{ 64 } << 10);
+            EXPECT_EQ(next.getStats().mRefused, 1u) << "the level's digest";
+            EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 0u);
+            again = PooledChain();
+            EXPECT_EQ(pool.getHeld().mCharged, 0u);
         }
 
         /// **An entry that fills no form's layout of its file is discarded before a buffer is taken for it**: an entry
@@ -830,10 +881,10 @@ namespace Rtx
             BufferPool pool(std::size_t{ 1 } << 20);
             ContentPreprocessor content(&store);
             PooledChain made;
-            ASSERT_TRUE(content.chain(input, 0, pool, {}, made));
+            ASSERT_TRUE(content.chain(input, 0, *pool.reserve(112), made));
             EXPECT_EQ(made.mForm, ChainForm::Bc7);
             EXPECT_EQ(made.mBytes.bytes().size(), 112u);
-            EXPECT_EQ(pool.getHeld().mInUse, std::size_t{ 64 } << 10);
+            EXPECT_EQ(pool.getHeld().mCharged, std::size_t{ 64 } << 10);
             EXPECT_EQ(pool.getHeld().mFree, 0u) << "a buffer was taken for the entry before its layout was checked";
         }
 

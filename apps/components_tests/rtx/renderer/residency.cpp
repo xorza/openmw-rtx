@@ -144,6 +144,33 @@ namespace Rtx
                 std::ranges::count_if(ops, [](const ResidencyOp& op) { return std::holds_alternative<Op>(op); }));
         }
 
+        /// **A request refused for room closes the room to those behind it in the hand-over, and what takes none goes
+        /// on**: a near texture and a shown one that take room, and a shown one between them that takes none. With no
+        /// room the near one is refused, the shown one behind it that takes room is not weighed, and the one that takes
+        /// none is asked: one asked, two not asked yet. With room, the two refused are asked in their order.
+        TEST(RtxResidencyTest, aRequestRefusedForRoomClosesTheRoomToThoseBehindIt)
+        {
+            World world(1024 * sMiB);
+            const TextureIndex near = world.texture("textures/a.dds", 512, HoldTier::Near);
+            const TextureIndex free = world.texture("textures/b.dds", 512, HoldTier::Shown);
+            const TextureIndex shown = world.texture("textures/c.dds", 512, HoldTier::Shown);
+            world.mFeed.takesRoom(near);
+            world.mFeed.takesRoom(shown);
+            world.mFeed.setRoom(false);
+
+            world.frame();
+            ASSERT_EQ(world.mFeed.getAsked().size(), 1u);
+            EXPECT_EQ(world.mFeed.getAsked()[0].mTexture, free);
+            EXPECT_EQ(
+                world.mResidency.getReport().mMissingDemanded, (MissingDemanded{ .mAsked = 1, .mUnaskedFiles = 2 }));
+
+            world.mFeed.setRoom(true);
+            world.frame();
+            ASSERT_EQ(world.mFeed.getAsked().size(), 3u);
+            EXPECT_EQ(world.mFeed.getAsked()[1].mTexture, near);
+            EXPECT_EQ(world.mFeed.getAsked()[2].mTexture, shown);
+        }
+
         /// **A plan that fits gives every want**: three 512² textures, one near and two shown, under a cap of a
         /// gigabyte. The first hand-over asks the feed for each whole chain and a chunk of the device, and counts the
         /// three standing nothing, of them the near one; the second, both arrived, stands each in a slot at its want,

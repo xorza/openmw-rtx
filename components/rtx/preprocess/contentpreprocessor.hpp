@@ -4,7 +4,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <stop_token>
 #include <vector>
 
 #include <components/contentstore/key.hpp>
@@ -120,18 +119,16 @@ namespace Rtx
         /// `ConversionPass`, as `prepareChain` answers: a classic pair's base colour or metal-roughness map.
         bool prepareConversion(const ConversionPass::Input& input);
 
-        /// **A chain as the device is handed it, from level `first` down, into a buffer of `pool`**: read from the
-        /// store's entry a segment a level, from the first asked, where it holds one that fits `input`, every level's
-        /// digest checked, and made and copied in otherwise, so a hand-over allocates nothing once the pool is warm
-        /// and reads none of a level finer than its plan (`docs/architecture.md`, "A texture's levels are read by
-        /// position, into a buffer the reader owns"). False where its run is not admitted, or `stop` asked while the
-        /// pool held its most in use.
-        bool chain(const ChainPass::Input& input, std::uint8_t first, BufferPool& pool, const std::stop_token& stop,
-            PooledChain& made);
+        /// **A chain as the device is handed it, from level `first` down, into a buffer `credit` is spent on**: read
+        /// from the store's entry a segment a level, from the first asked, where it holds one that fits `input`, every
+        /// level's digest checked, and made and copied in otherwise, so a hand-over allocates nothing once the pool is
+        /// warm and reads none of a level finer than its plan (`docs/architecture.md`, "A texture's levels are read by
+        /// position, into a buffer the reader owns"). False where its run is not admitted. `credit` holds room for
+        /// what any form of `input` makes from `first` (`pooledBytesOf`), so nothing here waits for a buffer.
+        bool chain(const ChainPass::Input& input, std::uint8_t first, PoolCredit credit, PooledChain& made);
 
         /// `ConversionPass` as the device is handed it, as `chain` answers.
-        bool convert(const ConversionPass::Input& input, std::uint8_t first, BufferPool& pool,
-            const std::stop_token& stop, PooledChain& made);
+        bool convert(const ConversionPass::Input& input, std::uint8_t first, PoolCredit credit, PooledChain& made);
 
         /// What every pass cost since the last take, and nothing counted from here on.
         ContentStats takeStats();
@@ -170,17 +167,17 @@ namespace Rtx
         template <ContentPass Pass>
         bool runStored(Pass& pass, const typename Pass::Input& input);
 
-        /// A chain's or a conversion's ask into a buffer of `pool` (`chain`'s pooled form).
+        /// A chain's or a conversion's ask into a buffer `credit` is spent on (`chain`'s pooled form).
         template <ContentPass Pass>
-        bool runPooled(Pass& pass, const typename Pass::Input& input, std::uint8_t first, BufferPool& pool,
-            const std::stop_token& stop, PooledChain& made);
+        bool runPooled(
+            Pass& pass, const typename Pass::Input& input, std::uint8_t first, PoolCredit credit, PooledChain& made);
 
-        /// The stored entry under `key` read into a buffer of `pool`, where it stands and fits `input`: its last
-        /// segment the form's byte, the rest its levels. False where none stands, a segment does not read, or what
-        /// reads does not fit, which is discarded.
+        /// The stored entry under `key` read into a buffer `credit` is spent on, where it stands and fits `input`: its
+        /// last segment the form's byte, the rest its levels. False where none stands, a segment does not read, or
+        /// what reads does not fit, which is discarded, and `credit` then still holds the room.
         template <ContentPass Pass>
         bool readPooled(const ContentStore::Key& key, const typename Pass::Input& input, std::uint8_t first,
-            BufferPool& pool, const std::stop_token& stop, PooledChain& made);
+            PoolCredit& credit, PooledChain& made);
 
         /// The file key of `texels` a fact's ask is keyed by (`FileKeys::of`), timed as the facts' key.
         ContentStore::Key keyOf(const osg::Image& texels);

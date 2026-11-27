@@ -10,3 +10,6 @@
 - **The Windows machine's tour refuses an Argonian normal map read as a colour**: at `889fc79425`, `textures-readable`
   fails at two places with "a texture "textures/tx_b_n_argonian_f_n.dds": its format is BC5 (ATI2, linear), which holds
   no colour, where a colour is read", and the same of `tx_b_n_argonian_m_n.dds`.
+- **Two runs on the Windows machine's AMD integrated GPU no longer draw one picture**: `omw repeat --pairs=1` at
+  `889fc79425` finds the trace differing on all 360 frames of `one-cell-walk`, from frame 1 and in every channel,
+  `g-surface` and `g-albedo` among them; the gates of 16 and 17 November there found the pair identical.

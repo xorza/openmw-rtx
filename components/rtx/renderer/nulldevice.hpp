@@ -104,14 +104,14 @@ namespace Rtx
     };
 
     /// **A feed with no files**: every request made on the frame after it was asked, in the order asked, at most
-    /// `sInFlightMost` in flight, and a texture a test names failed.
+    /// `sInFlightMost` in flight, a texture a test names failed, and one a test names taking room, which it has where
+    /// the test says so and `FeedRoom` is open.
     class NullFeed final : public TextureFeed
     {
     public:
         static constexpr std::size_t sInFlightMost = 64;
 
-        bool hasCredit() const override { return mInFlight.size() < sInFlightMost; }
-        void ask(FeedRequest request) override;
+        FeedAdmission ask(FeedRequest request, FeedRoom room) override;
         std::optional<FeedArrival> take() override;
         void forget(FeedTicket ticket) override;
 
@@ -120,6 +120,10 @@ namespace Rtx
 
         /// Every request of this texture fails.
         void fail(TextureIndex texture) { mFailing.push_back(texture); }
+
+        /// Every request of this texture takes room, which the feed has while `hasRoom` says so.
+        void takesRoom(TextureIndex texture) { mRoomy.push_back(texture); }
+        void setRoom(bool hasRoom) { mHasRoom = hasRoom; }
 
         std::span<const FeedRequest> getAsked() const { return mAllAsked; }
 
@@ -133,6 +137,8 @@ namespace Rtx
 
         std::deque<InFlight> mInFlight;
         std::vector<TextureIndex> mFailing;
+        std::vector<TextureIndex> mRoomy;
+        bool mHasRoom = true;
         std::vector<FeedRequest> mAllAsked;
     };
 }

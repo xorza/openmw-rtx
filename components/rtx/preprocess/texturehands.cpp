@@ -124,21 +124,56 @@ namespace Rtx
             mHands, [](const std::unique_ptr<Hand>& hand) -> std::jthread& { return hand->mWorker; });
     }
 
-    bool TextureHands::hasCredit() const
-    {
-        return mMonitor.under([&] { return mCount < sInFlightMost; });
-    }
-
-    void TextureHands::ask(FeedRequest request)
+    std::size_t pooledBytesOf(const FeedRequest& request)
     {
         assert(request.mFile != nullptr && "a request of no file");
+        const osg::Image& file = *request.mFile;
+        if (!isChainMade(file, request.mEncoding))
+            return 0;
+
+        std::size_t most = 0;
+        for (const ChainForm form : { ChainForm::Bc7, ChainForm::Own })
+        {
+            std::optional<MadeLayout> layout = request.mPartner != nullptr
+                ? ConversionPass::madeLayout(
+                      ConversionPass::Input{
+                          .mImage = file, .mPartner = *request.mPartner, .mEncoding = request.mEncoding },
+                      form)
+                : ChainPass::madeLayout(ChainPass::Input{ .mImage = file, .mEncoding = request.mEncoding }, form);
+            if (!layout.has_value())
+                continue;
+            // From the first level asked, its last at the most, as the hand reads and copies it.
+            layout->mFirst = std::min<std::uint32_t>(request.mLevels.mFirst, layout->mCount - 1);
+            most = std::max(most, layout->bytes());
+        }
+        return most;
+    }
+
+    FeedAdmission TextureHands::ask(FeedRequest request, const FeedRoom room)
+    {
+        // The ring first and room after, so what is refused is charged nothing. Only the thread that asks adds to the
+        // ring, so a ring found with a slot keeps it while the hands only take jobs out of it.
+        if (mMonitor.under([&] { return mCount >= sInFlightMost; }))
+            return FeedAdmission::NoSlot;
+        const std::size_t bytes = pooledBytesOf(request);
+        std::optional<PoolCredit> credit;
+        if (bytes > 0)
+        {
+            if (room == FeedRoom::Closed)
+                return FeedAdmission::NoRoom;
+            credit = mPool.reserve(bytes);
+            if (!credit.has_value())
+                return FeedAdmission::NoRoom;
+        }
         mMonitor.give([&] {
-            assert(mCount < sInFlightMost && "a request past the feed's credit");
+            assert(mCount < sInFlightMost && "the ring filled while the frame's thread asked");
             Job& job = jobAt(mCount);
-            job = Job{ .mRequest = std::move(request) };
+            job = Job{ .mRequest = std::move(request),
+                .mCredit = credit.has_value() ? std::move(*credit) : PoolCredit() };
             ++mCount;
             return true;
         });
+        return FeedAdmission::Admitted;
     }
 
     std::optional<FeedArrival> TextureHands::take()
@@ -175,9 +210,6 @@ namespace Rtx
 
     void TextureHands::flush()
     {
-        // Past the pool's most while it waits: what it waits for is held until every job is made, so a hand that
-        // waited for room would wait on this waiter.
-        const BufferPool::Overdraft overdraft(mPool);
         mMonitor.await([&] {
             for (std::size_t age = 0; age < mCount; ++age)
                 if (jobAt(age).mState != JobState::Done)
@@ -210,8 +242,7 @@ namespace Rtx
         return bytes;
     }
 
-    std::variant<FeedMade, FeedFailed> TextureHands::make(
-        Hand& hand, const FeedRequest& request, const std::stop_token& stop)
+    std::variant<FeedMade, FeedFailed> TextureHands::make(Hand& hand, const FeedRequest& request, PoolCredit credit)
     {
         // **The header a model holds, keyed by its derivation**: a chain the store holds whole reads nothing of the
         // file, and a run reads its texels through the header.
@@ -226,13 +257,13 @@ namespace Rtx
                 const ConversionPass::Input input{
                     .mImage = file, .mPartner = *request.mPartner, .mEncoding = encoding, .mRead = &pixels
                 };
-                if (hand.mContent.convert(input, request.mLevels.mFirst, mPool, stop, hand.mChain))
+                if (hand.mContent.convert(input, request.mLevels.mFirst, std::move(credit), hand.mChain))
                     layout = ConversionPass::madeLayout(input, hand.mChain.mForm);
             }
             else
             {
                 const ChainPass::Input input{ .mImage = file, .mEncoding = encoding, .mRead = &pixels };
-                if (hand.mContent.chain(input, request.mLevels.mFirst, mPool, stop, hand.mChain))
+                if (hand.mContent.chain(input, request.mLevels.mFirst, std::move(credit), hand.mChain))
                     layout = ChainPass::madeLayout(input, hand.mChain.mForm);
             }
         }
@@ -301,12 +332,19 @@ namespace Rtx
                         return;
                     }
             },
-            [&](const std::stop_token& asked) {
-                // **A job forgotten before it started is cancelled**: nothing waits for what it would read.
-                const bool forgotten = mMonitor.under([&] { return job->mForgotten; });
-                const FeedRequest request = job->mRequest;
-                std::variant<FeedMade, FeedFailed> outcome
-                    = forgotten ? std::variant<FeedMade, FeedFailed>(FeedFailed{}) : make(hand, request, asked);
+            [&](const std::stop_token&) {
+                // **A job forgotten before it started is cancelled**: nothing waits for what it would read, and the
+                // room it was admitted with goes back with its credit.
+                FeedRequest request;
+                PoolCredit credit;
+                const bool forgotten = mMonitor.under([&] {
+                    request = job->mRequest;
+                    credit = std::move(job->mCredit);
+                    return job->mForgotten;
+                });
+                std::variant<FeedMade, FeedFailed> outcome = forgotten
+                    ? std::variant<FeedMade, FeedFailed>(FeedFailed{})
+                    : make(hand, request, std::move(credit));
 
                 // **A hand lets go of its chains' scratch once the queue is drained**: one miss on a 4096 map held
                 // some 106 MB on this thread for the session.

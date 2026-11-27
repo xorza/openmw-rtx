@@ -220,11 +220,22 @@ What the game reads from files (`components/resource`), changed for the handheld
   numbered by the passes' order, which moved every made chain to another kind when a pass before it went.
 - **A made chain is handed over in a buffer of a bounded pool, read a segment at a time** (`Rtx::BufferPool`,
   `ContentPreprocessor::chain` into a pool): the store's entry is opened, its form's byte read, and its levels read
-  by position into a pooled buffer from the first level the request asks, each segment's digest checked; the buffer goes back to the pool as the made image
-  goes, the device having its copy. 256 MiB in use and free, by size class a power of two, so a hand-over allocates
-  nothing once warm, as DirectStorage reads into a bounded staging buffer. A job whose slot left before it started is
-  cancelled. Refused: a buffer allocated a read, freed on the frame's thread; reading into the staging memory, which
-  is write-combined and which a digest would read back.
+  by position into a pooled buffer from the first level the request asks, each segment's digest checked; the buffer
+  goes back to the pool as the made image goes, the device having its copy. 256 MiB charged and free, by size class a
+  power of two, so a hand-over allocates nothing once warm, as DirectStorage reads into a bounded staging buffer. A job
+  whose slot left before it started is cancelled. Refused: a buffer allocated a read, freed on the frame's thread;
+  reading into the staging memory, which is write-combined and which a digest would read back.
+- **A request is admitted with the room its texels take** (`TextureHands::ask`, `pooledBytesOf`,
+  `BufferPool::reserve`): the most any form of its chain takes from the level asked is reserved where the request is
+  asked, in the order asked, so no thread ever waits on the pool. A request with no room is refused, charged nothing,
+  and closes the room to those behind it in the hand-over, so it is asked again first and never passed for ever by
+  smaller ones; a request that takes no room, a file whose own chain stands, still goes. Completions leave in the order asked, each holding its buffer until it does, so room
+  taken where a hand found it let a request asked later fill the pool and the first wait for ever on room only those
+  behind it held, and textures stood grey for the session (#77). This is Unreal's streamer starting a stream-in only
+  within `r.Streaming.MaxTempMemoryAllowed`, and the preparation's own dispatcher, which admits a chain before a thread
+  starts it. Refused: the front request allowed past the pool's most, which keeps a wait that only the consumer's order
+  frees; a pool sized for the ring, gigabytes for 64 requests at 8192 texels; completions taken as they finish, which
+  gives up the order that stands one image on one frame in two processes.
 - **A preload is a guess, skipped past the budget** (`CellPreloader`), and asked again later, a door's destination
   asked before it is found, which loads its references for good. Refused: waiting for room, which stalls the queue.
 - **The navigator's tiles stand under the one budget** (`NavMeshTilesCache`), with no cap of their own: a tile is a read

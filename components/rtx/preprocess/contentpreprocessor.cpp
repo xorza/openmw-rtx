@@ -91,7 +91,7 @@ namespace Rtx
 
     template <ContentPass Pass>
     bool ContentPreprocessor::readPooled(const ContentStore::Key& key, const typename Pass::Input& input,
-        const std::uint8_t first, BufferPool& pool, const std::stop_token& stop, PooledChain& made)
+        const std::uint8_t first, PoolCredit& credit, PooledChain& made)
     {
         std::optional<ContentStore::Opened> opened = mCache.open<Pass>(key);
         if (!opened.has_value())
@@ -128,26 +128,26 @@ namespace Rtx
         // **A segment a level, read from the first asked**, the finer ones left on the disk: a texture planned coarser
         // than its file reads none of what it leaves out. Its last level at the most.
         const std::uint32_t from = std::min<std::uint32_t>(first, last - 1);
-        std::optional<PooledBuffer> buffer
-            = pool.take(static_cast<std::size_t>(opened->endOf(last - 1) - opened->startOf(from)), stop);
-        if (!buffer.has_value() || !mCache.readSegments(*opened, from, last - from, buffer->bytes()))
+        PooledBuffer buffer
+            = std::move(credit).spend(static_cast<std::size_t>(opened->endOf(last - 1) - opened->startOf(from)));
+        if (!mCache.readSegments(*opened, from, last - from, buffer.bytes()))
+        {
+            credit = std::move(buffer).refund();
             return false;
+        }
         made.mFirst = static_cast<std::uint8_t>(from);
-        made.mBytes = std::move(*buffer);
+        made.mBytes = std::move(buffer);
         return true;
     }
 
     template <ContentPass Pass>
-    bool ContentPreprocessor::runPooled(Pass& pass, const typename Pass::Input& input, const std::uint8_t first,
-        BufferPool& pool, const std::stop_token& stop, PooledChain& made)
+    bool ContentPreprocessor::runPooled(
+        Pass& pass, const typename Pass::Input& input, const std::uint8_t first, PoolCredit credit, PooledChain& made)
     {
         return runCached(
             pass, input,
-            [&](const ContentStore::Key& key) { return readPooled<Pass>(key, input, first, pool, stop, made); },
+            [&](const ContentStore::Key& key) { return readPooled<Pass>(key, input, first, credit, made); },
             [&](const std::optional<ContentStore::Key>& key) {
-                // A stop asked while the pool waited is no miss to make: what asked it is going.
-                if (stop.stop_requested())
-                    return false;
                 pass.run(input, mMade);
                 if (key.has_value())
                     mCache.keep<Pass>(*key, input, mMade);
@@ -161,11 +161,9 @@ namespace Rtx
                 assert(layout.has_value() && "a chain made that fills no layout of its file");
                 const std::uint32_t from = std::min<std::uint32_t>(first, layout->mCount - 1);
                 const std::size_t start = layout->offsetOf(from);
-                std::optional<PooledBuffer> buffer = pool.take(mMade.mBytes.size() - start, stop);
-                if (!buffer.has_value())
-                    return false;
-                std::ranges::copy(std::span(mMade.mBytes).subspan(start), buffer->bytes().begin());
-                made.mBytes = std::move(*buffer);
+                PooledBuffer buffer = std::move(credit).spend(mMade.mBytes.size() - start);
+                std::ranges::copy(std::span(mMade.mBytes).subspan(start), buffer.bytes().begin());
+                made.mBytes = std::move(buffer);
                 made.mFirst = static_cast<std::uint8_t>(from);
                 return true;
             });
@@ -220,21 +218,21 @@ namespace Rtx
         return runStored(mConversion, input);
     }
 
-    bool ContentPreprocessor::chain(const ChainPass::Input& input, const std::uint8_t first, BufferPool& pool,
-        const std::stop_token& stop, PooledChain& made)
+    bool ContentPreprocessor::chain(
+        const ChainPass::Input& input, const std::uint8_t first, PoolCredit credit, PooledChain& made)
     {
         const Crash::NoteScope noted("making the chain of \"{}\" as {}", SceneUtil::EmbeddedImage::nameOf(input.mImage),
             sTextureEncodings.name(input.mEncoding));
-        return runPooled(mChain, input, first, pool, stop, made);
+        return runPooled(mChain, input, first, std::move(credit), made);
     }
 
-    bool ContentPreprocessor::convert(const ConversionPass::Input& input, const std::uint8_t first, BufferPool& pool,
-        const std::stop_token& stop, PooledChain& made)
+    bool ContentPreprocessor::convert(
+        const ConversionPass::Input& input, const std::uint8_t first, PoolCredit credit, PooledChain& made)
     {
         const Crash::NoteScope noted("converting \"{}\" with \"{}\" as {}",
             SceneUtil::EmbeddedImage::nameOf(input.mImage), SceneUtil::EmbeddedImage::nameOf(input.mPartner),
             sTextureEncodings.name(input.mEncoding));
-        return runPooled(mConversion, input, first, pool, stop, made);
+        return runPooled(mConversion, input, first, std::move(credit), made);
     }
 
     ContentPreprocessor::ContentPreprocessor(ContentStore::Store* const store, ChainAdmission* const admission)

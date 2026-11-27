@@ -1156,6 +1156,8 @@ namespace Rtx
 
         // Arrivals and raisings, the most protected first: texels asked of the feed, then stood once they came; a bake
         // once what it is made of stands.
+        FeedRoom room = FeedRoom::Open;
+        bool slotless = false;
         for (const HoldTier tier : sDemandedTiers)
             for (std::uint32_t at = 0; at < scene.mTextures.size(); ++at)
             {
@@ -1234,19 +1236,29 @@ namespace Rtx
                     continue;
                 }
 
-                if (!feed.hasCredit())
+                // **Once one is refused for room, the room is closed to those behind it this hand-over**, so it is the
+                // first asked once room comes and is never passed for ever by smaller ones; what takes no room goes
+                // on. Once the feed has no slot, nothing more goes.
+                if (slotless)
                     continue;
                 const TextureRow& described = table.getRows()[row];
-                const FeedTicket ticket{ mNextTicket++ };
-                feed.ask(FeedRequest{ .mTicket = ticket,
-                    .mScene = indexOf(scene),
-                    .mTexture = row,
-                    .mGeneration = texture.mGeneration,
-                    .mFile = described.mImage,
-                    .mPartner = described.mPartner,
-                    .mEncoding = described.mEncoding,
-                    .mShape = texture.mShape,
-                    .mLevels = LevelSpan{ .mFirst = planned, .mEnd = end } });
+                const FeedTicket ticket{ mNextTicket };
+                const FeedAdmission admitted = feed.ask(FeedRequest{ .mTicket = ticket,
+                                                            .mScene = indexOf(scene),
+                                                            .mTexture = row,
+                                                            .mGeneration = texture.mGeneration,
+                                                            .mFile = described.mImage,
+                                                            .mPartner = described.mPartner,
+                                                            .mEncoding = described.mEncoding,
+                                                            .mShape = texture.mShape,
+                                                            .mLevels = LevelSpan{ .mFirst = planned, .mEnd = end } },
+                    room);
+                if (admitted == FeedAdmission::NoRoom)
+                    room = FeedRoom::Closed;
+                slotless = admitted == FeedAdmission::NoSlot;
+                if (admitted != FeedAdmission::Admitted)
+                    continue;
+                ++mNextTicket;
                 texture.mStanding = TextureArriving{ .mToLevel = planned, .mTicket = ticket, .mNow = now };
             }
     }
