@@ -51,7 +51,9 @@ namespace Rtx::Testing
 
     /// **A price is a power-of-two alignment and bytes that grow with the chain**: an RGBA8 256² chain costs no less
     /// than its texels, 349 524 bytes (`4 · (256² + 128² + … + 1)`), and more than the 128² chain under its first
-    /// level; a chain of no format the device takes is no price.
+    /// level; a chain of no format the device takes is no price. **The bytes are the device's own and no multiple of
+    /// the alignment**, which Vulkan promises of neither an image's requirements nor a structure's size: a slot rounds
+    /// them up (`SlotLedger::strideFor`).
     TYPED_TEST_P(ResidencyDeviceConformance, pricesAnImageAtLeastItsTexelsAndNothingItCannotTake)
     {
         const ImageShape full{ .mFormat = TextureFormat::Rgba8Unorm, .mWidth = 256, .mHeight = 256, .mLevels = 9 };
@@ -63,14 +65,13 @@ namespace Rtx::Testing
         EXPECT_GE(fullPrice->mBytes, 349'524u);
         EXPECT_GT(fullPrice->mBytes, coarserPrice->mBytes);
         EXPECT_TRUE(std::has_single_bit(fullPrice->mAlignment));
-        EXPECT_EQ(fullPrice->mBytes % fullPrice->mAlignment, 0u);
 
         EXPECT_EQ(this->mDevice->priceImage(
                       ImageShape{ .mFormat = TextureFormat::Unnamed, .mWidth = 256, .mHeight = 256, .mLevels = 9 }),
             std::nullopt);
     }
 
-    /// **A structure's price grows with its triangles** and is aligned as an image's is.
+    /// **A structure's price grows with its triangles**, and starts at a power-of-two alignment, as an image's does.
     TYPED_TEST_P(ResidencyDeviceConformance, pricesAStructureByItsTriangles)
     {
         if (!this->mDevice->standsStructures())
@@ -81,7 +82,7 @@ namespace Rtx::Testing
         EXPECT_GT(one.mBytes, 0u);
         EXPECT_GT(many.mBytes, one.mBytes);
         EXPECT_TRUE(std::has_single_bit(one.mAlignment));
-        EXPECT_EQ(many.mBytes % many.mAlignment, 0u);
+        EXPECT_TRUE(std::has_single_bit(many.mAlignment));
     }
 
     /// **Epochs never fall, and what finished never runs ahead of them or back**: three empty hand-overs ride epochs
