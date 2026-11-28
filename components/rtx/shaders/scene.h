@@ -303,6 +303,14 @@ namespace Rtx::Shaders
     /// (`Rtx::InstanceRecord::mMask`) never carries it, so no traversal sees it.
     const uint INSTANCE_LAMP_BODY = 0x100u;
 
+    /// The placement's key (`Rtx::MeshInstance::mKey`), its upper half, **in `GpuInstance::mClass` above the lamp
+    /// body's bit**: what its soft edges' and see-through draws seed by and a tie between coincident sheets is
+    /// settled by, where the slot a hit reads back follows the order the placements arrived in. In the word every
+    /// walk that tests a candidate reads already, and not a word of its own, which held one more register in
+    /// RADV's `media` and took it past its ceiling. Half a key draws as well as a whole one: two placements that
+    /// share it draw alike, and two coincident sheets that share it tie as the traversal meets them.
+    const uint INSTANCE_KEY_BITS = 0xFFFF0000u;
+
     /// The material is a medium — `Rtx::Material::isMedium`. **A bit and not a second float**, as the
     /// row is read at every candidate the eye walks past; density is not stored (the texture's alpha
     /// is what a crossing square to the surface hides, and obliquity is all a thickness adds).
@@ -533,18 +541,10 @@ namespace Rtx::Shaders
         /// to a placement and not to a material.
         float mOpacity;
 
-        /// The class bits this placement answers to (`Rtx::InstanceRecord::mClass`), and
-        /// `INSTANCE_LAMP_BODY` above them. A medium's structure mask is `MASK_MEDIUM` alone, so the one
-        /// ray that sums a medium asks this word instead (`candidateStops`).
+        /// The class bits this placement answers to (`Rtx::InstanceRecord::mClass`), `INSTANCE_LAMP_BODY` above
+        /// them and its key's half above that (`INSTANCE_KEY_BITS`). A medium's structure mask is `MASK_MEDIUM`
+        /// alone, so the one ray that sums a medium asks this word instead (`candidateStops`).
         uint mClass;
-
-        /// What the placement is in every run of the same content (`Rtx::MeshInstance::mKey`), which its soft
-        /// edges' and see-through draws seed by and a tie between coincident sheets is settled by; the slot a hit
-        /// reads back follows the order the placements arrived in.
-        uint mKey;
-
-        /// To 32 bytes, so the transforms below start on sixteen.
-        uint mPadding[3] RTX_ZERO;
 
         /// World space to where this instance was on the previous frame, as three rows of four: the
         /// identity for anything that did not move, so a static surface has a motion vector of exactly
@@ -1170,9 +1170,11 @@ namespace Rtx::Shaders
 #ifdef RTX_HOST
     static_assert(sizeof(GpuVertexColour) == 8, "GpuVertexColour must be scalar-packed on every side");
     static_assert(sizeof(GpuMesh) == 28, "GpuMesh must be scalar-packed on every side");
-    static_assert(sizeof(GpuInstance) == 176, "GpuInstance must be scalar-packed on every side");
+    static_assert(sizeof(GpuInstance) == 160, "GpuInstance must be scalar-packed on every side");
     static_assert(INSTANCE_LAMP_BODY > (MASK_EVERY_CLASS | MASK_ADDITIVE | MASK_MEDIUM),
         "the lamp body's bit stands above every ray mask's");
+    static_assert((INSTANCE_KEY_BITS & (INSTANCE_LAMP_BODY | MASK_EVERY_CLASS | MASK_ADDITIVE | MASK_MEDIUM)) == 0,
+        "the key's half stands above the lamp body's bit and every ray mask's");
     static_assert(sizeof(GpuLight) == 40, "GpuLight must be scalar-packed on every side");
     static_assert(sizeof(GpuLampSphere) == 20, "GpuLampSphere must be scalar-packed on every side");
     static_assert(sizeof(GpuLampChange) == 40, "GpuLampChange must be scalar-packed on every side");

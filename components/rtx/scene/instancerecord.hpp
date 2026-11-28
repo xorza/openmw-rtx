@@ -69,7 +69,7 @@ namespace Rtx
         /// `MASK_WATER` for water, or `MASK_ADDITIVE` for a surface that adds.
         std::uint32_t mClass = 0;
 
-        /// `MeshInstance::mKey`, which `GpuInstance::mKey` carries.
+        /// `MeshInstance::mKey`, which `GpuInstance::mClass` carries its half of (`INSTANCE_KEY_BITS`).
         std::uint32_t mKey = 0;
 
         /// Which rays meet it in traversal: `mClass`, or `MASK_MEDIUM` alone for a medium.

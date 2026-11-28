@@ -514,10 +514,10 @@ bool candidateStops(Candidate candidate, TriangleEdges edges, vec3 direction, fl
 
     // **Met as often as it is there**, one draw a ray and a triangle, so the mean of what the rays
     // find behind a pane is the blend the eye draws over it. By the placement's key and not its slot, which
-    // follows the order the placements arrived in (`GpuInstance::mKey`).
+    // follows the order the placements arrived in (`INSTANCE_KEY_BITS`).
     if (byChance)
     {
-        uint draws = randomSeed(rayKey + SEED_SEE_THROUGH + instance.mKey * 0x9E3779B9u
+        uint draws = randomSeed(rayKey + SEED_SEE_THROUGH + placementKeyOf(instance) * 0x9E3779B9u
             + candidate.mPrimitive * 0x85EBCA6Bu);
         return there && randomNext(draws) < sampledOpacity(opacity, painted);
     }
@@ -527,14 +527,14 @@ bool candidateStops(Candidate candidate, TriangleEdges edges, vec3 direction, fl
 
 /// The eye's draw for a soft edge (`cutAt`), a pixel, a frame and a triangle apart: one where the
 /// frame does not dither, which cuts every soft edge at its middle. By the placement's key and not its slot
-/// (`GpuInstance::mKey`).
+/// (`INSTANCE_KEY_BITS`).
 float softEdgeDither(uint key, Candidate candidate)
 {
     if (frame.mSoftEdgeDither == 0u)
         return 1.0;
 
     uint draws = randomSeed(
-        key + instanceAt(candidate.mInstance).mKey * 0x9E3779B9u + candidate.mPrimitive * 0x85EBCA6Bu);
+        key + placementKeyOf(instanceAt(candidate.mInstance)) * 0x9E3779B9u + candidate.mPrimitive * 0x85EBCA6Bu);
     return randomNext(draws);
 }
 

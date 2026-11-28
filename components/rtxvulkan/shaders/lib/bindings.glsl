@@ -377,6 +377,12 @@ GpuInstance instanceAt(uint index)
     return InstanceTable(frame.mTables.mInstances).at[index];
 }
 
+/// What `instance` is in every run of the same content, as its draws and its ties read it (`INSTANCE_KEY_BITS`).
+uint placementKeyOf(GpuInstance instance)
+{
+    return instance.mClass & INSTANCE_KEY_BITS;
+}
+
 /// Three rows of four as the matrix they are, the mesh's own space to the world or back.
 mat4x3 transformOf(vec4 rows[3])
 {

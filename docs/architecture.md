@@ -302,7 +302,8 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
   placements take their slots in the order the reader's cells are adopted, which its thread's timing decides, and two
   runs that laid one scene out two ways drew two pictures. Refused: the transform, which moves with an actor and
   flips a tie on every frame it walks; adopting the reader's cells in the order asked, which holds the ring to its
-  slowest read.
+  slowest read. **Its upper half rides in the class word** (`INSTANCE_KEY_BITS`), which every candidate's test reads
+  already. Refused: a word of its own, which held one more register in RADV's `media` and took it past its ceiling.
 - **A vertex's normal and colour are packed for the device once**, by the user's decisions: an octahedral normal with a
   "present" bit, the colour in half floats, none clamped. Refused: `SNORM` normals with no "none", `UNORM` colours that
   clamp, sRGB bytes.

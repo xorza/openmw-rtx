@@ -3153,10 +3153,11 @@ namespace Rtx::Testing
             EXPECT_NEAR(floorUnder(0.25f), 0.375f, 0.01f) << "and a quarter a quarter";
         }
 
-        /// **A see-through draw and a soft edge's are the placement's and not its slot's** (`GpuInstance::mKey`): the
+        /// **A see-through draw and a soft edge's are the placement's and not its slot's** (`INSTANCE_KEY_BITS`): the
         /// scene above, a half pane over the floor, stood again behind a grey sheet under the floor that no ray
         /// reaches, so every placement stands one slot on, draws the same frame to the bit; the same pane under
-        /// another key draws another. A faint leaf the eye meets by its soft edge's draw, likewise. The slots follow
+        /// another key draws another, and one that differs in its lower half alone, which the device is not handed,
+        /// the same. A faint leaf the eye meets by its soft edge's draw, likewise. The slots follow
         /// the order the placements arrived in, which two runs need not share.
         TEST_F(RtxVisibilityTest, aSeeThroughDrawIsThePlacementsAndNotItsSlots)
         {
@@ -3192,9 +3193,10 @@ namespace Rtx::Testing
                 return shoot(scene, {}, camera, size, { .mFrames = 4 }).mRadiance;
             };
 
-            const std::vector<float> first = floorUnder(false, 5u);
-            EXPECT_EQ(floorUnder(true, 5u), first) << "the pane one slot on drew another frame";
-            EXPECT_NE(floorUnder(false, 6u), first) << "the key drew nothing";
+            const std::vector<float> first = floorUnder(false, 0x50000u);
+            EXPECT_EQ(floorUnder(true, 0x50000u), first) << "the pane one slot on drew another frame";
+            EXPECT_NE(floorUnder(false, 0x60000u), first) << "the key drew nothing";
+            EXPECT_EQ(floorUnder(false, 0x5FFFFu), first) << "the key's lower half reached the device";
 
             // **And the eye's draw for a soft edge**: a leaf whose one texel is under the cut, between the eye and
             // the floor, met by the eye a frame in three or so.
@@ -3221,9 +3223,9 @@ namespace Rtx::Testing
                 return shoot(scene, leafTexture, overheadSun(size), size, { .mFrames = 4 }).mRadiance;
             };
 
-            const std::vector<float> leafy = leafOver(false, 5u);
-            EXPECT_EQ(leafOver(true, 5u), leafy) << "the leaf one slot on drew another frame";
-            EXPECT_NE(leafOver(false, 6u), leafy) << "the key drew nothing";
+            const std::vector<float> leafy = leafOver(false, 0x50000u);
+            EXPECT_EQ(leafOver(true, 0x50000u), leafy) << "the leaf one slot on drew another frame";
+            EXPECT_NE(leafOver(false, 0x60000u), leafy) << "the key drew nothing";
         }
 
         /// A lamp's own model glows to the eye and lights nothing by the bounce (`landingLightOf`,

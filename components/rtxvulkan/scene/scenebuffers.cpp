@@ -401,8 +401,8 @@ namespace Rtx
             row.mMaterial = record.mMaterial == sNoRow ? Shaders::MATERIAL_ROW_UNTEXTURED
                                                        : materialRecordOf(record.mMaterial).at();
             row.mOpacity = record.mOpacity;
-            row.mClass = record.mClass | (record.mLampBody ? Shaders::INSTANCE_LAMP_BODY : 0u);
-            row.mKey = record.mKey;
+            row.mClass = record.mClass | (record.mLampBody ? Shaders::INSTANCE_LAMP_BODY : 0u)
+                | (record.mKey & Shaders::INSTANCE_KEY_BITS);
 
             const auto rowOf = [](const Transform3x4& transform, std::int32_t r) {
                 return osg::Vec4f(
