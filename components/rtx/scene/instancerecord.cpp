@@ -109,6 +109,7 @@ namespace Rtx
                 .mOpacity = instance.mOpacity,
                 .mKind = worn.mKind,
                 .mClass = kind,
+                .mKey = instance.mKey,
                 // **A medium carries the medium bit alone**, so traversal hands it to the two rays
                 // that sum it and to none of the rays that walked past it. `InstanceRecord::mMask`
                 // says why. **And an additive surface its own bit and no other**: nothing that

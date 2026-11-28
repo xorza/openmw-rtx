@@ -432,6 +432,7 @@ namespace RtxTool
             None,
             Clockwise,
             LampBody,
+            Key,
             Stander,
             SourceRadius,
             Clearance,
@@ -450,6 +451,7 @@ namespace RtxTool
             instance.mMesh = addBox(scene, false);
             instance.mClockwise = field == Field::Clockwise;
             instance.mLampBody = field == Field::LampBody;
+            instance.mKey = field == Field::Key ? 7u : 0u;
             instance.mStander = field == Field::Stander ? Rtx::Stander::Ring : Rtx::Stander::Walk;
             scene.addInstance(instance);
 
@@ -475,8 +477,9 @@ namespace RtxTool
         }
 
         /// **Every field a frame draws by is the content, and who stood a placement is not**: a mirrored face, a
-        /// lantern's paper, a lamp's flame, its shadow's clearance and the classes it lights, and a streak's length
-        /// each move it and the layout column that holds the field; the stander moves the instances column alone.
+        /// lantern's paper, the key a placement's draws are made by, a lamp's flame, its shadow's clearance and the
+        /// classes it lights, and a streak's length each move it and the layout column that holds the field; the
+        /// stander moves the instances column alone.
         TEST(RtxSceneDigestTest, everyFieldAFrameDrawsByIsTheContent)
         {
             const ScenePartDigests plain = partsWith(Field::None);
@@ -486,6 +489,7 @@ namespace RtxTool
             const std::array cases{
                 std::pair{ Field::Clockwise, std::vector{ ScenePart::Instances } },
                 std::pair{ Field::LampBody, std::vector{ ScenePart::Instances } },
+                std::pair{ Field::Key, std::vector{ ScenePart::Instances } },
                 std::pair{ Field::SourceRadius, std::vector{ ScenePart::Lights } },
                 std::pair{ Field::Clearance, std::vector{ ScenePart::Lights } },
                 std::pair{ Field::Traits, std::vector{ ScenePart::Lights } },

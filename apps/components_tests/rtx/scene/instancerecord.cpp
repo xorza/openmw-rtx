@@ -128,8 +128,11 @@ namespace Rtx
             const MaterialIndex sea = scene.addMaterial(Material{ .mKind = MaterialKind::Water });
             const MaterialIndex ground = scene.addMaterial(Material{ .mKind = MaterialKind::Terrain });
 
-            const PlacementIndex leaf = scene.addInstance(MeshInstance{
-                .mTransform = osg::Matrixf::translate(1.0f, 0.0f, 0.0f), .mMesh = mesh, .mMaterial = cutout });
+            const PlacementIndex leaf
+                = scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::translate(1.0f, 0.0f, 0.0f),
+                    .mMesh = mesh,
+                    .mMaterial = cutout,
+                    .mKey = 7u });
             const PlacementIndex pane = scene.addInstance(MeshInstance{
                 .mTransform = osg::Matrixf::translate(2.0f, 0.0f, 0.0f), .mMesh = mesh, .mMaterial = glass });
             const PlacementIndex water = scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = sea });
@@ -171,6 +174,10 @@ namespace Rtx
             EXPECT_EQ(kept[glow].mClass, Shaders::MASK_STATIC);
             EXPECT_EQ(kept[pane].mMask, kept[pane].mClass);
             EXPECT_EQ(kept[water].mClass, Shaders::MASK_WATER);
+
+            // **The placement's key rides to the row**, which the trace draws by in place of the slot.
+            EXPECT_EQ(kept[leaf].mKey, 7u);
+            EXPECT_EQ(kept[pane].mKey, 0u);
 
             // **The kind, which the backend writes as the shader-table record offset.** The shading reads it back off
             // the hit, so a placement carrying the wrong one is shaded the wrong way (ground as a plain surface, water

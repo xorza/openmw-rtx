@@ -296,6 +296,13 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
   backend requires.
 - **`Rtx::SceneDesc` is everything a backend needs of a world**: meshes, materials, textures, placements, deformers and
   the per-frame lists. It appends and deduplicates, and a slot is never renumbered, so a hit reads it as its index.
+- **What the trace draws by is a placement's key, never its slot** (`MeshInstance::mKey`): the walk's identity of it
+  or the ring's reference and part, hashed, which seeds a soft edge's dither and a see-through draw and settles
+  coincident sheets, as Cycles keys an object's random number by a hash of its name and not its index. The ring's
+  placements take their slots in the order the reader's cells are adopted, which its thread's timing decides, and two
+  runs that laid one scene out two ways drew two pictures. Refused: the transform, which moves with an actor and
+  flips a tie on every frame it walks; adopting the reader's cells in the order asked, which holds the ring to its
+  slowest read.
 - **A vertex's normal and colour are packed for the device once**, by the user's decisions: an octahedral normal with a
   "present" bit, the colour in half floats, none clamped. Refused: `SNORM` normals with no "none", `UNORM` colours that
   clamp, sRGB bytes.

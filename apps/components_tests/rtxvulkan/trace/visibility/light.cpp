@@ -3153,6 +3153,79 @@ namespace Rtx::Testing
             EXPECT_NEAR(floorUnder(0.25f), 0.375f, 0.01f) << "and a quarter a quarter";
         }
 
+        /// **A see-through draw and a soft edge's are the placement's and not its slot's** (`GpuInstance::mKey`): the
+        /// scene above, a half pane over the floor, stood again behind a grey sheet under the floor that no ray
+        /// reaches, so every placement stands one slot on, draws the same frame to the bit; the same pane under
+        /// another key draws another. A faint leaf the eye meets by its soft edge's draw, likewise. The slots follow
+        /// the order the placements arrived in, which two runs need not share.
+        TEST_F(RtxVisibilityTest, aSeeThroughDrawIsThePlacementsAndNotItsSlots)
+        {
+            SceneIdentities identities;
+            constexpr std::uint32_t size = 32;
+
+            const auto floorUnder = [&](bool shifted, std::uint32_t key) {
+                SceneDesc scene(identities);
+                if (shifted)
+                    addQuad(scene, sheetAt(100.0f, -1000.0f));
+                addQuad(scene, sheetAt(40000.0f, 0.0f));
+
+                Material glowing;
+                glowing.mEmissiveColour = osg::Vec3f(0.125f, 0.125f, 0.125f);
+                glowing.mTwoSided = true;
+                addQuad(scene, sheetAt(40000.0f, 100.0f), scene.addMaterial(glowing));
+                const MaterialIndex glass = scene.addMaterial(Material{
+                    .mOpacity = 0.5f,
+                    .mAlphaMode = AlphaMode::Blend,
+                    .mTwoSided = true,
+                });
+                scene.addInstance(MeshInstance{
+                    .mMesh = addQuadMesh(scene, sheetAt(40000.0f, 50.0f)), .mMaterial = glass, .mKey = key });
+
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, -1.0f, 20.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mAmbient = osg::Vec3f();
+                camera.mAmbientFromSky = 1.0f;
+
+                return shoot(scene, {}, camera, size, { .mFrames = 4 }).mRadiance;
+            };
+
+            const std::vector<float> first = floorUnder(false, 5u);
+            EXPECT_EQ(floorUnder(true, 5u), first) << "the pane one slot on drew another frame";
+            EXPECT_NE(floorUnder(false, 6u), first) << "the key drew nothing";
+
+            // **And the eye's draw for a soft edge**: a leaf whose one texel is under the cut, between the eye and
+            // the floor, met by the eye a frame in three or so.
+            constexpr std::array<std::uint8_t, 4> faint{ 255, 255, 255, 77 };
+            const std::array<TextureData, 1> leafTexture{ describeTexel(faint, TextureIndex(0)) };
+            const auto leafOver = [&](bool shifted, std::uint32_t key) {
+                SceneDesc scene(identities);
+                if (shifted)
+                    addQuad(scene, sheetAt(100.0f, -1000.0f));
+                addQuad(scene, sheetAt(40000.0f, 0.0f));
+                const Material leaf{
+                    .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("leaf.dds")),
+                    .mAlphaMode = AlphaMode::Blend,
+                    .mTwoSided = true,
+                };
+                EXPECT_TRUE(leaf.isSoftEdged());
+                scene.addInstance(MeshInstance{
+                    .mMesh = Testing::addMesh(scene,
+                        MeshArrays{
+                            .mPositions = sheetAt(40000.0f, 10.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    .mMaterial = scene.addMaterial(leaf),
+                    .mKey = key });
+
+                return shoot(scene, leafTexture, overheadSun(size), size, { .mFrames = 4 }).mRadiance;
+            };
+
+            const std::vector<float> leafy = leafOver(false, 5u);
+            EXPECT_EQ(leafOver(true, 5u), leafy) << "the leaf one slot on drew another frame";
+            EXPECT_NE(leafOver(false, 6u), leafy) << "the key drew nothing";
+        }
+
         /// A lamp's own model glows to the eye and lights nothing by the bounce (`landingLightOf`,
         /// `INSTANCE_LAMP_BODY`): its lamp delivers that light already. A glowing sheet over a grey floor and
         /// nothing else, the sheet two-sided so the eye under it sees it. Its radiance is

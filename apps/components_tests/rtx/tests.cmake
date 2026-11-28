@@ -99,6 +99,7 @@ target_sources(
         rtx/scene/lightgrid.cpp
         rtx/scene/mesharrivals.cpp
         rtx/scene/packedstreams.cpp
+        rtx/scene/placementkey.cpp
         rtx/scene/refusals.cpp
         rtx/scene/scenedesc.cpp
         rtx/scene/textureasks.cpp

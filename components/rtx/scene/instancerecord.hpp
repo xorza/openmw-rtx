@@ -69,6 +69,9 @@ namespace Rtx
         /// `MASK_WATER` for water, or `MASK_ADDITIVE` for a surface that adds.
         std::uint32_t mClass = 0;
 
+        /// `MeshInstance::mKey`, which `GpuInstance::mKey` carries.
+        std::uint32_t mKey = 0;
+
         /// Which rays meet it in traversal: `mClass`, or `MASK_MEDIUM` alone for a medium.
         ///
         /// **Water's own bit** is what lets a shadow ray pass straight through it, or every shallow in

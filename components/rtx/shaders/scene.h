@@ -538,6 +538,14 @@ namespace Rtx::Shaders
         /// ray that sums a medium asks this word instead (`candidateStops`).
         uint mClass;
 
+        /// What the placement is in every run of the same content (`Rtx::MeshInstance::mKey`), which its soft
+        /// edges' and see-through draws seed by and a tie between coincident sheets is settled by; the slot a hit
+        /// reads back follows the order the placements arrived in.
+        uint mKey;
+
+        /// To 32 bytes, so the transforms below start on sixteen.
+        uint mPadding[3] RTX_ZERO;
+
         /// World space to where this instance was on the previous frame, as three rows of four: the
         /// identity for anything that did not move, so a static surface has a motion vector of exactly
         /// zero rather than rounding. See `Rtx::InstanceRecord::mMotion`.
@@ -1162,7 +1170,7 @@ namespace Rtx::Shaders
 #ifdef RTX_HOST
     static_assert(sizeof(GpuVertexColour) == 8, "GpuVertexColour must be scalar-packed on every side");
     static_assert(sizeof(GpuMesh) == 28, "GpuMesh must be scalar-packed on every side");
-    static_assert(sizeof(GpuInstance) == 160, "GpuInstance must be scalar-packed on every side");
+    static_assert(sizeof(GpuInstance) == 176, "GpuInstance must be scalar-packed on every side");
     static_assert(INSTANCE_LAMP_BODY > (MASK_EVERY_CLASS | MASK_ADDITIVE | MASK_MEDIUM),
         "the lamp body's bit stands above every ray mask's");
     static_assert(sizeof(GpuLight) == 40, "GpuLight must be scalar-packed on every side");

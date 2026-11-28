@@ -1,6 +1,7 @@
 #include "cellplacer.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -27,6 +28,7 @@
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/placementkey.hpp>
 #include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>
@@ -380,6 +382,8 @@ namespace Rtx
         ground.collectTextures(stands.mTextures);
 
         stands.mStood.mTransform = osg::Matrixf::translate(ground.mOrigin);
+        stands.mStood.mKey = placementKeyOf(PlacementKeyKind::Ground,
+            { std::bit_cast<std::uint32_t>(held.mCell.x()), std::bit_cast<std::uint32_t>(held.mCell.y()) });
 
         Material material;
         material.mKind = MaterialKind::Terrain;
@@ -419,6 +423,9 @@ namespace Rtx
                     .mTransform = model.mParts[at].mLocal * ref.mTransform,
                     .mLampBody = ref.mLampBody,
                     .mClockwise = model.mParts[at].mClockwise,
+                    .mKey = placementKeyOf(PlacementKeyKind::Referenced,
+                        { ref.mRefNum.mIndex, std::bit_cast<std::uint32_t>(ref.mRefNum.mContentFile),
+                            static_cast<std::uint32_t>(at) }),
                 },
                 .mRadius = ref.mRadius,
                 .mModes = model.mParts[at].mModes,
@@ -568,6 +575,7 @@ namespace Rtx
             .mClockwise = stood.mClockwise,
             .mLampBody = stood.mLampBody,
             .mStander = Stander::Ring,
+            .mKey = stood.mKey,
         });
         ++standing;
     }

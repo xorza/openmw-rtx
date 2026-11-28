@@ -54,8 +54,9 @@ namespace Rtx
     /// to write again. A slot is never moved and never closed up, because a hit reads its slot
     /// index back. The two change lists are the whole of what a backend rewrites: a world is tens
     /// of thousands of placements and a frame changes hundreds. An arrival takes the lowest free
-    /// slot and never the last one freed, because the slot settles a tie between coincident sheets
-    /// and the order a sweep drops slots in is a hash of node addresses.
+    /// slot and never the last one freed, because the order a sweep drops slots in is a hash of node
+    /// addresses, which would lay one run's arrivals out another way in the next. The trace's draws
+    /// and its tie between coincident sheets read `MeshInstance::mKey`, not the slot.
     ///
     /// **The counts are kept here, by the row that changed.** What a placement counts as is decided
     /// by its material's traversal facts, its class and its opacity, all of which this table is the

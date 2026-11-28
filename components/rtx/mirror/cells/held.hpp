@@ -48,6 +48,10 @@ namespace Rtx
         /// Whether it shows the face wound clockwise (`MeshInstance::mClockwise`).
         bool mClockwise = false;
 
+        /// What it is in every run of the same content (`MeshInstance::mKey`): its reference and part, or its
+        /// cell for a ground.
+        std::uint32_t mKey = 0;
+
         /// The slot it stands in, or none while the size rule, a script or the ring keeps it out.
         PlacementIndex mSlot = sNoRow;
 

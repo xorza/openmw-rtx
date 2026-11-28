@@ -77,6 +77,7 @@
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/placementkey.hpp>
 #include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
@@ -772,6 +773,19 @@ namespace Rtx::Testing
                 if ((osg::Vec3f() * row.mInstance.mTransform - untilted).length() < 0.01f)
                     ++standing;
             EXPECT_EQ(standing, 1u);
+
+            // **Each stands under the key its reference and part name in every run**, and a ground under its cell's:
+            // the slots follow the order the cells were adopted in, which the reader's thread decides.
+            for (const PlacementRow& row : mScene.placements().getRows())
+            {
+                const osg::Vec3f stood = osg::Vec3f() * row.mInstance.mTransform;
+                if ((stood - expected).length() < 0.01f)
+                    EXPECT_EQ(row.mInstance.mKey, placementKeyOf(PlacementKeyKind::Referenced, { 1u, 0u, 0u }));
+                if ((stood - untilted).length() < 0.01f)
+                    EXPECT_EQ(row.mInstance.mKey, placementKeyOf(PlacementKeyKind::Referenced, { 2u, 0u, 0u }));
+            }
+            EXPECT_EQ(far->mKey, placementKeyOf(PlacementKeyKind::Ground, { 3u, 0u }));
+            EXPECT_EQ(home->mKey, placementKeyOf(PlacementKeyKind::Ground, { 0u, 0u }));
 
             // **A steady frame reaches the heap zero times**, which is the rule every loader here
             // keeps: what the ring holds is placed and counted out of buffers it already grew.

@@ -173,6 +173,21 @@ namespace Rtx::Testing
             ASSERT_TRUE(mExtractor.retire().empty());
             mScene.placements().advance();
 
+            // **And keyed by its stamp, whatever slot it stands in**: walked second into another scene, the second
+            // crate stands first and keeps its key, which the trace draws by (`MeshInstance::mKey`).
+            const std::uint32_t secondKey = mScene.placements().getRows()[PlacementIndex(1)].mInstance.mKey;
+            EXPECT_NE(mScene.placements().getRows()[PlacementIndex(0)].mInstance.mKey, secondKey);
+            {
+                Rtx::SceneDesc otherScene{ mIdentities };
+                SceneExtractor other{ otherScene, mContext, sWorldExtractorRoom, HoldTier::Shown };
+                other.setStampDepth(1);
+                osg::ref_ptr<osg::Group> swapped = new osg::Group;
+                swapped->addChild(second);
+                other.extract(*swapped, osg::Matrixf::identity(), 0, 0);
+                ASSERT_EQ(placedAt(otherScene, PlacementIndex(0)), osg::Vec3f(5.0f, 0.0f, 0.0f));
+                EXPECT_EQ(otherScene.placements().getRows()[PlacementIndex(0)].mInstance.mKey, secondKey);
+            }
+
             root->removeChild(first);
             mScene.clearPlacement();
             const ExtractionStats again = walk(*root, 0, 1);

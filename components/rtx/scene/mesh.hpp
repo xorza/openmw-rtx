@@ -144,6 +144,11 @@ namespace Rtx
         /// Who stood it, which is who may move it or drop it. The walk's unless the ring says so.
         Stander mStander = Stander::Walk;
 
+        /// **What the placement is, as every run of the same content names it** (`placementKeyOf`): what the trace
+        /// draws its soft edges and see-through chances by and settles a tie between coincident sheets by. Never
+        /// its slot, which follows the order the ring's cells arrived in from the reader's thread.
+        std::uint32_t mKey = 0;
+
         /// The mesh's own box as this places it: the box around its eight corners carried through
         /// the transform, which is eight transforms against a vertex's several hundred. Invalid
         /// where `box` is.

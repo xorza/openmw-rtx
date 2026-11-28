@@ -402,6 +402,7 @@ namespace Rtx
                                                        : materialRecordOf(record.mMaterial).at();
             row.mOpacity = record.mOpacity;
             row.mClass = record.mClass | (record.mLampBody ? Shaders::INSTANCE_LAMP_BODY : 0u);
+            row.mKey = record.mKey;
 
             const auto rowOf = [](const Transform3x4& transform, std::int32_t r) {
                 return osg::Vec4f(

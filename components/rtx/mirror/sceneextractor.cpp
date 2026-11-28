@@ -28,6 +28,7 @@
 #include <components/rtx/common/finite.hpp>
 #include <components/rtx/mirror/cells/cellstreamer.hpp>
 #include <components/rtx/scene/light.hpp>
+#include <components/rtx/scene/placementkey.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/sceneutil/lampbody.hpp>
@@ -945,6 +946,8 @@ namespace Rtx
             .mClass = what,
             .mClockwise = clockwiseThrough(shading),
             .mLampBody = lampBody,
+            .mKey = placementKeyOf(PlacementKeyKind::Walked,
+                { static_cast<std::uint32_t>(who), static_cast<std::uint32_t>(std::uint64_t{ who } >> 32) }),
         };
 
         ++stats.mInstances;

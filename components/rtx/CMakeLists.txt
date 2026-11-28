@@ -163,6 +163,7 @@ openmw_rtx_layer(
         scene/meshdigest.hpp
         scene/meshtable.hpp
         scene/packedstreams.hpp
+        scene/placementkey.hpp
         scene/placementtable.hpp
         scene/refusal.hpp
         scene/refusals.hpp

@@ -148,7 +148,7 @@ struct Gathered
     uint mBlocked;
 
     /// The plane of the crossing that hid the most, which is the one side the layer is given,
-    /// how much it hid, how far off it was and which instance it was.
+    /// how much it hid, how far off it was and which placement it was, by its key (`GpuInstance::mKey`).
     vec3 mCoveringNormal;
     float mCoveringAlpha;
     float mCoveringAt;
@@ -259,15 +259,17 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
             gathered.mBlocked = addShare(gathered.mBlocked, blockedBy(alpha));
 
         // **By what it hid and not by what it was lit by**: an unlit crossing decides the whole of what the
-        // pixel shows.
+        // pixel shows. Coincident sheets are settled by their keys, which the order the placements arrived in
+        // does not move as it moves their slots.
+        const uint key = crossing.mInstance.mKey;
         const bool tied = alpha == gathered.mCoveringAlpha && alpha > 0.0
-            && (at < gathered.mCoveringAt || (at == gathered.mCoveringAt && candidate.mInstance < gathered.mCovering));
+            && (at < gathered.mCoveringAt || (at == gathered.mCoveringAt && key < gathered.mCovering));
         if (alpha > gathered.mCoveringAlpha || tied)
         {
             gathered.mCoveringAlpha = alpha;
             gathered.mCoveringNormal = plane;
             gathered.mCoveringAt = at;
-            gathered.mCovering = candidate.mInstance;
+            gathered.mCovering = key;
         }
     }
 
