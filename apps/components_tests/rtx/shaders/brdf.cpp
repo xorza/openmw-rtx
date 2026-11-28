@@ -35,6 +35,28 @@ namespace Rtx
             EXPECT_NEAR(Shaders::indirectVisibility(0.5f, 0.8f), 0.811125f, 1e-6f);
         }
 
+        /// **An open map occludes no lobe and a shut one every lobe; between, a rough lobe keeps the visibility and a
+        /// sharp one keeps more looking straight in and less grazing.** At the rough end, alpha one, the exponent is
+        /// `2^-17`, so `(1 + 0.5)^(2^-17) - 1 + 0.5` is `0.5 + ln(1.5) / 131072` = 0.5000031. At the floor's alpha,
+        /// `0.045²` = 0.002025, the exponent is `2^(-16 * 0.002025 - 1)` = 0.488896, and `1.5^0.488896 - 0.5` is
+        /// 0.719243 straight in; grazing at a cosine of 0.1, `0.6^0.488896 - 0.5` is 0.279003. The tolerances are a
+        /// float's steps near one, where the power lands before the one is taken off it. The cosine and the
+        /// roughness each move the answer: 0.719243 against 0.279003, and 0.719243 against 0.5000031.
+        TEST(RtxBrdfTest, aLobesOcclusionIsTheMapsWhereRoughAndHangsOnTheEyeWhereSharp)
+        {
+            const float floorAlpha = Shaders::ROUGHNESS_FLOOR * Shaders::ROUGHNESS_FLOOR;
+            for (const float alpha : { floorAlpha, 0.25f, 1.0f })
+                for (const float cosine : { 0.0f, 0.1f, 0.5f, 1.0f })
+                {
+                    EXPECT_EQ(Shaders::specularOcclusion(cosine, 1.0f, alpha), 1.0f) << cosine << ' ' << alpha;
+                    EXPECT_EQ(Shaders::specularOcclusion(cosine, 0.0f, alpha), 0.0f) << cosine << ' ' << alpha;
+                }
+
+            EXPECT_NEAR(Shaders::specularOcclusion(1.0f, 0.5f, 1.0f), 0.5000031f, 1e-6f);
+            EXPECT_NEAR(Shaders::specularOcclusion(1.0f, 0.5f, floorAlpha), 0.719243f, 2e-6f);
+            EXPECT_NEAR(Shaders::specularOcclusion(0.1f, 0.5f, floorAlpha), 0.279003f, 2e-6f);
+        }
+
         /// **A vanilla surface is the Lambert surface it was.** A reflectance of nought has an edge of
         /// nought, reflects nothing at every angle, has a directional albedo of nothing, and is scaled by
         /// exactly one. A dielectric's 4% reaches an edge of one: `50 * 0.04` is two, saturated.

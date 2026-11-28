@@ -1167,7 +1167,8 @@ struct Surface
 
     /// How much of the indirect light the relief a specular map paints lets in: its blue, and one where
     /// there is none. Past `mAlbedo` and `mAmbientAlbedo` because neither says it: a lamp and the sun light
-    /// the same crack by them, and Night-Eye's lift is held to no occlusion. `occludedAlbedo` applies it.
+    /// the same crack by them, and Night-Eye's lift is held to no occlusion. `occludedAlbedo` applies it to the
+    /// diffuse half and `occludedLobe` to the lobe's.
     float mOcclusion;
 
     /// The material's own glow, as a lighting term. See `GpuMaterial::mEmissiveColour`.

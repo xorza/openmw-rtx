@@ -25,6 +25,7 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sceneidentities.hpp>
+#include <components/rtx/shaders/brdf.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/vfs/pathutil.hpp>
 
@@ -41,8 +42,9 @@ namespace Rtx::Testing
 
         /// A glossy floor under four lamps of four colours and a black sky: the lamps' one draw a
         /// pixel, weighed by its luminance, is the whole of the noise. Its specular map's texel is a
-        /// metalness of `metal / 255` at a roughness of `roughness / 255`: a metal returns its lobe
-        /// and nothing else, so all of the noise is in the lobe, and a dielectric has both halves.
+        /// metalness of `metal / 255` at a roughness of `roughness / 255`, open to the light by `open / 255`, all
+        /// of it unless a test says: a metal returns its lobe and nothing else, so all of the noise is in the lobe,
+        /// and a dielectric has both halves.
         struct GlossyFloor
         {
             std::array<std::uint8_t, 4> mMapTexel;
@@ -50,8 +52,8 @@ namespace Rtx::Testing
             SceneIdentities mIdentities;
             SceneDesc mScene{ mIdentities };
 
-            explicit GlossyFloor(std::uint8_t roughness, std::uint8_t metal = 255)
-                : mMapTexel{ metal, roughness, 0, 255 }
+            explicit GlossyFloor(std::uint8_t roughness, std::uint8_t metal = 255, std::uint8_t open = 255)
+                : mMapTexel{ metal, roughness, open, 255 }
                 , mTextures{ describeTexel(sBaseTexel, TextureIndex(0)), describeTexel(mMapTexel, TextureIndex(1)) }
             {
                 const std::array positions = sheetAt(4000.0f, 0.0f);
@@ -277,6 +279,72 @@ namespace Rtx::Testing
             }
         }
 
+        /// **A specular map's blue occludes the sky the lobe brings back**, by Lagarde's specular occlusion through
+        /// Jimenez's bounce at the lobe's own reflectance (`occludedLobe`). The rough metal floor under a grey sky and
+        /// no lamp, one raw frame open and one at a blue of 64: the lobe's channel holds the bounce's light alone, and
+        /// the occluded floor draws the paths the open one drew, since the lobe's chance is the open lobe's, so every
+        /// pixel's light falls by one factor. At a roughness of one Lagarde's exponent is `2^-17`, which keeps the
+        /// visibility within 1.1e-5 of the map's 64/255 at every cosine, so the factor stands between its values at a
+        /// grazing eye and a straight one, `indirectVisibility` of each at the grey metal's F0, its base colour's
+        /// 128/255 (`describeTexel` lays a texel undecoded): 0.42010. 1e-5 of it for the float steps the two frames'
+        /// light took apart.
+        ///
+        /// **And not the lamps it reflects**, which are direct light: the same floor under its four lamps and a black
+        /// sky, where the bounce brings nothing back and the lobe's channel holds the lamps' alone, to the bit.
+        TEST_F(RtxVisibilityTest, aSpecularMapsBlueOccludesTheSkyItsLobeReflectsAndNotItsLamps)
+        {
+            Shaders::VisibilityConstants camera = darkCameraAt(osg::Vec3f(0.0f, -200.0f, 300.0f));
+            camera.mSkyHorizon = osg::Vec3f(0.6f, 0.6f, 0.6f);
+            camera.mSkyZenith = camera.mSkyHorizon;
+            camera.mAmbientFromSky = 1.0f;
+
+            const auto lobeOf = [&](std::uint8_t open) {
+                GlossyFloor floor(255, 255, open);
+                floor.mScene.clearPlacement();
+                EXPECT_GT(shoot(floor.mScene, floor.mTextures, camera, sSize).mHits, 0u);
+                std::vector<float> lobe;
+                mProbe.readChannel(Channel::Specular, lobe);
+                return lobe;
+            };
+            const std::vector<float> open = lobeOf(255);
+            const std::vector<float> occluded = lobeOf(64);
+            ASSERT_EQ(open.size(), occluded.size());
+
+            const float visibility = 64.0f / 255.0f;
+            const float reflectance = 128.0f / 255.0f;
+            const float least
+                = Shaders::indirectVisibility(Shaders::specularOcclusion(0.0f, visibility, 1.0f), reflectance);
+            const float most
+                = Shaders::indirectVisibility(Shaders::specularOcclusion(1.0f, visibility, 1.0f), reflectance);
+            EXPECT_LT(most, 0.5f) << "an occlusion this weak would hide a factor taken twice";
+
+            std::size_t lit = 0;
+            for (std::size_t value = 0; value < open.size(); value += 4)
+                for (std::size_t channel = 0; channel < 3; ++channel)
+                {
+                    if (!(open[value + channel] > 0.0f))
+                        continue;
+                    ++lit;
+                    const float factor = occluded[value + channel] / open[value + channel];
+                    EXPECT_GE(factor, least * (1.0f - 1e-5f)) << "value " << value + channel;
+                    EXPECT_LE(factor, most * (1.0f + 1e-5f)) << "value " << value + channel;
+                }
+            EXPECT_GT(lit, open.size() / 2) << "a floor that reflects nothing proves nothing";
+
+            const auto lampsOf = [&](std::uint8_t open) {
+                const GlossyFloor floor(255, 255, open);
+                EXPECT_GT(
+                    shoot(floor.mScene, floor.mTextures, darkCameraAt(osg::Vec3f(0.0f, -200.0f, 300.0f)), sSize).mHits,
+                    0u);
+                std::vector<float> lobe;
+                mProbe.readChannel(Channel::Specular, lobe);
+                return lobe;
+            };
+            const std::vector<float> lamps = lampsOf(255);
+            EXPECT_GT(std::ranges::max(lamps), 0.0f) << "a floor the lamps leave dark proves nothing";
+            EXPECT_EQ(lampsOf(64), lamps);
+        }
+
         /// A replacer's speckled reflectance stays sharp under the glossy filter's history, which holds the
         /// lobe's light per unit of its specular albedo. A metal floor whose base colour, and so its F0, is a
         /// checker of single texels (230 and 30, three pixels a square) at one roughness under a grey sky: the
@@ -296,7 +364,7 @@ namespace Rtx::Testing
             TestTexture base;
             paintFlat(base, extent, checker, "checker");
             base.mData.mSlot = TextureIndex(0);
-            constexpr std::array<std::uint8_t, 4> sMetalTexel{ 255, 128, 0, 255 };
+            constexpr std::array<std::uint8_t, 4> sMetalTexel{ 255, 128, 255, 255 };
             const std::array<TextureData, 2> textures{ base.mData, describeTexel(sMetalTexel, TextureIndex(1)) };
 
             SceneDesc scene(identities);

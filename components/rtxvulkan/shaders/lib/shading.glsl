@@ -501,10 +501,20 @@ vec3 occludedAlbedo(Surface surface, vec3 albedo)
     if (!HAS_MAPS)
         return albedo;
 
-    const float open = surface.mOcclusion;
-    return albedo
-        * vec3(indirectVisibility(open, albedo.x), indirectVisibility(open, albedo.y),
-            indirectVisibility(open, albedo.z));
+    return albedo * indirectVisibility(surface.mOcclusion, albedo);
+}
+
+/// What the lobe of `surface`, `gloss`, reflects of the indirect light under the occlusion its specular map paints,
+/// per channel: Lagarde's specular occlusion (`specularOcclusion`) through Jimenez's light bounced inside what the
+/// map occludes at the lobe's own reflectance (`indirectVisibility`), as Unity's HDRP takes it
+/// (`GTAOMultiBounce(specularOcclusion, fresnel0)`). One where there is no map.
+vec3 occludedLobe(Surface surface, Gloss gloss)
+{
+    if (!HAS_MAPS)
+        return vec3(1.0);
+
+    return indirectVisibility(
+        specularOcclusion(gloss.mToEyeCosine, surface.mOcclusion, gloss.mAlpha), surface.mSpecular);
 }
 
 /// What Night-Eye's lift adds to a surface, per unit of lift, in display values: its ambient albedo
@@ -955,6 +965,10 @@ Arriving escapedArriving(vec3 escaped)
 /// chance `lum(Es) / (lum(Es) + lum(c_diff))`, its specular albedo against its diffuse one, and each half's
 /// sample divided by its own chance, which keeps the sum unbiased.
 ///
+/// **The lobe's sample under the map's occlusion** (`occludedLobe`), since what it brings back is indirect light,
+/// which the relief no ray meets shuts as it shuts the diffuse half's. The chance stays the open lobe's, so an
+/// occluded surface draws the paths an open one draws.
+///
 /// **Both directions are drawn and the chance selects one.** Which half is a coin per lane, so a branch on
 /// it would run both halves in nearly every warp; the select runs each once and jumps nowhere.
 ///
@@ -996,7 +1010,7 @@ BounceDraw bounceDraw(Surface surface, Gloss gloss, float face, uvec2 pixel, Con
         = min(cone.mSpread + ggxConeWidth(gloss.mAlpha, BOUNCE_SPREAD), BOUNCE_SPREAD);
 
     drawn.mTowards = specular ? sampled.mTowards : scattered;
-    drawn.mWeight = specular ? sampled.mWeight / chance : diffuseWeight;
+    drawn.mWeight = specular ? sampled.mWeight * occludedLobe(surface, gloss) / chance : diffuseWeight;
     drawn.mSpecular = specular;
     drawn.mSpread = specular ? lobeSpread : BOUNCE_SPREAD;
 

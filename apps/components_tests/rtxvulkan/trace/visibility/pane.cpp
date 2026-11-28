@@ -355,7 +355,7 @@ namespace Rtx::Testing
         {
             SceneIdentities identities;
             constexpr std::array<std::uint8_t, 4> sBaseTexel{ 128, 128, 128, 255 };
-            constexpr std::array<std::uint8_t, 4> sMetalTexel{ 255, 128, 0, 255 };
+            constexpr std::array<std::uint8_t, 4> sMetalTexel{ 255, 128, 255, 255 };
             const std::array<TextureData, 2> textures{ describeTexel(sBaseTexel, TextureIndex(0)),
                 describeTexel(sMetalTexel, TextureIndex(1)) };
 

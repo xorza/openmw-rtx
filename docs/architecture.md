@@ -375,8 +375,11 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
   fading to nought where the facet meets the light at a cosine of a half, as Cycles weighs Hanika's offset, at a cutoff
   Morrowind's coarse rocks need. Refused: the lift on every ray, which took the sun past a ledge to the wall under it;
   Cycles' tenth, which cut hard wedges into the rocks (`research/2026-11-19-shadow-lift-leak.md`).
-- **A `_spec` map's blue is an occlusion on indirect diffuse light alone**, as glTF and Filament read it. Refused: in
-  the albedo, which darkens the sun (`research/2026-11-07-specular-map-blue-channel.md`).
+- **A `_spec` map's blue is an occlusion on indirect light alone**, the diffuse half's by Jimenez's multi-bounce and the
+  lobe's by Lagarde's specular occlusion through it, as Filament and Unity's HDRP read a material's occlusion; glTF
+  leaves direct light whole. Refused: in the albedo, which darkens the sun
+  (`research/2026-11-07-specular-map-blue-channel.md`); a dielectric's F0 scaled by its albedo's brightness, which
+  cannot tell a painted shadow from a dark glossy surface (`research/2026-11-28-specular-occlusion.md`).
 - **An `_nh` map's relief is marched, as RTX Remix marches it** (Tatarchuk 2006), at OpenMW's parallax depth, once by
   the trace and read back by every later stage, and is a plain shift where it crosses under a texel, so a far surface
   keeps its cost. Only the tuples with maps march, and no setting turns it off. Refused: a max-mip quadtree; true

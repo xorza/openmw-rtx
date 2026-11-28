@@ -127,6 +127,21 @@ namespace Rtx::Shaders
         return min(max(visibility, ((visibility * a + b) * visibility + c) * visibility), 1.0f);
     }
 
+    /// What of the indirect light a lobe of GGX `alpha` reflects toward an eye at `toEye`, the cosine, comes back
+    /// from under an occlusion map's `visibility`: Lagarde and de Rousiers' fit ("Moving Frostbite to PBR", 2014),
+    /// `(n.v + ao)^(2^(-16 alpha - 1)) - 1 + ao`, held to the unit, as Filament (`SpecularAO_Lagarde`) and Unity's
+    /// HDRP (`GetSpecularOcclusionFromAmbientOcclusion`) take a material's own occlusion on its reflections.
+    ///
+    /// **A rough lobe is occluded as the diffuse half is, and a sharp one by where the eye looks from**: the exponent
+    /// falls from a half toward nought with the roughness, and the power with it toward one, which leaves the
+    /// visibility; a sharp lobe reflects one direction, out of a crack where the eye looks straight in and into its
+    /// wall where the eye grazes. A visibility of one occludes nothing and one of nought everything, at every cosine
+    /// and roughness.
+    RTX_SHADER float specularOcclusion(float toEye, float visibility, float alpha)
+    {
+        return clamp(pow(toEye + visibility, exp2(-16.0f * alpha - 1.0f)) - 1.0f + visibility, 0.0f, 1.0f);
+    }
+
     /// GGX's alpha for a perceptual roughness: its square, the roughness a map paints being
     /// perceptually linear — glTF 2.0 and Filament. Held at `ROUGHNESS_FLOOR`.
     RTX_SHADER float ggxAlpha(float roughness)
@@ -404,6 +419,12 @@ vec3 specularAlbedoOf(vec3 normal, float edge, float climbing, float whole)
 vec3 specularCompensation(vec3 normal, float whole)
 {
     return 1.0 + normal * (1.0 / whole - 1.0);
+}
+
+vec3 indirectVisibility(float visibility, vec3 albedo)
+{
+    return vec3(indirectVisibility(visibility, albedo.x), indirectVisibility(visibility, albedo.y),
+        indirectVisibility(visibility, albedo.z));
 }
 
 #endif
