@@ -25,6 +25,7 @@ namespace Crash::Monitor
     {
         HANDLE handleOf(std::intptr_t hold)
         {
+            // `Platform::ProcessHold` keeps its handle as an integer; this turns it back.
             return hold < 0 ? nullptr : reinterpret_cast<HANDLE>(hold);
         }
 
@@ -46,58 +47,26 @@ namespace Crash::Monitor
         } };
     }
 
-    GameProcess::GameProcess(std::uint32_t id)
-        : mId(id)
-    {
-        // What `ProcessSnapshotWin` reads a hang's dump with besides: the memory, and a suspension.
-        const HANDLE handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | PROCESS_SUSPEND_RESUME
-                | PROCESS_DUP_HANDLE | PROCESS_TERMINATE | SYNCHRONIZE,
-            FALSE, static_cast<DWORD>(id));
-        if (handle != nullptr)
-            mHold = Platform::UniqueHold<Closing>(reinterpret_cast<std::intptr_t>(handle));
-    }
-
-    void GameProcess::Closing::close(const Handle hold) noexcept
-    {
-        CloseHandle(reinterpret_cast<HANDLE>(hold));
-    }
-
-    Ending GameProcess::end() const
-    {
-        const HANDLE handle = handleOf(mHold.get());
-        if (handle == nullptr)
-            return Ending::Failed;
-        if (WaitForSingleObject(handle, 0) == WAIT_OBJECT_0)
-            return Ending::Gone;
-        return TerminateProcess(handle, 3) != FALSE ? Ending::Ended : Ending::Failed;
-    }
-
-    bool GameProcess::isHeld() const
+    bool isHeld(const Platform::ProcessHold& game)
     {
         BOOL debugged = FALSE;
-        const HANDLE handle = handleOf(mHold.get());
+        const HANDLE handle = handleOf(game.native());
         return handle != nullptr && CheckRemoteDebuggerPresent(handle, &debugged) != FALSE && debugged != FALSE;
     }
 
-    std::optional<std::uint32_t> GameProcess::exitCode() const
+    std::optional<std::uint32_t> exitCode(const Platform::ProcessHold& game)
     {
         DWORD code = 0;
-        const HANDLE handle = handleOf(mHold.get());
+        const HANDLE handle = handleOf(game.native());
         if (handle == nullptr || GetExitCodeProcess(handle, &code) == FALSE || code == STILL_ACTIVE)
             return std::nullopt;
         return static_cast<std::uint32_t>(code);
     }
 
-    bool GameProcess::isGone() const
+    bool readWhole(const Platform::ProcessHold& game, const SnapshotStamp& stamp,
+        const std::function<bool(const crashpad::ProcessSnapshot&)>& use)
     {
-        const HANDLE handle = handleOf(mHold.get());
-        return handle == nullptr || WaitForSingleObject(handle, 0) != WAIT_TIMEOUT;
-    }
-
-    bool GameProcess::readWhole(
-        const SnapshotStamp& stamp, const std::function<bool(const crashpad::ProcessSnapshot&)>& use) const
-    {
-        const HANDLE handle = handleOf(mHold.get());
+        const HANDLE handle = handleOf(game.native());
         if (handle == nullptr)
             return false;
 

@@ -61,6 +61,7 @@ target_sources(
                 localtime.hpp
                 memory.hpp
                 platform.hpp
+                processhold.hpp
                 sharedmemory.hpp
                 thread.hpp
                 uniquehold.hpp
@@ -80,6 +81,7 @@ if(WIN32)
             localtimewin32.cpp
             memorywin32.cpp
             platformwin32.cpp
+            processholdwin32.cpp
             sharedmemorywin32.cpp
             threadwin32.cpp
             userhomewin32.cpp
@@ -98,6 +100,7 @@ elseif(LINUX)
             localtimeposix.cpp
             memorylinux.cpp
             platformposix.cpp
+            processholdlinux.cpp
             sharedmemoryposix.cpp
             threadlinux.cpp
             userhomeposix.cpp

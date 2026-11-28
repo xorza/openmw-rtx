@@ -6,7 +6,6 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <iterator>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -21,6 +20,7 @@
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/platform/process.hpp>
+#include <components/platform/processhold.hpp>
 
 #include "crashtestssystem.hpp"
 
@@ -32,8 +32,10 @@ namespace CrashTests
         /// a fork copies, and the variable the keeper sets stands.
         bool kept()
         {
-            return std::getenv("OPENMW_IMAGE_KEPT") != nullptr
-                && contentsOf("/proc/" + std::to_string(getppid()) + "/cmdline") == contentsOf("/proc/self/cmdline");
+            if (std::getenv("OPENMW_IMAGE_KEPT") == nullptr)
+                return false;
+            const std::optional<std::string> parent = contentsOf("/proc/" + std::to_string(getppid()) + "/cmdline");
+            return parent.has_value() && parent == contentsOf("/proc/self/cmdline");
         }
 
         bool keptMode(std::string_view mode)
@@ -246,39 +248,26 @@ namespace CrashTests
         }
         if (mode == "monitor-killed")
         {
-            // The monitor is the one process the log names as it; gone once its state is dead or a
-            // zombie, which a container with no reaper leaves it, **and its last thread has ended**:
-            // a killed process's first thread turns zombie before the others end, and its files,
-            // the monitor's end of the connection among them, close with the last.
-            const std::string log
+            // The monitor is the one process the log names as it, held before it is ended, so the
+            // signal and the wait reach it and never a process that took its id after: gone once its
+            // last thread has ended, and with it the monitor's end of the connection.
+            const std::optional<std::string> log
                 = contentsOf(std::filesystem::path(std::getenv("OPENMW_CRASH_REPORTS")).parent_path().parent_path()
                     / "crash-tests.log");
+            if (!log.has_value())
+                return 3;
             constexpr std::string_view named = "The crash catcher's monitor is process ";
-            const std::size_t at = log.find(named);
+            const std::size_t at = log->find(named);
             if (at == std::string::npos)
                 return 3;
-            pid_t monitor = 0;
-            const char* const digits = log.data() + at + named.size();
-            if (std::from_chars(digits, log.data() + log.size(), monitor).ec != std::errc{} || monitor <= 0
-                || kill(monitor, SIGKILL) != 0)
+            std::uint32_t id = 0;
+            const char* const digits = log->data() + at + named.size();
+            if (std::from_chars(digits, log->data() + log->size(), id).ec != std::errc{})
                 return 3;
-            const auto running = [&] {
-                const std::string stat = contentsOf("/proc/" + std::to_string(monitor) + "/stat");
-                const std::size_t state = stat.rfind(')') + 2;
-                if (state > 1 && state < stat.size() && stat[state] != 'Z' && stat[state] != 'X')
-                    return true;
-                std::error_code unread;
-                const auto threads = std::distance(
-                    std::filesystem::directory_iterator("/proc/" + std::to_string(monitor) + "/task", unread),
-                    std::filesystem::directory_iterator());
-                return !unread && threads > 1;
-            };
-            for (std::int32_t waited = 0; running(); ++waited)
-            {
-                if (waited == 1000)
-                    return 3;
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            }
+            const Platform::ProcessHold monitor(id);
+            if (!monitor.isOpen() || monitor.end() != Platform::ProcessEnd::Ended
+                || !monitor.waitForEnd(std::chrono::seconds(10)))
+                return 3;
             Crash::fatal("crash-tests gave up alone");
         }
         if (mode == "hook-lost")

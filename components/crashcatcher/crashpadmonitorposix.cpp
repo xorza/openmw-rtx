@@ -1,5 +1,4 @@
 #include <array>
-#include <cerrno>
 #include <charconv>
 #include <csignal>
 #include <cstddef>
@@ -23,11 +22,8 @@
 #include <handler/linux/crash_report_exception_handler.h>
 #include <handler/linux/exception_handler_server.h>
 #include <handler/prune_crash_reports_thread.h>
-#include <poll.h>
 #include <snapshot/exception_snapshot.h>
 #include <snapshot/linux/process_snapshot_linux.h>
-#include <sys/syscall.h>
-#include <unistd.h>
 #include <util/file/file_io.h>
 #include <util/linux/direct_ptrace_connection.h>
 
@@ -38,61 +34,18 @@
 
 namespace Crash::Monitor
 {
-    namespace
-    {
-        // `pidfd_open`'s number, which every architecture shares from Linux 5.3 on: AlmaLinux 8's kernel headers,
-        // which the release builds against, name `pidfd_send_signal`, backported, and no `SYS_pidfd_open`. A
-        // kernel older than 5.3 answers ENOSYS, as it would to the named one.
-        // NOLINTNEXTLINE(google-runtime-int): syscall's number type
-        constexpr long sPidfdOpen = 434;
-    }
-
-    GameProcess::GameProcess(std::uint32_t id)
-        : mId(id)
-    {
-        // Through `syscall`, since the C library does not wrap a pidfd everywhere.
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's syscall
-        mHold = Platform::UniqueHold<Closing>(syscall(sPidfdOpen, static_cast<pid_t>(id), 0));
-    }
-
-    void GameProcess::Closing::close(const Handle hold) noexcept
-    {
-        ::close(static_cast<std::int32_t>(hold));
-    }
-
-    Ending GameProcess::end() const
-    {
-        // No descriptor is a kernel older than 5.3, where nothing is sent rather than something sent
-        // to whatever process has the id now.
-        if (mHold.get() < 0)
-            return Ending::Failed;
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg): Linux's syscall
-        if (syscall(SYS_pidfd_send_signal, static_cast<std::int32_t>(mHold.get()), SIGKILL, nullptr, 0) == 0)
-            return Ending::Ended;
-        return errno == ESRCH ? Ending::Gone : Ending::Failed;
-    }
-
-    std::optional<std::uint32_t> GameProcess::exitCode() const
+    std::optional<std::uint32_t> exitCode(const Platform::ProcessHold&)
     {
         return std::nullopt;
     }
 
-    bool GameProcess::isGone() const
-    {
-        // A pidfd reads as ready once its process has ended.
-        if (mHold.get() < 0)
-            return true;
-        pollfd polled{ .fd = static_cast<std::int32_t>(mHold.get()), .events = POLLIN, .revents = 0 };
-        return poll(&polled, 1, 0) != 0;
-    }
-
-    bool GameProcess::readWhole(
-        const SnapshotStamp& stamp, const std::function<bool(const crashpad::ProcessSnapshot&)>& use) const
+    bool readWhole(const Platform::ProcessHold& game, const SnapshotStamp& stamp,
+        const std::function<bool(const crashpad::ProcessSnapshot&)>& use)
     {
         // Every thread is attached, and so stopped, as the snapshot reads it, and let go with the
         // connection.
         crashpad::DirectPtraceConnection connection;
-        if (!connection.Initialize(static_cast<pid_t>(mId)))
+        if (!connection.Initialize(static_cast<pid_t>(game.id())))
             return false;
         crashpad::ProcessSnapshotLinux snapshot;
         if (!snapshot.Initialize(&connection))
@@ -229,11 +182,11 @@ namespace Crash::Monitor
         return served ? EXIT_SUCCESS : EXIT_FAILURE;
     }
 
-    bool GameProcess::isHeld() const
+    bool isHeld(const Platform::ProcessHold& game)
     {
         // The state follows the name in parentheses, which may hold anything, so after the last of
         // them: `T` stopped, `t` stopped by a tracer.
-        const std::string folder = "/proc/" + std::to_string(mId);
+        const std::string folder = "/proc/" + std::to_string(game.id());
         std::string text;
         if (Platform::readWhole(folder + "/stat", text, Platform::sUnbounded).isOk())
         {

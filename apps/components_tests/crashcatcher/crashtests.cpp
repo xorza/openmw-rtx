@@ -17,7 +17,6 @@
 #include <fstream>
 #include <initializer_list>
 #include <iostream>
-#include <iterator>
 #include <latch>
 #include <optional>
 #include <stdexcept>
@@ -37,6 +36,7 @@
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
 #include <components/platform/thread.hpp>
+#include <components/platform/wholefile.hpp>
 
 #include "crashtestssystem.hpp"
 #include "zipreader.hpp"
@@ -320,7 +320,10 @@ namespace CrashTests
         /// The summary stream of a minidump, or nothing where it has none.
         std::optional<std::string> summaryOf(const std::filesystem::path& dump)
         {
-            const std::string bytes = contentsOf(dump);
+            const std::optional<std::string> read = contentsOf(dump);
+            if (!read.has_value())
+                return std::nullopt;
+            const std::string& bytes = *read;
             const auto word = [&](std::size_t at) {
                 std::uint32_t value = 0;
                 if (at + 4 <= bytes.size())
@@ -542,7 +545,8 @@ namespace CrashTests
 
                 if (mode.mHeap)
                 {
-                    if (contentsOf(dumps.front()).find(sHeapMarker) == std::string::npos)
+                    const std::optional<std::string> dumped = contentsOf(dumps.front());
+                    if (!dumped.has_value() || dumped->find(sHeapMarker) == std::string::npos)
                         return "the heap the crashing stack points at is not in the dump";
                 }
 
@@ -652,10 +656,12 @@ namespace CrashTests
         return 0;
     }
 
-    std::string contentsOf(const std::filesystem::path& path)
+    std::optional<std::string> contentsOf(const std::filesystem::path& path)
     {
-        std::ifstream file(path, std::ios::binary);
-        return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        std::string contents;
+        if (!Platform::readWhole(path, contents, Platform::sUnbounded).isOk())
+            return std::nullopt;
+        return contents;
     }
 }
 

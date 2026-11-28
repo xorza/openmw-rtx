@@ -12,7 +12,7 @@
 #include <handler/user_stream_data_source.h>
 #include <util/misc/uuid.h>
 
-#include <components/platform/uniquehold.hpp>
+#include <components/platform/processhold.hpp>
 
 namespace crashpad
 {
@@ -24,18 +24,6 @@ namespace crashpad
 /// `crashpadmonitorposix.cpp` and `crashpadmonitorwin32.cpp`.
 namespace Crash::Monitor
 {
-    /// What an End came to.
-    enum class Ending
-    {
-        Ended,
-
-        /// The game was gone before the monitor ended it.
-        Gone,
-
-        /// The monitor holds nothing to end it by, or the system refused.
-        Failed,
-    };
-
     /// What a snapshot the monitor takes itself carries, as Crashpad's handler stamps its own.
     struct SnapshotStamp
     {
@@ -46,50 +34,20 @@ namespace Crash::Monitor
         std::map<std::string, std::string> mAnnotations;
     };
 
-    /// The game itself, held from the monitor's start, so an End reaches the process that started
-    /// the monitor and never one that took its id after it ended: a pidfd on Linux and a handle on
-    /// Windows.
-    class GameProcess
-    {
-    public:
-        explicit GameProcess(std::uint32_t id);
+    /// Whether something holds the game still that is not the game: a debugger, or on POSIX a stop
+    /// signal from a shell. A stall it spends so is no hang.
+    bool isHeld(const Platform::ProcessHold& game);
 
-        /// Ends the game, and says what that came to.
-        Ending end() const;
+    /// What the game exited with, once it is gone, where the system tells a process that is not its
+    /// parent: Windows does, and a POSIX system tells the parent alone.
+    std::optional<std::uint32_t> exitCode(const Platform::ProcessHold& game);
 
-        /// Whether something holds the game still that is not the game: a debugger, or on POSIX a
-        /// stop signal from a shell. A stall it spends so is no hang.
-        bool isHeld() const;
-
-        /// What the game exited with, once it is gone, where the system tells a process that is
-        /// not its parent: Windows does, and a POSIX system tells the parent alone.
-        std::optional<std::uint32_t> exitCode() const;
-
-        /// Whether the game has ended. Where the system holds nothing to ask by, it has.
-        bool isGone() const;
-
-        /// **Reads the whole game from outside, while it stands still**, and hands `use` the
-        /// snapshot, stamped with `stamp`: what a hang's dump is written from, as Crashpad's
-        /// `generate_dump` writes one. Through ptrace on Linux, and on Windows with the process
-        /// suspended. False where the game could not be read, or `use` said it failed; Crashpad has
-        /// logged why.
-        bool readWhole(
-            const SnapshotStamp& stamp, const std::function<bool(const crashpad::ProcessSnapshot&)>& use) const;
-
-    private:
-        // Read by the POSIX file alone: Windows reaches the process through its handle.
-        [[maybe_unused]] std::uint32_t mId = 0;
-
-        /// What the system holds the process by, a handle or a descriptor, and -1 for nothing.
-        struct Closing
-        {
-            using Handle = std::intptr_t;
-            static constexpr Handle sNone = -1;
-            static void close(Handle hold) noexcept;
-        };
-
-        Platform::UniqueHold<Closing> mHold;
-    };
+    /// **Reads the whole game from outside, while it stands still**, and hands `use` the snapshot,
+    /// stamped with `stamp`: what a hang's dump is written from, as Crashpad's `generate_dump` writes
+    /// one. Through ptrace on Linux, and on Windows with the process suspended. False where the game
+    /// could not be read, or `use` said it failed; Crashpad has logged why.
+    bool readWhole(const Platform::ProcessHold& game, const SnapshotStamp& stamp,
+        const std::function<bool(const crashpad::ProcessSnapshot&)>& use);
 
     /// What the monitor's handler needs beside its command line.
     struct HandlerParts

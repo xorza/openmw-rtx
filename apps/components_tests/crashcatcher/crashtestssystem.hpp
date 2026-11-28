@@ -99,5 +99,5 @@ namespace CrashTests
     std::int32_t livedOn();
 
     /// The whole of the file at `path`, or nothing where it cannot be read. The shared file's.
-    std::string contentsOf(const std::filesystem::path& path);
+    std::optional<std::string> contentsOf(const std::filesystem::path& path);
 }

@@ -169,11 +169,11 @@
   },
   // A tour per profile, and one of all three in turn: every land cell and the largest rooms flown, every
   // fault reported with its place. Out of the tree beside the films, since a tour's findings are a release's
-  // record. The vanilla profile names Morrowind alone, so its tour adds both expansions. A mod list's tour names
-  // what its content is known to meet (`files/rtx/expected/`), which fails no tour.
+  // record. The vanilla profile names Morrowind and both expansions. A mod list's tour names what its content is
+  // known to meet (`files/rtx/expected/`), which fails no tour.
   {
     "label": "Tour: vanilla with both expansions (release)",
-    "command": "./omw release tour --content=Tribunal.esm --content=Bloodmoon.esm --out=\"$HOME/Videos/openmw-rtx/tours/vanilla\"",
+    "command": "./omw release tour --out=\"$HOME/Videos/openmw-rtx/tours/vanilla\"",
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": false,
@@ -200,7 +200,7 @@
   },
   {
     "label": "Tour: all three in turn (release)",
-    "command": "./omw release tour --each=\"vanilla:--content=Tribunal.esm --content=Bloodmoon.esm\" --each=\"mfr:--replace=config --config=$HOME/.config/openmw-mfr --expected=mfr\" --each=\"pbr:--replace=config --config=$HOME/.config/openmw-pbr --expected=pbr\" --out=\"$HOME/Videos/openmw-rtx/tours\"",
+    "command": "./omw release tour --each=\"vanilla:\" --each=\"mfr:--replace=config --config=$HOME/.config/openmw-mfr --expected=mfr\" --each=\"pbr:--replace=config --config=$HOME/.config/openmw-pbr --expected=pbr\" --out=\"$HOME/Videos/openmw-rtx/tours\"",
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": false,

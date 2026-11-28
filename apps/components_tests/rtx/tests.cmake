@@ -270,6 +270,7 @@ elseif(LINUX)
             platform/filelinux.cpp
             platform/gpulinux.cpp
             platform/kernelfilelinux.cpp
+            platform/processholdlinux.cpp
             platform/processlinux.cpp
             platform/wholefilelinux.cpp
             rtxtool/instruments/amdgpulinux.cpp

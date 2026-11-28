@@ -39,6 +39,7 @@
 #include <components/files/conversion.hpp>
 #include <components/platform/localtime.hpp>
 #include <components/platform/process.hpp>
+#include <components/platform/processhold.hpp>
 
 #include "crashhangwatch.hpp"
 #include "crashinstall.hpp"
@@ -76,7 +77,7 @@ namespace Crash
             }
 
             SharedPage mPage;
-            Monitor::GameProcess mGame;
+            Platform::ProcessHold mGame;
             MonitorLog mLog;
 
             /// The report database, which a hang's dump is written into: opened once, before the
@@ -128,7 +129,7 @@ namespace Crash
 
             const bool written = [&] {
                 const std::scoped_lock lock(monitor.mReading);
-                return monitor.mGame.readWhole(stamp, [&](const crashpad::ProcessSnapshot& snapshot) {
+                return Monitor::readWhole(monitor.mGame, stamp, [&](const crashpad::ProcessSnapshot& snapshot) {
                     crashpad::MinidumpFileWriter minidump;
                     minidump.InitializeFromSnapshot(&snapshot);
                     return minidump.AddUserExtensionStream(summary.produceHang(snapshot, stalledFor))
@@ -193,7 +194,7 @@ namespace Crash
         /// ended, in that time. Says in the log what it did.
         void endIfStillStalled(MonitorState& monitor, const AskToEnd& request)
         {
-            const bool gone = watchEnded(monitor) || monitor.mGame.isGone();
+            const bool gone = watchEnded(monitor) || monitor.mGame.hasEnded();
             if (!gone && std::atomic_ref(monitor.mPage.get()->mFrames).load() != request.mStalledAt)
             {
                 monitor.mLog.write(
@@ -201,15 +202,15 @@ namespace Crash
                 return;
             }
 
-            switch (gone ? Monitor::Ending::Gone : monitor.mGame.end())
+            switch (gone ? Platform::ProcessEnd::Gone : monitor.mGame.end())
             {
-                case Monitor::Ending::Ended:
+                case Platform::ProcessEnd::Ended:
                     monitor.mEnded = true;
                     return;
-                case Monitor::Ending::Gone:
+                case Platform::ProcessEnd::Gone:
                     sayEndedFirst(monitor);
                     return;
-                case Monitor::Ending::Failed:
+                case Platform::ProcessEnd::Failed:
                     monitor.mLog.write(Debug::Error, { "Hang: the monitor could not end the game" });
                     return;
             }
@@ -236,7 +237,7 @@ namespace Crash
                 }
 
                 const auto now = std::chrono::steady_clock::now();
-                if (monitor.mGame.isGone())
+                if (monitor.mGame.hasEnded())
                 {
                     goneAt = goneAt.value_or(now);
                     if (now - *goneAt < sLastResort)
@@ -250,7 +251,7 @@ namespace Crash
 
                 // Asked only where it can matter: it reads the system, and a game that draws never
                 // needs the answer.
-                const bool held = !hangs.isNews(frames) && monitor.mGame.isHeld();
+                const bool held = !hangs.isNews(frames) && Monitor::isHeld(monitor.mGame);
                 const HangAnswer answer
                     = hangs.wake(HangWake{ .mNow = now, .mFrames = frames, .mLimitSeconds = limit, .mHeld = held });
 
@@ -485,7 +486,8 @@ namespace Crash
         {
             const std::optional<std::int32_t> reachedEnd = monitor.mPage.getEnd();
             // Asked only where the game never reached its end, which says the rest.
-            const std::optional<std::uint32_t> code = reachedEnd.has_value() ? std::nullopt : monitor.mGame.exitCode();
+            const std::optional<std::uint32_t> code
+                = reachedEnd.has_value() ? std::nullopt : Monitor::exitCode(monitor.mGame);
             return describeSessionEnd({
                 .mReachedEnd = reachedEnd,
                 .mExit = code.has_value() ? std::optional(Monitor::describeExitCode(*code)) : std::nullopt,
@@ -555,7 +557,7 @@ namespace Crash
                 }
                 const auto& asked = std::get<AskToEnd>(request);
                 // Gone before its question was asked, which no box asks about.
-                if (watchEnded(monitor) || monitor.mGame.isGone())
+                if (watchEnded(monitor) || monitor.mGame.hasEnded())
                 {
                     sayEndedFirst(monitor);
                     continue;
@@ -584,7 +586,7 @@ namespace Crash
             // **A crash whose dump was not written**: one the handler failed, or on Windows an end past
             // every handler, a failed security check or a corrupted heap, which leaves no dump where the
             // system's reporting did not ask for one (`Client::catchPastTheProcess`).
-            const std::optional<std::uint32_t> code = monitor.mGame.exitCode();
+            const std::optional<std::uint32_t> code = Monitor::exitCode(monitor.mGame);
             const bool unwritten = monitor.mUnwritten.load(std::memory_order_acquire)
                 || (!session.mCrashed && code.has_value() && Monitor::isCrashCode(*code));
             if (unwritten)
