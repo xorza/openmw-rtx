@@ -375,14 +375,14 @@ namespace Rtx
         mPlacer.collectGateVerdicts(mAround.mActiveGrid, into);
     }
 
-    void CellStreamer::collect(const std::size_t frame)
+    void CellStreamer::collect(const std::size_t frame, const std::optional<ViewBasis>& eye)
     {
         mTurn.step(Turn::Collected, Turn::Followed);
         ExtractionStats& stats = mAdopter.getStats();
 
         // What `forget` let go of since the last walk, and then what this walk lets go of.
         mHolds.releaseParts(mAdopter);
-        walkRings(stats, frame);
+        walkRings(stats, frame, eye);
         mHolds.releaseParts(mAdopter);
 
         // Asserted after every walk, so a placement that outlived its cell, or a cell whose
@@ -402,7 +402,7 @@ namespace Rtx
         stats.mGroundcover += mPlacer.getGrassPlaced();
     }
 
-    void CellStreamer::walkRings(ExtractionStats& stats, const std::size_t frame)
+    void CellStreamer::walkRings(ExtractionStats& stats, const std::size_t frame, const std::optional<ViewBasis>& eye)
     {
         // Nothing stands, so nothing is left to stand: an exterior band short of cells must not
         // outlive the walk that asked over it.
@@ -455,7 +455,7 @@ namespace Rtx
 
         adoptRead(frame);
 
-        stats.mLights += mPlacer.place(mAround, mTarget.mPredicted);
+        stats.mLights += mPlacer.place(mAround, mTarget.mPredicted, eye);
 
         mSupply.publish();
     }

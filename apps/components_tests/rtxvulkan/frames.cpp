@@ -85,7 +85,7 @@ namespace Rtx
             /// instance rows and the top level.
             void moveTo(float away)
             {
-                mScene.placements().move(mInstance, osg::Matrixf::translate(0.0f, away - 200.0f, 0.0f));
+                mScene.placements().move(mInstance, osg::Matrixf::translate(0.0f, away - 200.0f, 0.0f), Stander::Walk);
                 Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             }
 
@@ -154,7 +154,7 @@ namespace Rtx
                 Testing::poseByOneBone(mScene, arrived, Testing::wallAt(-1000.0f), osg::Matrixf::identity());
             }
 
-            mScene.placements().move(mInstance, osg::Matrixf::translate(0.0f, -1000.0f, 0.0f));
+            mScene.placements().move(mInstance, osg::Matrixf::translate(0.0f, -1000.0f, 0.0f), Stander::Walk);
             Testing::standerOf(mRenderer).extendScene(Rtx::SceneSlot::world(), mScene, {});
             Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
 
@@ -412,7 +412,7 @@ namespace Rtx
             // round again is reclaimed with its numbers.
             EXPECT_EQ(finishedHits(), sEveryPixel) << "the first wall, before anything moved";
 
-            mScene.placements().move(arrived, osg::Matrixf::identity());
+            mScene.placements().move(arrived, osg::Matrixf::identity(), Stander::Walk);
             Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             mProbe.traceFrame(ahead(), FrameOptions{});
 
@@ -480,12 +480,12 @@ namespace Rtx
                 mScene.clearPlacement();
                 Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
                 mProbe.traceFrame(ahead(), FrameOptions{});
-                mScene.placements().move(mInstance, osg::Matrixf::translate(step));
+                mScene.placements().move(mInstance, osg::Matrixf::translate(step), Stander::Walk);
                 Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
                 mProbe.traceFrame(ahead(), FrameOptions{});
                 const osg::Vec3f byInstance = centreMotion();
 
-                mScene.placements().move(mInstance, osg::Matrixf::identity());
+                mScene.placements().move(mInstance, osg::Matrixf::identity(), Stander::Walk);
                 Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
                 mProbe.traceFrame(ahead(), FrameOptions{});
                 mScene.clearPlacement();
@@ -703,7 +703,7 @@ namespace Rtx
         {
             // The fixture's wall walks behind the eye, so what a frame hits is the arrival alone.
             mScene.clearArrivals();
-            mScene.placements().move(mInstance, osg::Matrixf::translate(0.0f, -1000.0f, 0.0f));
+            mScene.placements().move(mInstance, osg::Matrixf::translate(0.0f, -1000.0f, 0.0f), Stander::Walk);
             Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), mScene);
             mScene.placements().advance();
             mProbe.traceFrame(ahead(), FrameOptions{});

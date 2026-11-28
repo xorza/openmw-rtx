@@ -799,7 +799,8 @@ namespace Rtx
 
             mProbe.tracePicture(first, slot, camera, options);
 
-            ASSERT_TRUE(doll.placements().move(PlacementIndex(0), osg::Matrixf::translate(1000.0f, 0.0f, 0.0f)));
+            ASSERT_TRUE(
+                doll.placements().move(PlacementIndex(0), osg::Matrixf::translate(1000.0f, 0.0f, 0.0f), Stander::Walk));
             Testing::standerOf(mRenderer).placeScene(mRenderer, slot, doll);
             mProbe.tracePicture(second, slot, camera, options);
 
@@ -1105,21 +1106,23 @@ namespace Rtx
 
             // Out of the camera's box of two hundred altogether, so what the placement did shows as
             // the picture emptying rather than as a sheet a pixel narrower.
-            ASSERT_TRUE(doll.placements().move(PlacementIndex(0), osg::Matrixf::translate(1000.0f, 0.0f, 0.0f)));
+            ASSERT_TRUE(
+                doll.placements().move(PlacementIndex(0), osg::Matrixf::translate(1000.0f, 0.0f, 0.0f), Stander::Walk));
             Testing::standerOf(mRenderer).placeScene(mRenderer, slot, doll);
 
             EXPECT_EQ(covered(slot), 0u) << "the placement did not reach the trace";
 
             // **Two placements before one trace**, which is what a drag does. The picture is the
             // second, so a scheme that carried only the first would show the sheet back in the box.
-            ASSERT_TRUE(doll.placements().move(PlacementIndex(0), osg::Matrixf::identity()));
+            ASSERT_TRUE(doll.placements().move(PlacementIndex(0), osg::Matrixf::identity(), Stander::Walk));
             Testing::standerOf(mRenderer).placeScene(mRenderer, slot, doll);
-            ASSERT_TRUE(doll.placements().move(PlacementIndex(0), osg::Matrixf::translate(1000.0f, 0.0f, 0.0f)));
+            ASSERT_TRUE(
+                doll.placements().move(PlacementIndex(0), osg::Matrixf::translate(1000.0f, 0.0f, 0.0f), Stander::Walk));
             Testing::standerOf(mRenderer).placeScene(mRenderer, slot, doll);
 
             EXPECT_EQ(covered(slot), 0u) << "the trace showed the first of two placements";
 
-            ASSERT_TRUE(doll.placements().move(PlacementIndex(0), osg::Matrixf::identity()));
+            ASSERT_TRUE(doll.placements().move(PlacementIndex(0), osg::Matrixf::identity(), Stander::Walk));
             Testing::standerOf(mRenderer).placeScene(mRenderer, slot, doll);
 
             EXPECT_EQ(covered(slot), 4u) << "a placement brought it back";

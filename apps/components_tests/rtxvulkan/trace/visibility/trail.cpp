@@ -95,8 +95,9 @@ namespace Rtx::Testing
                     {
                         if (moves && at >= still)
                         {
-                            scene.placements().move(
-                                bar, osg::Matrixf::translate(step * static_cast<float>(at + 1 - still), 0.0f, 0.0f));
+                            scene.placements().move(bar,
+                                osg::Matrixf::translate(step * static_cast<float>(at + 1 - still), 0.0f, 0.0f),
+                                Stander::Walk);
                             Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
                             scene.placements().advance();
                         }
@@ -130,7 +131,8 @@ namespace Rtx::Testing
                     return column;
                 };
 
-                scene.placements().move(bar, osg::Matrixf::translate(step * static_cast<float>(moving), 0.0f, 0.0f));
+                scene.placements().move(
+                    bar, osg::Matrixf::translate(step * static_cast<float>(moving), 0.0f, 0.0f), Stander::Walk);
                 Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
                 scene.placements().advance();
                 const std::vector<float> standing = profile(48, 5000, false);
@@ -150,7 +152,7 @@ namespace Rtx::Testing
                 Trail trail;
                 for (std::uint32_t draw = 0; draw < draws; ++draw)
                 {
-                    scene.placements().move(bar, osg::Matrixf::identity());
+                    scene.placements().move(bar, osg::Matrixf::identity(), Stander::Walk);
                     Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
                     scene.placements().advance();
                     const std::vector<float>& moved = profile(still + moving, 100 + 1000 * draw, true);

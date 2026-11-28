@@ -411,7 +411,7 @@ namespace RtxTool
             if (jumped)
                 scene.placements().jump(slot, there);
             else
-                scene.placements().move(slot, there);
+                scene.placements().move(slot, there, Rtx::Stander::Walk);
             if (rippled)
                 scene.addRipple(Rtx::RippleImpulse{ .mAt = osg::Vec2f(1.0f, 2.0f), .mSize = 3.0f });
             return spellHash(digestScene(digestParts(scene)));
@@ -532,7 +532,8 @@ namespace RtxTool
             scene.clearArrivals();
             EXPECT_EQ(digester.digest(scene), first) << "a part read the geometry the host let go of";
 
-            scene.placements().move(Rtx::PlacementIndex(0), osg::Matrixf::translate(1.0f, 0.0f, 0.0f));
+            scene.placements().move(
+                Rtx::PlacementIndex(0), osg::Matrixf::translate(1.0f, 0.0f, 0.0f), Rtx::Stander::Walk);
             const ScenePartDigests moved = digester.digest(scene);
             EXPECT_EQ(moved[static_cast<std::size_t>(ScenePart::Positions)],
                 first[static_cast<std::size_t>(ScenePart::Positions)]);

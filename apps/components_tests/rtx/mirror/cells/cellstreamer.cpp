@@ -53,7 +53,9 @@
 #include <components/misc/constants.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/result.hpp>
+#include <components/nifosg/autotransform.hpp>
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/frame/camera.hpp>
 #include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
@@ -281,6 +283,8 @@ namespace Rtx::Testing
                     return mMirrored;
                 if (path.value() == "meshes/window.nif")
                     return mWindow;
+                if (path.value() == "meshes/glow.nif")
+                    return mGlow;
                 if (path.value() == "meshes/ember.nif")
                     return mEmber;
                 if (path.value() == "meshes/panel.nif")
@@ -369,6 +373,20 @@ namespace Rtx::Testing
 
                 osg::ref_ptr<osg::Group> root = new osg::Group;
                 root->addChild(branches);
+                return root;
+            }();
+
+            /// A lantern's glow card: a sheet lifted 20 units in the frame of a billboard 60 units up, which turns the
+            /// lift with it, so where the sheet stands says where the billboard faces.
+            osg::ref_ptr<osg::Group> mGlow = [this] {
+                osg::ref_ptr<NifOsg::AutoTransform> billboard = new NifOsg::AutoTransform;
+                billboard->setScale(1.0f);
+                billboard->setRotation(osg::Quat());
+                billboard->setTranslation(osg::Vec3f(0.0f, 0.0f, 60.0f));
+                billboard->addChild(makeSheet(40.0f, 20.0f));
+
+                osg::ref_ptr<osg::Group> root = new osg::Group;
+                root->addChild(billboard);
                 return root;
             }();
 
@@ -912,6 +930,100 @@ namespace Rtx::Testing
             const ExtractionStats met = walk(mWalked++);
             EXPECT_EQ(met.mMaterialsAdded, 0u) << "the walk read again a surface the ring adopted";
             EXPECT_EQ(treeWorn(Stander::Walk), stood);
+
+            mEmpty->removeChild(cell);
+            walk(mWalked++);
+        }
+
+        /// **A billboard the ring stands faces the eye the frame's walk turns the graph's to**, on every walk, so a
+        /// lantern's glow card faces where it faced once the game loads its cell: a card two cells out, stood turned
+        /// and scaled, by the ring and by the game's own clone under the same eye. Turned again where the eye moves and
+        /// where the game moves the reference, and at the rotation its file was authored with where the walk was told
+        /// no eye, as the walk leaves the graph's.
+        ///
+        /// Within 0.05 of a unit of each other, where a float's step is 0.002 at the 28,672 units along x the card
+        /// stands at: the walk composes its place in floats and the ring in doubles, narrowed once.
+        TEST_F(RtxCellStreamerTest, aBillboardTheRingStandsFacesTheEyeTheWalkTurnsTheGraphsTo)
+        {
+            const Placed glow{ .mCell = osg::Vec2i(3, 0),
+                .mModel = "glow.nif",
+                .mRefNum = ESM::RefNum{ 1, 0 },
+                .mPosition = osg::Vec3f(3.5f * sCellSize, 0.5f * sCellSize, 100.0f),
+                .mRotation = osg::Vec3f(0.1f, 0.2f, 1.5f),
+                .mScale = 2.0f };
+            mStorage.mPlaced = { glow };
+
+            const auto eyeAt = [&](const osg::Vec3f& at) {
+                const osg::Vec3f card = glow.mPosition + osg::Vec3f(0.0f, 0.0f, 120.0f);
+                return viewBasisOf(osg::Matrixd::inverse(
+                    osg::Matrixd::lookAt(osg::Vec3d(at), osg::Vec3d(card), osg::Vec3d(0.0, 0.0, 1.0))));
+            };
+            const std::optional<ViewBasis> west = eyeAt(osg::Vec3f(0.5f * sCellSize, 0.5f * sCellSize, 200.0f));
+            const std::optional<ViewBasis> north = eyeAt(osg::Vec3f(3.5f * sCellSize, 2.5f * sCellSize, 900.0f));
+            ASSERT_TRUE(west.has_value());
+            ASSERT_TRUE(north.has_value());
+
+            const auto stoodBy = [this](const Stander stander) {
+                std::optional<osg::Matrixf> found;
+                mScene.placements().forEachPlaced([&](PlacementIndex, const PlacementRow& row) {
+                    if (row.mInstance.mStander == stander
+                        && mScene.materials().getRows()[row.mInstance.mMaterial].mKind != MaterialKind::Terrain)
+                        found = row.mInstance.mTransform;
+                });
+                return found;
+            };
+            // The farthest any of the sheet's origin and its two corners along its axes lands from where the other
+            // stands it.
+            const auto apart = [](const osg::Matrixf& one, const osg::Matrixf& other) {
+                float most = 0.0f;
+                for (const osg::Vec3f point :
+                    { osg::Vec3f(), osg::Vec3f(40.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 40.0f, 0.0f) })
+                    most = std::max(most, (point * one - point * other).length());
+                return most;
+            };
+
+            mExtractor.setEye(west);
+            start();
+            fill();
+            const std::optional<osg::Matrixf> ringWest = stoodBy(Stander::Ring);
+            ASSERT_TRUE(ringWest.has_value()) << "the ring stands the card two cells out";
+
+            // The game's clone, under the root as `MWRender::Objects` stands one, beside the ring's: what a cell the
+            // game loads stands.
+            osg::ref_ptr<osg::Group> cell = new osg::Group;
+            osg::ref_ptr<osg::MatrixTransform> clone = new osg::MatrixTransform(gameStands(glow));
+            clone->addChild(mContent.mGlow);
+            cell->addChild(clone);
+            mEmpty->addChild(cell);
+
+            walk(mWalked++);
+            ASSERT_TRUE(stoodBy(Stander::Walk).has_value());
+            EXPECT_EQ(stoodBy(Stander::Ring), ringWest) << "a still eye turns it nowhere";
+            EXPECT_LT(apart(*stoodBy(Stander::Ring), *stoodBy(Stander::Walk)), 0.05f) << "from the west";
+
+            mExtractor.setEye(north);
+            walk(mWalked++);
+            EXPECT_LT(apart(*stoodBy(Stander::Ring), *stoodBy(Stander::Walk)), 0.05f) << "from the north";
+            EXPECT_GT(apart(*stoodBy(Stander::Ring), *ringWest), 10.0f) << "the eye moved and the card did not turn";
+
+            // The game swings the reference a hundred units along y and a quarter round: the card stands turned where
+            // it swung to on the walk after the move, and on every walk after that, from either eye.
+            const ReferencePlace swung{ .mPosition = glow.mPosition + osg::Vec3f(0.0f, 100.0f, 0.0f),
+                .mRotation = osg::Vec3f(0.0f, 0.0f, osg::PI_2f),
+                .mScale = 2.0f };
+            const osg::Matrixf ringNorth = *stoodBy(Stander::Ring);
+            mRing.moveReference(glow.mRefNum, swung, ReferenceStands::InItsCell);
+            clone->setMatrix(transformOf(swung));
+            walk(mWalked++);
+            EXPECT_LT(apart(*stoodBy(Stander::Ring), *stoodBy(Stander::Walk)), 0.05f) << "moved, from the north";
+            EXPECT_GT(apart(*stoodBy(Stander::Ring), ringNorth), 10.0f) << "the move did not reach the card";
+            mExtractor.setEye(west);
+            walk(mWalked++);
+            EXPECT_LT(apart(*stoodBy(Stander::Ring), *stoodBy(Stander::Walk)), 0.05f) << "moved, from the west";
+
+            mExtractor.setEye(std::nullopt);
+            walk(mWalked++);
+            EXPECT_LT(apart(*stoodBy(Stander::Ring), *stoodBy(Stander::Walk)), 0.05f) << "with no eye";
 
             mEmpty->removeChild(cell);
             walk(mWalked++);

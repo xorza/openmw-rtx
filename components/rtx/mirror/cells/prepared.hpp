@@ -41,6 +41,11 @@
 
 #include "nightday.hpp"
 
+namespace NifOsg
+{
+    class AutoTransform;
+}
+
 namespace Rtx
 {
     /// Where a reference stands, as the content places it or the game holds it now: what a clone's
@@ -195,6 +200,26 @@ namespace Rtx
 
     /// One drawable of a prepared model: what the frame adopts it under, and where its triangles
     /// sit in the model's buffers.
+    /// A `NiBillboardNode` a part stands under, which the ring turns to the eye on every walk (`facingEye`), as the
+    /// frame's walk turns the graph's: where its parent stands in the frame below the billboard over it, or in the
+    /// template's for the outermost.
+    struct PreparedTurn
+    {
+        /// The template's own, held by `PreparedModel::mTemplate`.
+        const NifOsg::AutoTransform* mBillboard = nullptr;
+
+        osg::Matrixf mAbove;
+    };
+
+    /// The billboards a part stands under, outermost first, into `PreparedModel::mTurns`, and where it stands below the
+    /// innermost: what its place in the template is made of on every walk, where `PreparedPart::mLocal` holds it at the
+    /// rotation the file was authored with.
+    struct PartTurns
+    {
+        Run mTurns;
+        osg::Matrixf mBelow;
+    };
+
     struct PreparedPart
     {
         /// The template's own drawable, which is the identity the frame's walk will find a clone's
@@ -219,6 +244,9 @@ namespace Rtx
         /// The modes the part is shown in: every branch of a `NightDaySwitch` is read, because
         /// which one the world shows is the frame's to say (`CellPlacer::setNightDay`).
         NightDayModes mModes;
+
+        /// The billboards it stands under, or nothing where it stands still.
+        std::optional<PartTurns> mTurns;
     };
 
     /// A model read whole on a thread that is not the frame's: its parts, the folded geometry of every one of them
@@ -262,6 +290,9 @@ namespace Rtx
         /// world's graph the one above them (`CellWorld::mAbove`).
         std::vector<const osg::StateSet*> mChains;
 
+        /// Every turned part's billboards, one after another (`PartTurns::mTurns`).
+        std::vector<PreparedTurn> mTurns;
+
         /// Why its walk left a drawable of it out — the first one — or empty. The model stands
         /// without it, as the frame's walk stands one without a drawable it refuses.
         std::string mRefused;
@@ -272,6 +303,7 @@ namespace Rtx
             letGoOf(mParts);
             mStreams.letGo();
             letGoOf(mChains);
+            letGoOf(mTurns);
         }
 
         /// What one of its parts comes to, as the frame adopts it. The spans are into this model's
@@ -284,12 +316,18 @@ namespace Rtx
             return part.mChain.in(std::span<const osg::StateSet* const>(mChains));
         }
 
+        /// The billboards one of its turned parts stands under, into this model's own storage.
+        std::span<const PreparedTurn> turnsOf(const PartTurns& turns) const
+        {
+            return turns.mTurns.in(std::span<const PreparedTurn>(mTurns));
+        }
+
         /// Every buffer whose room `reuse` keeps, once, so what is counted, what is trimmed and what
         /// is kept cannot come to name different ones.
         static constexpr auto buffers()
         {
             return std::tuple{ &PreparedModel::mPath, &PreparedModel::mParts, &PreparedModel::mChains,
-                &PreparedModel::mRefused };
+                &PreparedModel::mTurns, &PreparedModel::mRefused };
         }
 
         /// The room the buffers `reuse` keeps grew to, in bytes: what the model costs lent, and

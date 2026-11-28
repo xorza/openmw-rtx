@@ -16,6 +16,7 @@
 
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/misc/constants.hpp>
+#include <components/nifosg/autotransform.hpp>
 #include <components/rtx/common/finite.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/mirror/materialresolver.hpp>
@@ -60,6 +61,8 @@ namespace Rtx
         mInto = &into;
         mContent = &content;
         mHere = osg::Matrix();
+        mSinceTurn = osg::Matrix();
+        mTurnPath.clear();
         mModes = NightDayModes{};
         mShading.clear();
         if (mAbove != nullptr)
@@ -104,13 +107,27 @@ namespace Rtx
     void TemplateWalk::apply(osg::Transform& node)
     {
         // The visitor goes with it, as the frame's walk hands itself over. A visitor that is not a cull visitor takes
-        // the branch a null one would in every transform, an `AutoTransform` included, which this walk leaves at its
-        // base rotation: no vanilla static carries a billboard, so the ring has no eye to turn one to.
+        // the branch a null one would in every transform, an `AutoTransform` included, which stands here at the
+        // rotation its file was authored with: **a billboard is a turn** the ring makes on every walk, toward the eye
+        // the frame's walk turns the graph's to (`CellPlacer`), so what is below it is kept apart from what is above.
         const osg::Matrix above = mHere;
+        const osg::Matrix sinceAbove = mSinceTurn;
         node.computeLocalToWorldMatrix(mHere, this);
+
+        auto* const billboard = as<NifOsg::AutoTransform>(mKinds.of(node), NodeKind::Billboard, node);
+        if (billboard != nullptr)
+        {
+            mTurnPath.push_back(PreparedTurn{ .mBillboard = billboard, .mAbove = osg::Matrixf(mSinceTurn) });
+            mSinceTurn = osg::Matrix();
+        }
+        else
+            node.computeLocalToWorldMatrix(mSinceTurn, this);
 
         apply(static_cast<osg::Node&>(node));
 
+        if (billboard != nullptr)
+            mTurnPath.pop_back();
+        mSinceTurn = sinceAbove;
         mHere = above;
     }
 
@@ -177,6 +194,14 @@ namespace Rtx
         part.mLocal = osg::Matrixf(mHere);
         part.mClockwise = clockwiseThrough(mShading);
         part.mModes = mModes;
+        if (!mTurnPath.empty())
+        {
+            const auto turned = static_cast<std::uint32_t>(into.mTurns.size());
+            into.mTurns.insert(into.mTurns.end(), mTurnPath.begin(), mTurnPath.end());
+            part.mTurns
+                = PartTurns{ .mTurns = Run{ .mOffset = turned, .mCount = static_cast<std::uint32_t>(mTurnPath.size()) },
+                      .mBelow = osg::Matrixf(mSinceTurn) };
+        }
         into.mEmits = into.mEmits || (part.mMaterial.mDescribed.has_value() && part.mMaterial.mDescribed->emits());
 
         part.mRuns = into.mStreams.append(reading.mArrays, reading.mShape);

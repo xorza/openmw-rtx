@@ -148,11 +148,11 @@ namespace Rtx
         mMoved.addMakingRoom(slot);
     }
 
-    bool PlacementTable::move(const PlacementIndex slot, const osg::Matrixf& transform)
+    bool PlacementTable::move(const PlacementIndex slot, const osg::Matrixf& transform, const Stander by)
     {
         PlacementRow& row = mRows.at(slot);
         assert(isPlaced(slot) && "a slot nothing stands in");
-        assert(row.mInstance.mStander == Stander::Walk && "a move of a placement the ring stood");
+        assert(row.mInstance.mStander == by && "a slot moved by a stander that did not stand it");
 
         if (row.mInstance.mTransform == transform)
             return false;
@@ -164,7 +164,7 @@ namespace Rtx
 
     bool PlacementTable::jump(const PlacementIndex slot, const osg::Matrixf& transform)
     {
-        const bool moved = move(slot, transform);
+        const bool moved = move(slot, transform, Stander::Walk);
 
         // **Where it stood is where it stands, whatever the walks before left unsettled**: a slot a walk moved
         // to this very place, with no hand-over between, holds that walk's step as motion until it settles.

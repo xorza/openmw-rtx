@@ -197,8 +197,8 @@ namespace Rtx
             // is where it was: water is shaded off its world position, so a step along itself is no
             // motion at all.
             scene.placements().advance();
-            scene.placements().move(leaf, osg::Matrixf::translate(1.0f, 0.0f, 5.0f));
-            scene.placements().move(water, osg::Matrixf::translate(8192.0f, 0.0f, 0.0f));
+            scene.placements().move(leaf, osg::Matrixf::translate(1.0f, 0.0f, 5.0f), Stander::Walk);
+            scene.placements().move(water, osg::Matrixf::translate(8192.0f, 0.0f, 0.0f), Stander::Walk);
             updateInstanceRecords(scene, kept, changed);
             expectSame(kept, scene, "moved");
             EXPECT_FALSE(kept[leaf].mMotion == still) << "a mover carried no motion";
@@ -215,8 +215,8 @@ namespace Rtx
 
             // **A placement shrunk to nothing has no motion to report**: a scale of nought has no
             // inverse, and the one OpenSceneGraph gives it is NaN.
-            scene.placements().move(
-                chunk, osg::Matrixf::scale(0.0f, 0.0f, 0.0f) * osg::Matrixf::translate(3.0f, 0.0f, 0.0f));
+            scene.placements().move(chunk,
+                osg::Matrixf::scale(0.0f, 0.0f, 0.0f) * osg::Matrixf::translate(3.0f, 0.0f, 0.0f), Stander::Walk);
             updateInstanceRecords(scene, kept, changed);
             expectSame(kept, scene, "shrunk to nothing");
             EXPECT_TRUE(kept[chunk].mMotion == still) << "a vanished placement carried a motion";
@@ -226,8 +226,8 @@ namespace Rtx
             // and stays in the present set once; the sheet moves, and its sphere with it.
             scene.placements().fade(leaf, 0.5f);
             scene.placements().fade(cloud, 0.25f);
-            scene.placements().move(glow, osg::Matrixf::translate(-40.0f, 7.0f, 2.0f));
-            scene.placements().move(water, osg::Matrixf::translate(8192.0f, 0.0f, 50.0f));
+            scene.placements().move(glow, osg::Matrixf::translate(-40.0f, 7.0f, 2.0f), Stander::Walk);
+            scene.placements().move(water, osg::Matrixf::translate(8192.0f, 0.0f, 50.0f), Stander::Walk);
             updateInstanceRecords(scene, kept, changed);
             expectSame(kept, scene, "faded");
 
@@ -297,7 +297,7 @@ namespace Rtx
             std::vector<PlacementIndex> changed;
             makeInstanceRecords(scene, kept);
             scene.placements().advance();
-            scene.placements().move(far, turn * osg::Matrixf::translate(150000.25f, -120000.0f, 30.0f));
+            scene.placements().move(far, turn * osg::Matrixf::translate(150000.25f, -120000.0f, 30.0f), Stander::Walk);
             updateInstanceRecords(scene, kept, changed);
 
             const Transform3x4 expected = toTransform3x4(osg::Matrixf::translate(-0.25f, 0.0f, 0.0f));

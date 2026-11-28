@@ -254,7 +254,7 @@ namespace Rtx::Testing
                 if (another)
                     addPane(lit.mScene, uprightQuadAt(4000.0f, 300.0f), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f));
                 shoot(lit.mScene, {}, camera, sSize, filteredRun(16, 2000));
-                lit.mScene.placements().move(lit.mPane, osg::Matrixf::translate(0.0f, -1000.0f, 0.0f));
+                lit.mScene.placements().move(lit.mPane, osg::Matrixf::translate(0.0f, -1000.0f, 0.0f), Stander::Walk);
                 return shoot(lit.mScene, {}, camera, sSize, { .mFilter = filtered, .mSetScene = false });
             };
 

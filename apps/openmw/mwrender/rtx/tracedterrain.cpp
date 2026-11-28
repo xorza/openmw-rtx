@@ -419,12 +419,12 @@ namespace MWRender
 
                     for (const Rtx::Placement& placement : mDistance.placementsIn(cell))
                     {
-                        if (!placement.mStood.isStanding() || placement.mDrawable == nullptr)
+                        if (!placement.mStood.isStanding())
                             continue;
 
                         Carrier& carrier = nextCarrier();
                         carrier.mPlace->setMatrix(placement.mStood.mTransform);
-                        carrier.mPart->show(*placement.mDrawable);
+                        carrier.mPart->show(*placement.mPart->mDrawable);
                         carrier.mMarker->mRefnum = placement.mState.mRefNum;
                         carrier.mPlace->accept(visitor);
                     }

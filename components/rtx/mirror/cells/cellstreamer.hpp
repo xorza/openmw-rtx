@@ -12,6 +12,7 @@
 
 #include <components/esm3/refnum.hpp>
 #include <components/rtx/common/stepped.hpp>
+#include <components/rtx/frame/camera.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/mirror/sceneadopter.hpp>
 #include <components/terrain/pagedcellref.hpp>
@@ -124,8 +125,9 @@ namespace Rtx
 
         /// Hands the adopter everything held that the graph does not parent, and adds what it stood
         /// to the walk's counts, because the ring is stood inside the adopter's walk — the one of
-        /// `frame`, so a frame walked twice adopts one cell and not two.
-        void collect(std::size_t frame);
+        /// `frame`, so a frame walked twice adopts one cell and not two — with every billboard it stands turned to
+        /// `eye`, the walk's own (`SceneExtractor::setEye`).
+        void collect(std::size_t frame, const std::optional<ViewBasis>& eye);
 
         /// Whether this ring adopts through `adopter`, which is what a walk that collects it is.
         bool adoptsThrough(const SceneAdopter& adopter) const { return &mAdopter == &adopter; }
@@ -218,7 +220,7 @@ namespace Rtx
         void letGo(std::span<PreparedModel* const> models);
 
         /// The whole of what a walk does to the rings: what `collect` wraps in the walk it is inside.
-        void walkRings(ExtractionStats& stats, std::size_t frame);
+        void walkRings(ExtractionStats& stats, std::size_t frame, const std::optional<ViewBasis>& eye);
 
         /// Lets go of every cell, every model and every image the frame holds. What the supply lent
         /// dies with its reader, so this runs before the supply is pointed anywhere else.

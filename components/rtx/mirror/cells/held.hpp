@@ -93,18 +93,26 @@ namespace Rtx
         /// The modes its part is shown in — `PreparedPart::mModes`.
         NightDayModes mModes;
 
-        /// The template's drawable the part was read from, which a game's ray meets in the part's
-        /// place where no loaded cell holds it — `CellStreamer::placementsIn`. Held by the cell's model,
-        /// `HeldCell::mModels`, for as long as the cell is.
-        const osg::Drawable* mDrawable = nullptr;
+        /// The model and the part of it this places, held by the cell's models (`HeldCell::mModels`) for as long as
+        /// the cell is: the template's drawable a game's ray meets in the part's place where no loaded cell holds it
+        /// (`CellStreamer::placementsIn`), where it stands in the model and the billboards it turns by, which its
+        /// transform is made again from (`CellPlacer::standingOf`).
+        const PreparedModel* mModel = nullptr;
+        const PreparedPart* mPart = nullptr;
 
-        /// Where the part stands in its model (`PreparedPart::mLocal`), held as the drawable is, and
-        /// which of the cell's references it is a part of (`HeldCell::mPlaces`): what the transform
-        /// is made again from where the game moves the reference.
-        const osg::Matrixf* mLocal = nullptr;
+        /// Which of the cell's references it is a part of (`HeldCell::mPlaces`).
         std::uint32_t mReference = 0;
 
         ReferenceState mState;
+    };
+
+    /// A placement whose part stands under a billboard (`PreparedPart::mTurns`), which `CellPlacer::place` turns to the
+    /// eye on every walk: its slot in its cell's placements, and where its reference stands now, the content's place or
+    /// where the game moved it, which the turn is made under.
+    struct TurnedPlacement
+    {
+        std::uint32_t mAt = 0;
+        osg::Matrixf mReference;
     };
 
     /// Where one reference is met in its cell: a placement's slot in `HeldCell::mPlacements`, or,
@@ -190,6 +198,9 @@ namespace Rtx
         /// Largest radius first, which `CellPlacer::adoptPlacements` sorts once.
         std::vector<Placement> mPlacements;
 
+        /// Its placements that turn to the eye, by their slot ascending.
+        std::vector<TurnedPlacement> mTurned;
+
         /// Each reference's transform as the content places it (`PreparedRef::mTransform`), which
         /// `Placement::mReference` names: what a placement stands back at once the game forgets
         /// where it moved the reference.
@@ -229,8 +240,8 @@ namespace Rtx
 
             assert(std::none_of(mAsks.begin(), mAsks.end(), [](const RingAsk& ask) { return ask.mStep.has_value(); })
                 && "a cell reused with its asks still standing");
-            reuseKeeping(*this, &HeldCell::mPlacements, &HeldCell::mPlaces, &HeldCell::mModels, &HeldCell::mLights,
-                &HeldCell::mByReference, &HeldCell::mByGate, &HeldCell::mGround, &HeldCell::mAsks);
+            reuseKeeping(*this, &HeldCell::mPlacements, &HeldCell::mTurned, &HeldCell::mPlaces, &HeldCell::mModels,
+                &HeldCell::mLights, &HeldCell::mByReference, &HeldCell::mByGate, &HeldCell::mGround, &HeldCell::mAsks);
         }
     };
 
@@ -243,6 +254,9 @@ namespace Rtx
         osg::Vec2i mCell;
 
         std::vector<Placement> mPlacements;
+
+        /// Its placements that turn to the eye, by their slot ascending.
+        std::vector<TurnedPlacement> mTurned;
 
         /// The materials its placements wear, each once, which it asks at the finest footprint for as long as it is
         /// held: a plant stands within the groundcover's reach, which is near.
@@ -261,7 +275,7 @@ namespace Rtx
             }) && "a cell's grass reused with something still standing");
 
             assert(mAsked.empty() && "a cell's grass reused with its asks still standing");
-            reuseKeeping(*this, &HeldGrass::mPlacements, &HeldGrass::mModels, &HeldGrass::mAsked);
+            reuseKeeping(*this, &HeldGrass::mPlacements, &HeldGrass::mTurned, &HeldGrass::mModels, &HeldGrass::mAsked);
         }
     };
 

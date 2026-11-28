@@ -321,6 +321,11 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
   time. A reference a local script enables or disables stands behind a gate the game evaluates
   (`MWScript::VisibilityGates`). The size rule thins what reflects light, never what gives it. Refused, by the user's
   decision: a cache of what no cell holds, which the resource cache and the ring's hysteresis already cover.
+- **A billboard the ring stands turns to the walk's eye on every walk** (`Rtx::facingEye`, one turn for both walks):
+  the reader keeps a part's billboards apart from what is above and below them (`PartTurns`), and the placer moves the
+  few placements under one, so a replacer's glow card faces where it will face once its cell loads. Refused: the
+  rotation the file was authored with, which stood a card facing wherever its file left it until its cell loaded and
+  snapped it round when it did; the template's own node turned, which every clone and thread shares.
 - **One table between the frame and the cell reader, a record a cell** (`Rtx::CellTable`): each of a cell's two reads,
   its own and its groundcover's, is a stage — wanted, in hand, read, adopted — that the frame and the reader move it
   through under one monitor, so "is it on its way" and "is the band whole" are a record's answer. Refused: a request

@@ -17,6 +17,7 @@
 #include <components/rtx/common/holdtier.hpp>
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/common/slots.hpp>
+#include <components/rtx/frame/camera.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/scene/material.hpp>
@@ -163,8 +164,13 @@ namespace Rtx
         /// grass in for this renderer, and drops it whole past it. A cell asks its materials from the nearest of the
         /// eye and `predicted`'s centres, so a predicted band's land arrives whole and does not sharpen as the eye
         /// comes.
+        ///
+        /// **Every placement under a billboard turned to `eye` first**, the eye the frame's walk turns the graph's to
+        /// (`facingEye`), so one the game loads faces where it faced, and one that stands this walk stands turned.
+        /// Nothing turns where there is no eye, and a billboard stands at the rotation its file was authored with.
         /// @return how many lamps were stood.
-        std::uint32_t place(const WorldAround& around, std::span<const osg::Vec3f> predicted);
+        std::uint32_t place(
+            const WorldAround& around, std::span<const osg::Vec3f> predicted, const std::optional<ViewBasis>& eye);
 
         /// Appends the reference number of every static standing in the top level.
         void collectStanding(std::vector<ESM::RefNum>& into) const;
@@ -216,8 +222,18 @@ namespace Rtx
         /// Appends to `into` one placement for each part of `model` as `adopted` stands it, where
         /// `ref`, the cell's `reference`th, stands the model, in `state`: what a cell's references
         /// and a cell's grass share.
-        static void appendPlacements(const PreparedModel& model, const CellHolds::HeldModel& adopted,
-            const PreparedRef& ref, std::uint32_t reference, const ReferenceState& state, std::vector<Placement>& into);
+        /// The placements of a part under a billboard go to `turned` as well, by their slot in `into`.
+        void appendPlacements(const PreparedModel& model, const CellHolds::HeldModel& adopted, const PreparedRef& ref,
+            std::uint32_t reference, const ReferenceState& state, std::vector<Placement>& into,
+            std::vector<TurnedPlacement>& turned) const;
+
+        /// Where `part` of `model` stands while its reference stands at `reference`: its place in the model, turned to
+        /// the last eye where it stands under a billboard.
+        osg::Matrixf standingOf(
+            const PreparedModel& model, const PreparedPart& part, const osg::Matrixf& reference) const;
+
+        /// Turns each of `turned`'s placements in `placements` to the last eye, and moves those that stand.
+        void turn(std::span<Placement> placements, std::span<const TurnedPlacement> turned);
 
         /// Fills `held.mPlacements` from the cell's references, one per part of each model as
         /// `holds` adopted it, disabled where a script said so, and sorted for `place`; and
@@ -357,6 +373,9 @@ namespace Rtx
 
         /// What the eye resolved at the last `place`, which every cell asked by.
         Sight mSight{};
+
+        /// Where the eye looked from at the last `place`, which every billboard the ring stands turns to.
+        std::optional<ViewBasis> mEye;
 
         std::uint32_t mPlaced = 0;
         std::uint32_t mGroundPlaced = 0;

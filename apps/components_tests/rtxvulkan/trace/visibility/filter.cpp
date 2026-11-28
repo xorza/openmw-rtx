@@ -990,7 +990,7 @@ namespace Rtx::Testing
                         const float moved = at < still ? 0.0f : step * static_cast<float>(at + 1 - still);
                         // Advanced after each hand-over, as `SceneUploader` does, or the bar's motion
                         // is every step since it stood still.
-                        scene.placements().move(bar, osg::Matrixf::translate(moved, 0.0f, 0.0f));
+                        scene.placements().move(bar, osg::Matrixf::translate(moved, 0.0f, 0.0f), Stander::Walk);
                         Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
                         scene.placements().advance();
                         camera.mFrame = 3000 + 100 * draw + at;

@@ -84,14 +84,14 @@ namespace Rtx
         void fade(PlacementIndex slot, float opacity);
 
         /// Moves the placement in `slot`, and says whether that changed anything. A transform equal
-        /// to the one already there writes nothing, which is the ordinary case. The walk's alone,
-        /// as `fade` is.
-        bool move(PlacementIndex slot, const osg::Matrixf& transform);
+        /// to the one already there writes nothing, which is the ordinary case. Its stander's alone,
+        /// as `drop` is: the walk's for what the graph moved, the ring's for a billboard it turns.
+        bool move(PlacementIndex slot, const osg::Matrixf& transform, Stander by);
 
         /// Puts the placement in `slot` at `transform` as though it had always stood there: no
         /// motion, so a history at its new pixels is the old place's and is refused. What the game
         /// put somewhere else in one step — a door, a teleport — and not what walked there. The
-        /// walk's alone, as `move` is.
+        /// walk's alone: the ring stands nothing the game jumps.
         bool jump(PlacementIndex slot, const osg::Matrixf& transform);
 
         /// Says every row wearing `material` now wears `worn` and has to be written again — the

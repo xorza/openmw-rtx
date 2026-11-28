@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include <osg/Matrixd>
 #include <osg/Matrixf>
 
 #include <components/misc/result.hpp>
@@ -24,6 +25,7 @@
 #include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/mirror/billboardfacing.hpp>
 #include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
@@ -413,27 +415,62 @@ namespace Rtx
 
     void CellPlacer::appendPlacements(const PreparedModel& model, const CellHolds::HeldModel& adopted,
         const PreparedRef& ref, const std::uint32_t reference, const ReferenceState& state,
-        std::vector<Placement>& into)
+        std::vector<Placement>& into, std::vector<TurnedPlacement>& turned) const
     {
         for (std::size_t at = 0; at < adopted.mParts.size(); ++at)
-            into.push_back(Placement{
+        {
+            const PreparedPart& part = model.mParts[at];
+            const Placement placement{
                 .mStood = {
                     .mMesh = adopted.mParts[at].mMesh,
                     .mMaterial = adopted.mParts[at].mMaterial,
-                    .mTransform = model.mParts[at].mLocal * ref.mTransform,
+                    .mTransform = standingOf(model, part, ref.mTransform),
                     .mLampBody = ref.mLampBody,
-                    .mClockwise = model.mParts[at].mClockwise,
+                    .mClockwise = part.mClockwise,
                     .mKey = placementKeyOf(PlacementKeyKind::Referenced,
                         { ref.mRefNum.mIndex, std::bit_cast<std::uint32_t>(ref.mRefNum.mContentFile),
                             static_cast<std::uint32_t>(at) }),
                 },
                 .mRadius = ref.mRadius,
-                .mModes = model.mParts[at].mModes,
-                .mDrawable = model.mParts[at].mDrawable.get(),
-                .mLocal = &model.mParts[at].mLocal,
+                .mModes = part.mModes,
+                .mModel = &model,
+                .mPart = &part,
                 .mReference = reference,
                 .mState = state,
-            });
+            };
+            if (part.mTurns.has_value())
+                turned.push_back(
+                    TurnedPlacement{ .mAt = static_cast<std::uint32_t>(into.size()), .mReference = ref.mTransform });
+            into.push_back(placement);
+        }
+    }
+
+    osg::Matrixf CellPlacer::standingOf(
+        const PreparedModel& model, const PreparedPart& part, const osg::Matrixf& reference) const
+    {
+        if (!part.mTurns.has_value())
+            return part.mLocal * reference;
+
+        // Outermost first, each billboard turned in the frame the ones above it left, as the frame's walk turns a
+        // path's; in the width the walk turns in, and narrowed where the transform is handed over.
+        osg::Matrixd standing(reference);
+        for (const PreparedTurn& turn : model.turnsOf(*part.mTurns))
+        {
+            standing = osg::Matrixd(turn.mAbove) * standing;
+            standing = facingEye(*turn.mBillboard, standing, mEye) * standing;
+        }
+        return osg::Matrixf(osg::Matrixd(part.mTurns->mBelow) * standing);
+    }
+
+    void CellPlacer::turn(const std::span<Placement> placements, const std::span<const TurnedPlacement> turned)
+    {
+        for (const TurnedPlacement& one : turned)
+        {
+            Placement& placement = placements[one.mAt];
+            placement.mStood.mTransform = standingOf(*placement.mModel, *placement.mPart, one.mReference);
+            if (placement.mStood.isStanding())
+                mScene.placements().move(placement.mStood.mSlot, placement.mStood.mTransform, Stander::Ring);
+        }
     }
 
     void CellPlacer::retierGround(const osg::Vec2i& cell, const HoldTier tier)
@@ -466,6 +503,7 @@ namespace Rtx
     void CellPlacer::adoptPlacements(const PreparedCell& cell, HeldCell& held, CellHolds& holds)
     {
         held.mPlacements.clear();
+        held.mTurned.clear();
         held.mPlaces.clear();
         held.mShown = 0;
 
@@ -473,13 +511,15 @@ namespace Rtx
         {
             const PreparedModel& model = *cell.mModels[ref.mModel];
             appendPlacements(model, holds.knownOf(model), ref, static_cast<std::uint32_t>(held.mPlaces.size()),
-                heard(ref.mRefNum, ref.mGate), held.mPlacements);
+                heard(ref.mRefNum, ref.mGate), held.mPlacements, held.mTurned);
             held.mPlaces.push_back(ref.mTransform);
         }
 
         // Largest first, as the reader sorted the references, so the size rule's answer is a prefix on every walk.
         assert(std::ranges::is_sorted(held.mPlacements, std::ranges::greater{}, &Placement::mRadius)
             && "a cell's references read out of the size rule's order");
+        assert(std::ranges::is_sorted(held.mTurned, std::ranges::less{}, &TurnedPlacement::mAt)
+            && "a cell's turned placements out of their slots' order, which `standAt` searches");
 
         held.mLights.clear();
         for (const PreparedLight& lamp : cell.mLights)
@@ -545,11 +585,16 @@ namespace Rtx
 
             // Out of the top level and in again, because an instance stands where it was added.
             Placement& placement = cell.mPlacements[spot.mAt];
+            const osg::Matrixf& reference = transform != nullptr ? *transform : cell.mPlaces[placement.mReference];
             drop(placement.mStood, mPlaced);
-            placement.mStood.mTransform
-                = *placement.mLocal * (transform != nullptr ? *transform : cell.mPlaces[placement.mReference]);
+            placement.mStood.mTransform = standingOf(*placement.mModel, *placement.mPart, reference);
             placement.mState.mAway = away;
             restand(placement, spot.mAt < cell.mShown, mPlaced);
+
+            // And turned where it stands now, on every walk after.
+            const auto turned = std::ranges::lower_bound(cell.mTurned, spot.mAt, {}, &TurnedPlacement::mAt);
+            if (turned != cell.mTurned.end() && turned->mAt == spot.mAt)
+                turned->mReference = reference;
         }
         return first != last;
     }
@@ -614,8 +659,8 @@ namespace Rtx
             // A grass reference is no lamp and has no radius: the reader reads it with neither. No
             // script names one, so the game never moves one and none is named by its place.
             const PreparedModel& model = *grass.mModels[ref.mModel];
-            appendPlacements(
-                model, holds.knownOf(model), ref, 0, ReferenceState{ .mRefNum = ref.mRefNum }, held.mPlacements);
+            appendPlacements(model, holds.knownOf(model), ref, 0, ReferenceState{ .mRefNum = ref.mRefNum },
+                held.mPlacements, held.mTurned);
         }
         held.mModels.assign(grass.mModels.begin(), grass.mModels.end());
 
@@ -811,7 +856,8 @@ namespace Rtx
 
         const MeshInstance& standing = placed[stood.mSlot].mInstance;
         return mScene.placements().isPlaced(stood.mSlot) && standing.mStander == Stander::Ring
-            && standing.mMesh == stood.mMesh && standing.mMaterial == stood.mMaterial;
+            && standing.mMesh == stood.mMesh && standing.mMaterial == stood.mMaterial
+            && standing.mTransform == stood.mTransform;
     }
 
     bool CellPlacer::standsAsHeld(const HeldGrass& grass, const WorldAround& around) const
@@ -869,21 +915,25 @@ namespace Rtx
         return standing == getPlaced() + getGroundPlaced() + getGrassPlaced();
     }
 
-    std::uint32_t CellPlacer::place(const WorldAround& around, const std::span<const osg::Vec3f> predicted)
+    std::uint32_t CellPlacer::place(
+        const WorldAround& around, const std::span<const osg::Vec3f> predicted, const std::optional<ViewBasis>& eye)
     {
         const bool sightMoved = around.mSight != mSight;
         mSight = around.mSight;
+        mEye = eye;
 
         std::uint32_t lit = 0;
         for (HeldCell& cell : mCells)
         {
             askByDistance(cell, around, predicted, sightMoved);
+            turn(cell.mPlacements, cell.mTurned);
             lit += place(cell, around);
         }
 
         // What a walk touches is a cell's grass crossing the reach, and nothing on a standing frame.
         for (HeldGrass& grass : mGrass)
         {
+            turn(grass.mPlacements, grass.mTurned);
             const bool shown = showsGrass(grass.mCell, around);
             if (shown == grass.mShown)
                 continue;

@@ -34,6 +34,7 @@
 #include <components/resource/sptfilemanager.hpp>
 #include <components/rtx/frame/debuglines.hpp>
 #include <components/rtx/mirror/cells/predictedbands.hpp>
+#include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/riggeometry.hpp>
 #include <components/sceneutil/userdata.hpp>
@@ -370,11 +371,13 @@ namespace MWRender
             quad->setVertexArray(corners);
             quad->addPrimitiveSet(new osg::DrawArrays(GL_QUADS, 0, 4));
 
+            Rtx::PreparedPart part;
+            part.mDrawable = quad.get();
             Rtx::Placement placed;
             placed.mStood.mTransform
                 = osg::Matrixf::translate(static_cast<float>(4.5 * cell), static_cast<float>(0.5 * cell), 300.0f);
             placed.mStood.mSlot = Rtx::PlacementIndex(0);
-            placed.mDrawable = quad.get();
+            placed.mPart = &part;
             placed.mState.mRefNum = ESM::RefNum{ 42, 0 };
             making.mStood.mPlacedCell = osg::Vec2i(4, 0);
             making.mStood.mPlacements = { placed };
@@ -452,11 +455,13 @@ namespace MWRender
             for (const osg::Drawable* deforming :
                 { static_cast<const osg::Drawable*>(morphed.get()), static_cast<const osg::Drawable*>(skinned.get()) })
             {
+                Rtx::PreparedPart part;
+                part.mDrawable = deforming;
                 Rtx::Placement placed;
                 placed.mStood.mTransform
                     = osg::Matrixf::translate(static_cast<float>(4.5 * cell), static_cast<float>(0.5 * cell), 300.0f);
                 placed.mStood.mSlot = Rtx::PlacementIndex(0);
-                placed.mDrawable = deforming;
+                placed.mPart = &part;
                 making.mStood.mPlacedCell = osg::Vec2i(4, 0);
                 making.mStood.mPlacements = { placed };
 

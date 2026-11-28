@@ -1539,7 +1539,7 @@ namespace Rtx
             // A move and a fade in the same frame are one row, named once: it is written whole, so a
             // second name would write it again for nothing.
             const osg::Matrixf stood = scene.placements().getRows()[two].mInstance.mTransform;
-            scene.placements().move(two, osg::Matrixf::translate(0.0f, 0.0f, 5.0f));
+            scene.placements().move(two, osg::Matrixf::translate(0.0f, 0.0f, 5.0f), Stander::Walk);
             scene.placements().fade(two, 0.25f);
             EXPECT_EQ(sorted(scene.placements().getMoved()), (std::vector{ two }));
             EXPECT_EQ(scene.placements().getRows()[two].mPrevious, stood) << "a move forgot where it was";
@@ -1561,7 +1561,7 @@ namespace Rtx
             // **And a jump to where a walk moved it, with no hand-over between, is motionless too**: the walk's
             // step is no motion once the slot is said to have jumped there.
             const osg::Matrixf further = osg::Matrixf::translate(4100.0f, 0.0f, 5.0f);
-            EXPECT_TRUE(scene.placements().move(two, further));
+            EXPECT_TRUE(scene.placements().move(two, further, Stander::Walk));
             EXPECT_FALSE(scene.placements().jump(two, further)) << "it already stands there";
             EXPECT_EQ(scene.placements().getRows()[two].mPrevious, further) << "the walk's step carried as motion";
             scene.placements().advance();

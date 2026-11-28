@@ -4,6 +4,7 @@
 #include <initializer_list>
 #include <iterator>
 #include <limits>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -23,6 +24,7 @@
 #include <osg/Node>
 #include <osg/PolygonMode>
 #include <osg/PrimitiveSet>
+#include <osg/Quat>
 #include <osg/Sequence>
 #include <osg/StateSet>
 #include <osg/Switch>
@@ -36,6 +38,7 @@
 #include <components/misc/constants.hpp>
 #include <components/misc/digestwords.hpp>
 #include <components/misc/hashstate.hpp>
+#include <components/nifosg/autotransform.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/mirror/cells/nightday.hpp>
@@ -260,6 +263,75 @@ namespace Rtx::Testing
                     EXPECT_EQ(model.mParts[1 + part].mModes, read[part].mModes) << at << ", " << part;
                 }
             }
+        }
+
+        /// **A part under a billboard is a turn**, which the ring makes toward the eye on every walk: its billboards,
+        /// outermost first, each with where its parent stands below the one over it, and where the part stands below
+        /// the innermost, which together make the part's place at the rotation its file was authored with. A part
+        /// under none turns by nothing, and one beside the billboards stands at its whole place as before.
+        TEST(RtxTemplateWalkTest, aPartUnderABillboardIsReadAsTheTurnsItStandsUnder)
+        {
+            const auto billboardAt = [](const osg::Vec3f& at, const osg::Quat& rotation) {
+                osg::ref_ptr<NifOsg::AutoTransform> billboard = new NifOsg::AutoTransform;
+                billboard->setScale(1.0f);
+                billboard->setRotation(rotation);
+                billboard->setTranslation(at);
+                return billboard;
+            };
+
+            // Root, a lift of 40, a billboard 10 along x turned a quarter about z, a step of 5 along y, a second
+            // billboard 2 up, and a sheet 3 along x under it; and a sheet beside the billboards.
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            osg::ref_ptr<osg::MatrixTransform> lift
+                = new osg::MatrixTransform(osg::Matrix::translate(0.0f, 0.0f, 40.0f));
+            root->addChild(lift);
+            const osg::ref_ptr<NifOsg::AutoTransform> outer
+                = billboardAt(osg::Vec3f(10.0f, 0.0f, 0.0f), osg::Quat(osg::PI_2, osg::Vec3f(0.0f, 0.0f, 1.0f)));
+            lift->addChild(outer);
+            osg::ref_ptr<osg::MatrixTransform> step
+                = new osg::MatrixTransform(osg::Matrix::translate(0.0f, 5.0f, 0.0f));
+            outer->addChild(step);
+            const osg::ref_ptr<NifOsg::AutoTransform> inner = billboardAt(osg::Vec3f(0.0f, 0.0f, 2.0f), osg::Quat());
+            step->addChild(inner);
+            osg::ref_ptr<osg::MatrixTransform> over
+                = new osg::MatrixTransform(osg::Matrix::translate(3.0f, 0.0f, 0.0f));
+            inner->addChild(over);
+            const osg::ref_ptr<osg::Geometry> turned = makeQuad();
+            over->addChild(turned);
+            const osg::ref_ptr<osg::Geometry> still = makeQuad();
+            lift->addChild(still);
+
+            PreparedModel model;
+            ThreadContent content;
+            TemplateWalk walk(nullptr);
+            walk.read(*root, ~0u, model, content);
+
+            ASSERT_EQ(model.mParts.size(), 2u);
+            const PreparedPart& under = model.mParts[0];
+            const PreparedPart& beside = model.mParts[1];
+            ASSERT_EQ(under.mDrawable, turned.get());
+            ASSERT_EQ(beside.mDrawable, still.get());
+
+            ASSERT_TRUE(under.mTurns.has_value());
+            const std::span<const PreparedTurn> turns = model.turnsOf(*under.mTurns);
+            ASSERT_EQ(turns.size(), 2u);
+            EXPECT_EQ(turns[0].mBillboard, outer.get());
+            EXPECT_EQ(turns[0].mAbove, osg::Matrixf::translate(0.0f, 0.0f, 40.0f)) << "the lift, in the template";
+            EXPECT_EQ(turns[1].mBillboard, inner.get());
+            EXPECT_EQ(turns[1].mAbove, osg::Matrixf::translate(0.0f, 5.0f, 0.0f)) << "the step, below the outer";
+            EXPECT_EQ(under.mTurns->mBelow, osg::Matrixf::translate(3.0f, 0.0f, 0.0f)) << "the sheet's own step";
+
+            // As authored: the sheet's origin, 3 along x, 2 up and 5 along y, is (3, 5, 2) under the outer billboard,
+            // which turns it a quarter about z to (-5, 3, 2) and stands it 10 along x, under the lift's 40 up: (5, 3,
+            // 42). To a float's steps, which the quarter turn's sine and cosine round to.
+            const osg::Vec3f authored = osg::Vec3f() * under.mLocal;
+            EXPECT_NEAR(authored.x(), 5.0f, 1e-5f);
+            EXPECT_NEAR(authored.y(), 3.0f, 1e-5f);
+            EXPECT_NEAR(authored.z(), 42.0f, 1e-5f);
+
+            EXPECT_FALSE(beside.mTurns.has_value()) << "a part under no billboard turns by nothing";
+            EXPECT_EQ(beside.mLocal, osg::Matrixf::translate(0.0f, 0.0f, 40.0f));
+            EXPECT_EQ(model.mTurns.size(), 2u) << "the turned part's two, and none for the part beside";
         }
 
         /// **A mesh this cannot build is left out on the reader's thread, and its model stands

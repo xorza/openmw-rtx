@@ -192,7 +192,7 @@ namespace Rtx
             // Moved, because a placement builds the top level only over rows that changed, and a
             // compaction changes them only on a driver whose tight copy is smaller: RADV's copy of
             // this wall is the 448 bytes it was built in.
-            ASSERT_TRUE(scene.placements().move(wallPlaced, osg::Matrixf::translate(0.0f, 50.0f, 0.0f)));
+            ASSERT_TRUE(scene.placements().move(wallPlaced, osg::Matrixf::translate(0.0f, 50.0f, 0.0f), Stander::Walk));
             Testing::standerOf(mRenderer).placeScene(mRenderer, Rtx::SceneSlot::world(), scene);
             const Drawn placed = draw(mRenderer, camera);
 

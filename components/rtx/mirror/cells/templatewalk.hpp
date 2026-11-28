@@ -17,6 +17,7 @@
 #include <components/rtx/preprocess/threadcontent.hpp>
 
 #include "nightday.hpp"
+#include "prepared.hpp"
 
 namespace osg
 {
@@ -27,8 +28,6 @@ namespace osg
 
 namespace Rtx
 {
-    struct PreparedModel;
-
     /// A read-only walk over a model as the loader built it, into a `PreparedModel`, for a thread that is not the
     /// frame's. Not `SceneExtractor::Traversal`, because that one steps sequences and runs controllers, and a template
     /// is shared with every clone and the preloader, so a walk from another thread may write nothing into it.
@@ -90,6 +89,12 @@ namespace Rtx
         /// `computeLocalToWorldMatrix` works in, and narrowed where a drawable is handed over, as
         /// the frame's walk narrows it.
         osg::Matrix mHere;
+
+        /// The billboards above the node being visited, outermost first, and its local-to-frame below the innermost of
+        /// them, or to the template's where there is none: what a part under a billboard is turned by
+        /// (`PreparedPart::mTurns`). The path's own, refilled by every walk.
+        std::vector<PreparedTurn> mTurnPath;
+        osg::Matrix mSinceTurn;
 
         /// The modes the day-night switches above where the walk is standing show it in.
         NightDayModes mModes;

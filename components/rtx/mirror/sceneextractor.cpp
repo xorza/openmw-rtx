@@ -15,7 +15,6 @@
 #include <osg/NodeVisitor>
 #include <osg/Sequence>
 #include <osg/StateSet>
-#include <osg/Vec3d>
 #include <osg/ref_ptr>
 #include <osgParticle/Particle>
 #include <osgParticle/ParticleProcessor>
@@ -36,6 +35,7 @@
 #include <components/sceneutil/skeleton.hpp>
 #include <components/sceneutil/stableidentity.hpp>
 
+#include "billboardfacing.hpp"
 #include "lightbuilder.hpp"
 #include "meshreader.hpp"
 #include "mirroridentity.hpp"
@@ -531,21 +531,11 @@ namespace Rtx
     {
         const osg::Matrix above = mHere;
 
-        // **A billboard is turned here, toward the eye this walk was told**, because the node turns only under a cull
-        // visitor and this walk is none: `computeMatrix` would keep whatever rotation a cull last left, which here is
-        // the one the file was authored with. The three vectors go in the node's own frame, as a cull stack hands them.
-        // A walk told no eye leaves the billboard where it stands, and so does a frame with no inverse (a scale of
-        // nought above it).
-        osg::Matrixd toLocal;
-        if (auto* billboard = as<NifOsg::AutoTransform>(kind, NodeKind::Billboard, node); billboard != nullptr
-            && mEye.has_value() && toLocal.invert(osg::Matrixd(above) * osg::Matrixd(mRoot)) && toLocal.valid())
-        {
-            const osg::Vec3d eyeLocal = osg::Vec3d(mEye->mOrigin) * toLocal;
-            const osg::Vec3d lookLocal = osg::Matrixd::transform3x3(osg::Vec3d(mEye->mForward), toLocal);
-            const osg::Vec3d upLocal = osg::Matrixd::transform3x3(osg::Vec3d(mEye->mUp), toLocal);
-
-            mHere.preMult(billboard->computeMatrixForFrame(eyeLocal, lookLocal, upLocal));
-        }
+        // **A billboard is turned here, toward the eye this walk was told** (`facingEye`), because the node turns only
+        // under a cull visitor and this walk is none: `computeMatrix` would keep whatever rotation a cull last left,
+        // which here is the one the file was authored with.
+        if (const auto* billboard = as<NifOsg::AutoTransform>(kind, NodeKind::Billboard, node); billboard != nullptr)
+            mHere.preMult(facingEye(*billboard, osg::Matrixd(above) * osg::Matrixd(mRoot), mEye));
         else
             node.computeLocalToWorldMatrix(mHere, this);
 
@@ -719,7 +709,7 @@ namespace Rtx
         // everything else — the same epoch, the same stats, the same sweep — and a second `begin`
         // would date it apart from the rest.
         if (ring != nullptr)
-            ring->collect(frame);
+            ring->collect(frame, mEye);
 
         if (freezes)
             mFrozen.thawUnmet(mWorldWalk, frozenHolders());
@@ -989,7 +979,7 @@ namespace Rtx
         if (jumped)
             mScene.placements().jump(slot, place);
         else
-            mScene.placements().move(slot, place);
+            mScene.placements().move(slot, place, Stander::Walk);
         mScene.placements().fade(slot, fade);
         return changes;
     }

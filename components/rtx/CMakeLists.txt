@@ -329,6 +329,7 @@ openmw_rtx_layer(
     mirror
     openmw-rtx-renderer
     SOURCES
+        mirror/billboardfacing.cpp
         mirror/cells/cellgrid.cpp
         mirror/cells/cellplacer.cpp
         mirror/cells/cellreader.cpp
@@ -359,6 +360,7 @@ openmw_rtx_layer(
         mirror/statereading.cpp
         mirror/surfacedescription.cpp
     HEADERS
+        mirror/billboardfacing.hpp
         mirror/cells/cellgrid.hpp
         mirror/cells/cellplacer.hpp
         mirror/cells/cellreader.hpp
