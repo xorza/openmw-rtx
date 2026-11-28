@@ -1,7 +1,8 @@
 import unittest
+from collections.abc import Iterator
 from pathlib import Path
 
-from omw.testing import RUNS_ALONE, ctest_arguments, durations, least_alone, suite_seconds
+from omw.testing import RUNS, ctest_arguments, durations, least_of_runs, suite_seconds
 
 ROOT = Path("/checkout")
 FORK = frozenset({"apps/components_tests/rtx/environment/fogbuilder.cpp",
@@ -13,29 +14,38 @@ def case(name: str, time: str, file: str) -> dict:
     return {"name": name, "time": time, "file": str(ROOT / file)}
 
 
-class LeastAloneTest(unittest.TestCase):
-    def runs(self, seconds: list[float]) -> tuple[float, int]:
-        taken = iter(seconds)
+class LeastOfRunsTest(unittest.TestCase):
+    def runs(self, seconds: list[dict[str, float]]) -> tuple[dict[str, float], int]:
         asked = 0
 
-        def run() -> float:
+        def run() -> Iterator[dict[str, float]]:
             nonlocal asked
-            asked += 1
-            return next(taken)
+            for one in seconds:
+                asked += 1
+                yield one
 
-        least = least_alone(run, limit=2.0)
+        least = least_of_runs(run(), limit=2.0)
         return least, asked
 
     def test_the_least_of_up_to_three_runs_and_no_more_once_one_is_inside_the_limit(self):
-        self.assertEqual(RUNS_ALONE, 3)
+        self.assertEqual(RUNS, 3)
         # Inside at once: one run.
-        self.assertEqual(self.runs([1.4]), (1.4, 1))
+        self.assertEqual(self.runs([{"a": 1.4}]), ({"a": 1.4}, 1))
         # On the limit passes, as `timing` compares with `>`: one run.
-        self.assertEqual(self.runs([2.0]), (2.0, 1))
+        self.assertEqual(self.runs([{"a": 2.0}]), ({"a": 2.0}, 1))
         # A burst, then a quiet run: two runs, the quiet one counted.
-        self.assertEqual(self.runs([2.3, 1.7]), (1.7, 2))
+        self.assertEqual(self.runs([{"a": 2.3}, {"a": 1.7}]), ({"a": 1.7}, 2))
         # Over every time: three runs, the least of them, and never a fourth.
-        self.assertEqual(self.runs([2.3, 2.2, 2.4, 1.0]), (2.2, 3))
+        self.assertEqual(self.runs([{"a": 2.3}, {"a": 2.2}, {"a": 2.4}, {"a": 1.0}]), ({"a": 2.2}, 3))
+
+    def test_each_name_keeps_its_own_least_and_one_over_runs_them_all_again(self):
+        # `b` alone is over at first, so all run again; `a`, inside already, keeps its least, 1.0 of 1.0 and 1.5,
+        # and `b` comes inside on the second run, 1.9 against 4.0: no third.
+        self.assertEqual(self.runs([{"a": 1.0, "b": 4.0}, {"a": 1.5, "b": 1.9}, {"a": 0.1, "b": 0.1}]),
+                         ({"a": 1.0, "b": 1.9}, 2))
+        # The least of each over three, from different runs: `a` 1.2 from the second, `b` 2.5 from the third.
+        self.assertEqual(self.runs([{"a": 3.0, "b": 2.6}, {"a": 1.2, "b": 2.9}, {"a": 2.1, "b": 2.5}]),
+                         ({"a": 1.2, "b": 2.5}, 3))
 
 
 class DurationsTest(unittest.TestCase):

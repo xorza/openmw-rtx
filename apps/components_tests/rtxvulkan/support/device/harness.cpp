@@ -84,14 +84,10 @@ namespace Rtx::Testing
 
     ValidationOptions describeValidation(Validation validation)
     {
-        // **Synchronization validation wherever the layers are, because a missing barrier is what this suite is
-        // worst at seeing.** Every test here submits and waits, so the ordering a frame relies on is supplied by
-        // the harness rather than by the code under test, and a hazard shows as nothing at all. It costs as much as
-        // the core checks it runs beside (`getUnvalidatedRenderer` has the numbers). One answer for a device and a
-        // renderer: a suite validated one way through the renderer and another beside it answers a different
-        // question in each file.
+        // One answer for a device and a renderer: a suite validated one way through the renderer and another beside
+        // it answers a different question in each file.
         return ValidationOptions{
-            .mLevel = validation == Validation::Validated ? ValidationLevel::Sync : ValidationLevel::Off,
+            .mLevel = validation == Validation::Validated ? ValidationLevel::On : ValidationLevel::Off,
             .mShaders = ShaderValidation::Skipped,
             .mAbortOnError = false,
         };

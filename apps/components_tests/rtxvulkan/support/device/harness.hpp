@@ -66,9 +66,16 @@ namespace Rtx::Testing
         Unvalidated,
     };
 
-    /// How every instance of this binary validates: the layers' core and synchronization checks where `validation`
-    /// loads them, no stop at an error, since a test provokes errors and asserts on them, and **none of the layers'
-    /// shader checks**.
+    /// How every instance of this binary validates: the layers' core checks where `validation` loads them, no stop at
+    /// an error, since a test provokes errors and asserts on them, and **none of the layers' synchronization or shader
+    /// checks**.
+    ///
+    /// **The synchronization checks are `check`'s**, which runs them over every pass of a frame at each of its places,
+    /// frames in flight and cells arriving under them, where every test here submits and waits, so the harness
+    /// supplies an order the frame path never relies on. Here they were 5.2 of the pixel suite's 12.4 s on a
+    /// high-end NVIDIA laptop GPU, where the core checks took 3.4 and the suite 3.8 s without the layers, and 6.3 of
+    /// the binary's 72.6 s alone on a low-end AMD integrated GPU
+    /// (`docs/research/2026-11-28-gpu-tests-validation-cost.md`).
     ///
     /// **The shader checks are `check`'s**, which makes every kernel of these shaders under them in every gate. Here
     /// they were 4.6 s of a process's 7.3 s start and 74 of the 103 CPU seconds a shard of two spent, which is what

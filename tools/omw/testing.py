@@ -2,8 +2,8 @@
 
 import json
 import shutil
-from collections.abc import Callable
-from functools import partial
+from collections.abc import Iterable
+from itertools import chain
 from pathlib import Path
 
 from omw.build import Build, properties_of
@@ -50,13 +50,15 @@ def _one(build: Build, binary: str, args: list[str]) -> int:
 LIMIT_SECONDS = 2.0
 
 # Thirty seconds a suite, one CTest test: a GoogleTest binary, or one shard of the GPU binary, which `cmake/Tests.cmake`
-# cuts so that no shard runs past it; the largest shard ran 22 s.
+# cuts so that no shard runs past it. The slowest shard ran 12.5 s on a high-end NVIDIA laptop GPU and 27.5 s at its
+# fastest of three runs on a low-end AMD integrated GPU (`docs/research/2026-11-28-gpu-tests-validation-cost.md`).
 SUITE_LIMIT_SECONDS = 30.0
 
-# **The least of up to three runs alone**: what else the desk runs only ever slows a run, so the least of them is
-# what a test costs (Chen, Revels and Edelman, "Robust benchmarking in noisy environments", 2016). On a low-end AMD
-# integrated GPU one test took 1.67 to 2.12 s alone from one run to the next.
-RUNS_ALONE = 3
+# **The least of up to three runs**: what else the desk runs only ever slows a run, so the least of them is what a test
+# or a suite costs (Chen, Revels and Edelman, "Robust benchmarking in noisy environments", 2016). On a low-end AMD
+# integrated GPU one test took 1.67 to 2.12 s alone from one run to the next, and the first test run after a shader
+# change, which compiles every pipeline, ran its suites at 42 to 84 s against 23 to 32 s in the run after it.
+RUNS = 3
 
 
 def _alone_once(build: Build, binary: Path, case: str, report: Path, fork: frozenset[str]) -> float:
@@ -66,13 +68,16 @@ def _alone_once(build: Build, binary: Path, case: str, report: Path, fork: froze
     return durations(json.loads(read_text(report)), fork)[case]
 
 
-def least_alone(run: Callable[[], float], limit: float = LIMIT_SECONDS) -> float:
-    """The least of up to `RUNS_ALONE` of `run`'s seconds, stopping at the first inside `limit`, which passes."""
-    least = run()
-    for _ in range(RUNS_ALONE - 1):
-        if least <= limit:
+def least_of_runs(runs: Iterable[dict[str, float]], limit: float) -> dict[str, float]:
+    """Each name's least seconds over up to `RUNS` of `runs`, taken one at a time, stopping once every name's least
+    is inside `limit`, which passes. Every run times the names the first one did."""
+    taken = iter(runs)
+    least = next(taken)
+    for _ in range(RUNS - 1):
+        if all(seconds <= limit for seconds in least.values()):
             break
-        least = min(least, run())
+        again = next(taken)
+        least = {name: min(seconds, again[name]) for name, seconds in least.items()}
     return least
 
 
@@ -95,25 +100,45 @@ def durations(report: dict, fork: frozenset[str], root: Path = ROOT) -> dict[str
             and Path(case["file"]).relative_to(root).as_posix() in fork}
 
 
+def _suites_of_last_run(build: Build) -> dict[str, float]:
+    """Each suite's seconds, by its CTest name, from the reports the last `test` run wrote."""
+    return {path.stem: suite_seconds(json.loads(read_text(path)))
+            for path in sorted(times_folder(build).glob("*.json"))}
+
+
+def _suites_run_again(build: Build) -> dict[str, float]:
+    """Each suite's seconds from the tests run again as `test` runs them, side by side: a suite run alone would have
+    the processors and the device to itself, which no run of the default command gives it."""
+    print(f"timing: a suite ran past {SUITE_LIMIT_SECONDS:g} s, so the tests run again and each suite counts its "
+          "least run")
+    if test(build, []) != 0:
+        raise Refusal("a test failed in a run made to time the suites, after the same tests passed")
+    return _suites_of_last_run(build)
+
+
 def timing(build: Build) -> int:
     """**No test of the fork's takes longer than `LIMIT_SECONDS`, measured alone, and no suite longer than
-    `SUITE_LIMIT_SECONDS`**: the last `test` run's reports name the candidates, which ran beside the others, and each
-    test runs again by itself, warm (`least_alone`)."""
-    targets = {test["name"]: target for test in build.tests()
-               if (target := properties_of(test).get("OPENMW_TARGET")) is not None}
+    `SUITE_LIMIT_SECONDS`**, each by its least run (`least_of_runs`): a suite past its bound in the last `test` run
+    runs again with the others, and the last run's reports name the tests to run again by themselves."""
+    suites = least_of_runs(chain([_suites_of_last_run(build)], (_suites_run_again(build) for _ in range(RUNS - 1))),
+                           SUITE_LIMIT_SECONDS)
+    slow = 0
+    for name, suite in suites.items():
+        if suite > SUITE_LIMIT_SECONDS:
+            print(f"timing: the suite {name} took {suite:.1f} s at its least, past {SUITE_LIMIT_SECONDS:g} s")
+            slow += 1
+
+    targets = {entry["name"]: target for entry in build.tests()
+               if (target := properties_of(entry).get("OPENMW_TARGET")) is not None}
     alone = build.folder("RTX_TEST_OUTPUT_DIR") / "alone.json"
     fork = fork_files()
-    slow = 0
     for path in sorted(times_folder(build).glob("*.json")):
-        report = json.loads(read_text(path))
-        suite = suite_seconds(report)
-        if suite > SUITE_LIMIT_SECONDS:
-            print(f"timing: the suite {path.stem} took {suite:.1f} s, past {SUITE_LIMIT_SECONDS:g} s")
-            slow += 1
-        for name, shared in durations(report, fork).items():
+        binary = build.binary(targets[path.stem])
+        for name, shared in durations(json.loads(read_text(path)), fork).items():
             if shared <= LIMIT_SECONDS:
                 continue
-            seconds = least_alone(partial(_alone_once, build, build.binary(targets[path.stem]), name, alone, fork))
+            seconds = least_of_runs(({name: _alone_once(build, binary, name, alone, fork)} for _ in range(RUNS)),
+                                    LIMIT_SECONDS)[name]
             print(f"timing: {name} took {shared:.2f} s beside the other suites and {seconds:.2f} s alone")
             if seconds > LIMIT_SECONDS:
                 slow += 1

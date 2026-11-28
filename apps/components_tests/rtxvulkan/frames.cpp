@@ -132,8 +132,8 @@ namespace Rtx
         ///
         /// **What `extendScene` not waiting rests on, driven rather than assumed.** An arrival grows every table a
         /// frame in flight may be reading, and the renderer does not drain the ring first, so what arrives is written
-        /// behind the frame's reads. The suite runs under the layers' synchronization validation, so a hazard between
-        /// that and the frame's trace is reported.
+        /// behind the frame's reads. What each frame reads is asserted here; a hazard between the arrival and the
+        /// frame's trace is `check`'s to report, whose synchronization validation runs under every crossing.
         ///
         /// **A hundred rigged meshes and not one, because the count is what makes a table move.** A block is only
         /// appended to, but a bind table, a rig's runs and the instance rows are remade by `growTo`, which doubles: a

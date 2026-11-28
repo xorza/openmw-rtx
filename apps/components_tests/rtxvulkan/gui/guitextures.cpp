@@ -745,8 +745,7 @@ namespace Rtx
             //
             // **Twice, with nothing between.** A picture that fills its texture never clears it, so this is the only
             // path where the copy is the first thing to write it, and the second of the two starts from a texture the
-            // first left where it found it. It asks whether the two are ordered at all, which only the synchronization
-            // layers answer.
+            // first left where it found it, and must leave the picture the first drew.
             camera.mTransparentBackground = 0;
             for (std::int32_t again = 0; again < 2; ++again)
                 mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});

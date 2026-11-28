@@ -32,8 +32,8 @@ namespace Rtx
         /// first's memory, and so discards from its writes.
         ///
         /// **And what the second writes is what it reads**, with the first written over the same memory before it and
-        /// the third untouched: cleared under the layers' checks of the barriers between them, which `Use::sAliased`
-        /// records.
+        /// the third untouched, through the barrier `Use::sAliased` records between them, whose order `check`'s
+        /// synchronization validation holds where a frame's images alias.
         TEST_F(RtxImageArenaDeviceTest, imagesNeverInUseAtOnceShareMemoryAndHandOverThroughABarrier)
         {
             const Device& device = getDevice();
