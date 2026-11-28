@@ -1,6 +1,7 @@
 #include "processhold.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <cstdint>
 
@@ -27,7 +28,7 @@ namespace Platform
             FALSE, static_cast<DWORD>(id));
         // The handle kept as the integer `UniqueHold` holds.
         if (handle != nullptr)
-            mHold = UniqueHold<Closing>(reinterpret_cast<std::intptr_t>(handle));
+            mHeld = UniqueHold<Closing>(reinterpret_cast<std::intptr_t>(handle));
     }
 
     void ProcessHold::Closing::close(const Handle hold) noexcept
@@ -37,7 +38,7 @@ namespace Platform
 
     ProcessEnd ProcessHold::end() const
     {
-        const HANDLE handle = handleOf(mHold.get());
+        const HANDLE handle = handleOf(native());
         if (handle == nullptr)
             return ProcessEnd::Failed;
         if (WaitForSingleObject(handle, 0) == WAIT_OBJECT_0)
@@ -47,7 +48,8 @@ namespace Platform
 
     bool ProcessHold::waitForEnd(std::chrono::milliseconds most) const
     {
-        const HANDLE handle = handleOf(mHold.get());
+        assert(most >= std::chrono::milliseconds::zero());
+        const HANDLE handle = handleOf(native());
         if (handle == nullptr)
             return true;
         // `INFINITE` is the one wait that never ends, so a bound stops short of it.

@@ -255,6 +255,37 @@ namespace Platform::LinuxText
         return bytes;
     }
 
+    std::optional<ProcessStat> processStat(std::string_view stat)
+    {
+        const std::size_t named = stat.rfind(')');
+        if (named == std::string_view::npos)
+            return std::nullopt;
+
+        // The fields past the name, each after one space: the state is the third of the line, so the twentieth is
+        // the eighteenth after it.
+        std::array<std::string_view, 20> fields{};
+        std::string_view rest = stat.substr(named + 1);
+        for (std::string_view& field : fields)
+        {
+            if (!rest.starts_with(' '))
+                return std::nullopt;
+            rest.remove_prefix(1);
+            const std::size_t ends = std::min(rest.find_first_of(" \n"), rest.size());
+            field = rest.substr(0, ends);
+            rest.remove_prefix(ends);
+        }
+
+        const auto number = [](std::string_view text, auto& into) {
+            const std::from_chars_result read = std::from_chars(text.data(), text.data() + text.size(), into);
+            return !text.empty() && read.ec == std::errc{} && read.ptr == text.data() + text.size();
+        };
+        ProcessStat stated;
+        if (fields[0].size() != 1 || !number(fields[17], stated.mThreads) || !number(fields[19], stated.mStartTicks))
+            return std::nullopt;
+        stated.mState = fields[0][0];
+        return stated;
+    }
+
     std::optional<std::uint16_t> pciId(std::string_view text)
     {
         if (text.ends_with('\n'))

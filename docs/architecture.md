@@ -898,6 +898,10 @@ machine that cannot run the backend throws `Rtx::Unsupported`, naming what is mi
   driver's to chain.
 - **Every wait between the game and its monitor ends when the other side is gone**, as Crashpad's `SignalCrashDump`
   does, with a last-resort bound for a side that runs and never answers. Refused: a timeout a slow side passes.
+- **The monitor holds the game by what no other process is handed** (`Platform::ProcessHold`): a pidfd, a handle on
+  Windows, and on a Linux below 5.3, the release's AlmaLinux 8 floor, the id and the start time, as procps and polkit
+  tell a process from the next to take its id. Refused: a hold of nothing answering that the game ended, which ended
+  the hang watch a minute into every session there; no catcher below 5.3, which leaves that floor's players no report.
 - **A file is read whole and written whole** (`Platform::readWhole`, `writeWhole`), as Rust's `std::fs` and Go's
   `os.ReadFile`: a temporary renamed over the target, as LLVM's `writeToOutput` and Chromium's `ImportantFileWriter`,
   synced for what a person keeps; a cache's entries keep their own digest.

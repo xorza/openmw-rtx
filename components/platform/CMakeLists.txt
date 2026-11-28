@@ -104,6 +104,10 @@ elseif(LINUX)
             sharedmemoryposix.cpp
             threadlinux.cpp
             userhomeposix.cpp
+        PUBLIC
+            FILE_SET HEADERS
+                FILES
+                    processholdlinux.hpp
     )
 else()
     message(

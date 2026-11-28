@@ -84,6 +84,27 @@ namespace Platform::LinuxText
     /// region it does not name is nought, and a size or an id that is not a number is nothing.
     std::optional<DriverClient> driverClient(std::string_view fdinfo);
 
+    /// What a process's `/proc/<pid>/stat` states of whether it stands and which process it is.
+    struct ProcessStat
+    {
+        /// Its state's letter: `Z` a zombie, `X` dead, any other a process that runs or waits.
+        char mState = 0;
+
+        /// Its threads, the first one included while it stands as a zombie (`num_threads`).
+        std::uint32_t mThreads = 0;
+
+        /// When it started, in clock ticks after the boot (`starttime`): what tells it from a process that takes its
+        /// id after it ends.
+        std::uint64_t mStartTicks = 0;
+
+        bool operator==(const ProcessStat& other) const = default;
+    };
+
+    /// A process as its `stat` states it, read past its name, which may hold any character and ends at the last
+    /// parenthesis: the state, the twentieth field and the twenty-second (`proc_pid_stat(5)`). Nothing where the text
+    /// names no name, or stops before the start time, or a field read is not a number.
+    std::optional<ProcessStat> processStat(std::string_view stat);
+
     /// The PCI id a device's sysfs file states, `vendor` or `device`: four hexadecimal digits after
     /// `0x` and a line break, as the kernel writes them, or nothing where the text is not one.
     std::optional<std::uint16_t> pciId(std::string_view text);

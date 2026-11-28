@@ -174,6 +174,27 @@ namespace
         EXPECT_EQ(Platform::LinuxText::cgroupRoom(1500, 1000, 4000), 1500u);
     }
 
+    /// **A process's stat is read past the last parenthesis**, so a name that holds one, a space and a state's letter
+    /// is still a name: the state, the twentieth field (`num_threads`) and the twenty-second (`starttime`), as
+    /// `proc_pid_stat(5)` numbers them from one. Anything else is not one: no name, a text that stops before the start
+    /// time, a state of two letters, a count that is not a number.
+    TEST(RtxPlatformLinuxTextTest, aProcessStatIsItsStateThreadsAndStartPastItsName)
+    {
+        constexpr std::string_view running
+            = "4242 (a) S 9) R 1 4242 4242 0 -1 4194560 100 0 0 0 5 3 0 0 20 0 7 0 123456 1000 50 0 0\n";
+        EXPECT_EQ(Platform::LinuxText::processStat(running),
+            (Platform::LinuxText::ProcessStat{ .mState = 'R', .mThreads = 7, .mStartTicks = 123456 }));
+        EXPECT_EQ(Platform::LinuxText::processStat("7 (zombie) Z 1 7 7 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 99"),
+            (Platform::LinuxText::ProcessStat{ .mState = 'Z', .mThreads = 1, .mStartTicks = 99 }));
+
+        for (const std::string_view text : { "", "4242 a R 1 4242 4242 0 -1 4194560 100 0 0 0 5 3 0 0 20 0 7 0 123456",
+                 "4242 (a) R 1 4242 4242 0 -1 4194560 100 0 0 0 5 3 0 0 20 0 7 0",
+                 "4242 (a) RS 1 4242 4242 0 -1 4194560 100 0 0 0 5 3 0 0 20 0 7 0 123456",
+                 "4242 (a) R 1 4242 4242 0 -1 4194560 100 0 0 0 5 3 0 0 20 0 x 0 123456",
+                 "4242 (a) R 1 4242 4242 0 -1 4194560 100 0 0 0 5 3 0 0 20 0 7 0 -1" })
+            EXPECT_EQ(Platform::LinuxText::processStat(text), std::nullopt) << '"' << text << '"';
+    }
+
     /// **A PCI id is `0x` and four hexadecimal digits, with the line break sysfs writes**: NVIDIA's
     /// `0x10de` is 4318, upper case as well, and anything else is not one: no prefix, three or five
     /// digits, a sign, a word, an empty file.
